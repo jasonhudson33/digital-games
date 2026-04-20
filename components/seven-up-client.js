@@ -493,6 +493,18 @@ export default function SevenUpClient() {
 
           <section className="panel room-panel">
             <h2>Room Play</h2>
+            {!room.roomCode ? (
+              <div className="room-create-panel">
+                <p className="preview-title">Start a new room</p>
+                <p className="hand-help">
+                  Use the player setup on the left, then create a room to get a share link for everyone else.
+                </p>
+                <button className="primary-button" type="button" onClick={createRoom}>
+                  Create room
+                </button>
+              </div>
+            ) : null}
+
             {!room.token ? (
               <form className="setup-form" onSubmit={loadRoom}>
                 <label htmlFor="join-room-code">Room code</label>
