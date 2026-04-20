@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const games = [
   { name: "All Games", href: "/" },
@@ -11,6 +12,11 @@ const games = [
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   if (pathname?.startsWith("/mafia")) {
     return null;
@@ -22,7 +28,23 @@ export default function SiteHeader() {
         <Link href="/" className="site-brand">
           Digital Games
         </Link>
-        <nav className="site-nav" aria-label="Game navigation">
+        <button
+          type="button"
+          className="site-menu-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="site-nav"
+          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <nav
+          id="site-nav"
+          className={`site-nav ${menuOpen ? "open" : ""}`}
+          aria-label="Game navigation"
+        >
           {games.map((game) => (
             <Link key={game.href} href={game.href} className="site-nav-link">
               {game.name}
