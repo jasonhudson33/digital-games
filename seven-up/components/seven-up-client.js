@@ -106,11 +106,23 @@ export default function SevenUpClient() {
     const roomCode = params.get("room");
     const token = params.get("token");
     if (roomCode && token) {
+      persistRoomToken(roomCode, token);
       setMode("room");
       setRoom((previous) => ({
         ...previous,
         roomCode: roomCode.toUpperCase(),
         token,
+      }));
+      updateUrl(roomCode, "");
+      return;
+    }
+    if (roomCode) {
+      const storedToken = readRoomToken(roomCode);
+      setMode("room");
+      setRoom((previous) => ({
+        ...previous,
+        roomCode: roomCode.toUpperCase(),
+        token: storedToken,
       }));
     }
   }
@@ -177,8 +189,9 @@ export default function SevenUpClient() {
         state: null,
         joinPreview: null,
       };
+      persistRoomToken(nextRoom.roomCode, nextRoom.token);
       setRoom(nextRoom);
-      updateUrl(nextRoom.roomCode, nextRoom.token);
+      updateUrl(nextRoom.roomCode, "");
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -217,8 +230,9 @@ export default function SevenUpClient() {
         seatId: payload.viewerSeatId,
         joinPreview: null,
       };
+      persistRoomToken(nextRoom.roomCode, nextRoom.token);
       setRoom(nextRoom);
-      updateUrl(nextRoom.roomCode, nextRoom.token);
+      updateUrl(nextRoom.roomCode, "");
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -344,6 +358,7 @@ export default function SevenUpClient() {
 
   function leaveRoom() {
     stopPolling();
+    clearRoomToken(room.roomCode);
     setRoom(initialRoom);
     updateUrl("", "");
   }
@@ -351,6 +366,7 @@ export default function SevenUpClient() {
   function resetAll() {
     clearError();
     stopPolling();
+    clearRoomToken(room.roomCode);
     setLocalGame(null);
     setOverlayState({ visible: false, playerName: "", message: "" });
     setRoom(initialRoom);
@@ -377,7 +393,7 @@ export default function SevenUpClient() {
   const roomPreview = room.state || room.joinPreview;
   const roomUrl =
     room.roomCode && typeof window !== "undefined"
-      ? `${window.location.origin}?room=${room.roomCode}${room.token ? `&token=${encodeURIComponent(room.token)}` : ""}`
+      ? `${window.location.origin}?room=${room.roomCode}`
       : "-";
 
   return (
@@ -535,6 +551,10 @@ export default function SevenUpClient() {
                 <div className="room-meta">
                   <span className="meta-label">Share link</span>
                   <div className="room-link">{roomUrl}</div>
+                </div>
+                <div className="room-meta">
+                  <span className="meta-label">Seat privacy</span>
+                  <div>This device keeps its seat privately. Share the room link, not your private seat token.</div>
                 </div>
                 <div className="turn-actions">
                   <button
@@ -976,14 +996,40 @@ function updateUrl(roomCode, token) {
   const url = new URL(window.location.href);
   if (!roomCode) {
     url.searchParams.delete("room");
-    url.searchParams.delete("token");
   } else {
     url.searchParams.set("room", roomCode);
-    if (token) {
-      url.searchParams.set("token", token);
-    }
+  }
+  if (token) {
+    url.searchParams.set("token", token);
+  } else {
+    url.searchParams.delete("token");
   }
   window.history.replaceState({}, "", url);
+}
+
+function roomTokenKey(roomCode) {
+  return `seven-up-room-token:${roomCode.toUpperCase()}`;
+}
+
+function persistRoomToken(roomCode, token) {
+  if (typeof window === "undefined" || !roomCode || !token) {
+    return;
+  }
+  window.sessionStorage.setItem(roomTokenKey(roomCode), token);
+}
+
+function readRoomToken(roomCode) {
+  if (typeof window === "undefined" || !roomCode) {
+    return "";
+  }
+  return window.sessionStorage.getItem(roomTokenKey(roomCode)) || "";
+}
+
+function clearRoomToken(roomCode) {
+  if (typeof window === "undefined" || !roomCode) {
+    return;
+  }
+  window.sessionStorage.removeItem(roomTokenKey(roomCode));
 }
 
 async function fetchJson(url) {
