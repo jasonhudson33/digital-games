@@ -1,0 +1,5 @@
+{
+  "name": "Mafia Card Game",
+  "description": "A digital companion for the Mafia party game. Assign roles like Killer (King), Detective (Jack), and Angel (Ace), manage night phases with consensus logic, and conduct daytime trials to find the killers.",
+  "requestFramePermissions": []
+}

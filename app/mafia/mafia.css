@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Crimson Pro", Georgia, serif;
+}
+
+@layer base {
+  .mafia-route {
+    min-height: 100vh;
+    padding: 32px 16px;
+    background:
+      radial-gradient(circle at top, rgba(79, 70, 229, 0.12), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(220, 38, 38, 0.12), transparent 24%),
+      linear-gradient(180deg, #020617 0%, #0f172a 45%, #111827 100%);
+    color: #f8fafc;
+    font-family: var(--font-sans);
+  }
+
+  .mafia-route *,
+  .mafia-route *::before,
+  .mafia-route *::after {
+    box-sizing: border-box;
+  }
+
+  .mafia-route playing-card {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mafia-route input:-webkit-autofill,
+  .mafia-route input:-webkit-autofill:hover,
+  .mafia-route input:-webkit-autofill:focus,
+  .mafia-route textarea:-webkit-autofill,
+  .mafia-route select:-webkit-autofill {
+    -webkit-text-fill-color: #111827;
+    caret-color: #111827;
+    box-shadow: 0 0 0 1000px #ffffff inset;
+    transition: background-color 9999s ease-out 0s;
+  }
+}
+
+@media (max-width: 640px) {
+  .mafia-route {
+    padding: 20px 12px;
+  }
+}

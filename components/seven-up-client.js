@@ -184,10 +184,19 @@ export default function SevenUpClient() {
 
   function startLocalGame() {
     const game = createLocalGame(playerConfigs, dealerIndex);
-    game.log.unshift(`${game.players[game.currentPlayerIndex].name} goes first because play starts to the dealer's left.`);
-    setOverlayState({ visible: false, playerName: "", message: "" });
+    const firstPlayer = game.players[game.currentPlayerIndex];
+    game.log.unshift(`${firstPlayer.name} goes first because play starts to the dealer's left.`);
     setLocalGame(game);
-    showOverlayIfNeeded(game, `${game.players[game.currentPlayerIndex].name} goes first.`);
+    if (firstPlayer.playerType === "computer") {
+      setOverlayState({
+        visible: true,
+        playerName: firstPlayer.name,
+        message: "Cards are dealt. Review the table, then continue to let play begin.",
+      });
+      return;
+    }
+    setOverlayState({ visible: false, playerName: "", message: "" });
+    showOverlayIfNeeded(game, `${firstPlayer.name} goes first.`);
   }
 
   async function createRoom() {
@@ -390,6 +399,15 @@ export default function SevenUpClient() {
     handleRoomPass();
   }
 
+  function handleDealAgain() {
+    clearError();
+    if (mode === "local") {
+      startLocalGame();
+      return;
+    }
+    startRoom();
+  }
+
   function leaveRoom() {
     stopPolling();
     clearRoomToken(room.roomCode);
@@ -436,6 +454,17 @@ export default function SevenUpClient() {
     room.roomCode && typeof window !== "undefined"
       ? `${window.location.origin}?room=${room.roomCode}`
       : "-";
+  const playerRail = getPlayerRail({ mode, localGame, roomState: room.state });
+  const winnerName =
+    mode === "local"
+      ? localGame?.winnerIndex !== null && localGame?.winnerIndex !== undefined
+        ? localGame.players[localGame.winnerIndex]?.name || ""
+        : ""
+      : room.state?.game?.winnerSeatId
+        ? room.state.players.find((player) => player.seatId === room.state.game.winnerSeatId)?.displayName || ""
+        : "";
+  const showWinnerOverlay = Boolean(winnerName);
+  const canDealAgain = mode === "local" || Boolean(room.state?.hostControls);
 
   return (
     <>
@@ -671,6 +700,31 @@ export default function SevenUpClient() {
                 <div>{renderContext?.handSummary || "-"}</div>
               </div>
             </div>
+            {playerRail.length > 0 ? (
+              <div className="player-rail" aria-label="Play order">
+                {playerRail.map((player) => (
+                  <div
+                    key={player.id}
+                    className={`player-seat ${player.isCurrent ? "current" : ""} ${player.isWinner ? "winner" : ""}`}
+                  >
+                    <div className="player-seat-name">
+                      {player.name}
+                      {player.isViewer ? " (You)" : ""}
+                    </div>
+                    <div className="player-seat-meta">
+                      {player.isDealer ? "Dealer" : player.orderLabel}
+                    </div>
+                    <div className="player-seat-cards" aria-hidden="true">
+                      {Array.from({ length: Math.min(player.handCount, 5) }, (_, index) => (
+                        <div className="card-back" key={`${player.id}-back-${index}`} style={{ zIndex: index + 1 }} />
+                      ))}
+                      {player.handCount === 0 ? <div className="card-back empty" /> : null}
+                    </div>
+                    <div className="player-seat-count">{player.handCount} left</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <button
               className={`primary-button ${overlayState.visible ? "" : "hidden"}`}
               type="button"
@@ -814,6 +868,30 @@ export default function SevenUpClient() {
           </div>
         </div>
       ) : null}
+
+      {showWinnerOverlay ? (
+        <div className="handoff-overlay">
+          <div className="handoff-card">
+            <p className="eyebrow">Game over</p>
+            <h2>{winnerName} wins</h2>
+            <p>
+              {canDealAgain
+                ? "The game is finished. Deal again to replay with the same table."
+                : "The game is finished. Waiting for the host to deal again or start a new game."}
+            </p>
+            <div className="turn-actions">
+              {canDealAgain ? (
+                <button className="primary-button" type="button" onClick={handleDealAgain}>
+                  Deal again
+                </button>
+              ) : null}
+              <button className="secondary-button" type="button" onClick={resetAll}>
+                New game
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -849,7 +927,7 @@ function createLocalGame(players, dealerIndex) {
     passedLastTurn: false,
   }));
   deck.forEach((card, index) => {
-    playerStates[index % playerStates.length].hand.push(card);
+    playerStates[(dealerIndex + 1 + index) % playerStates.length].hand.push(card);
   });
   playerStates.forEach((player) => player.hand.sort(compareCards));
   return {
@@ -1091,6 +1169,41 @@ function rankCode(rank) {
   if (rank === 12) return "Q";
   if (rank === 13) return "K";
   return String(rank);
+}
+
+function getPlayerRail({ mode, localGame, roomState }) {
+  if (mode === "local" && localGame) {
+    return orderedPlayers(localGame.players, localGame.dealerIndex).map((player, index) => ({
+      id: `${player.name}-${index}`,
+      name: player.name,
+      handCount: player.hand.length,
+      isCurrent: localGame.currentPlayerIndex === localGame.players.indexOf(player) && localGame.winnerIndex === null,
+      isWinner: localGame.winnerIndex !== null && localGame.players[localGame.winnerIndex] === player,
+      isDealer: localGame.players[localGame.dealerIndex] === player,
+      isViewer: false,
+      orderLabel: `Turn ${index + 1}`,
+    }));
+  }
+
+  if (mode === "room" && roomState?.players) {
+    const ordered = orderedPlayers(roomState.players, roomState.dealerIndex);
+    return ordered.map((player, index) => ({
+      id: player.seatId,
+      name: player.displayName,
+      handCount: player.handCount,
+      isCurrent: roomState.game?.currentSeatId === player.seatId && !roomState.game?.winnerSeatId,
+      isWinner: roomState.game?.winnerSeatId === player.seatId,
+      isDealer: roomState.players[roomState.dealerIndex]?.seatId === player.seatId,
+      isViewer: player.isViewer,
+      orderLabel: `Turn ${index + 1}`,
+    }));
+  }
+
+  return [];
+}
+
+function orderedPlayers(players, dealerIndex) {
+  return players.map((_, index) => players[(dealerIndex + 1 + index) % players.length]);
 }
 
 function buildStackStyle(count) {

@@ -1,15 +1,17 @@
 import Script from "next/script";
+import SiteHeader from "../components/site-header";
 import "./globals.css";
 
 export const metadata = {
-  title: "7-up",
-  description: "Play 7-up with local players, computer players, or shared online rooms.",
+  title: "Digital Games",
+  description: "Launch party games from one shared landing page.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <SiteHeader />
         {children}
         <Script src="/vendor.cardmeister.full.js" strategy="afterInteractive" />
       </body>
