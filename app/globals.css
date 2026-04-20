@@ -551,6 +551,12 @@ input {
   overflow: hidden;
 }
 
+.suit-cards.condensed {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  gap: 10px;
+}
+
 .card-button {
   cursor: pointer;
   padding: 6px;
@@ -584,6 +590,14 @@ input {
 
 .table-stack-high {
   padding-left: 8px;
+}
+
+.table-edge-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 92px;
+  width: 100%;
 }
 
 .table-card-wrap {
@@ -747,9 +761,14 @@ input {
   }
 
   .meta-grid,
-  .tableau,
   .player-row {
     grid-template-columns: 1fr;
+  }
+
+  .tableau {
+    grid-template-columns: repeat(2, max-content);
+    justify-content: center;
+    gap: 10px;
   }
 
   .player-rail {
@@ -758,8 +777,32 @@ input {
 
   .suit-cards {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 4px;
     justify-items: center;
+  }
+
+  .suit-lane {
+    width: fit-content;
+    min-width: 0;
+    margin-inline: auto;
+    padding: 10px 2px;
+  }
+
+  .suit-lane.compact-suit-lane {
+    width: fit-content;
+    min-width: 0;
+    margin-inline: auto;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .suit-lane.compact-suit-lane h3 {
+    text-align: center;
+  }
+
+  .suit-lane.compact-suit-lane .suit-cards {
+    width: fit-content;
+    margin-inline: auto;
   }
 
   .table-stack-low,

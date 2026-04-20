@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   SUITS,
-  buildSequence,
   capitalize,
   chooseComputerMove,
   compareCards,
@@ -740,54 +739,51 @@ export default function SevenUpClient() {
               {SUITS.map((suit) => {
                 const tableau = getTableau({ mode, localGame, roomState: room.state });
                 const lane = tableau ? tableau[suit] : { low: null, high: null };
-                const sequence = lane.low === null ? [] : buildSequence(suit, lane.low, lane.high);
-                const lowCards = sequence.filter((card) => card.rank < 7).reverse();
-                const highCards = sequence.filter((card) => card.rank > 7);
+                const hasStarted = lane.low !== null;
+                const lowEdgeCard =
+                  hasStarted && lane.low !== null && lane.low < 7
+                    ? { suit, rank: lane.low }
+                    : null;
+                const highEdgeCard =
+                  hasStarted && lane.high !== null && lane.high > 7
+                    ? { suit, rank: lane.high }
+                    : null;
+                const showCenterSeven = !(lowEdgeCard && highEdgeCard);
+                const compactSuitLane =
+                  hasStarted &&
+                  ((!lowEdgeCard && !highEdgeCard) || (lowEdgeCard && highEdgeCard));
                 return (
-                  <section className="suit-lane" key={suit}>
+                  <section
+                    className={`suit-lane ${compactSuitLane ? "compact-suit-lane" : ""}`}
+                    key={suit}
+                  >
                     <h3>
                       {capitalize(suit)} {SUIT_SYMBOLS[suit]}
                     </h3>
-                    <div className="suit-cards">
-                      {sequence.length === 0 ? (
+                    <div className={`suit-cards ${showCenterSeven ? "" : "condensed"}`}>
+                      {!hasStarted ? (
                         <div className="empty-lane">Waiting for the 7</div>
                       ) : (
                         <>
-                          <div className="table-stack table-stack-low" style={buildStackStyle(lowCards.length)}>
-                            {lowCards.map((card, index) => (
-                                <div
-                                  className="table-card-wrap"
-                                  key={`${card.suit}-${card.rank}`}
-                                  style={buildCardPositionStyle({
-                                    index,
-                                    count: lowCards.length,
-                                    direction: "low",
-                                  })}
-                                >
-                                  <PlayingCard card={card} className="table-card" />
-                                </div>
-                              ))}
+                          <div className="table-edge-slot">
+                            {lowEdgeCard ? (
+                              <PlayingCard card={lowEdgeCard} className="table-card" />
+                            ) : null}
                           </div>
-                          <div className="table-center-card">
-                            <PlayingCard
-                              card={{ suit, rank: 7 }}
-                              className="table-card table-card-center"
-                            />
-                          </div>
-                          <div className="table-stack table-stack-high" style={buildStackStyle(highCards.length)}>
-                            {highCards.map((card, index) => (
-                                <div
-                                  className="table-card-wrap"
-                                  key={`${card.suit}-${card.rank}`}
-                                  style={buildCardPositionStyle({
-                                    index,
-                                    count: highCards.length,
-                                    direction: "high",
-                                  })}
-                                >
-                                  <PlayingCard card={card} className="table-card" />
-                                </div>
-                              ))}
+                          {showCenterSeven ? (
+                            <div className="table-edge-slot">
+                              <div className="table-center-card">
+                                <PlayingCard
+                                  card={{ suit, rank: 7 }}
+                                  className="table-card table-card-center"
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="table-edge-slot">
+                            {highEdgeCard ? (
+                              <PlayingCard card={highEdgeCard} className="table-card" />
+                            ) : null}
                           </div>
                         </>
                       )}
