@@ -42,6 +42,7 @@ export default function SevenUpClient() {
   const [localGame, setLocalGame] = useState(null);
   const [overlayState, setOverlayState] = useState({ visible: false, playerName: "", message: "" });
   const [room, setRoom] = useState(initialRoom);
+  const [createName, setCreateName] = useState("");
   const [joinRoomCode, setJoinRoomCode] = useState("");
   const [joinName, setJoinName] = useState("");
   const [error, setError] = useState("");
@@ -172,6 +173,7 @@ export default function SevenUpClient() {
   }
 
   async function createRoom() {
+    setMode("room");
     const humanSeats = playerConfigs.filter((player) => player.playerType === "human").length;
     if (humanSeats === 0) {
       setError("A room needs at least one human seat so someone can join and play.");
@@ -181,12 +183,13 @@ export default function SevenUpClient() {
       const payload = await postJson("/api/create-room", {
         dealerIndex,
         players: playerConfigs,
+        name: createName,
       });
       const nextRoom = {
         roomCode: payload.roomCode,
         token: payload.playerToken,
         seatId: payload.viewerSeatId || "",
-        state: null,
+        state: payload.roomState || null,
         joinPreview: null,
       };
       persistRoomToken(nextRoom.roomCode, nextRoom.token);
@@ -228,6 +231,7 @@ export default function SevenUpClient() {
         ...room,
         token: payload.playerToken,
         seatId: payload.viewerSeatId,
+        state: payload.roomState || room.state,
         joinPreview: null,
       };
       persistRoomToken(nextRoom.roomCode, nextRoom.token);
@@ -391,6 +395,10 @@ export default function SevenUpClient() {
   }
 
   const roomPreview = room.state || room.joinPreview;
+  const roomPlayers = room.state?.players || [];
+  const humanPlayers = roomPlayers.filter((player) => player.playerType === "human");
+  const openHumanSeats = humanPlayers.filter((player) => !player.claimed);
+  const roomReadyToDeal = Boolean(room.state && room.state.status === "waiting" && openHumanSeats.length === 0);
   const roomUrl =
     room.roomCode && typeof window !== "undefined"
       ? `${window.location.origin}?room=${room.roomCode}`
@@ -499,6 +507,14 @@ export default function SevenUpClient() {
                 <p className="hand-help">
                   Use the player setup on the left, then create a room to get a share link for everyone else.
                 </p>
+                <label htmlFor="create-name">Your name</label>
+                <input
+                  id="create-name"
+                  maxLength={20}
+                  placeholder="Your name"
+                  value={createName}
+                  onChange={(event) => setCreateName(event.target.value)}
+                />
                 <button className="primary-button" type="button" onClick={createRoom}>
                   Create room
                 </button>
@@ -572,15 +588,22 @@ export default function SevenUpClient() {
                   <button
                     className="primary-button"
                     type="button"
-                    disabled={!room.state || !room.state.hostControls || room.state.status !== "waiting"}
+                    disabled={!room.state || !room.state.hostControls || !roomReadyToDeal}
                     onClick={startRoom}
                   >
-                    Start room
+                    Deal cards
                   </button>
                   <button className="secondary-button" type="button" onClick={leaveRoom}>
                     Leave room
                   </button>
                 </div>
+                {room.state?.status === "waiting" ? (
+                  <div className="hand-help">
+                    {roomReadyToDeal
+                      ? "All human players have joined. Deal cards when everyone is ready."
+                      : `${openHumanSeats.length} human seat${openHumanSeats.length === 1 ? "" : "s"} still need to join before dealing.`}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </section>
