@@ -1,5 +1,5 @@
-import SevenUpClient from "../components/seven-up-client";
+import App from "../app";
 
 export default function Page() {
-  return <SevenUpClient />;
+  return <App />;
 }
