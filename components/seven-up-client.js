@@ -682,6 +682,8 @@ export default function SevenUpClient() {
                 const tableau = getTableau({ mode, localGame, roomState: room.state });
                 const lane = tableau ? tableau[suit] : { low: null, high: null };
                 const sequence = lane.low === null ? [] : buildSequence(suit, lane.low, lane.high);
+                const lowCards = sequence.filter((card) => card.rank < 7).reverse();
+                const highCards = sequence.filter((card) => card.rank > 7);
                 return (
                   <section className="suit-lane" key={suit}>
                     <h3>
@@ -692,14 +694,16 @@ export default function SevenUpClient() {
                         <div className="empty-lane">Waiting for the 7</div>
                       ) : (
                         <>
-                          <div className="table-stack table-stack-low">
-                            {sequence
-                              .filter((card) => card.rank < 7)
-                              .map((card, index) => (
+                          <div className="table-stack table-stack-low" style={buildStackStyle(lowCards.length)}>
+                            {lowCards.map((card, index) => (
                                 <div
                                   className="table-card-wrap"
                                   key={`${card.suit}-${card.rank}`}
-                                  style={{ zIndex: index + 1 }}
+                                  style={buildCardPositionStyle({
+                                    index,
+                                    count: lowCards.length,
+                                    direction: "low",
+                                  })}
                                 >
                                   <PlayingCard card={card} className="table-card" />
                                 </div>
@@ -711,14 +715,16 @@ export default function SevenUpClient() {
                               className="table-card table-card-center"
                             />
                           </div>
-                          <div className="table-stack table-stack-high">
-                            {sequence
-                              .filter((card) => card.rank > 7)
-                              .map((card, index) => (
+                          <div className="table-stack table-stack-high" style={buildStackStyle(highCards.length)}>
+                            {highCards.map((card, index) => (
                                 <div
                                   className="table-card-wrap"
                                   key={`${card.suit}-${card.rank}`}
-                                  style={{ zIndex: index + 1 }}
+                                  style={buildCardPositionStyle({
+                                    index,
+                                    count: highCards.length,
+                                    direction: "high",
+                                  })}
                                 >
                                   <PlayingCard card={card} className="table-card" />
                                 </div>
@@ -1080,6 +1086,32 @@ function rankCode(rank) {
   if (rank === 12) return "Q";
   if (rank === 13) return "K";
   return String(rank);
+}
+
+function buildStackStyle(count) {
+  const cardWidth = 52;
+  const minWidth = count === 0 ? 0 : cardWidth + Math.max(0, count - 1) * 18;
+  return {
+    minHeight: count > 0 ? "92px" : undefined,
+    "--stack-card-count": count,
+    "--stack-min-width": `${minWidth}px`,
+  };
+}
+
+function buildCardPositionStyle({ index, count, direction }) {
+  if (count <= 1) {
+    return {
+      zIndex: index + 1,
+      [direction === "low" ? "right" : "left"]: 0,
+    };
+  }
+  const ratio = index / (count - 1);
+  const percent = ratio * 100;
+  const pixelOffset = ratio * 52;
+  return {
+    zIndex: index + 1,
+    [direction === "low" ? "right" : "left"]: `calc(${percent}% - ${pixelOffset}px)`,
+  };
 }
 
 function updateUrl(roomCode, token) {

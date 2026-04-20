@@ -301,23 +301,25 @@ input {
 }
 
 .table-stack {
-  display: flex;
-  align-items: center;
+  position: relative;
   min-width: 0;
+  width: 100%;
+  min-height: 92px;
+  overflow: hidden;
 }
 
 .table-stack-low {
-  justify-content: flex-end;
   padding-right: 8px;
 }
 
 .table-stack-high {
-  justify-content: flex-start;
   padding-left: 8px;
 }
 
 .table-card-wrap {
-  margin: 0 -18px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   filter: drop-shadow(0 10px 16px rgba(39, 26, 16, 0.14));
 }
 
@@ -331,7 +333,7 @@ input {
 .table-card,
 .hand-card {
   display: block;
-  width: 72px;
+  width: 52px;
   height: auto;
 }
 
@@ -440,16 +442,15 @@ input {
 
   .table-stack-low,
   .table-stack-high {
-    justify-content: center;
     padding: 0;
-  }
-
-  .table-card-wrap {
-    margin: 0 -14px;
   }
 
   .table-card,
   .hand-card {
     width: 56px;
+  }
+
+  .table-card {
+    width: 44px;
   }
 }
