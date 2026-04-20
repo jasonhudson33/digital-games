@@ -666,24 +666,13 @@ export default function SevenUpClient() {
                 <div>{renderContext?.handSummary || "-"}</div>
               </div>
             </div>
-
-            <div className="turn-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={!renderContext?.canPass}
-                onClick={handlePass}
-              >
-                Pass
-              </button>
-              <button
-                className={`primary-button ${overlayState.visible ? "" : "hidden"}`}
-                type="button"
-                onClick={hideOverlay}
-              >
-                Continue
-              </button>
-            </div>
+            <button
+              className={`primary-button ${overlayState.visible ? "" : "hidden"}`}
+              type="button"
+              onClick={hideOverlay}
+            >
+              Continue
+            </button>
           </section>
 
           <section className="panel tableau-panel">
@@ -702,11 +691,40 @@ export default function SevenUpClient() {
                       {sequence.length === 0 ? (
                         <div className="empty-lane">Waiting for the 7</div>
                       ) : (
-                        sequence.map((card) => (
-                          <div className="card-chip" key={`${card.suit}-${card.rank}`}>
-                            <PlayingCard card={card} className="table-card" />
+                        <>
+                          <div className="table-stack table-stack-low">
+                            {sequence
+                              .filter((card) => card.rank < 7)
+                              .map((card, index) => (
+                                <div
+                                  className="table-card-wrap"
+                                  key={`${card.suit}-${card.rank}`}
+                                  style={{ zIndex: index + 1 }}
+                                >
+                                  <PlayingCard card={card} className="table-card" />
+                                </div>
+                              ))}
                           </div>
-                        ))
+                          <div className="table-center-card">
+                            <PlayingCard
+                              card={{ suit, rank: 7 }}
+                              className="table-card table-card-center"
+                            />
+                          </div>
+                          <div className="table-stack table-stack-high">
+                            {sequence
+                              .filter((card) => card.rank > 7)
+                              .map((card, index) => (
+                                <div
+                                  className="table-card-wrap"
+                                  key={`${card.suit}-${card.rank}`}
+                                  style={{ zIndex: index + 1 }}
+                                >
+                                  <PlayingCard card={card} className="table-card" />
+                                </div>
+                              ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   </section>
@@ -745,6 +763,16 @@ export default function SevenUpClient() {
             ) : (
               <div className="hand empty-hand">{handContext.message}</div>
             )}
+            <div className="hand-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={!renderContext?.canPass}
+                onClick={handlePass}
+              >
+                Pass
+              </button>
+            </div>
           </section>
 
           <section className="panel log-panel">

@@ -256,14 +256,15 @@ input {
 .tableau {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .suit-lane {
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 14px;
-  background: var(--panel-strong);
+  border-radius: 20px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 244, 236, 0.96));
 }
 
 .suit-lane h3 {
@@ -273,10 +274,11 @@ input {
 }
 
 .suit-cards {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 132px;
+  overflow: hidden;
 }
 
 .card-button {
@@ -298,14 +300,32 @@ input {
   cursor: not-allowed;
 }
 
-.card-chip {
-  display: inline-flex;
+.table-stack {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.88);
+  min-width: 0;
+}
+
+.table-stack-low {
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.table-stack-high {
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+
+.table-card-wrap {
+  margin: 0 -18px;
+  filter: drop-shadow(0 10px 16px rgba(39, 26, 16, 0.14));
+}
+
+.table-center-card {
+  position: relative;
+  z-index: 20;
+  transform: rotate(180deg);
+  filter: drop-shadow(0 14px 20px rgba(39, 26, 16, 0.2));
 }
 
 .table-card,
@@ -339,6 +359,12 @@ input {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.hand-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .empty-hand,
@@ -404,6 +430,22 @@ input {
   .tableau,
   .player-row {
     grid-template-columns: 1fr;
+  }
+
+  .suit-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    justify-items: center;
+  }
+
+  .table-stack-low,
+  .table-stack-high {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .table-card-wrap {
+    margin: 0 -14px;
   }
 
   .table-card,
