@@ -89,9 +89,27 @@ export default function SevenUpClient() {
     stopPolling();
     pollTimerRef.current = window.setInterval(() => {
       pollRoomState(room.roomCode, room.token);
-    }, 1500);
-    return () => stopPolling();
-  }, [room.roomCode, room.token]);
+    }, room.state?.status === "waiting" ? 1000 : 1500);
+
+    function handleRoomVisibility() {
+      if (document.visibilityState === "visible") {
+        pollRoomState(room.roomCode, room.token);
+      }
+    }
+
+    function handleRoomFocus() {
+      pollRoomState(room.roomCode, room.token);
+    }
+
+    window.addEventListener("focus", handleRoomFocus);
+    document.addEventListener("visibilitychange", handleRoomVisibility);
+
+    return () => {
+      stopPolling();
+      window.removeEventListener("focus", handleRoomFocus);
+      document.removeEventListener("visibilitychange", handleRoomVisibility);
+    };
+  }, [room.roomCode, room.token, room.state?.status]);
 
   const renderContext = getRenderContext({
     mode,
@@ -250,6 +268,9 @@ export default function SevenUpClient() {
         token: room.token,
       });
       setRoom((previous) => ({ ...previous, state: payload }));
+      window.setTimeout(() => {
+        pollRoomState(room.roomCode, room.token);
+      }, 300);
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -260,7 +281,16 @@ export default function SevenUpClient() {
       const payload = await fetchJson(
         `/api/room?code=${encodeURIComponent(roomCode)}&token=${encodeURIComponent(token)}`
       );
-      setRoom((previous) => ({ ...previous, state: payload }));
+      setRoom((previous) => {
+        if (
+          previous.state &&
+          previous.state.status === payload.status &&
+          JSON.stringify(previous.state.game) === JSON.stringify(payload.game)
+        ) {
+          return previous;
+        }
+        return { ...previous, state: payload };
+      });
     } catch (nextError) {
       setError(nextError.message);
     }
