@@ -429,6 +429,9 @@ export default function SevenUpClient() {
   const humanPlayers = roomPlayers.filter((player) => player.playerType === "human");
   const openHumanSeats = humanPlayers.filter((player) => !player.claimed);
   const roomReadyToDeal = Boolean(room.state && room.state.status === "waiting" && openHumanSeats.length === 0);
+  const hideSetupPanel =
+    (mode === "local" && Boolean(localGame)) ||
+    (mode === "room" && Boolean(room.roomCode));
   const roomUrl =
     room.roomCode && typeof window !== "undefined"
       ? `${window.location.origin}?room=${room.roomCode}`
@@ -451,83 +454,85 @@ export default function SevenUpClient() {
         </header>
 
         <main className="layout">
-          <section className="panel control-panel">
-            <h2>Setup</h2>
-            <form className="setup-form" onSubmit={handleSubmit}>
-              <label htmlFor="mode-select">Play mode</label>
-              <select id="mode-select" value={mode} onChange={(event) => setMode(event.target.value)}>
-                <option value="local">Local game</option>
-                <option value="room">Room game</option>
-              </select>
+          {!hideSetupPanel ? (
+            <section className="panel control-panel">
+              <h2>Setup</h2>
+              <form className="setup-form" onSubmit={handleSubmit}>
+                <label htmlFor="mode-select">Play mode</label>
+                <select id="mode-select" value={mode} onChange={(event) => setMode(event.target.value)}>
+                  <option value="local">Local game</option>
+                  <option value="room">Room game</option>
+                </select>
 
-              <label htmlFor="player-count">Players</label>
-              <select id="player-count" value={playerCount} onChange={handlePlayerCountChange}>
-                {Array.from({ length: 5 }, (_, index) => index + 3).map((count) => (
-                  <option key={count} value={count}>
-                    {count}
-                  </option>
-                ))}
-              </select>
+                <label htmlFor="player-count">Players</label>
+                <select id="player-count" value={playerCount} onChange={handlePlayerCountChange}>
+                  {Array.from({ length: 5 }, (_, index) => index + 3).map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
 
-              <label htmlFor="dealer-index">Dealer</label>
-              <select
-                id="dealer-index"
-                value={dealerIndex}
-                onChange={(event) => setDealerIndex(Number(event.target.value))}
-              >
-                {playerConfigs.map((player, index) => (
-                  <option key={player.name + index} value={index}>
-                    {player.name || `Player ${index + 1}`}
-                  </option>
-                ))}
-              </select>
+                <label htmlFor="dealer-index">Dealer</label>
+                <select
+                  id="dealer-index"
+                  value={dealerIndex}
+                  onChange={(event) => setDealerIndex(Number(event.target.value))}
+                >
+                  {playerConfigs.map((player, index) => (
+                    <option key={player.name + index} value={index}>
+                      {player.name || `Player ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
 
-              <div className="name-fields">
-                {playerConfigs.map((player, index) => (
-                  <div key={index} className="player-row">
-                    <div>
-                      <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
-                      <input
-                        id={`player-name-${index}`}
-                        value={player.name}
-                        maxLength={20}
-                        onChange={(event) =>
-                          handlePlayerConfigChange(index, { name: event.target.value })
-                        }
-                      />
+                <div className="name-fields">
+                  {playerConfigs.map((player, index) => (
+                    <div key={index} className="player-row">
+                      <div>
+                        <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
+                        <input
+                          id={`player-name-${index}`}
+                          value={player.name}
+                          maxLength={20}
+                          onChange={(event) =>
+                            handlePlayerConfigChange(index, { name: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`player-type-${index}`}>Type</label>
+                        <select
+                          id={`player-type-${index}`}
+                          value={player.playerType}
+                          onChange={(event) =>
+                            handlePlayerConfigChange(index, { playerType: event.target.value })
+                          }
+                        >
+                          <option value="human">Human</option>
+                          <option value="computer">Computer</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor={`player-type-${index}`}>Type</label>
-                      <select
-                        id={`player-type-${index}`}
-                        value={player.playerType}
-                        onChange={(event) =>
-                          handlePlayerConfigChange(index, { playerType: event.target.value })
-                        }
-                      >
-                        <option value="human">Human</option>
-                        <option value="computer">Computer</option>
-                      </select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {mode === "room" ? (
-                <div className="room-mode-note">
-                  Room mode uses Vercel API routes for game actions. For production multiplayer, add Redis in Vercel so room state persists across serverless requests.
+                  ))}
                 </div>
-              ) : null}
 
-              <button className="primary-button" type="submit">
-                {mode === "room" ? "Create room" : "Deal cards"}
-              </button>
-            </form>
+                {mode === "room" ? (
+                  <div className="room-mode-note">
+                    Room mode uses Vercel API routes for game actions. For production multiplayer, add Redis in Vercel so room state persists across serverless requests.
+                  </div>
+                ) : null}
 
-            <div className="rules-note">
-              <strong>Rule note:</strong> if you have a legal card, you must play it.
-            </div>
-          </section>
+                <button className="primary-button" type="submit">
+                  {mode === "room" ? "Create room" : "Deal cards"}
+                </button>
+              </form>
+
+              <div className="rules-note">
+                <strong>Rule note:</strong> if you have a legal card, you must play it.
+              </div>
+            </section>
+          ) : null}
 
           <section className="panel room-panel">
             <h2>Room Play</h2>
