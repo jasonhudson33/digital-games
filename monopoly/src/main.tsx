@@ -1043,7 +1043,7 @@ function PlayerRow({
   const [requestedJailCards, setRequestedJailCards] = React.useState(0);
   const tradeTargets = game.players.filter((candidate) => candidate.id !== player.id && !candidate.bankrupt);
   const selectedTradeTarget = game.players.find((candidate) => candidate.id === tradeTargetId) ?? tradeTargets[0];
-  const canOpenTrade = canManage && game.phase !== 'gameOver' && !game.pendingTrade && tradeTargets.length > 0;
+  const canOpenTrade = canManage && active && game.phase === 'playing' && !game.pendingTrade && tradeTargets.length > 0;
 
   React.useEffect(() => {
     if (!selectedTradeTarget) return;
@@ -1093,7 +1093,7 @@ function PlayerRow({
               const colorGroupHasBuildings = space.kind === 'property'
                 ? getColorGroup(space).some((candidate) => (game.improvements[candidate.id] ?? 0) > 0)
                 : improvementLevel > 0;
-              const canBuild = canImproveProperty(game, player, spaceId) && canManage;
+              const canBuild = canImproveProperty(game, player, spaceId) && canManage && active;
               const canSell = canSellImprovement(game, player, spaceId) && canManage;
               const improvementCost = getImprovementCost(spaceId);
               const improvementSaleValue = Math.floor(improvementCost / 2);

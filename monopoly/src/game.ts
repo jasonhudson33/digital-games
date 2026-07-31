@@ -736,7 +736,14 @@ export const unmortgageProperty = (state: GameState, playerId: string, spaceId: 
 export const buyImprovement = (state: GameState, playerId: string, spaceId: number): GameState => {
   const playerIndex = state.players.findIndex((player) => player.id === playerId);
   const space = board[spaceId];
-  if (playerIndex < 0 || !space || !canImproveProperty(state, state.players[playerIndex], spaceId)) return state;
+  const activePlayer = state.players[state.currentPlayerIndex];
+  if (
+    state.phase !== 'playing' ||
+    activePlayer?.id !== playerId ||
+    playerIndex < 0 ||
+    !space ||
+    !canImproveProperty(state, state.players[playerIndex], spaceId)
+  ) return state;
 
   const currentLevel = state.improvements[spaceId] ?? 0;
   const cost = getImprovementCost(spaceId);
@@ -801,6 +808,8 @@ export const proposeTrade = (
   const cleanOfferedJailCards = sanitizeMoney(offeredJailCards);
   const cleanRequestedJailCards = sanitizeMoney(requestedJailCards);
   if (
+    state.phase !== 'playing' ||
+    state.players[state.currentPlayerIndex]?.id !== fromPlayerId ||
     state.pendingTrade ||
     fromPlayerId === toPlayerId ||
     (
