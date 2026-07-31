@@ -42,6 +42,7 @@ import {
   declineTrade,
   declinePendingProperty,
   finishDebtPayment,
+  getPlayerLiquidationValue,
   joinPlayer,
   makeId,
   makeInitialState,
@@ -217,6 +218,11 @@ export default function App() {
   const canRollUtilityRent =
     Boolean(game?.pendingUtilityRent?.payerId === playerId) || Boolean(isHost && game?.pendingUtilityRent?.payerId.startsWith('local-'));
   const pendingDebtPlayer = game?.players.find((player) => player.id === game.pendingDebt?.playerId);
+  const pendingDebtIsInsolvent = Boolean(
+    game?.pendingDebt &&
+    pendingDebtPlayer &&
+    getPlayerLiquidationValue(game, pendingDebtPlayer) < game.pendingDebt.amountOwed
+  );
   const canFinishDebt =
     Boolean(game?.pendingDebt?.playerId === playerId) || Boolean(isHost && game?.pendingDebt?.playerId.startsWith('local-'));
   const canRespondTrade =
@@ -395,10 +401,10 @@ export default function App() {
             ) : game.pendingDebt ? (
               <button
                 className="primary full"
-                disabled={!canFinishDebt || !pendingDebtPlayer || pendingDebtPlayer.money < game.pendingDebt.amountOwed || game.phase === 'gameOver'}
+                disabled={!canFinishDebt || !pendingDebtPlayer || game.phase === 'gameOver'}
                 onClick={() => updateGame(finishDebtPayment)}
               >
-                Finish payment
+                {pendingDebtIsInsolvent ? 'Transfer assets and leave game' : 'Finish payment'}
               </button>
             ) : game.pendingRent ? (
               <button className="primary full" disabled={!canAcknowledgeRent || game.phase === 'gameOver'} onClick={() => updateGame(acknowledgeRent)}>
@@ -648,14 +654,17 @@ function DebtPanel({ game }: { game: GameState }) {
   const creditor = debt.creditorId ? game.players.find((candidate) => candidate.id === debt.creditorId) : null;
   const cash = player?.money ?? 0;
   const shortfall = Math.max(0, debt.amountOwed - cash);
+  const liquidationValue = player ? getPlayerLiquidationValue(game, player) : 0;
+  const isInsolvent = liquidationValue < debt.amountOwed;
 
   return (
     <section className="decision-panel debt-panel">
       <span className="panel-label">Payment Due</span>
       <h3>{player?.name ?? 'Player'} owes ${debt.amountOwed}</h3>
       <p>
-        Mortgage property or sell houses/hotels to the bank until there is enough cash, then finish the payment
-        {creditor ? ` to ${creditor.name}` : ''}.
+        {isInsolvent
+          ? `Even after selling buildings and mortgaging every property, there is not enough to pay${creditor ? ` ${creditor.name}` : ''}. Transfer everything and leave the game.`
+          : `Mortgage property or sell houses/hotels to the bank until there is enough cash, then finish the payment${creditor ? ` to ${creditor.name}` : ''}.`}
       </p>
       <div className="deed-summary">
         <span>Cash now</span>

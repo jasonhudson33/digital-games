@@ -538,6 +538,23 @@ export const finishDebtPayment = (state: GameState): GameState => {
   const players = [...state.players];
   const player = players[playerIndex];
   if (player.money < debt.amountOwed) {
+    const creditorIndex = debt.creditorId
+      ? players.findIndex((candidate) => candidate.id === debt.creditorId)
+      : -1;
+    if (creditorIndex >= 0 && getPlayerLiquidationValue(state, player) < debt.amountOwed) {
+      const entries: LogEntry[] = [];
+      const result = transferBankruptAssets(players, playerIndex, creditorIndex, state.improvements, entries);
+      return finishTurn({
+        ...state,
+        players,
+        improvements: result.improvements,
+        pendingDebt: null,
+        pendingRent: null,
+        pendingTax: null,
+        pendingUtilityRent: null,
+        log: [...entries, ...state.log].slice(0, 30)
+      });
+    }
     return touch({
       ...state,
       log: [log(`${player.name} still needs $${debt.amountOwed - player.money} more to finish paying.`), ...state.log].slice(0, 30)
@@ -589,7 +606,9 @@ export const rollUtilityRent = (state: GameState): GameState => {
   players[ownerIndex] = { ...owner, money: owner.money + rentPaid };
   players[playerIndex] = markBankrupt(payer, entries);
   let nextImprovements = state.improvements;
-  if (players[playerIndex].bankrupt) {
+  const amountOwed = amount - rentPaid;
+  const cannotCoverDebt = amountOwed > 0 && getPlayerLiquidationValue(state, players[playerIndex]) < amountOwed;
+  if (players[playerIndex].bankrupt || cannotCoverDebt) {
     const result = transferBankruptAssets(players, playerIndex, ownerIndex, nextImprovements, entries);
     nextImprovements = result.improvements;
   }
@@ -609,7 +628,7 @@ export const rollUtilityRent = (state: GameState): GameState => {
       rentNote: `${total} x ${multiplier} utility rent`
     },
     pendingDebt:
-      rentPaid < amount && canRaiseMoney(state, players[playerIndex])
+      rentPaid < amount && !cannotCoverDebt && canRaiseMoney(state, players[playerIndex])
         ? {
             playerId: pending.payerId,
             creditorId: pending.ownerId,
@@ -1158,7 +1177,9 @@ const resolvePostMoveSpace = (
     if (rentPaid < rent) entries.push(log(`${active.name} still owed $${rent - rentPaid} but had no more cash.`));
     players[playerIndex] = markBankrupt(active, entries);
     let nextImprovements = state.improvements;
-    if (players[playerIndex].bankrupt) {
+    const amountOwed = rent - rentPaid;
+    const cannotCoverDebt = amountOwed > 0 && getPlayerLiquidationValue(state, players[playerIndex]) < amountOwed;
+    if (players[playerIndex].bankrupt || cannotCoverDebt) {
       const result = transferBankruptAssets(players, playerIndex, ownerIndex, nextImprovements, entries);
       nextImprovements = result.improvements;
     }
@@ -1176,7 +1197,7 @@ const resolvePostMoveSpace = (
         rentNote: railroadMultiplier > 1 ? `${rentDetails.note}; ${railroadMultiplier}x Chance rent` : rentDetails.note
       },
       pendingDebt:
-        rentPaid < rent && canRaiseMoney(state, players[playerIndex])
+        rentPaid < rent && !cannotCoverDebt && canRaiseMoney(state, players[playerIndex])
           ? {
               playerId: active.id,
               creditorId: owner.id,
@@ -1536,7 +1557,8 @@ const transferBankruptAssets = (
   const debtor = players[debtorIndex];
   const creditor = players[creditorIndex];
   const transferredProperties = debtor.properties;
-  const transferredMoney = Math.max(0, debtor.money);
+  const liquidationProceeds = getRemainingLiquidationProceeds({ improvements }, debtor);
+  const transferredMoney = Math.max(0, debtor.money + liquidationProceeds);
   const nextImprovements = { ...improvements };
   transferredProperties.forEach((spaceId) => {
     delete nextImprovements[spaceId];
@@ -1559,14 +1581,30 @@ const transferBankruptAssets = (
     properties: [],
     mortgagedProperties: [],
     getOutOfJailFreeCards: 0,
-    getOutOfJailFreeCardDecks: []
+    getOutOfJailFreeCardDecks: [],
+    bankrupt: true
   };
-  entries.push(log(`${debtor.name} gave ${creditor.name} all remaining money and mortgaged properties.`));
+  entries.push(log(`${debtor.name} could not cover the debt, transferred $${transferredMoney} and all remaining deeds to ${creditor.name}, and left the game.`));
 
   return { improvements: nextImprovements };
 };
 
 const getMortgageValue = (spaceId: number) => Math.floor((board[spaceId]?.price ?? 0) / 2);
+
+const getRemainingLiquidationProceeds = (state: Pick<GameState, 'improvements'>, player: Player) => {
+  const mortgageProceeds = player.properties.reduce(
+    (total, spaceId) => total + (player.mortgagedProperties.includes(spaceId) ? 0 : getMortgageValue(spaceId)),
+    0
+  );
+  const buildingProceeds = player.properties.reduce((total, spaceId) => {
+    const level = state.improvements?.[spaceId] ?? 0;
+    return total + level * Math.floor(getImprovementCost(spaceId) / 2);
+  }, 0);
+  return mortgageProceeds + buildingProceeds;
+};
+
+export const getPlayerLiquidationValue = (state: Pick<GameState, 'improvements'>, player: Player) =>
+  Math.max(0, player.money) + getRemainingLiquidationProceeds(state, player);
 
 const getUnmortgageCost = (spaceId: number) => {
   const mortgageValue = getMortgageValue(spaceId);
