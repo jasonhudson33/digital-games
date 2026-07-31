@@ -638,10 +638,21 @@
   width: 100%;
 }
 
+.monopoly-page .properties-note{
+  margin: 4px 0 12px;
+  color: #657069;
+  font-size: .8rem;
+  line-height: 1.35;
+}
+
 .monopoly-page .lobby-actions{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.monopoly-page .lobby-actions .full{
+  grid-column: 1 / -1;
 }
 
 .monopoly-page .decision-actions{
@@ -811,6 +822,32 @@
 
 .monopoly-page .turn-heading h2{
   font-size: 1.45rem;
+}
+
+.monopoly-page .turn-stage{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 12px 0;
+  padding: 5px;
+  border: 2px solid #26332d;
+  border-radius: 12px;
+  background: #e4e0d4;
+}
+
+.monopoly-page .turn-stage span{
+  padding: 7px 8px;
+  border-radius: 7px;
+  color: #6d716d;
+  font-size: .74rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.monopoly-page .turn-stage span.active{
+  color: #fffaf0;
+  background: #26332d;
 }
 
 .monopoly-page .host-icon{
@@ -1078,6 +1115,20 @@
   display: block;
   color: #59675f;
   margin-top: 2px;
+}
+
+.monopoly-page .computer-label{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #fffaf0;
+  background: #445b50;
+  font-size: .66rem;
+  font-weight: 900;
+  vertical-align: middle;
 }
 
 .monopoly-page .deed-list{

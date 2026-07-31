@@ -43,6 +43,7 @@ export type Space = {
 export type Player = {
   id: string;
   name: string;
+  isComputer: boolean;
   color: PlayerColor;
   piece: PlayerPiece;
   position: number;
@@ -146,6 +147,7 @@ export type PendingTrade = {
 };
 
 export type JailRollMode = 'paid' | 'card' | 'stay' | null;
+export type TurnStage = 'manage' | 'roll';
 
 export type GameState = {
   roomCode: string;
@@ -153,6 +155,7 @@ export type GameState = {
   players: Player[];
   currentPlayerIndex: number;
   phase: 'lobby' | 'playing' | 'gameOver';
+  turnStage: TurnStage;
   lastRoll: DiceRoll | null;
   doubleRollCount: number;
   jailRollMode: JailRollMode;

@@ -285,6 +285,7 @@ export const makeInitialState = (hostId: string, hostName: string, roomCode = ma
   players: [makePlayer(hostId, hostName, 'red', piece)],
   currentPlayerIndex: 0,
   phase: 'lobby',
+  turnStage: 'manage',
   lastRoll: null,
   doubleRollCount: 0,
   jailRollMode: null,
@@ -306,6 +307,7 @@ export const makeInitialState = (hostId: string, hostName: string, roomCode = ma
 export const makePlayer = (id: string, name: string, color: PlayerColor, piece: PlayerPiece = 'car'): Player => ({
   id,
   name: name.trim() || 'Player',
+  isComputer: false,
   color,
   piece,
   position: 0,
@@ -337,10 +339,23 @@ export const addLocalPlayer = (state: GameState): GameState => {
   return joinPlayer(state, `local-${Date.now()}-${nextNumber}`, `Player ${nextNumber}`);
 };
 
+export const addComputerPlayer = (state: GameState): GameState => {
+  if (state.phase !== 'lobby') return state;
+  const computerNumber = state.players.filter((player) => player.isComputer).length + 1;
+  const computerId = `computer-${makeId()}`;
+  const next = joinPlayer(state, computerId, `Computer ${computerNumber}`);
+  return touch({
+    ...next,
+    players: next.players.map((player) => player.id === computerId ? { ...player, isComputer: true } : player),
+    log: [log(`Computer ${computerNumber} joined the room.`), ...next.log.slice(1)].slice(0, 30)
+  });
+};
+
 export const startGame = (state: GameState): GameState =>
   touch({
     ...state,
     phase: 'playing',
+    turnStage: 'manage',
     doubleRollCount: 0,
     jailRollMode: null,
     pendingPurchase: null,
@@ -357,6 +372,7 @@ export const startGame = (state: GameState): GameState =>
 export const rollDice = (state: GameState): GameState => {
   if (
     state.phase !== 'playing' ||
+    state.turnStage !== 'roll' ||
     state.pendingCard ||
     state.pendingPurchase ||
     state.pendingTax ||
@@ -446,6 +462,16 @@ export const rollDice = (state: GameState): GameState => {
   }
 
   return resolveLanding(touch({ ...state, lastRoll: roll, doubleRollCount }), roll);
+};
+
+export const beginRollStage = (state: GameState, playerId: string): GameState => {
+  const activePlayer = state.players[state.currentPlayerIndex];
+  if (state.phase !== 'playing' || state.turnStage !== 'manage' || activePlayer?.id !== playerId) return state;
+  return touch({
+    ...state,
+    turnStage: 'roll',
+    log: [log(`${activePlayer.name} finished trading and building.`), ...state.log].slice(0, 30)
+  });
 };
 
 export const payToLeaveJail = (state: GameState): GameState => {
@@ -541,9 +567,11 @@ export const finishDebtPayment = (state: GameState): GameState => {
     const creditorIndex = debt.creditorId
       ? players.findIndex((candidate) => candidate.id === debt.creditorId)
       : -1;
-    if (creditorIndex >= 0 && getPlayerLiquidationValue(state, player) < debt.amountOwed) {
+    if (getPlayerLiquidationValue(state, player) < debt.amountOwed) {
       const entries: LogEntry[] = [];
-      const result = transferBankruptAssets(players, playerIndex, creditorIndex, state.improvements, entries);
+      const result = creditorIndex >= 0
+        ? transferBankruptAssets(players, playerIndex, creditorIndex, state.improvements, entries)
+        : forfeitBankruptAssets(players, playerIndex, state.improvements, entries);
       return finishTurn({
         ...state,
         players,
@@ -739,6 +767,7 @@ export const buyImprovement = (state: GameState, playerId: string, spaceId: numb
   const activePlayer = state.players[state.currentPlayerIndex];
   if (
     state.phase !== 'playing' ||
+    state.turnStage !== 'manage' ||
     activePlayer?.id !== playerId ||
     playerIndex < 0 ||
     !space ||
@@ -809,6 +838,7 @@ export const proposeTrade = (
   const cleanRequestedJailCards = sanitizeMoney(requestedJailCards);
   if (
     state.phase !== 'playing' ||
+    state.turnStage !== 'manage' ||
     state.players[state.currentPlayerIndex]?.id !== fromPlayerId ||
     state.pendingTrade ||
     fromPlayerId === toPlayerId ||
@@ -962,6 +992,72 @@ export const expireTrade = (state: GameState, tradeId: string, now = Date.now())
     pendingTrade: null,
     log: [log(`${playerName(state, trade.toPlayerId)} did not respond in time, so ${playerName(state, trade.fromPlayerId)}'s trade was declined.`), ...state.log].slice(0, 30)
   });
+};
+
+export const computerShouldAct = (state: GameState): boolean => {
+  if (state.phase !== 'playing') return false;
+  if (state.pendingTrade) return Boolean(findPlayer(state, state.pendingTrade.toPlayerId)?.isComputer);
+  if (state.pendingAuction) return Boolean(findPlayer(state, state.pendingAuction.activePlayerId)?.isComputer);
+  const pendingPlayerId =
+    state.pendingCard?.playerId ??
+    state.pendingPurchase?.playerId ??
+    state.pendingTax?.playerId ??
+    state.pendingRent?.payerId ??
+    state.pendingUtilityRent?.payerId ??
+    state.pendingDebt?.playerId ??
+    state.pendingJailExit?.playerId;
+  if (pendingPlayerId) return Boolean(findPlayer(state, pendingPlayerId)?.isComputer);
+  return Boolean(state.players[state.currentPlayerIndex]?.isComputer);
+};
+
+export const takeComputerAction = (state: GameState): GameState => {
+  if (!computerShouldAct(state)) return state;
+
+  if (state.pendingTrade) {
+    return computerAcceptsTrade(state) ? acceptTrade(state) : declineTrade(state);
+  }
+
+  if (state.pendingAuction) {
+    const auction = state.pendingAuction;
+    const bidder = findPlayer(state, auction.activePlayerId);
+    const space = board[auction.spaceId];
+    if (!bidder?.isComputer || !space) return state;
+    const nextBid = auction.currentBid + 10;
+    const maximumBid = Math.min(space.price ?? 0, Math.max(0, bidder.money - 200));
+    return auction.highBidderId !== bidder.id && nextBid <= maximumBid ? bidAuction(state) : passAuction(state);
+  }
+
+  const computer = state.players[state.currentPlayerIndex];
+  if (!computer?.isComputer) return state;
+  if (state.pendingCard) return acknowledgeCard(state);
+  if (state.pendingPurchase) {
+    const price = board[state.pendingPurchase.spaceId]?.price ?? 0;
+    return price > 0 && computer.money - price >= 200 ? buyPendingProperty(state) : declinePendingProperty(state);
+  }
+  if (state.pendingTax) {
+    return state.pendingTax.percentAmount < state.pendingTax.flatAmount ? payPercentIncomeTax(state) : payFlatIncomeTax(state);
+  }
+  if (state.pendingUtilityRent) return rollUtilityRent(state);
+  if (state.pendingDebt) return raiseComputerDebtMoney(state, computer);
+  if (state.pendingRent) return acknowledgeRent(state);
+  if (state.pendingJailExit) {
+    return computer.getOutOfJailFreeCards > 0 ? useCardForForcedJailExit(state) : payForcedJailExit(state);
+  }
+
+  if (state.turnStage === 'manage') {
+    const buildableSpaceId = computer.properties.find(
+      (spaceId) => canImproveProperty(state, computer, spaceId) && computer.money - getImprovementCost(spaceId) >= 300
+    );
+    return buildableSpaceId === undefined
+      ? beginRollStage(state, computer.id)
+      : buyImprovement(state, computer.id, buildableSpaceId);
+  }
+
+  if (computer.inJail && !state.jailRollMode) {
+    if (computer.getOutOfJailFreeCards > 0) return useGetOutOfJailFree(state);
+    return computer.money >= 250 ? payToLeaveJail(state) : stayInJailAndRoll(state);
+  }
+  return rollDice(state);
 };
 
 const payPendingTax = (state: GameState, option: 'flat' | 'percent'): GameState => {
@@ -1636,6 +1732,28 @@ const transferBankruptAssets = (
   return { improvements: nextImprovements };
 };
 
+const forfeitBankruptAssets = (
+  players: Player[],
+  debtorIndex: number,
+  improvements: GameState['improvements'],
+  entries: LogEntry[]
+) => {
+  const debtor = players[debtorIndex];
+  const nextImprovements = { ...improvements };
+  debtor.properties.forEach((spaceId) => delete nextImprovements[spaceId]);
+  players[debtorIndex] = {
+    ...debtor,
+    money: 0,
+    properties: [],
+    mortgagedProperties: [],
+    getOutOfJailFreeCards: 0,
+    getOutOfJailFreeCardDecks: [],
+    bankrupt: true
+  };
+  entries.push(log(`${debtor.name} could not cover the bank debt, returned all remaining assets to the bank, and left the game.`));
+  return { improvements: nextImprovements };
+};
+
 const getMortgageValue = (spaceId: number) => Math.floor((board[spaceId]?.price ?? 0) / 2);
 
 const getRemainingLiquidationProceeds = (state: Pick<GameState, 'improvements'>, player: Player) => {
@@ -1663,6 +1781,36 @@ const deckLabel = (deck: CardDeck) => (deck === 'chance' ? 'Chance' : 'Community
 const playerName = (state: GameState, playerId: string) =>
   state.players.find((player) => player.id === playerId)?.name ?? 'Player';
 
+const findPlayer = (state: GameState, playerId: string) =>
+  state.players.find((player) => player.id === playerId);
+
+const computerAcceptsTrade = (state: GameState) => {
+  const trade = state.pendingTrade;
+  if (!trade) return false;
+  const fromPlayer = findPlayer(state, trade.fromPlayerId);
+  const toPlayer = findPlayer(state, trade.toPlayerId);
+  if (!fromPlayer || !toPlayer?.isComputer) return false;
+  const sideValue = (propertyIds: number[], money: number, jailCards: number) =>
+    propertyIds.reduce((total, spaceId) => total + (board[spaceId]?.price ?? 0), 0) + money + jailCards * 50;
+  const computerReceives = sideValue(trade.offeredPropertyIds, trade.offeredMoney, trade.offeredJailCards);
+  const computerGives = sideValue(trade.requestedPropertyIds, trade.requestedMoney, trade.requestedJailCards);
+  return computerReceives >= computerGives;
+};
+
+const raiseComputerDebtMoney = (state: GameState, computer: Player): GameState => {
+  const debt = state.pendingDebt;
+  if (!debt || debt.playerId !== computer.id || computer.money >= debt.amountOwed) return finishDebtPayment(state);
+
+  const sellableSpaceId = computer.properties.find((spaceId) => canSellImprovement(state, computer, spaceId));
+  if (sellableSpaceId !== undefined) return sellImprovement(state, computer.id, sellableSpaceId);
+
+  for (const spaceId of computer.properties) {
+    const next = mortgageProperty(state, computer.id, spaceId);
+    if (next !== state) return next;
+  }
+  return finishDebtPayment(state);
+};
+
 const markBankrupt = (player: Player, entries: LogEntry[]) => {
   if (player.money > 0 || player.bankrupt) return player;
   const unmortgagedProperties = player.properties.filter((spaceId) => !player.mortgagedProperties.includes(spaceId));
@@ -1687,6 +1835,7 @@ const finishTurn = (state: GameState, options: { forceAdvance?: boolean } = {}):
   return touch({
     ...state,
     phase: gameOver ? 'gameOver' : state.phase,
+    turnStage: 'manage',
     currentPlayerIndex: gameOver ? winnerIndex : rollsAgain ? state.currentPlayerIndex : nextPlayerIndex(state.players, state.currentPlayerIndex),
     doubleRollCount: rollsAgain ? state.doubleRollCount : 0,
     jailRollMode: null,

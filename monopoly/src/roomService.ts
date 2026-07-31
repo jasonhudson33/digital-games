@@ -148,6 +148,7 @@ const normalizeState = (state: GameState): GameState => {
     ...state,
     players,
     phase: gameOver ? 'gameOver' : state.phase,
+    turnStage: state.turnStage ?? 'manage',
     currentPlayerIndex: winnerIndex,
     doubleRollCount: state.doubleRollCount ?? 0,
     jailRollMode: state.jailRollMode ?? null,
@@ -199,6 +200,7 @@ const normalizePlayers = (state: GameState): GameState['players'] => {
 
     return {
       ...player,
+      isComputer: player.isComputer ?? player.id.startsWith('computer-'),
       mortgagedProperties: player.mortgagedProperties ?? [],
       getOutOfJailFreeCards: decks.length,
       getOutOfJailFreeCardDecks: decks,

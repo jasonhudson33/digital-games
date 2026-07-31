@@ -2,6 +2,7 @@
 
 import React from 'react';
 import {
+  Bot,
   Car,
   Castle,
   Cat,
@@ -33,12 +34,15 @@ import { board, cornerIds } from './board';
 import {
   acknowledgeCard,
   acknowledgeRent,
+  addComputerPlayer,
   addLocalPlayer,
   acceptTrade,
   bidAuction,
+  beginRollStage,
   buyPendingProperty,
   buyImprovement,
   completeAuctionPurchase,
+  computerShouldAct,
   declineTrade,
   declinePendingProperty,
   expireTrade,
@@ -60,6 +64,7 @@ import {
   sellImprovement,
   stayInJailAndRoll,
   startGame,
+  takeComputerAction,
   unmortgageProperty,
   useCardForForcedJailExit,
   useGetOutOfJailFree
@@ -224,7 +229,7 @@ export default function App() {
   const winner = game?.phase === 'gameOver' ? game.players.find((player) => !player.bankrupt) : null;
   const isHost = game?.hostId === playerId;
   const isMyTurn = activePlayer?.id === playerId;
-  const canControlTurn = isMyTurn || Boolean(isHost && activePlayer?.id.startsWith('local-'));
+  const canControlTurn = !activePlayer?.isComputer && (isMyTurn || Boolean(isHost && activePlayer?.id.startsWith('local-')));
   const canAcknowledgeCard =
     Boolean(game?.pendingCard?.playerId === playerId) || Boolean(isHost && game?.pendingCard?.playerId.startsWith('local-'));
   const canAcknowledgeRent =
@@ -252,6 +257,14 @@ export default function App() {
   const pendingJailExitPlayer = game?.players.find((player) => player.id === game.pendingJailExit?.playerId);
   const canResolveJailExit =
     Boolean(game?.pendingJailExit?.playerId === playerId) || Boolean(isHost && pendingJailExitPlayer?.id.startsWith('local-'));
+
+  React.useEffect(() => {
+    if (!game || !isHost || !computerShouldAct(game)) return;
+    const timeoutId = window.setTimeout(() => {
+      void updateGame(takeComputerAction);
+    }, 850);
+    return () => window.clearTimeout(timeoutId);
+  }, [game, isHost]);
 
   const handleRoll = () => {
     if (
@@ -359,6 +372,13 @@ export default function App() {
               {isHost && <Crown className="host-icon" size={22} />}
             </div>
 
+            {game.phase === 'playing' && (
+              <div className="turn-stage">
+                <span className={game.turnStage === 'manage' ? 'active' : ''}>1. Trade & build</span>
+                <span className={game.turnStage === 'roll' ? 'active' : ''}>2. Roll</span>
+              </div>
+            )}
+
             <DiceTray roll={game.lastRoll} rolling={isRolling} />
 
             {game.pendingCard && <DrawnCardPanel game={game} />}
@@ -374,8 +394,11 @@ export default function App() {
 
             {game.phase === 'lobby' ? (
               <div className="lobby-actions">
-                <button onClick={() => updateGame(addLocalPlayer)}>
+                <button disabled={!isHost} onClick={() => updateGame(addLocalPlayer)}>
                   <Users size={18} /> Add player
+                </button>
+                <button disabled={!isHost} onClick={() => updateGame(addComputerPlayer)}>
+                  <Bot size={18} /> Add computer
                 </button>
                 <button className="primary full" disabled={!isHost || game.players.length < 2} onClick={() => updateGame(startGame)}>
                   <Play size={18} /> Start game
@@ -461,6 +484,14 @@ export default function App() {
                   Use Card
                 </button>
               </div>
+            ) : game.turnStage === 'manage' ? (
+              <button
+                className="primary full"
+                disabled={!canControlTurn || game.phase === 'gameOver'}
+                onClick={() => activePlayer && updateGame((state) => beginRollStage(state, activePlayer.id))}
+              >
+                {activePlayer?.isComputer ? 'Computer is trading & building' : 'Finish trading & building'}
+              </button>
             ) : needsJailChoice ? (
               <div className="jail-actions">
                 <button className="primary full" disabled={!canChooseJail || !activePlayer || activePlayer.money < 50} onClick={() => updateGame(payToLeaveJail)}>
@@ -509,13 +540,16 @@ export default function App() {
                         : needsJailChoice
                           ? 'Choose how to handle Jail before rolling.'
                   : isMyTurn
-                    ? 'Your move. The board updates after the dice settle.'
+                    ? game.turnStage === 'manage'
+                      ? 'Review deeds, trade, and build before moving on to the roll.'
+                      : 'Your move. Roll when ready.'
                     : `Waiting for ${activePlayer?.name}.`}
             </p>
           </section>
 
           <section className="players-panel">
             <h3>Players</h3>
+            <p className="properties-note">Every player&apos;s properties stay visible. Actions unlock only when allowed.</p>
             {game.players.map((player) => (
               <PlayerRow
                 key={player.id}
@@ -1043,7 +1077,7 @@ function PlayerRow({
   const [requestedJailCards, setRequestedJailCards] = React.useState(0);
   const tradeTargets = game.players.filter((candidate) => candidate.id !== player.id && !candidate.bankrupt);
   const selectedTradeTarget = game.players.find((candidate) => candidate.id === tradeTargetId) ?? tradeTargets[0];
-  const canOpenTrade = canManage && active && game.phase === 'playing' && !game.pendingTrade && tradeTargets.length > 0;
+  const canOpenTrade = canManage && active && game.phase === 'playing' && game.turnStage === 'manage' && !game.pendingTrade && tradeTargets.length > 0;
 
   React.useEffect(() => {
     if (!selectedTradeTarget) return;
@@ -1075,7 +1109,10 @@ function PlayerRow({
     <div className={`player-row ${active ? 'active' : ''}`}>
       <PlayerToken player={player} />
       <div>
-        <strong>{player.name}{me ? ' (you)' : ''}</strong>
+        <strong>
+          {player.name}{me ? ' (you)' : ''}
+          {player.isComputer && <span className="computer-label"><Bot size={13} /> Computer</span>}
+        </strong>
         <small>
           ${player.money} · {pieceLabel(getPlayerPiece(player))} · {player.properties.length} deeds
           {player.mortgagedProperties.length > 0 ? ` · ${player.mortgagedProperties.length} mortgaged` : ''}
@@ -1093,7 +1130,7 @@ function PlayerRow({
               const colorGroupHasBuildings = space.kind === 'property'
                 ? getColorGroup(space).some((candidate) => (game.improvements[candidate.id] ?? 0) > 0)
                 : improvementLevel > 0;
-              const canBuild = canImproveProperty(game, player, spaceId) && canManage && active;
+              const canBuild = canImproveProperty(game, player, spaceId) && canManage && active && game.turnStage === 'manage';
               const canSell = canSellImprovement(game, player, spaceId) && canManage;
               const improvementCost = getImprovementCost(spaceId);
               const improvementSaleValue = Math.floor(improvementCost / 2);
