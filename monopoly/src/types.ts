@@ -134,6 +134,7 @@ export type PendingJailExit = {
 
 export type PendingTrade = {
   id: string;
+  expiresAt: number;
   fromPlayerId: string;
   toPlayerId: string;
   offeredPropertyIds: number[];

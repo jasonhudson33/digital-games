@@ -41,6 +41,7 @@ import {
   completeAuctionPurchase,
   declineTrade,
   declinePendingProperty,
+  expireTrade,
   finishDebtPayment,
   getPlayerLiquidationValue,
   joinPlayer,
@@ -147,6 +148,18 @@ export default function App() {
     await RoomService.save(next);
     if (canUseBrowser()) window.history.replaceState(null, '', `?room=${next.roomCode}`);
   };
+
+  React.useEffect(() => {
+    const trade = game?.pendingTrade;
+    if (!trade || !playerId) return;
+    const canExpire = trade.toPlayerId === playerId || Boolean(game.hostId === playerId && trade.toPlayerId.startsWith('local-'));
+    if (!canExpire) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void updateGame((state) => expireTrade(state, trade.id));
+    }, Math.max(0, trade.expiresAt - Date.now()));
+    return () => window.clearTimeout(timeoutId);
+  }, [game?.hostId, game?.pendingTrade, playerId]);
 
   const useName = () => {
     const clean = name.trim() || 'Player';
@@ -709,7 +722,7 @@ function TradeOfferPanel({ game }: { game: GameState }) {
     <section className="decision-panel trade-panel">
       <span className="panel-label">Trade Offer</span>
       <h3>{fromPlayer?.name ?? 'Player'} to {toPlayer?.name ?? 'Player'}</h3>
-      <p>{toPlayer?.name ?? 'Player'} may accept or decline this property trade.</p>
+      <TradeCountdown playerName={toPlayer?.name ?? 'Player'} expiresAt={trade.expiresAt} />
       <TradePropertyList
         title={`${fromPlayer?.name ?? 'Player'} gives`}
         propertyIds={trade.offeredPropertyIds}
@@ -723,6 +736,20 @@ function TradeOfferPanel({ game }: { game: GameState }) {
         jailCards={trade.requestedJailCards ?? 0}
       />
     </section>
+  );
+}
+
+function TradeCountdown({ playerName, expiresAt }: { playerName: string; expiresAt: number }) {
+  const [now, setNow] = React.useState(Date.now());
+  const secondsRemaining = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(intervalId);
+  }, [expiresAt]);
+
+  return (
+    <p>{playerName} has <strong>{secondsRemaining} seconds</strong> to accept or decline before the offer is automatically declined.</p>
   );
 }
 
@@ -1007,10 +1034,13 @@ function PlayerRow({
     setOfferedPropertyIds((current) => (current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]));
   const toggleRequested = (spaceId: number) =>
     setRequestedPropertyIds((current) => (current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]));
+  const offersSomething = offeredPropertyIds.length > 0 || offeredMoney > 0 || offeredJailCards > 0;
+  const requestsSomething = requestedPropertyIds.length > 0 || requestedMoney > 0 || requestedJailCards > 0;
   const submitTrade = () => {
     if (
       !selectedTradeTarget ||
-      (!offeredPropertyIds.length && !requestedPropertyIds.length && offeredMoney <= 0 && requestedMoney <= 0 && offeredJailCards <= 0 && requestedJailCards <= 0)
+      !offersSomething ||
+      !requestsSomething
     ) return;
     onProposeTrade(selectedTradeTarget.id, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards);
     setOfferedPropertyIds([]);
@@ -1101,6 +1131,7 @@ function PlayerRow({
                 ))}
               </select>
             </div>
+            <small>Both players must give at least one deed, dollar, or jail card.</small>
             <TradeCheckboxes title="Offer" game={game} propertyIds={player.properties} selectedIds={offeredPropertyIds} onToggle={toggleOffered} />
             <MoneyOffer label="You add" value={offeredMoney} max={player.money} onChange={setOfferedMoney} />
             <JailCardOffer label="Your jail cards" value={offeredJailCards} max={player.getOutOfJailFreeCards} onChange={setOfferedJailCards} />
@@ -1109,7 +1140,7 @@ function PlayerRow({
             <JailCardOffer label={`${selectedTradeTarget.name}'s jail cards`} value={requestedJailCards} max={selectedTradeTarget.getOutOfJailFreeCards} onChange={setRequestedJailCards} />
             <button
               className="full"
-              disabled={!offeredPropertyIds.length && !requestedPropertyIds.length && offeredMoney <= 0 && requestedMoney <= 0 && offeredJailCards <= 0 && requestedJailCards <= 0}
+              disabled={!offersSomething || !requestsSomething}
               onClick={submitTrade}
             >
               Send trade

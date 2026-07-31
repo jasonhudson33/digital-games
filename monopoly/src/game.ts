@@ -820,12 +820,15 @@ export const proposeTrade = (
 
   const offered = uniqueTradeablePropertyIds(state, offeredPropertyIds, fromPlayer);
   const requested = uniqueTradeablePropertyIds(state, requestedPropertyIds, toPlayer);
-  if (!offered.length && !requested.length && cleanOfferedMoney <= 0 && cleanRequestedMoney <= 0 && cleanOfferedJailCards <= 0 && cleanRequestedJailCards <= 0) return state;
+  const offeredSomething = offered.length > 0 || cleanOfferedMoney > 0 || cleanOfferedJailCards > 0;
+  const requestedSomething = requested.length > 0 || cleanRequestedMoney > 0 || cleanRequestedJailCards > 0;
+  if (!offeredSomething || !requestedSomething) return state;
 
   return touch({
     ...state,
     pendingTrade: {
       id: makeId(),
+      expiresAt: Date.now() + 15_000,
       fromPlayerId,
       toPlayerId,
       offeredPropertyIds: offered,
@@ -842,6 +845,7 @@ export const proposeTrade = (
 export const acceptTrade = (state: GameState): GameState => {
   const trade = state.pendingTrade;
   if (!trade) return state;
+  if (Date.now() >= trade.expiresAt) return expireTrade(state, trade.id);
   const fromIndex = state.players.findIndex((player) => player.id === trade.fromPlayerId);
   const toIndex = state.players.findIndex((player) => player.id === trade.toPlayerId);
   if (fromIndex < 0 || toIndex < 0) return { ...state, pendingTrade: null };
@@ -863,6 +867,15 @@ export const acceptTrade = (state: GameState): GameState => {
       ...state,
       pendingTrade: null,
       log: [log(`${fromPlayer.name} and ${toPlayer.name}'s trade was canceled because a property has houses or a hotel.`), ...state.log].slice(0, 30)
+    });
+  }
+  const offeredSomething = offered.length > 0 || offeredMoney > 0 || offeredJailCards > 0;
+  const requestedSomething = requested.length > 0 || requestedMoney > 0 || requestedJailCards > 0;
+  if (!offeredSomething || !requestedSomething) {
+    return touch({
+      ...state,
+      pendingTrade: null,
+      log: [log(`${fromPlayer.name} and ${toPlayer.name}'s trade was canceled because both players must give something.`), ...state.log].slice(0, 30)
     });
   }
   if (fromPlayer.money < offeredMoney || toPlayer.money < requestedMoney) {
@@ -929,6 +942,16 @@ export const declineTrade = (state: GameState): GameState => {
     ...state,
     pendingTrade: null,
     log: [log(`${playerName(state, trade.toPlayerId)} declined ${playerName(state, trade.fromPlayerId)}'s trade.`), ...state.log].slice(0, 30)
+  });
+};
+
+export const expireTrade = (state: GameState, tradeId: string, now = Date.now()): GameState => {
+  const trade = state.pendingTrade;
+  if (!trade || trade.id !== tradeId || now < trade.expiresAt) return state;
+  return touch({
+    ...state,
+    pendingTrade: null,
+    log: [log(`${playerName(state, trade.toPlayerId)} did not respond in time, so ${playerName(state, trade.fromPlayerId)}'s trade was declined.`), ...state.log].slice(0, 30)
   });
 };
 
