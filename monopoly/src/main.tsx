@@ -819,7 +819,7 @@ function BoardSpace({ space, players, improvementLevel }: { space: Space; player
     <div className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space`} style={style}>
       {space.color && (
         <div className="color-band" style={{ backgroundColor: space.color }}>
-          {improvementLevel > 0 && <span className={`improvement-marker ${improvementLevel >= 5 ? 'hotel' : 'house'}`}>{improvementLevel >= 5 ? 'H' : improvementLevel}</span>}
+          {improvementLevel > 0 && <PropertyImprovements level={improvementLevel} />}
         </div>
       )}
       {space.kind === 'jail' && <div className="jail-window" aria-hidden="true"><span /><span /><span /></div>}
@@ -833,6 +833,23 @@ function BoardSpace({ space, players, improvementLevel }: { space: Space; player
         ))}
       </div>
     </div>
+  );
+}
+
+function PropertyImprovements({ level }: { level: number }) {
+  const isHotel = level >= 5;
+  const label = isHotel ? '1 hotel' : `${level} house${level === 1 ? '' : 's'}`;
+
+  return (
+    <span className="improvement-row" aria-label={label} title={label}>
+      {isHotel ? (
+        <span className="improvement-piece hotel" aria-hidden="true" />
+      ) : (
+        Array.from({ length: level }, (_, index) => (
+          <span key={index} className="improvement-piece house" aria-hidden="true" />
+        ))
+      )}
+    </span>
   );
 }
 
