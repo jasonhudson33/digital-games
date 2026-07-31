@@ -199,6 +199,83 @@ const communityCards: Card[] = [
     text: 'Hold this card until a future Jail turn.',
     actionText: 'Receive 1 Get Out of Jail Free card.',
     apply: (player) => ({ ...player, getOutOfJailFreeCards: player.getOutOfJailFreeCards + 1 })
+  },
+  {
+    id: 'community-advance-go',
+    title: 'Advance to GO',
+    text: 'Take a full trip around the board and collect your salary.',
+    actionText: 'Move to GO and collect $200.',
+    apply: (player) => ({ ...player, position: 0, money: player.money + 200 })
+  },
+  {
+    id: 'community-go-jail',
+    title: 'Go To Jail',
+    text: 'Report directly to Jail without collecting a salary.',
+    actionText: 'Move directly to Jail.',
+    apply: (player) => ({ ...player, position: 10, inJail: true, jailTurnCount: 0 })
+  },
+  {
+    id: 'community-holiday-fund',
+    title: 'Holiday Fund Matures',
+    text: 'Your seasonal savings account is ready.',
+    actionText: 'Collect $100.',
+    apply: (player) => ({ ...player, money: player.money + 100 })
+  },
+  {
+    id: 'community-tax-refund',
+    title: 'Income Tax Refund',
+    text: 'The tax office found a small refund in your favor.',
+    actionText: 'Collect $20.',
+    apply: (player) => ({ ...player, money: player.money + 20 })
+  },
+  {
+    id: 'community-birthday',
+    title: 'Birthday Gifts',
+    text: 'The other players celebrate your birthday.',
+    actionText: 'Collect $10 from each other player.',
+    resolve: (state, playerIndex, entries) => collectFromEachPlayer(state, playerIndex, 10, entries)
+  },
+  {
+    id: 'community-life-insurance',
+    title: 'Life Insurance Matures',
+    text: 'A policy has reached its payout date.',
+    actionText: 'Collect $100.',
+    apply: (player) => ({ ...player, money: player.money + 100 })
+  },
+  {
+    id: 'community-hospital-fees',
+    title: 'Hospital Fees',
+    text: 'A hospital bill has arrived.',
+    actionText: 'Pay $100.',
+    apply: (player) => ({ ...player, money: player.money - 100 })
+  },
+  {
+    id: 'community-consultancy',
+    title: 'Consulting Payment',
+    text: 'A client pays for your professional advice.',
+    actionText: 'Collect $25.',
+    apply: (player) => ({ ...player, money: player.money + 25 })
+  },
+  {
+    id: 'community-street-repairs',
+    title: 'Street Repairs',
+    text: 'The streets around your buildings need maintenance.',
+    actionText: 'Pay $40 per house and $115 per hotel.',
+    resolve: (state, playerIndex, entries) => payForRepairs(state, playerIndex, 40, 115, entries)
+  },
+  {
+    id: 'community-beauty-prize',
+    title: 'Contest Prize',
+    text: 'Your presentation earned second place.',
+    actionText: 'Collect $10.',
+    apply: (player) => ({ ...player, money: player.money + 10 })
+  },
+  {
+    id: 'community-inheritance',
+    title: 'Inheritance',
+    text: 'A relative left you a generous gift.',
+    actionText: 'Collect $100.',
+    apply: (player) => ({ ...player, money: player.money + 100 })
   }
 ];
 
@@ -1163,6 +1240,24 @@ const payEachPlayer = (state: GameState, playerIndex: number, amount: number, en
   const totalOwed = amount * Math.max(0, players.length - 1);
   entries.push(log(`${active.name} paid the other players $${totalPaid} of $${totalOwed} owed.`));
   players[playerIndex] = markBankrupt(active, entries);
+  return { ...state, players };
+};
+
+const collectFromEachPlayer = (state: GameState, playerIndex: number, amount: number, entries: LogEntry[]) => {
+  const players = state.players.map((player) => ({ ...player }));
+  const active = players[playerIndex];
+  let totalCollected = 0;
+
+  players.forEach((player, index) => {
+    if (index === playerIndex || player.bankrupt) return;
+    const paid = Math.min(amount, player.money);
+    player.money -= paid;
+    active.money += paid;
+    totalCollected += paid;
+    players[index] = markBankrupt(player, entries);
+  });
+
+  entries.push(log(`${active.name} collected $${totalCollected} from the other players.`));
   return { ...state, players };
 };
 
