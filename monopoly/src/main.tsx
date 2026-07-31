@@ -106,6 +106,34 @@ export default function App() {
   }, [game]);
 
   React.useEffect(() => {
+    const code = joinCode.trim().toUpperCase();
+    if (!isReady || !playerId || !code) return;
+
+    let cancelled = false;
+    void RoomService.load(code)
+      .then((existing) => {
+        if (cancelled || !existing) return;
+        const returningPlayer = existing.players.find((player) => player.id === playerId);
+        if (!returningPlayer) return;
+
+        setGame(existing);
+        latestGame.current = existing;
+        setName(returningPlayer.name);
+        setSelectedPiece(getPlayerPiece(returningPlayer));
+        localStorage.setItem(storagePlayerName, returningPlayer.name);
+        localStorage.setItem(storagePlayerPiece, getPlayerPiece(returningPlayer));
+        window.history.replaceState(null, '', `?room=${existing.roomCode}`);
+      })
+      .catch(() => {
+        if (!cancelled) setError(`Could not reconnect to room ${code}.`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, joinCode, playerId]);
+
+  React.useEffect(() => {
     if (!game?.roomCode) return;
     return RoomService.subscribe(game.roomCode, (remote) => {
       setGame((current) => (!current || remote.updatedAt >= current.updatedAt ? remote : current));
@@ -147,22 +175,28 @@ export default function App() {
       setError(
         isOnlineSyncEnabled
           ? `Room ${code} was not found.`
-          : `Room ${code} was not found on this dev server. Create and join from http://localhost:5175/, or add Supabase env vars for true online rooms.`
+          : `Room ${code} was not found. Online room sync is not configured, so both players must use the same running local server.`
       );
+      return;
+    }
+    const returningPlayer = existing.players.find((player) => player.id === playerId);
+    if (returningPlayer) {
+      setGame(existing);
+      latestGame.current = existing;
+      setName(returningPlayer.name);
+      setSelectedPiece(getPlayerPiece(returningPlayer));
+      if (canUseBrowser()) {
+        localStorage.setItem(storagePlayerName, returningPlayer.name);
+        localStorage.setItem(storagePlayerPiece, getPlayerPiece(returningPlayer));
+        window.history.replaceState(null, '', `?room=${existing.roomCode}`);
+      }
       return;
     }
     if (existing.players.some((player) => getPlayerPiece(player) === selectedPiece)) {
       setError(`${pieceLabel(selectedPiece)} is already taken in room ${code}. Choose a different piece.`);
       return;
     }
-    let joiningPlayerId = playerId;
-    if (existing.players.some((player) => player.id === playerId)) {
-      joiningPlayerId = makeId();
-      if (canUseBrowser()) localStorage.setItem(storagePlayerId, joiningPlayerId);
-      setPlayerId(joiningPlayerId);
-    }
-
-    const next = joinPlayer(existing, joiningPlayerId, useName(), selectedPiece);
+    const next = joinPlayer(existing, playerId, useName(), selectedPiece);
     await persist(next);
   };
 
@@ -1299,4 +1333,3 @@ function clampMoney(value: number, max: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(max, Math.floor(value)));
 }
-
