@@ -10,6 +10,14 @@ const games = [
     tone: "warm",
   },
   {
+    name: "Monopoly",
+    href: "/monopoly",
+    status: "Ready to play",
+    description:
+      "Buy properties, roll animated dice, trade, mortgage, auction, and build houses in shared rooms.",
+    tone: "warm",
+  },
+  {
     name: "Mafia",
     href: "/mafia",
     status: "Staged for integration",
