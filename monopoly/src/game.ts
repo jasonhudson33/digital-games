@@ -35,7 +35,8 @@ type Card = {
   title: string;
   text: string;
   actionText: string;
-  apply: (player: Player) => Player;
+  apply?: (player: Player) => Player;
+  resolve?: (state: GameState, playerIndex: number, entries: LogEntry[]) => GameState;
 };
 
 const chanceCards: Card[] = [
@@ -73,6 +74,93 @@ const chanceCards: Card[] = [
     text: 'Keep this card until you need it.',
     actionText: 'Receive 1 Get Out of Jail Free card.',
     apply: (player) => ({ ...player, getOutOfJailFreeCards: player.getOutOfJailFreeCards + 1 })
+  },
+  {
+    id: 'chance-investment-matures',
+    title: 'Investment Matures',
+    text: 'A long-term investment has reached its payout date.',
+    actionText: 'Collect $150.',
+    apply: (player) => ({ ...player, money: player.money + 150 })
+  },
+  {
+    id: 'chance-board-chair',
+    title: 'Board Chair Duties',
+    text: 'Your new position comes with an expensive celebration.',
+    actionText: 'Pay each other player $50.',
+    resolve: (state, playerIndex, entries) => payEachPlayer(state, playerIndex, 50, entries)
+  },
+  {
+    id: 'chance-property-repairs',
+    title: 'Property Maintenance',
+    text: 'Your buildings are due for repairs.',
+    actionText: 'Pay $25 per house and $100 per hotel.',
+    resolve: (state, playerIndex, entries) => payForRepairs(state, playerIndex, 25, 100, entries)
+  },
+  {
+    id: 'chance-back-three',
+    title: 'Take Three Steps Back',
+    text: 'A surprise detour sends you backward.',
+    actionText: 'Move back 3 spaces.',
+    resolve: (state, playerIndex, entries) =>
+      moveFromCard(state, playerIndex, (state.players[playerIndex].position + board.length - 3) % board.length, entries)
+  },
+  {
+    id: 'chance-boardwalk',
+    title: 'Visit Boardwalk',
+    text: 'Head for the most prestigious address on the board.',
+    actionText: 'Advance to Boardwalk.',
+    resolve: (state, playerIndex, entries) => moveFromCard(state, playerIndex, 39, entries)
+  },
+  {
+    id: 'chance-illinois',
+    title: 'Visit Illinois Avenue',
+    text: 'Your next stop is in the red property district.',
+    actionText: 'Advance to Illinois Avenue.',
+    resolve: (state, playerIndex, entries) => moveFromCard(state, playerIndex, 24, entries)
+  },
+  {
+    id: 'chance-st-charles',
+    title: 'Visit St. Charles Place',
+    text: 'Travel to the first property in the magenta district.',
+    actionText: 'Advance to St. Charles Place.',
+    resolve: (state, playerIndex, entries) => moveFromCard(state, playerIndex, 11, entries)
+  },
+  {
+    id: 'chance-reading-railroad',
+    title: 'Ride the Reading Railroad',
+    text: 'Catch the next train from the first railroad.',
+    actionText: 'Advance to Reading Railroad.',
+    resolve: (state, playerIndex, entries) => moveFromCard(state, playerIndex, 5, entries)
+  },
+  {
+    id: 'chance-nearest-railroad-a',
+    title: 'Next Railroad',
+    text: 'Take the quickest route to the next railroad.',
+    actionText: 'Advance to the next railroad. Pay double rent if owned.',
+    resolve: (state, playerIndex, entries) =>
+      moveFromCard(state, playerIndex, nextBoardSpace(state.players[playerIndex].position, [5, 15, 25, 35]), entries, {
+        railroadRentMultiplier: 2
+      })
+  },
+  {
+    id: 'chance-nearest-railroad-b',
+    title: 'Next Railroad',
+    text: 'Your travel plans have changed. Head for the next station.',
+    actionText: 'Advance to the next railroad. Pay double rent if owned.',
+    resolve: (state, playerIndex, entries) =>
+      moveFromCard(state, playerIndex, nextBoardSpace(state.players[playerIndex].position, [5, 15, 25, 35]), entries, {
+        railroadRentMultiplier: 2
+      })
+  },
+  {
+    id: 'chance-nearest-utility',
+    title: 'Next Utility',
+    text: 'An urgent service call sends you to the next utility.',
+    actionText: 'Advance to the next utility. If owned, roll and pay 10 times the total.',
+    resolve: (state, playerIndex, entries) =>
+      moveFromCard(state, playerIndex, nextBoardSpace(state.players[playerIndex].position, [12, 28]), entries, {
+        utilityRentMultiplier: 10
+      })
   }
 ];
 
@@ -337,11 +425,19 @@ export const stayInJailAndRoll = (state: GameState): GameState => {
 
 export const acknowledgeCard = (state: GameState): GameState => {
   if (!state.pendingCard) return state;
-  return finishTurn({
+  const next = {
     ...state,
     pendingCard: null,
     log: [log(`${playerName(state, state.pendingCard.playerId)} acknowledged the ${deckLabel(state.pendingCard.deck)} card.`), ...state.log].slice(0, 30)
-  });
+  };
+  const hasFollowUp =
+    next.pendingPurchase ||
+    next.pendingTax ||
+    next.pendingRent ||
+    next.pendingUtilityRent ||
+    next.pendingDebt ||
+    next.pendingAuction;
+  return hasFollowUp ? touch(next) : finishTurn(next);
 };
 
 export const acknowledgeRent = (state: GameState): GameState => {
@@ -852,7 +948,19 @@ const resolveLanding = (state: GameState, roll: DiceRoll): GameState => {
   }, state.currentPlayerIndex, entries, roll);
 };
 
-const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntries: LogEntry[] = [], roll?: DiceRoll): GameState => {
+type LandingOptions = {
+  deferTurnEnd?: boolean;
+  railroadRentMultiplier?: number;
+  utilityRentMultiplier?: number;
+};
+
+const resolvePostMoveSpace = (
+  state: GameState,
+  playerIndex: number,
+  landingEntries: LogEntry[] = [],
+  roll?: DiceRoll,
+  options: LandingOptions = {}
+): GameState => {
   const players = [...state.players];
   const active = { ...players[playerIndex] };
   const entries = [...landingEntries];
@@ -884,23 +992,30 @@ const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntr
     const deck = space.kind === 'chance' ? 'chance' : 'community';
     const seed = roll?.nonce ?? Date.now();
     const card = drawCard(deck, seed);
-    const cardResult = normalizeCashAfterCard(card.apply(active), active, entries);
-    Object.assign(active, cardResult);
-    entries.push(log(`${active.name} drew ${card.title}: ${card.actionText}`));
-    players[playerIndex] = markBankrupt(active, entries);
+    let cardState: GameState;
+    if (card.resolve) {
+      players[playerIndex] = active;
+      cardState = card.resolve({ ...state, players }, playerIndex, entries);
+    } else {
+      const cardResult = normalizeCashAfterCard(card.apply?.(active) ?? active, active, entries);
+      Object.assign(active, cardResult);
+      players[playerIndex] = markBankrupt(active, entries);
+      cardState = { ...state, players };
+    }
+    const cardPlayer = cardState.players[playerIndex];
+    const cardLog = log(`${cardPlayer.name} drew ${card.title}: ${card.actionText}`);
 
     return touch({
-      ...state,
-      players,
+      ...cardState,
       pendingCard: {
         id: `${card.id}-${seed}`,
         deck,
         title: card.title,
         text: card.text,
         actionText: card.actionText,
-        playerId: active.id
+        playerId: cardPlayer.id
       },
-      log: [...entries.reverse(), ...state.log].slice(0, 30)
+      log: [cardLog, ...cardState.log].slice(0, 30)
     });
   } else if (space.price && owner && owner.id !== active.id) {
     if (owner.mortgagedProperties.includes(space.id)) {
@@ -922,7 +1037,7 @@ const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntr
     }
     if (space.kind === 'utility') {
       const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
-      const multiplier = ownedUtilities >= 2 ? 10 : 4;
+      const multiplier = options.utilityRentMultiplier ?? (ownedUtilities >= 2 ? 10 : 4);
       entries.push(log(`${active.name} landed on ${owner.name}'s ${space.name} and must roll for utility rent.`));
       players[playerIndex] = active;
       return touch({
@@ -938,13 +1053,15 @@ const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntr
       });
     }
     const rentDetails = calculateRent(state, space, owner, roll);
-    const rent = rentDetails.amount;
+    const railroadMultiplier = space.kind === 'railroad' ? options.railroadRentMultiplier ?? 1 : 1;
+    const rent = rentDetails.amount * railroadMultiplier;
     const hasMonopoly = rentDetails.hasMonopoly;
     const rentPaid = Math.min(active.money, rent);
     active.money -= rentPaid;
     const ownerIndex = players.findIndex((player) => player.id === owner.id);
     players[ownerIndex] = { ...players[ownerIndex], money: players[ownerIndex].money + rentPaid };
-    entries.push(log(`${active.name} paid ${owner.name} $${rentPaid} rent for ${space.name}${rentDetails.logSuffix}.`));
+    const specialRentSuffix = railroadMultiplier > 1 ? ` at ${railroadMultiplier}x rent` : rentDetails.logSuffix;
+    entries.push(log(`${active.name} paid ${owner.name} $${rentPaid} rent for ${space.name}${specialRentSuffix}.`));
     if (rentPaid < rent) entries.push(log(`${active.name} still owed $${rent - rentPaid} but had no more cash.`));
     players[playerIndex] = markBankrupt(active, entries);
     let nextImprovements = state.improvements;
@@ -963,7 +1080,7 @@ const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntr
         amount: rent,
         isMortgaged: false,
         hasMonopoly,
-        rentNote: rentDetails.note
+        rentNote: railroadMultiplier > 1 ? `${rentDetails.note}; ${railroadMultiplier}x Chance rent` : rentDetails.note
       },
       pendingDebt:
         rentPaid < rent && canRaiseMoney(state, players[playerIndex])
@@ -994,11 +1111,76 @@ const resolvePostMoveSpace = (state: GameState, playerIndex: number, landingEntr
 
   players[playerIndex] = markBankrupt(active, entries);
 
-  return finishTurn({
+  const next = {
     ...state,
     players,
     log: [...entries.reverse(), ...state.log].slice(0, 30)
+  };
+  return options.deferTurnEnd ? touch(next) : finishTurn(next);
+};
+
+const nextBoardSpace = (position: number, destinations: number[]) =>
+  destinations.find((destination) => destination > position) ?? destinations[0];
+
+const moveFromCard = (
+  state: GameState,
+  playerIndex: number,
+  destination: number,
+  entries: LogEntry[],
+  options: LandingOptions = {}
+) => {
+  const players = [...state.players];
+  const active = { ...players[playerIndex] };
+  const previous = active.position;
+  active.position = destination;
+  if (destination < previous) {
+    active.money += 200;
+    entries.push(log(`${active.name} passed GO and collected $200.`));
+  }
+  players[playerIndex] = active;
+  entries.push(log(`${active.name} advanced to ${board[destination].name}.`));
+  return resolvePostMoveSpace({ ...state, players }, playerIndex, entries, undefined, {
+    ...options,
+    deferTurnEnd: true
   });
+};
+
+const payEachPlayer = (state: GameState, playerIndex: number, amount: number, entries: LogEntry[]) => {
+  const players = state.players.map((player) => ({ ...player }));
+  const active = players[playerIndex];
+  let totalPaid = 0;
+
+  players.forEach((player, index) => {
+    if (index === playerIndex || active.money <= 0) return;
+    const paid = Math.min(amount, active.money);
+    active.money -= paid;
+    player.money += paid;
+    totalPaid += paid;
+  });
+
+  const totalOwed = amount * Math.max(0, players.length - 1);
+  entries.push(log(`${active.name} paid the other players $${totalPaid} of $${totalOwed} owed.`));
+  players[playerIndex] = markBankrupt(active, entries);
+  return { ...state, players };
+};
+
+const payForRepairs = (
+  state: GameState,
+  playerIndex: number,
+  houseCost: number,
+  hotelCost: number,
+  entries: LogEntry[]
+) => {
+  const players = [...state.players];
+  const active = players[playerIndex];
+  const repairCost = active.properties.reduce((total, spaceId) => {
+    const level = state.improvements?.[spaceId] ?? 0;
+    return total + (level >= 5 ? hotelCost : level * houseCost);
+  }, 0);
+  const charged = normalizeCashAfterCard({ ...active, money: active.money - repairCost }, active, entries);
+  players[playerIndex] = markBankrupt(charged, entries);
+  entries.push(log(`${active.name} paid $${Math.min(active.money, repairCost)} for property repairs.`));
+  return { ...state, players };
 };
 
 const startAuction = (state: GameState, spaceId: number, message: string): GameState => {
