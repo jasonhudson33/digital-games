@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { board } from './board';
-import { GameState, PlayerPiece } from './types';
+import { CardDeck, GameState, PlayerPiece } from './types';
 
 type Handler = (state: GameState) => void;
 
@@ -160,14 +160,41 @@ const normalizeState = (state: GameState): GameState => ({
       }
     : null,
   improvements: state.improvements ?? {},
-  players: state.players.map((player) => ({
-    ...player,
-    mortgagedProperties: player.mortgagedProperties ?? [],
-    getOutOfJailFreeCards: player.getOutOfJailFreeCards ?? 0,
-    jailTurnCount: player.jailTurnCount ?? 0,
-    piece: validPieces.includes(player.piece) ? player.piece : 'car'
-  }))
+  players: normalizePlayers(state)
 });
+
+const normalizePlayers = (state: GameState): GameState['players'] => {
+  const claimedDecks = new Set<CardDeck>();
+  const validDecks: CardDeck[] = ['chance', 'community'];
+
+  return state.players.map((player) => {
+    const decks: CardDeck[] = [];
+    for (const deck of player.getOutOfJailFreeCardDecks ?? []) {
+      if (validDecks.includes(deck) && !claimedDecks.has(deck)) {
+        decks.push(deck);
+        claimedDecks.add(deck);
+      }
+    }
+
+    const targetCount = Math.min(2, Math.max(player.getOutOfJailFreeCards ?? 0, decks.length));
+    for (const deck of validDecks) {
+      if (decks.length >= targetCount) break;
+      if (!claimedDecks.has(deck)) {
+        decks.push(deck);
+        claimedDecks.add(deck);
+      }
+    }
+
+    return {
+      ...player,
+      mortgagedProperties: player.mortgagedProperties ?? [],
+      getOutOfJailFreeCards: decks.length,
+      getOutOfJailFreeCardDecks: decks,
+      jailTurnCount: player.jailTurnCount ?? 0,
+      piece: validPieces.includes(player.piece) ? player.piece : 'car'
+    };
+  });
+};
 
 const normalizeUtilityRent = (state: GameState) => {
   const pending = state.pendingUtilityRent;

@@ -73,7 +73,7 @@ const chanceCards: Card[] = [
     title: 'Get Out Of Jail Free',
     text: 'Keep this card until you need it.',
     actionText: 'Receive 1 Get Out of Jail Free card.',
-    apply: (player) => ({ ...player, getOutOfJailFreeCards: player.getOutOfJailFreeCards + 1 })
+    resolve: (state, playerIndex) => grantJailFreeCard(state, playerIndex, 'chance')
   },
   {
     id: 'chance-investment-matures',
@@ -198,7 +198,7 @@ const communityCards: Card[] = [
     title: 'Get Out Of Jail Free',
     text: 'Hold this card until a future Jail turn.',
     actionText: 'Receive 1 Get Out of Jail Free card.',
-    apply: (player) => ({ ...player, getOutOfJailFreeCards: player.getOutOfJailFreeCards + 1 })
+    resolve: (state, playerIndex) => grantJailFreeCard(state, playerIndex, 'community')
   },
   {
     id: 'community-advance-go',
@@ -313,6 +313,7 @@ export const makePlayer = (id: string, name: string, color: PlayerColor, piece: 
   properties: [],
   mortgagedProperties: [],
   getOutOfJailFreeCards: 0,
+  getOutOfJailFreeCardDecks: [],
   jailTurnCount: 0,
   inJail: false,
   bankrupt: false
@@ -469,9 +470,9 @@ export const useGetOutOfJailFree = (state: GameState): GameState => {
   const player = state.players[playerIndex];
   if (!player?.inJail || player.getOutOfJailFreeCards <= 0) return state;
   const players = [...state.players];
+  const freedPlayer = consumeJailFreeCard(player);
   players[playerIndex] = {
-    ...player,
-    getOutOfJailFreeCards: player.getOutOfJailFreeCards - 1,
+    ...freedPlayer,
     jailTurnCount: 0,
     inJail: false
   };
@@ -849,10 +850,19 @@ export const acceptTrade = (state: GameState): GameState => {
     });
   }
 
+  const fromJailCardDecks = fromPlayer.getOutOfJailFreeCardDecks ?? [];
+  const toJailCardDecks = toPlayer.getOutOfJailFreeCardDecks ?? [];
+  const offeredJailCardDecks = fromJailCardDecks.slice(0, offeredJailCards);
+  const requestedJailCardDecks = toJailCardDecks.slice(0, requestedJailCards);
+
   players[fromIndex] = {
     ...fromPlayer,
     money: fromPlayer.money - offeredMoney + requestedMoney,
     getOutOfJailFreeCards: fromPlayer.getOutOfJailFreeCards - offeredJailCards + requestedJailCards,
+    getOutOfJailFreeCardDecks: [
+      ...fromJailCardDecks.slice(offeredJailCards),
+      ...requestedJailCardDecks
+    ],
     properties: [...fromPlayer.properties.filter((id) => !offered.includes(id)), ...requested],
     mortgagedProperties: [
       ...fromPlayer.mortgagedProperties.filter((id) => !offered.includes(id)),
@@ -863,6 +873,10 @@ export const acceptTrade = (state: GameState): GameState => {
     ...toPlayer,
     money: toPlayer.money - requestedMoney + offeredMoney,
     getOutOfJailFreeCards: toPlayer.getOutOfJailFreeCards - requestedJailCards + offeredJailCards,
+    getOutOfJailFreeCardDecks: [
+      ...toJailCardDecks.slice(requestedJailCards),
+      ...offeredJailCardDecks
+    ],
     properties: [...toPlayer.properties.filter((id) => !requested.includes(id)), ...offered],
     mortgagedProperties: [
       ...toPlayer.mortgagedProperties.filter((id) => !requested.includes(id)),
@@ -977,9 +991,9 @@ const resolveForcedJailExit = (state: GameState, option: 'paid' | 'card'): GameS
   const cost = option === 'paid' ? 50 : 0;
   const rollTotal = state.pendingJailExit.dieOne + state.pendingJailExit.dieTwo;
   const players = [...state.players];
+  const playerAfterCard = option === 'card' ? consumeJailFreeCard(player) : player;
   const freedBeforeCharge = {
-    ...player,
-    getOutOfJailFreeCards: option === 'card' ? player.getOutOfJailFreeCards - 1 : player.getOutOfJailFreeCards,
+    ...playerAfterCard,
     inJail: false,
     jailTurnCount: 0,
     position: (10 + rollTotal) % board.length
@@ -1070,7 +1084,7 @@ const resolvePostMoveSpace = (
   } else if (space.kind === 'chance' || space.kind === 'community') {
     const deck = space.kind === 'chance' ? 'chance' : 'community';
     const seed = roll?.nonce ?? Date.now();
-    const card = drawCard(deck, seed);
+    const card = drawCard(deck, seed, state);
     let cardState: GameState;
     if (card.resolve) {
       players[playerIndex] = active;
@@ -1356,10 +1370,31 @@ const finishAuction = (state: GameState): GameState => {
   });
 };
 
-const drawCard = (deck: CardDeck, seed: number) => {
-  const cards = deck === 'chance' ? chanceCards : communityCards;
+const drawCard = (deck: CardDeck, seed: number, state: GameState) => {
+  const jailCardIsHeld = state.players.some((player) => player.getOutOfJailFreeCardDecks?.includes(deck));
+  const cards = (deck === 'chance' ? chanceCards : communityCards).filter(
+    (card) => !jailCardIsHeld || card.id !== `${deck}-jail-free`
+  );
   return cards[seed % cards.length];
 };
+
+const grantJailFreeCard = (state: GameState, playerIndex: number, deck: CardDeck): GameState => {
+  const players = [...state.players];
+  const player = players[playerIndex];
+  if (player.getOutOfJailFreeCardDecks?.includes(deck)) return state;
+  players[playerIndex] = {
+    ...player,
+    getOutOfJailFreeCards: player.getOutOfJailFreeCards + 1,
+    getOutOfJailFreeCardDecks: [...(player.getOutOfJailFreeCardDecks ?? []), deck]
+  };
+  return { ...state, players };
+};
+
+const consumeJailFreeCard = (player: Player): Player => ({
+  ...player,
+  getOutOfJailFreeCards: Math.max(0, player.getOutOfJailFreeCards - 1),
+  getOutOfJailFreeCardDecks: (player.getOutOfJailFreeCardDecks ?? []).slice(1)
+});
 
 const calculatePercentTax = (player: Player) => {
   const propertyValue = player.properties.reduce((total, spaceId) => {
@@ -1511,14 +1546,20 @@ const transferBankruptAssets = (
     ...creditor,
     money: creditor.money + transferredMoney,
     properties: [...creditor.properties, ...transferredProperties],
-    mortgagedProperties: Array.from(new Set([...creditor.mortgagedProperties, ...transferredProperties]))
+    mortgagedProperties: Array.from(new Set([...creditor.mortgagedProperties, ...transferredProperties])),
+    getOutOfJailFreeCards: creditor.getOutOfJailFreeCards + debtor.getOutOfJailFreeCards,
+    getOutOfJailFreeCardDecks: [
+      ...(creditor.getOutOfJailFreeCardDecks ?? []),
+      ...(debtor.getOutOfJailFreeCardDecks ?? [])
+    ]
   };
   players[debtorIndex] = {
     ...debtor,
     money: 0,
     properties: [],
     mortgagedProperties: [],
-    getOutOfJailFreeCards: 0
+    getOutOfJailFreeCards: 0,
+    getOutOfJailFreeCardDecks: []
   };
   entries.push(log(`${debtor.name} gave ${creditor.name} all remaining money and mortgaged properties.`));
 

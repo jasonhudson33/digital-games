@@ -50,6 +50,7 @@ export type Player = {
   properties: number[];
   mortgagedProperties: number[];
   getOutOfJailFreeCards: number;
+  getOutOfJailFreeCardDecks?: CardDeck[];
   jailTurnCount: number;
   inJail: boolean;
   bankrupt: boolean;
