@@ -1669,17 +1669,31 @@ const markBankrupt = (player: Player, entries: LogEntry[]) => {
 const finishTurn = (state: GameState, options: { forceAdvance?: boolean } = {}): GameState => {
   const activePlayers = state.players.filter((player) => !player.bankrupt);
   const gameOver = activePlayers.length === 1 && state.players.length > 1;
+  const winner = gameOver ? activePlayers[0] : null;
+  const winnerIndex = winner ? state.players.findIndex((player) => player.id === winner.id) : -1;
+  const justFinished = gameOver && state.phase !== 'gameOver';
   const activePlayer = state.players[state.currentPlayerIndex];
   const rollsAgain = !options.forceAdvance && !activePlayer.inJail && Boolean(state.lastRoll?.isDouble) && (state.doubleRollCount ?? 0) > 0;
 
   return touch({
     ...state,
     phase: gameOver ? 'gameOver' : state.phase,
-    currentPlayerIndex: gameOver || rollsAgain ? state.currentPlayerIndex : nextPlayerIndex(state.players, state.currentPlayerIndex),
+    currentPlayerIndex: gameOver ? winnerIndex : rollsAgain ? state.currentPlayerIndex : nextPlayerIndex(state.players, state.currentPlayerIndex),
     doubleRollCount: rollsAgain ? state.doubleRollCount : 0,
     jailRollMode: null,
+    pendingCard: gameOver ? null : state.pendingCard,
+    pendingPurchase: gameOver ? null : state.pendingPurchase,
+    pendingTax: gameOver ? null : state.pendingTax,
+    pendingRent: gameOver ? null : state.pendingRent,
+    pendingUtilityRent: gameOver ? null : state.pendingUtilityRent,
+    pendingDebt: gameOver ? null : state.pendingDebt,
+    pendingAuction: gameOver ? null : state.pendingAuction,
+    pendingJailExit: gameOver ? null : state.pendingJailExit,
+    pendingTrade: gameOver ? null : state.pendingTrade,
     log:
-      rollsAgain && !gameOver
+      justFinished && winner
+        ? [log(`${winner.name} won the game!`), ...state.log].slice(0, 30)
+        : rollsAgain && !gameOver
         ? [log(`${state.players[state.currentPlayerIndex].name} rolled doubles and gets to roll again.`), ...state.log].slice(0, 30)
         : state.log
   });
@@ -1711,4 +1725,26 @@ const nextPlayerIndex = (players: Player[], current: number) => {
   return current;
 };
 
-const touch = (state: GameState): GameState => ({ ...state, updatedAt: Date.now() });
+const touch = (state: GameState): GameState => {
+  const activePlayers = state.players.filter((player) => !player.bankrupt);
+  if (state.phase === 'playing' && activePlayers.length === 1 && state.players.length > 1) {
+    const winner = activePlayers[0];
+    return {
+      ...state,
+      phase: 'gameOver',
+      currentPlayerIndex: state.players.findIndex((player) => player.id === winner.id),
+      pendingCard: null,
+      pendingPurchase: null,
+      pendingTax: null,
+      pendingRent: null,
+      pendingUtilityRent: null,
+      pendingDebt: null,
+      pendingAuction: null,
+      pendingJailExit: null,
+      pendingTrade: null,
+      log: [log(`${winner.name} won the game!`), ...state.log].slice(0, 30),
+      updatedAt: Date.now()
+    };
+  }
+  return { ...state, updatedAt: Date.now() };
+};

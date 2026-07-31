@@ -138,31 +138,42 @@ const loadLocalRoom = async (roomCode: string): Promise<GameState | null> => {
   }
 };
 
-const normalizeState = (state: GameState): GameState => ({
-  ...state,
-  doubleRollCount: state.doubleRollCount ?? 0,
-  jailRollMode: state.jailRollMode ?? null,
-  pendingCard: state.pendingCard ?? null,
-  pendingPurchase: state.pendingPurchase ?? null,
-  pendingTax: state.pendingTax ?? null,
-  pendingRent: state.pendingRent ?? null,
-  pendingUtilityRent: normalizeUtilityRent(state),
-  pendingDebt: state.pendingDebt ?? null,
-  pendingAuction: state.pendingAuction ?? null,
-  pendingJailExit: state.pendingJailExit ?? null,
-  pendingTrade: state.pendingTrade
-    ? {
-        ...state.pendingTrade,
-        expiresAt: state.pendingTrade.expiresAt ?? state.updatedAt + 15_000,
-        offeredMoney: state.pendingTrade.offeredMoney ?? 0,
-        requestedMoney: state.pendingTrade.requestedMoney ?? 0,
-        offeredJailCards: state.pendingTrade.offeredJailCards ?? 0,
-        requestedJailCards: state.pendingTrade.requestedJailCards ?? 0
-      }
-    : null,
-  improvements: state.improvements ?? {},
-  players: normalizePlayers(state)
-});
+const normalizeState = (state: GameState): GameState => {
+  const players = normalizePlayers(state);
+  const activePlayers = players.filter((player) => !player.bankrupt);
+  const gameOver = activePlayers.length === 1 && players.length > 1;
+  const winnerIndex = gameOver ? players.findIndex((player) => player.id === activePlayers[0].id) : state.currentPlayerIndex;
+
+  return {
+    ...state,
+    players,
+    phase: gameOver ? 'gameOver' : state.phase,
+    currentPlayerIndex: winnerIndex,
+    doubleRollCount: state.doubleRollCount ?? 0,
+    jailRollMode: state.jailRollMode ?? null,
+    pendingCard: gameOver ? null : state.pendingCard ?? null,
+    pendingPurchase: gameOver ? null : state.pendingPurchase ?? null,
+    pendingTax: gameOver ? null : state.pendingTax ?? null,
+    pendingRent: gameOver ? null : state.pendingRent ?? null,
+    pendingUtilityRent: gameOver ? null : normalizeUtilityRent(state),
+    pendingDebt: gameOver ? null : state.pendingDebt ?? null,
+    pendingAuction: gameOver ? null : state.pendingAuction ?? null,
+    pendingJailExit: gameOver ? null : state.pendingJailExit ?? null,
+    pendingTrade: gameOver
+      ? null
+      : state.pendingTrade
+        ? {
+            ...state.pendingTrade,
+            expiresAt: state.pendingTrade.expiresAt ?? state.updatedAt + 15_000,
+            offeredMoney: state.pendingTrade.offeredMoney ?? 0,
+            requestedMoney: state.pendingTrade.requestedMoney ?? 0,
+            offeredJailCards: state.pendingTrade.offeredJailCards ?? 0,
+            requestedJailCards: state.pendingTrade.requestedJailCards ?? 0
+          }
+        : null,
+    improvements: state.improvements ?? {}
+  };
+};
 
 const normalizePlayers = (state: GameState): GameState['players'] => {
   const claimedDecks = new Set<CardDeck>();

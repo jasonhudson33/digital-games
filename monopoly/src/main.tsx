@@ -221,6 +221,7 @@ export default function App() {
 
   const activePlayer = game?.players[game.currentPlayerIndex];
   const me = game?.players.find((player) => player.id === playerId);
+  const winner = game?.phase === 'gameOver' ? game.players.find((player) => !player.bankrupt) : null;
   const isHost = game?.hostId === playerId;
   const isMyTurn = activePlayer?.id === playerId;
   const canControlTurn = isMyTurn || Boolean(isHost && activePlayer?.id.startsWith('local-'));
@@ -333,6 +334,7 @@ export default function App() {
 
   return (
     <div className="monopoly-page">
+    {winner && <WinnerOverlay winner={winner} isWinner={winner.id === playerId} />}
     <main className="game-shell">
       <header className="topbar">
         <div>
@@ -546,6 +548,24 @@ export default function App() {
         </aside>
       </section>
     </main>
+    </div>
+  );
+}
+
+function WinnerOverlay({ winner, isWinner }: { winner: Player; isWinner: boolean }) {
+  return (
+    <div className="winner-overlay" role="dialog" aria-modal="true" aria-label={`${winner.name} won the game`}>
+      <section className="winner-card">
+        <div className="winner-trophy"><Trophy size={54} strokeWidth={1.8} /></div>
+        <span className="eyebrow">Game Over</span>
+        <h2>{isWinner ? 'You won!' : `${winner.name} won!`}</h2>
+        <p>{isWinner ? 'You are the last player standing.' : `${winner.name} is the last player standing.`}</p>
+        <div className="winner-player">
+          <PlayerToken player={winner} />
+          <strong>{winner.name}</strong>
+          <span>${winner.money}</span>
+        </div>
+      </section>
     </div>
   );
 }
