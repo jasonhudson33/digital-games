@@ -1040,6 +1040,9 @@ function PlayerRow({
               const unmortgageCost = getUnmortgageCost(spaceId);
               const hasMonopoly = ownerHasColorMonopoly(player, space);
               const improvementLevel = game.improvements[spaceId] ?? 0;
+              const colorGroupHasBuildings = space.kind === 'property'
+                ? getColorGroup(space).some((candidate) => (game.improvements[candidate.id] ?? 0) > 0)
+                : improvementLevel > 0;
               const canBuild = canImproveProperty(game, player, spaceId) && canManage;
               const canSell = canSellImprovement(game, player, spaceId) && canManage;
               const improvementCost = getImprovementCost(spaceId);
@@ -1072,8 +1075,8 @@ function PlayerRow({
                         Unmortgage ${unmortgageCost}
                       </button>
                     ) : (
-                      <button disabled={!canManage || improvementLevel > 0} onClick={() => onMortgage(spaceId)}>
-                        Mortgage ${mortgageValue}
+                      <button disabled={!canManage || colorGroupHasBuildings} onClick={() => onMortgage(spaceId)}>
+                        {colorGroupHasBuildings ? 'Sell buildings first' : `Mortgage $${mortgageValue}`}
                       </button>
                     )}
                   </div>
@@ -1098,10 +1101,10 @@ function PlayerRow({
                 ))}
               </select>
             </div>
-            <TradeCheckboxes title="Offer" propertyIds={player.properties} selectedIds={offeredPropertyIds} onToggle={toggleOffered} />
+            <TradeCheckboxes title="Offer" game={game} propertyIds={player.properties} selectedIds={offeredPropertyIds} onToggle={toggleOffered} />
             <MoneyOffer label="You add" value={offeredMoney} max={player.money} onChange={setOfferedMoney} />
             <JailCardOffer label="Your jail cards" value={offeredJailCards} max={player.getOutOfJailFreeCards} onChange={setOfferedJailCards} />
-            <TradeCheckboxes title="Ask for" propertyIds={selectedTradeTarget.properties} selectedIds={requestedPropertyIds} onToggle={toggleRequested} />
+            <TradeCheckboxes title="Ask for" game={game} propertyIds={selectedTradeTarget.properties} selectedIds={requestedPropertyIds} onToggle={toggleRequested} />
             <MoneyOffer label={`${selectedTradeTarget.name} adds`} value={requestedMoney} max={selectedTradeTarget.money} onChange={setRequestedMoney} />
             <JailCardOffer label={`${selectedTradeTarget.name}'s jail cards`} value={requestedJailCards} max={selectedTradeTarget.getOutOfJailFreeCards} onChange={setRequestedJailCards} />
             <button
@@ -1153,11 +1156,13 @@ function JailCardOffer({ label, value, max, onChange }: { label: string; value: 
 
 function TradeCheckboxes({
   title,
+  game,
   propertyIds,
   selectedIds,
   onToggle
 }: {
   title: string;
+  game: GameState;
   propertyIds: number[];
   selectedIds: number[];
   onToggle: (spaceId: number) => void;
@@ -1168,10 +1173,16 @@ function TradeCheckboxes({
       {propertyIds.length ? (
         sortPropertiesByColor(propertyIds).map((spaceId) => {
           const space = board[spaceId];
+          const hasBuildings = (game.improvements[spaceId] ?? 0) > 0;
           return (
             <label key={spaceId} className="trade-check">
-              <input type="checkbox" checked={selectedIds.includes(spaceId)} onChange={() => onToggle(spaceId)} />
-              <span>{space.name}</span>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(spaceId)}
+                disabled={hasBuildings}
+                onChange={() => onToggle(spaceId)}
+              />
+              <span>{space.name}{hasBuildings ? ' (sell buildings first)' : ''}</span>
             </label>
           );
         })
@@ -1297,7 +1308,9 @@ function calculateImprovedRent(baseRent: number, improvementLevel: number) {
 function ownerHasColorMonopoly(owner: Player, space: Space) {
   if (space.kind !== 'property' || !space.color) return false;
   const colorGroup = getColorGroup(space);
-  return colorGroup.length > 0 && colorGroup.every((candidate) => owner.properties.includes(candidate.id));
+  return colorGroup.length > 0 && colorGroup.every(
+    (candidate) => owner.properties.includes(candidate.id) && !owner.mortgagedProperties.includes(candidate.id)
+  );
 }
 
 function canImproveProperty(game: GameState, owner: Player, spaceId: number) {

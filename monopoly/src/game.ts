@@ -692,7 +692,8 @@ export const mortgageProperty = (state: GameState, playerId: string, spaceId: nu
   const players = [...state.players];
   const player = players[playerIndex];
   if (!player.properties.includes(spaceId) || player.mortgagedProperties.includes(spaceId)) return state;
-  if ((state.improvements?.[spaceId] ?? 0) > 0) return state;
+  const colorGroup = space.kind === 'property' && space.color ? getColorGroup(space) : [space];
+  if (colorGroup.some((candidate) => (state.improvements?.[candidate.id] ?? 0) > 0)) return state;
   const mortgageValue = getMortgageValue(spaceId);
 
   players[playerIndex] = {
@@ -817,8 +818,8 @@ export const proposeTrade = (
   if (fromPlayer.money < cleanOfferedMoney || toPlayer.money < cleanRequestedMoney) return state;
   if (fromPlayer.getOutOfJailFreeCards < cleanOfferedJailCards || toPlayer.getOutOfJailFreeCards < cleanRequestedJailCards) return state;
 
-  const offered = uniqueBuildableTradeIds(offeredPropertyIds, fromPlayer);
-  const requested = uniqueBuildableTradeIds(requestedPropertyIds, toPlayer);
+  const offered = uniqueTradeablePropertyIds(state, offeredPropertyIds, fromPlayer);
+  const requested = uniqueTradeablePropertyIds(state, requestedPropertyIds, toPlayer);
   if (!offered.length && !requested.length && cleanOfferedMoney <= 0 && cleanRequestedMoney <= 0 && cleanOfferedJailCards <= 0 && cleanRequestedJailCards <= 0) return state;
 
   return touch({
@@ -848,12 +849,22 @@ export const acceptTrade = (state: GameState): GameState => {
   const players = [...state.players];
   const fromPlayer = players[fromIndex];
   const toPlayer = players[toIndex];
-  const offered = uniqueBuildableTradeIds(trade.offeredPropertyIds, fromPlayer);
-  const requested = uniqueBuildableTradeIds(trade.requestedPropertyIds, toPlayer);
+  const offered = uniqueTradeablePropertyIds(state, trade.offeredPropertyIds, fromPlayer);
+  const requested = uniqueTradeablePropertyIds(state, trade.requestedPropertyIds, toPlayer);
   const offeredMoney = sanitizeMoney(trade.offeredMoney ?? 0);
   const requestedMoney = sanitizeMoney(trade.requestedMoney ?? 0);
   const offeredJailCards = sanitizeMoney(trade.offeredJailCards ?? 0);
   const requestedJailCards = sanitizeMoney(trade.requestedJailCards ?? 0);
+  if (
+    offered.length !== new Set(trade.offeredPropertyIds).size ||
+    requested.length !== new Set(trade.requestedPropertyIds).size
+  ) {
+    return touch({
+      ...state,
+      pendingTrade: null,
+      log: [log(`${fromPlayer.name} and ${toPlayer.name}'s trade was canceled because a property has houses or a hotel.`), ...state.log].slice(0, 30)
+    });
+  }
   if (fromPlayer.money < offeredMoney || toPlayer.money < requestedMoney) {
     return touch({
       ...state,
@@ -1469,7 +1480,9 @@ const calculateRent = (state: GameState, space: (typeof board)[number], owner: P
 const ownerHasColorMonopoly = (owner: Player, space: (typeof board)[number]) => {
   if (space.kind !== 'property' || !space.color) return false;
   const colorGroup = board.filter((candidate) => candidate.kind === 'property' && candidate.color === space.color);
-  return colorGroup.length > 0 && colorGroup.every((candidate) => owner.properties.includes(candidate.id));
+  return colorGroup.length > 0 && colorGroup.every(
+    (candidate) => owner.properties.includes(candidate.id) && !owner.mortgagedProperties.includes(candidate.id)
+  );
 };
 
 const canImproveProperty = (state: GameState, owner: Player, spaceId: number) => {
@@ -1522,8 +1535,10 @@ const getImprovementCost = (spaceId: number) => {
   return 200;
 };
 
-const uniqueBuildableTradeIds = (spaceIds: number[], owner: Player) =>
-  Array.from(new Set(spaceIds)).filter((spaceId) => owner.properties.includes(spaceId));
+const uniqueTradeablePropertyIds = (state: GameState, spaceIds: number[], owner: Player) =>
+  Array.from(new Set(spaceIds)).filter(
+    (spaceId) => owner.properties.includes(spaceId) && (state.improvements?.[spaceId] ?? 0) === 0
+  );
 
 const sanitizeMoney = (amount: number) => Math.max(0, Math.floor(Number.isFinite(amount) ? amount : 0));
 
