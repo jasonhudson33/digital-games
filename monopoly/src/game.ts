@@ -495,10 +495,12 @@ export const rollUtilityRent = (state: GameState): GameState => {
   const dieOne = Math.floor(Math.random() * 6) + 1;
   const dieTwo = Math.floor(Math.random() * 6) + 1;
   const total = dieOne + dieTwo;
-  const amount = total * pending.multiplier;
+  const owner = state.players[ownerIndex];
+  const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
+  const multiplier = pending.multiplier === 10 ? 10 : ownedUtilities >= 2 ? 10 : 4;
+  const amount = total * multiplier;
   const players = [...state.players];
   const payer = { ...players[playerIndex] };
-  const owner = players[ownerIndex];
   const rentPaid = Math.min(payer.money, amount);
   const entries: LogEntry[] = [
     log(`${payer.name} rolled ${dieOne} + ${dieTwo} for utility rent and paid ${owner.name} $${rentPaid}.`)
@@ -526,7 +528,7 @@ export const rollUtilityRent = (state: GameState): GameState => {
       amount,
       isMortgaged: false,
       hasMonopoly: false,
-      rentNote: `${total} x ${pending.multiplier} utility rent`
+      rentNote: `${total} x ${multiplier} utility rent`
     },
     pendingDebt:
       rentPaid < amount && canRaiseMoney(state, players[playerIndex])

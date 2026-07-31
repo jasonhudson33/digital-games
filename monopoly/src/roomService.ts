@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { board } from './board';
 import { GameState, PlayerPiece } from './types';
 
 type Handler = (state: GameState) => void;
@@ -145,7 +146,7 @@ const normalizeState = (state: GameState): GameState => ({
   pendingPurchase: state.pendingPurchase ?? null,
   pendingTax: state.pendingTax ?? null,
   pendingRent: state.pendingRent ?? null,
-  pendingUtilityRent: state.pendingUtilityRent ?? null,
+  pendingUtilityRent: normalizeUtilityRent(state),
   pendingDebt: state.pendingDebt ?? null,
   pendingAuction: state.pendingAuction ?? null,
   pendingJailExit: state.pendingJailExit ?? null,
@@ -167,6 +168,19 @@ const normalizeState = (state: GameState): GameState => ({
     piece: validPieces.includes(player.piece) ? player.piece : 'car'
   }))
 });
+
+const normalizeUtilityRent = (state: GameState) => {
+  const pending = state.pendingUtilityRent;
+  if (!pending) return null;
+  if (pending.multiplier === 10) return pending;
+
+  const owner = state.players.find((player) => player.id === pending.ownerId);
+  const ownedUtilities = owner?.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length ?? 0;
+  return {
+    ...pending,
+    multiplier: ownedUtilities >= 2 ? 10 : 4
+  };
+};
 
 const broadcast = (state: GameState) => {
   if (!('BroadcastChannel' in window)) return;
