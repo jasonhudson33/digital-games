@@ -9,7 +9,7 @@ import DayPhase from './components/DayPhase';
 import GameOver from './components/GameOver';
 import Button from './components/Button';
 import { RoomService } from './services/RoomService';
-import { narrator } from './services/SpeechService';
+import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -85,6 +85,22 @@ const App: React.FC = () => {
   }, [gameState.players]);
 
   const isActingHost = !!myPlayerId && actingHostId === myPlayerId;
+
+  useEffect(() => {
+    if (!isActingHost) return;
+    let unlocked = false;
+    const unlockHostAudio = () => {
+      if (unlocked) return;
+      unlocked = true;
+      void narrator.unlock().then(() => narrator.preloadAll());
+    };
+    window.addEventListener('pointerdown', unlockHostAudio, { once: true });
+    window.addEventListener('keydown', unlockHostAudio, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockHostAudio);
+      window.removeEventListener('keydown', unlockHostAudio);
+    };
+  }, [isActingHost]);
 
   const shouldUpdateState = useCallback((remote: GameState, local: GameState) => {
     // Prefer newer updates, but allow equal if phase changed
@@ -251,9 +267,16 @@ const App: React.FC = () => {
 
       if (!actors.length) {
         // Skip empty role phase
-        if (state.phase === GamePhase.NIGHT_KILLER) await hostUpdateState({ phase: GamePhase.NIGHT_DETECTIVE, nightActions: {} });
-        else if (state.phase === GamePhase.NIGHT_DETECTIVE) await hostUpdateState({ phase: GamePhase.NIGHT_ANGEL, nightActions: {} });
-        else await hostUpdateState({ phase: GamePhase.DAY_RESULTS, nightActions: {} });
+        if (state.phase === GamePhase.NIGHT_KILLER) {
+          await narrator.speak(MAFIA_NARRATION.detectivesWake);
+          await hostUpdateState({ phase: GamePhase.NIGHT_DETECTIVE, nightActions: {} });
+        } else if (state.phase === GamePhase.NIGHT_DETECTIVE) {
+          await narrator.speak(MAFIA_NARRATION.angelsWake);
+          await hostUpdateState({ phase: GamePhase.NIGHT_ANGEL, nightActions: {} });
+        } else {
+          await narrator.speak(MAFIA_NARRATION.morning);
+          await hostUpdateState({ phase: GamePhase.DAY_RESULTS, nightActions: {} });
+        }
         return;
       }
 
@@ -276,6 +299,7 @@ const App: React.FC = () => {
       const targetId = targets[0];
 
       if (state.phase === GamePhase.NIGHT_KILLER) {
+        await narrator.speak(MAFIA_NARRATION.detectivesWake);
         await hostUpdateState({ killerTargetId: targetId, nightActions: {}, phase: GamePhase.NIGHT_DETECTIVE });
       } else if (state.phase === GamePhase.NIGHT_DETECTIVE) {
         // Save private results for each detective
@@ -286,6 +310,7 @@ const App: React.FC = () => {
             ts: Date.now(),
           });
         }
+        await narrator.speak(MAFIA_NARRATION.angelsWake);
         await hostUpdateState({ detectiveCheckId: targetId, nightActions: {}, phase: GamePhase.NIGHT_ANGEL });
       } else if (state.phase === GamePhase.NIGHT_ANGEL) {
         await hostUpdateState({ angelSaveId: targetId, nightActions: {} });
@@ -307,6 +332,7 @@ const App: React.FC = () => {
           results.push('The night passed without incident.');
         }
 
+        await narrator.speak(MAFIA_NARRATION.morning);
         await hostUpdateState({
           nightResults: results,
           lastAngelSavedId: save,
@@ -354,22 +380,39 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.roomCode, isActingHost, gameState.round]);
 
-  // ---------- Phase narration helpers ----------
+  // ---------- Host-owned phase narration ----------
+  const narratedNightRef = useRef('');
   useEffect(() => {
     const state = gameState;
-    if (!state.roomCode) return;
+    if (!state.roomCode || !isActingHost || state.phase !== GamePhase.NIGHT_TRANSITION) return;
+    const narrationKey = `${state.roomCode}:${state.round}`;
+    if (narratedNightRef.current === narrationKey) return;
+    narratedNightRef.current = narrationKey;
+    let active = true;
 
     const run = async () => {
-      if (state.phase === GamePhase.NIGHT_TRANSITION) {
-        await narrator.speak('Night falls. Close your eyes.');
-        if (isActingHost) await hostUpdateState({ phase: GamePhase.NIGHT_KILLER });
-      }
-      if (state.phase === GamePhase.DAY_RESULTS) {
-        await narrator.speak('Day breaks.');
+      await narrator.speak(MAFIA_NARRATION.sleep);
+      await narrator.speak(MAFIA_NARRATION.killersWake);
+      if (active && gameStateRef.current.phase === GamePhase.NIGHT_TRANSITION) {
+        await hostUpdateState({ phase: GamePhase.NIGHT_KILLER });
       }
     };
-    run().catch(console.error);
-  }, [gameState.phase, gameState.roomCode, hostUpdateState, isActingHost]);
+    run().catch((error) => {
+      narratedNightRef.current = '';
+      console.error(error);
+    });
+    return () => { active = false; };
+  }, [gameState.phase, gameState.roomCode, gameState.round, hostUpdateState, isActingHost]);
+
+  const narratedWinnerRef = useRef('');
+  useEffect(() => {
+    if (!isActingHost || gameState.phase !== GamePhase.GAME_OVER || !gameState.winner) return;
+    const narrationKey = `${gameState.roomCode}:${gameState.round}:${gameState.winner}`;
+    if (narratedWinnerRef.current === narrationKey) return;
+    narratedWinnerRef.current = narrationKey;
+    const script = gameState.winner === 'KILLERS' ? MAFIA_NARRATION.killersWin : MAFIA_NARRATION.citizensWin;
+    void narrator.speak(script).catch(console.error);
+  }, [gameState.phase, gameState.roomCode, gameState.round, gameState.winner, isActingHost]);
 
   // Host: auto-resolve day votes when all alive have voted
   useEffect(() => {
@@ -427,6 +470,7 @@ const App: React.FC = () => {
 
   // ---------- UI Handlers ----------
   const handleCreateRoom = useCallback(async (name: string) => {
+    void narrator.unlock().then(() => narrator.preloadAll());
     const uid = myPlayerId;
     if (!uid) {
       alert(connectionError || 'Your player identity is not ready yet. Try again.');
