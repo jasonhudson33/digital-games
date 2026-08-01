@@ -21,7 +21,7 @@ export enum GamePhase {
 }
 
 export interface Player {
-  id: string; // Supabase auth user id
+  id: string; // Persistent id for this browser or device
   name: string;
   cardCode: string;
   isAlive: boolean;

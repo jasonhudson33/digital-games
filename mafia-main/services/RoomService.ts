@@ -1,5 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '../supabase';
+import { getMafiaIdentity, supabase } from '../supabase';
 import type {
   DayIntent,
   DetectiveResult,
@@ -23,23 +23,21 @@ const client = (): SupabaseClient => {
   return supabase;
 };
 
+const identity = () => {
+  const current = getMafiaIdentity();
+  if (!current) throw new Error('Mafia device identity is unavailable.');
+  return current;
+};
+
 const code = (roomCode: string) => roomCode.trim().toUpperCase();
 
 const throwIfError = (error: { message: string } | null) => {
   if (error) throw new Error(error.message);
 };
 
-const subscribe = <T>(
-  roomCode: string,
-  table: string,
-  roomColumn: 'code' | 'room_code',
-  load: () => Promise<T>,
-  cb: (value: T) => void
-): Unsubscribe => {
-  const room = code(roomCode);
+const pollingSubscription = <T>(load: () => Promise<T>, cb: (value: T) => void, interval = 1000): Unsubscribe => {
   let stopped = false;
   let lastValue = '';
-
   const refresh = async () => {
     try {
       const value = await load();
@@ -48,236 +46,206 @@ const subscribe = <T>(
       lastValue = serialized;
       cb(value);
     } catch (error) {
-      if (!stopped) console.error(`Failed to refresh Mafia ${table}`, error);
+      if (!stopped) console.error('Failed to refresh Mafia room data', error);
     }
   };
-
   void refresh();
-  const channel: RealtimeChannel = client()
-    .channel(`mafia:${table}:${room}:${subscriptionId++}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table, filter: `${roomColumn}=eq.${room}` },
-      () => void refresh()
-    )
-    .subscribe();
-  const pollId = window.setInterval(() => void refresh(), 1500);
-
+  const pollId = window.setInterval(() => void refresh(), interval);
   return () => {
     stopped = true;
     window.clearInterval(pollId);
+  };
+};
+
+const roomSubscription = <T>(roomCode: string, load: () => Promise<T>, cb: (value: T) => void): Unsubscribe => {
+  const stopPolling = pollingSubscription(load, cb, 1500);
+  const room = code(roomCode);
+  const channel: RealtimeChannel = client()
+    .channel(`mafia:rooms:${room}:${subscriptionId++}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'mafia_rooms', filter: `code=eq.${room}` }, () => {
+      void load().then(cb).catch((error) => console.error('Failed to receive Mafia room update', error));
+    })
+    .subscribe();
+  return () => {
+    stopPolling();
     void client().removeChannel(channel);
   };
 };
 
-const getRequests = async <T>(roomCode: string, requestType: 'join' | 'leave'): Promise<Record<string, T>> => {
-  const { data, error } = await client()
-    .from('mafia_requests')
-    .select('player_id,payload')
-    .eq('room_code', code(roomCode))
-    .eq('request_type', requestType)
-    .order('player_id');
+const rpc = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
+  const { data, error } = await client().rpc(name, args);
   throwIfError(error);
-  return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.payload as T]));
+  return data as T;
+};
+
+const credentials = (roomCode: string) => {
+  const current = identity();
+  return { room_code: code(roomCode), player_id: current.playerId, player_token: current.token };
+};
+
+const getRequests = async <T>(roomCode: string, requestType: 'join' | 'leave'): Promise<Record<string, T>> => {
+  const rows = await rpc<Array<{ request_player_id: string; payload: T }>>('mafia_get_requests', {
+    ...credentials(roomCode), requested_type: requestType
+  });
+  return Object.fromEntries((rows ?? []).map((row) => [row.request_player_id, row.payload]));
 };
 
 const getIntents = async <T>(roomCode: string, round: number, intentType: IntentType): Promise<Record<string, T>> => {
-  const { data, error } = await client()
-    .from('mafia_intents')
-    .select('player_id,payload')
-    .eq('room_code', code(roomCode))
-    .eq('round', round)
-    .eq('intent_type', intentType)
-    .order('player_id');
-  throwIfError(error);
-  return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.payload as T]));
+  const rows = await rpc<Array<{ intent_player_id: string; payload: T }>>('mafia_get_intents', {
+    ...credentials(roomCode), intent_round: round, requested_type: intentType
+  });
+  return Object.fromEntries((rows ?? []).map((row) => [row.intent_player_id, row.payload]));
 };
 
-const saveIntent = async (roomCode: string, round: number, intentType: IntentType, playerId: string, payload: unknown) => {
-  const { error } = await client().from('mafia_intents').upsert({
-    room_code: code(roomCode),
-    round,
-    intent_type: intentType,
-    player_id: playerId,
-    payload,
-    updated_at: new Date().toISOString()
+const saveIntent = async (roomCode: string, round: number, intentType: IntentType, payload: unknown) => {
+  await rpc('mafia_submit_intent', {
+    ...credentials(roomCode), intent_round: round, intent_type: intentType, payload
   });
-  throwIfError(error);
 };
 
 export const RoomService = {
+  async createRoom(roomCode: string, state: GameState, meta: RoomMeta) {
+    const current = identity();
+    await rpc('mafia_create_room', {
+      room_code: code(roomCode),
+      room_state: state,
+      room_meta: meta,
+      player_id: current.playerId,
+      player_token: current.token
+    });
+  },
+
   async saveState(roomCode: string, state: GameState): Promise<void> {
     const next = { ...state, lastUpdated: Math.max(Date.now(), state.lastUpdated + 1) };
-    const { data, error } = await client()
-      .from('mafia_rooms')
-      .update({ state: next, updated_at: new Date().toISOString() })
-      .eq('code', code(roomCode))
-      .select('code')
-      .maybeSingle();
-    throwIfError(error);
-    if (!data) throw new Error(`Mafia room ${code(roomCode)} has not been created.`);
+    await rpc('mafia_save_state', { ...credentials(roomCode), room_state: next });
   },
 
   async getState(roomCode: string): Promise<GameState | null> {
-    const { data, error } = await client()
-      .from('mafia_rooms')
-      .select('state')
-      .eq('code', code(roomCode))
-      .maybeSingle();
+    const { data, error } = await client().from('mafia_rooms').select('state').eq('code', code(roomCode)).maybeSingle();
     throwIfError(error);
     return data?.state && Object.keys(data.state).length ? data.state as GameState : null;
   },
 
   subscribeToState(roomCode: string, cb: (state: GameState) => void) {
-    return subscribe(roomCode, 'mafia_rooms', 'code', async () => {
-      const state = await this.getState(roomCode);
-      return state;
-    }, (state) => {
+    return roomSubscription(roomCode, () => this.getState(roomCode), (state) => {
       if (state) cb(state);
     });
   },
 
   async setMeta(roomCode: string, meta: RoomMeta) {
-    const { error } = await client().from('mafia_rooms').upsert({
-      code: code(roomCode),
-      meta,
-      updated_at: new Date().toISOString()
-    });
-    throwIfError(error);
+    await rpc('mafia_set_meta', { ...credentials(roomCode), room_meta: meta });
   },
 
   async getMeta(roomCode: string): Promise<RoomMeta | null> {
-    const { data, error } = await client()
-      .from('mafia_rooms')
-      .select('meta')
-      .eq('code', code(roomCode))
-      .maybeSingle();
+    const { data, error } = await client().from('mafia_rooms').select('meta').eq('code', code(roomCode)).maybeSingle();
     throwIfError(error);
     return data?.meta && Object.keys(data.meta).length ? data.meta as RoomMeta : null;
   },
 
   subscribeToMeta(roomCode: string, cb: (meta: RoomMeta | null) => void) {
-    return subscribe(roomCode, 'mafia_rooms', 'code', () => this.getMeta(roomCode), cb);
+    return roomSubscription(roomCode, () => this.getMeta(roomCode), cb);
   },
 
   async setRoles(roomCode: string, roles: RoleMap) {
-    const room = code(roomCode);
-    const { error: deleteError } = await client().from('mafia_roles').delete().eq('room_code', room);
-    throwIfError(deleteError);
-    const rows = Object.entries(roles).map(([playerId, role]) => ({ room_code: room, player_id: playerId, role }));
-    if (!rows.length) return;
-    const { error } = await client().from('mafia_roles').insert(rows);
-    throwIfError(error);
+    await rpc('mafia_set_roles', { ...credentials(roomCode), roles });
   },
 
   async getMyRole(roomCode: string, uid: string): Promise<Role | null> {
-    const { data, error } = await client()
-      .from('mafia_roles')
-      .select('role')
-      .eq('room_code', code(roomCode))
-      .eq('player_id', uid)
-      .maybeSingle();
-    throwIfError(error);
-    return data?.role as Role ?? null;
+    const current = identity();
+    if (uid !== current.playerId) throw new Error('Cannot read another player’s Mafia role.');
+    return await rpc<Role | null>('mafia_get_role', credentials(roomCode));
   },
 
   subscribeToRoles(roomCode: string, cb: (roles: RoleMap) => void) {
     const load = async () => {
-      const { data, error } = await client()
-        .from('mafia_roles')
-        .select('player_id,role')
-        .eq('room_code', code(roomCode))
-        .order('player_id');
-      throwIfError(error);
-      return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.role as Role]));
+      const rows = await rpc<Array<{ role_player_id: string; role: Role }>>('mafia_get_roles', credentials(roomCode));
+      return Object.fromEntries((rows ?? []).map((row) => [row.role_player_id, row.role]));
     };
-    return subscribe(roomCode, 'mafia_roles', 'room_code', load, cb);
+    return pollingSubscription(load, cb);
   },
 
   async submitJoinRequest(roomCode: string, uid: string, name: string) {
+    const current = identity();
+    if (uid !== current.playerId) throw new Error('Invalid Mafia player identity.');
+    await rpc('mafia_register_player', credentials(roomCode));
     await this.clearLeaveRequest(roomCode, uid);
     const payload: JoinRequest = { name, ts: Date.now() };
-    const { error } = await client().from('mafia_requests').upsert({
-      room_code: code(roomCode), player_id: uid, request_type: 'join', payload, updated_at: new Date().toISOString()
-    });
-    throwIfError(error);
+    await rpc('mafia_submit_request', { ...credentials(roomCode), request_type: 'join', payload });
   },
 
   async clearJoinRequest(roomCode: string, uid: string) {
-    const { error } = await client().from('mafia_requests').delete()
-      .eq('room_code', code(roomCode)).eq('player_id', uid).eq('request_type', 'join');
-    throwIfError(error);
+    await rpc('mafia_clear_request', {
+      ...credentials(roomCode), target_player_id: uid, requested_type: 'join'
+    });
   },
 
   subscribeToJoinRequests(roomCode: string, cb: (reqs: Record<string, JoinRequest>) => void) {
-    return subscribe(roomCode, 'mafia_requests', 'room_code', () => getRequests<JoinRequest>(roomCode, 'join'), cb);
+    return pollingSubscription(() => getRequests<JoinRequest>(roomCode, 'join'), cb);
   },
 
   async submitLeaveRequest(roomCode: string, uid: string) {
+    const current = identity();
+    if (uid !== current.playerId) throw new Error('Invalid Mafia player identity.');
     await this.clearJoinRequest(roomCode, uid);
     const payload: LeaveRequest = { ts: Date.now() };
-    const { error } = await client().from('mafia_requests').upsert({
-      room_code: code(roomCode), player_id: uid, request_type: 'leave', payload, updated_at: new Date().toISOString()
-    });
-    throwIfError(error);
+    await rpc('mafia_submit_request', { ...credentials(roomCode), request_type: 'leave', payload });
   },
 
   async clearLeaveRequest(roomCode: string, uid: string) {
-    const { error } = await client().from('mafia_requests').delete()
-      .eq('room_code', code(roomCode)).eq('player_id', uid).eq('request_type', 'leave');
-    throwIfError(error);
+    await rpc('mafia_clear_request', {
+      ...credentials(roomCode), target_player_id: uid, requested_type: 'leave'
+    });
   },
 
   subscribeToLeaveRequests(roomCode: string, cb: (reqs: Record<string, LeaveRequest>) => void) {
-    return subscribe(roomCode, 'mafia_requests', 'room_code', () => getRequests<LeaveRequest>(roomCode, 'leave'), cb);
+    return pollingSubscription(() => getRequests<LeaveRequest>(roomCode, 'leave'), cb);
   },
 
   async submitReady(roomCode: string, round: number, uid: string) {
+    if (uid !== identity().playerId) throw new Error('Invalid Mafia player identity.');
     const payload: ReadyIntent = { ready: true, ts: Date.now() };
-    await saveIntent(roomCode, round, 'ready', uid, payload);
+    await saveIntent(roomCode, round, 'ready', payload);
   },
 
   subscribeToReady(roomCode: string, round: number, cb: (intents: Record<string, ReadyIntent>) => void) {
-    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<ReadyIntent>(roomCode, round, 'ready'), cb);
+    return pollingSubscription(() => getIntents<ReadyIntent>(roomCode, round, 'ready'), cb);
   },
 
   async submitNightIntent(roomCode: string, round: number, uid: string, intent: NightIntent) {
-    await saveIntent(roomCode, round, 'night', uid, intent);
+    if (uid !== identity().playerId) throw new Error('Invalid Mafia player identity.');
+    await saveIntent(roomCode, round, 'night', intent);
   },
 
   subscribeToNightIntents(roomCode: string, round: number, cb: (intents: Record<string, NightIntent>) => void) {
-    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<NightIntent>(roomCode, round, 'night'), cb);
+    return pollingSubscription(() => getIntents<NightIntent>(roomCode, round, 'night'), cb);
   },
 
   async submitDayIntent(roomCode: string, round: number, uid: string, intent: DayIntent) {
-    await saveIntent(roomCode, round, 'day', uid, intent);
+    if (uid !== identity().playerId) throw new Error('Invalid Mafia player identity.');
+    await saveIntent(roomCode, round, 'day', intent);
   },
 
   subscribeToDayIntents(roomCode: string, round: number, cb: (intents: Record<string, DayIntent>) => void) {
-    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<DayIntent>(roomCode, round, 'day'), cb);
+    return pollingSubscription(() => getIntents<DayIntent>(roomCode, round, 'day'), cb);
   },
 
   async clearRoundIntents(roomCode: string, round: number) {
-    const { error } = await client().from('mafia_intents').delete()
-      .eq('room_code', code(roomCode)).eq('round', round);
-    throwIfError(error);
+    await rpc('mafia_clear_round_intents', { ...credentials(roomCode), intent_round: round });
   },
 
   async setDetectiveResult(roomCode: string, round: number, uid: string, result: DetectiveResult) {
-    const { error } = await client().from('mafia_detective_results').upsert({
-      room_code: code(roomCode), round, player_id: uid, result, updated_at: new Date().toISOString()
+    await rpc('mafia_set_detective_result', {
+      ...credentials(roomCode), intent_round: round, target_player_id: uid, result
     });
-    throwIfError(error);
   },
 
   subscribeToDetectiveResult(roomCode: string, round: number, uid: string, cb: (result: DetectiveResult | null) => void) {
-    const load = async () => {
-      const { data, error } = await client().from('mafia_detective_results').select('result')
-        .eq('room_code', code(roomCode)).eq('round', round).eq('player_id', uid).maybeSingle();
-      throwIfError(error);
-      return data?.result as DetectiveResult ?? null;
-    };
-    return subscribe(roomCode, 'mafia_detective_results', 'room_code', load, cb);
+    const current = identity();
+    if (uid !== current.playerId) return () => undefined;
+    const load = () => rpc<DetectiveResult | null>('mafia_get_detective_result', {
+      ...credentials(roomCode), intent_round: round
+    });
+    return pollingSubscription(load, cb);
   },
 
   generateRoomCode(): string {

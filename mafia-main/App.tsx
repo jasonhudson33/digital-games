@@ -9,7 +9,7 @@ import DayPhase from './components/DayPhase';
 import GameOver from './components/GameOver';
 import { RoomService } from './services/RoomService';
 import { narrator } from './services/SpeechService';
-import { getSupabaseSetupError, supabase } from './supabase';
+import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
   roomCode: '',
@@ -49,7 +49,7 @@ const App: React.FC = () => {
   const [cachedPlayerName, setCachedPlayerName] = useState<string>(() => getStoredValue('mafia_player_name') || '');
   const [gameState, setGameState] = useState<GameState>(makeInitialState());
   const [meta, setMeta] = useState<RoomMeta | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+  const [identityReady, setIdentityReady] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(getSupabaseSetupError());
 
   const [rolesMap, setRolesMap] = useState<RoleMap>({});
@@ -59,51 +59,16 @@ const App: React.FC = () => {
   const gameStateRef = useRef<GameState>(gameState);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
-  // ---------- Auth bootstrap ----------
+  // ---------- Device identity bootstrap ----------
   useEffect(() => {
-    if (!supabase) return;
-    let active = true;
-
-    const useUser = (uid: string) => {
-      if (!active) return;
-      setMyPlayerId(uid);
-      localStorage.setItem('mafia_player_id', uid);
-      setAuthReady(true);
-      setConnectionError(null);
-    };
-
-    const bootstrap = async () => {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (sessionData.session?.user) {
-        useUser(sessionData.session.user.id);
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) throw error;
-      if (!data.user) throw new Error('Supabase did not create an anonymous player session.');
-      useUser(data.user.id);
-    };
-
-    void bootstrap().catch((error) => {
-      if (!active) return;
-      const message = error instanceof Error ? error.message : 'Could not connect to Supabase Auth.';
-      setConnectionError(
-        message.toLowerCase().includes('anonymous')
-          ? 'Anonymous Supabase sign-ins are disabled. Enable Anonymous Sign-Ins in Supabase Authentication settings.'
-          : `Could not connect to Supabase: ${message}`
-      );
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) useUser(session.user.id);
-    });
-
-    return () => {
-      active = false;
-      authListener.subscription.unsubscribe();
-    };
+    if (connectionError) return;
+    const current = getMafiaIdentity();
+    if (!current) {
+      setConnectionError('This browser could not create a Mafia player identity.');
+      return;
+    }
+    setMyPlayerId(current.playerId);
+    setIdentityReady(true);
   }, []);
 
   const myRole: Role = useMemo(() => {
@@ -463,7 +428,7 @@ const App: React.FC = () => {
   const handleCreateRoom = useCallback(async (name: string) => {
     const uid = myPlayerId;
     if (!uid) {
-      alert(connectionError || 'Supabase Auth is not ready yet. Try again.');
+      alert(connectionError || 'Your player identity is not ready yet. Try again.');
       return;
     }
 
@@ -493,8 +458,7 @@ const App: React.FC = () => {
       lastUpdated: Date.now(),
     });
 
-    await RoomService.setMeta(code, { hostUid: uid, createdAt: Date.now(), version: 1 });
-    await RoomService.saveState(code, state);
+    await RoomService.createRoom(code, state, { hostUid: uid, createdAt: Date.now(), version: 1 });
 
     setGameState(state);
   }, [connectionError, myPlayerId]);
@@ -502,7 +466,7 @@ const App: React.FC = () => {
   const handleJoinRoom = useCallback(async (name: string, code: string) => {
     const uid = myPlayerId;
     if (!uid) {
-      alert(connectionError || 'Supabase Auth is not ready yet. Try again.');
+      alert(connectionError || 'Your player identity is not ready yet. Try again.');
       return;
     }
 
@@ -587,7 +551,7 @@ const App: React.FC = () => {
         onCreate={handleCreateRoom}
         onJoin={handleJoinRoom}
         connectionError={connectionError}
-        connectionReady={authReady}
+        connectionReady={identityReady}
       />
     );
   }
