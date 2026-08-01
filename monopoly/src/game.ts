@@ -758,8 +758,9 @@ export const mortgageProperty = (state: GameState, playerId: string, spaceId: nu
 
 export const unmortgageProperty = (state: GameState, playerId: string, spaceId: number): GameState => {
   const playerIndex = state.players.findIndex((player) => player.id === playerId);
+  const activePlayer = state.players[state.currentPlayerIndex];
   const space = board[spaceId];
-  if (playerIndex < 0 || !space?.price) return state;
+  if (state.phase !== 'playing' || activePlayer?.id !== playerId || playerIndex < 0 || !space?.price) return state;
 
   const players = [...state.players];
   const player = players[playerIndex];

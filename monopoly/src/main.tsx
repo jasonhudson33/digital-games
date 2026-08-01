@@ -1236,7 +1236,7 @@ function PlayerRow({
                       </button>
                     )}
                     {isMortgaged ? (
-                      <button disabled={!canManage || player.money < unmortgageCost} onClick={() => onUnmortgage(spaceId)}>
+                      <button disabled={!canManage || !active || player.money < unmortgageCost} onClick={() => onUnmortgage(spaceId)}>
                         Unmortgage ${unmortgageCost}
                       </button>
                     ) : (
