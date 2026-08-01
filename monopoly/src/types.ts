@@ -156,6 +156,7 @@ export type GameState = {
   currentPlayerIndex: number;
   phase: 'lobby' | 'playing' | 'gameOver';
   turnStage: TurnStage;
+  turnStageVersion: number;
   lastRoll: DiceRoll | null;
   doubleRollCount: number;
   jailRollMode: JailRollMode;

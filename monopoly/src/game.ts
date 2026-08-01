@@ -285,7 +285,8 @@ export const makeInitialState = (hostId: string, hostName: string, roomCode = ma
   players: [makePlayer(hostId, hostName, 'red', piece)],
   currentPlayerIndex: 0,
   phase: 'lobby',
-  turnStage: 'manage',
+  turnStage: 'roll',
+  turnStageVersion: 2,
   lastRoll: null,
   doubleRollCount: 0,
   jailRollMode: null,
@@ -355,7 +356,8 @@ export const startGame = (state: GameState): GameState =>
   touch({
     ...state,
     phase: 'playing',
-    turnStage: 'manage',
+    turnStage: 'roll',
+    turnStageVersion: 2,
     doubleRollCount: 0,
     jailRollMode: null,
     pendingPurchase: null,
@@ -404,20 +406,17 @@ export const rollDice = (state: GameState): GameState => {
     const players = [...state.players];
     const jailed = { ...active, position: 10, inJail: true, jailTurnCount: 0 };
     players[state.currentPlayerIndex] = jailed;
-    return finishTurn(
-      {
-        ...state,
-        players,
-        lastRoll: roll,
-        doubleRollCount: 0,
-        jailRollMode: null,
-        log: [
-          log(`${active.name} rolled ${dieOne} + ${dieTwo}, their third doubles in a row, and went directly to Jail.`),
-          ...state.log
-        ].slice(0, 30)
-      },
-      { forceAdvance: true }
-    );
+    return finishTurn({
+      ...state,
+      players,
+      lastRoll: roll,
+      doubleRollCount: 0,
+      jailRollMode: null,
+      log: [
+        log(`${active.name} rolled ${dieOne} + ${dieTwo}, their third doubles in a row, and went directly to Jail.`),
+        ...state.log
+      ].slice(0, 30)
+    });
   }
 
   if (isTryingForJailDoubles && !isDouble) {
@@ -442,17 +441,14 @@ export const rollDice = (state: GameState): GameState => {
 
     const players = [...state.players];
     players[state.currentPlayerIndex] = { ...active, jailTurnCount };
-    return finishTurn(
-      {
-        ...state,
-        players,
-        lastRoll: roll,
-        doubleRollCount: 0,
-        jailRollMode: null,
-        log: [log(`${active.name} rolled ${dieOne} + ${dieTwo} and stayed in Jail (${jailTurnCount}/3).`), ...state.log].slice(0, 30)
-      },
-      { forceAdvance: true }
-    );
+    return finishTurn({
+      ...state,
+      players,
+      lastRoll: roll,
+      doubleRollCount: 0,
+      jailRollMode: null,
+      log: [log(`${active.name} rolled ${dieOne} + ${dieTwo} and stayed in Jail (${jailTurnCount}/3).`), ...state.log].slice(0, 30)
+    });
   }
 
   if (isTryingForJailDoubles && isDouble) {
@@ -464,13 +460,35 @@ export const rollDice = (state: GameState): GameState => {
   return resolveLanding(touch({ ...state, lastRoll: roll, doubleRollCount }), roll);
 };
 
-export const beginRollStage = (state: GameState, playerId: string): GameState => {
+export const finishManagementStage = (state: GameState, playerId: string): GameState => {
   const activePlayer = state.players[state.currentPlayerIndex];
-  if (state.phase !== 'playing' || state.turnStage !== 'manage' || activePlayer?.id !== playerId) return state;
+  if (
+    state.phase !== 'playing' ||
+    state.turnStage !== 'manage' ||
+    activePlayer?.id !== playerId ||
+    state.pendingCard ||
+    state.pendingPurchase ||
+    state.pendingTax ||
+    state.pendingRent ||
+    state.pendingUtilityRent ||
+    state.pendingDebt ||
+    state.pendingAuction ||
+    state.pendingJailExit ||
+    state.pendingTrade
+  ) return state;
+  const rollsAgain = !activePlayer.inJail && Boolean(state.lastRoll?.isDouble) && (state.doubleRollCount ?? 0) > 0;
+  const nextIndex = rollsAgain ? state.currentPlayerIndex : nextPlayerIndex(state.players, state.currentPlayerIndex);
+  const nextPlayer = state.players[nextIndex];
   return touch({
     ...state,
     turnStage: 'roll',
-    log: [log(`${activePlayer.name} finished trading and building.`), ...state.log].slice(0, 30)
+    currentPlayerIndex: nextIndex,
+    doubleRollCount: rollsAgain ? state.doubleRollCount : 0,
+    jailRollMode: null,
+    log: [
+      log(rollsAgain ? `${activePlayer.name} finished managing and may roll again.` : `${activePlayer.name} ended the turn. ${nextPlayer.name} rolls next.`),
+      ...state.log
+    ].slice(0, 30)
   });
 };
 
@@ -839,7 +857,7 @@ export const proposeTrade = (
   if (
     state.phase !== 'playing' ||
     state.turnStage !== 'manage' ||
-    state.players[state.currentPlayerIndex]?.id !== fromPlayerId ||
+    ![fromPlayerId, toPlayerId].includes(state.players[state.currentPlayerIndex]?.id) ||
     state.pendingTrade ||
     fromPlayerId === toPlayerId ||
     (
@@ -1045,12 +1063,16 @@ export const takeComputerAction = (state: GameState): GameState => {
   }
 
   if (state.turnStage === 'manage') {
-    const buildableSpaceId = computer.properties.find(
-      (spaceId) => canImproveProperty(state, computer, spaceId) && computer.money - getImprovementCost(spaceId) >= 300
-    );
-    return buildableSpaceId === undefined
-      ? beginRollStage(state, computer.id)
-      : buyImprovement(state, computer.id, buildableSpaceId);
+    let managedState = state;
+    for (let purchase = 0; purchase < 20; purchase += 1) {
+      const managedComputer = managedState.players[managedState.currentPlayerIndex];
+      const buildableSpaceId = managedComputer.properties.find(
+        (spaceId) => canImproveProperty(managedState, managedComputer, spaceId) && managedComputer.money - getImprovementCost(spaceId) >= 300
+      );
+      if (buildableSpaceId === undefined) return finishManagementStage(managedState, managedComputer.id);
+      managedState = buyImprovement(managedState, managedComputer.id, buildableSpaceId);
+    }
+    return finishManagementStage(managedState, computer.id);
   }
 
   if (computer.inJail && !state.jailRollMode) {
@@ -1823,21 +1845,29 @@ const markBankrupt = (player: Player, entries: LogEntry[]) => {
   return { ...player, bankrupt: true };
 };
 
-const finishTurn = (state: GameState, options: { forceAdvance?: boolean } = {}): GameState => {
+const finishTurn = (state: GameState): GameState => {
   const activePlayers = state.players.filter((player) => !player.bankrupt);
   const gameOver = activePlayers.length === 1 && state.players.length > 1;
   const winner = gameOver ? activePlayers[0] : null;
   const winnerIndex = winner ? state.players.findIndex((player) => player.id === winner.id) : -1;
   const justFinished = gameOver && state.phase !== 'gameOver';
   const activePlayer = state.players[state.currentPlayerIndex];
-  const rollsAgain = !options.forceAdvance && !activePlayer.inJail && Boolean(state.lastRoll?.isDouble) && (state.doubleRollCount ?? 0) > 0;
+
+  if (!gameOver && activePlayer.bankrupt) {
+    return touch({
+      ...state,
+      turnStage: 'roll',
+      currentPlayerIndex: nextPlayerIndex(state.players, state.currentPlayerIndex),
+      doubleRollCount: 0,
+      jailRollMode: null
+    });
+  }
 
   return touch({
     ...state,
     phase: gameOver ? 'gameOver' : state.phase,
     turnStage: 'manage',
-    currentPlayerIndex: gameOver ? winnerIndex : rollsAgain ? state.currentPlayerIndex : nextPlayerIndex(state.players, state.currentPlayerIndex),
-    doubleRollCount: rollsAgain ? state.doubleRollCount : 0,
+    currentPlayerIndex: gameOver ? winnerIndex : state.currentPlayerIndex,
     jailRollMode: null,
     pendingCard: gameOver ? null : state.pendingCard,
     pendingPurchase: gameOver ? null : state.pendingPurchase,
@@ -1851,8 +1881,6 @@ const finishTurn = (state: GameState, options: { forceAdvance?: boolean } = {}):
     log:
       justFinished && winner
         ? [log(`${winner.name} won the game!`), ...state.log].slice(0, 30)
-        : rollsAgain && !gameOver
-        ? [log(`${state.players[state.currentPlayerIndex].name} rolled doubles and gets to roll again.`), ...state.log].slice(0, 30)
         : state.log
   });
 };

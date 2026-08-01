@@ -38,7 +38,6 @@ import {
   addLocalPlayer,
   acceptTrade,
   bidAuction,
-  beginRollStage,
   buyPendingProperty,
   buyImprovement,
   completeAuctionPurchase,
@@ -47,6 +46,7 @@ import {
   declinePendingProperty,
   expireTrade,
   finishDebtPayment,
+  finishManagementStage,
   getPlayerLiquidationValue,
   joinPlayer,
   makeId,
@@ -262,7 +262,7 @@ export default function App() {
     if (!game || !isHost || !computerShouldAct(game)) return;
     const timeoutId = window.setTimeout(() => {
       void updateGame(takeComputerAction);
-    }, 850);
+    }, game.turnStage === 'manage' && !game.pendingTrade ? 4_000 : 850);
     return () => window.clearTimeout(timeoutId);
   }, [game, isHost]);
 
@@ -374,8 +374,8 @@ export default function App() {
 
             {game.phase === 'playing' && (
               <div className="turn-stage">
-                <span className={game.turnStage === 'manage' ? 'active' : ''}>1. Trade & build</span>
-                <span className={game.turnStage === 'roll' ? 'active' : ''}>2. Roll</span>
+                <span className={game.turnStage === 'roll' ? 'active' : ''}>1. Roll</span>
+                <span className={game.turnStage === 'manage' ? 'active' : ''}>2. Trade & build</span>
               </div>
             )}
 
@@ -488,9 +488,13 @@ export default function App() {
               <button
                 className="primary full"
                 disabled={!canControlTurn || game.phase === 'gameOver'}
-                onClick={() => activePlayer && updateGame((state) => beginRollStage(state, activePlayer.id))}
+                onClick={() => activePlayer && updateGame((state) => finishManagementStage(state, activePlayer.id))}
               >
-                {activePlayer?.isComputer ? 'Computer is trading & building' : 'Finish trading & building'}
+                {activePlayer?.isComputer
+                  ? 'Computer is trading & building'
+                  : activePlayer && !activePlayer.inJail && game.lastRoll?.isDouble && game.doubleRollCount > 0
+                    ? 'Finish & roll again'
+                    : 'Finish trading & building'}
               </button>
             ) : needsJailChoice ? (
               <div className="jail-actions">
@@ -541,9 +545,11 @@ export default function App() {
                           ? 'Choose how to handle Jail before rolling.'
                   : isMyTurn
                     ? game.turnStage === 'manage'
-                      ? 'Review deeds, trade, and build before moving on to the roll.'
+                      ? 'Trade and build after your roll, then finish the turn.'
                       : 'Your move. Roll when ready.'
-                    : `Waiting for ${activePlayer?.name}.`}
+                    : game.turnStage === 'manage'
+                      ? `Waiting for ${activePlayer?.name}. You may offer them a trade.`
+                      : `Waiting for ${activePlayer?.name}.`}
             </p>
           </section>
 
@@ -1075,14 +1081,22 @@ function PlayerRow({
   const [requestedMoney, setRequestedMoney] = React.useState(0);
   const [offeredJailCards, setOfferedJailCards] = React.useState(0);
   const [requestedJailCards, setRequestedJailCards] = React.useState(0);
-  const tradeTargets = game.players.filter((candidate) => candidate.id !== player.id && !candidate.bankrupt);
-  const selectedTradeTarget = game.players.find((candidate) => candidate.id === tradeTargetId) ?? tradeTargets[0];
-  const canOpenTrade = canManage && active && game.phase === 'playing' && game.turnStage === 'manage' && !game.pendingTrade && tradeTargets.length > 0;
+  const activePlayer = game.players[game.currentPlayerIndex];
+  const tradeTargets = active
+    ? game.players.filter((candidate) => candidate.id !== player.id && !candidate.bankrupt)
+    : activePlayer && activePlayer.id !== player.id && !activePlayer.bankrupt
+      ? [activePlayer]
+      : [];
+  const selectedTradeTarget = tradeTargets.find((candidate) => candidate.id === tradeTargetId) ?? tradeTargets[0];
+  const canOpenTrade = canManage && game.phase === 'playing' && game.turnStage === 'manage' && !game.pendingTrade && tradeTargets.length > 0;
 
   React.useEffect(() => {
     if (!selectedTradeTarget) return;
-    if (!tradeTargetId) setTradeTargetId(selectedTradeTarget.id);
-  }, [selectedTradeTarget, tradeTargetId]);
+    if (!tradeTargets.some((target) => target.id === tradeTargetId)) {
+      setTradeTargetId(selectedTradeTarget.id);
+      setRequestedPropertyIds([]);
+    }
+  }, [selectedTradeTarget, tradeTargetId, tradeTargets]);
 
   const toggleOffered = (spaceId: number) =>
     setOfferedPropertyIds((current) => (current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]));
