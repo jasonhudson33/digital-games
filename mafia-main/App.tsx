@@ -11,6 +11,7 @@ import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
+import { canParticipateInDay } from './services/DayRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -513,6 +514,7 @@ const App: React.FC = () => {
       const dayVotes: Record<string, string> = {};
 
       for (const [uid, intent] of entries) {
+        if (!canParticipateInDay(state.players, uid)) continue;
         if (intent.kind === 'NOMINATE') nominations[uid] = intent.targetId;
         if (intent.kind === 'RESCIND') delete nominations[uid];
 

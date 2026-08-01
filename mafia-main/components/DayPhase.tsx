@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { GamePhase, GameState, Player } from '../types';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
+import { canParticipateInDay } from '../services/DayRules';
 
 interface DayPhaseProps {
   state: GameState;
@@ -12,8 +13,8 @@ interface DayPhaseProps {
 }
 
 const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, isHost, roomCode }) => {
-  const me = useMemo(() => state.players.find(p => p.id === myPlayerId), [state.players, myPlayerId]);
   const alivePlayers = useMemo(() => state.players.filter(p => p.isAlive), [state.players]);
+  const canParticipate = canParticipateInDay(state.players, myPlayerId);
 
   const nominations = state.nominations || {};
   const seconds = state.seconds || {};
@@ -47,7 +48,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
 
     const handleCastVote = async (candidateId: string) => {
     // LOCK-IN: If user already voted, don't allow changes
-    if (!me?.isAlive || dayVotes[myPlayerId]) return;
+    if (!canParticipate || dayVotes[myPlayerId]) return;
 
     await RoomService.submitDayIntent(roomCode, state.round, myPlayerId, { kind: 'VOTE', targetId: candidateId, ts: Date.now() });
   };
@@ -141,18 +142,18 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
   };
 
     const handleNominate = async (targetId: string) => {
-    if (!me?.isAlive) return;
+    if (!canParticipate) return;
     // Only one nomination per player; host will enforce/aggregate
     await RoomService.submitDayIntent(roomCode, state.round, myPlayerId, { kind: 'NOMINATE', targetId, ts: Date.now() });
   };
 
     const handleRescind = async (targetId: string) => {
-    if (!me?.isAlive) return;
+    if (!canParticipate) return;
     await RoomService.submitDayIntent(roomCode, state.round, myPlayerId, { kind: 'RESCIND', targetId, ts: Date.now() });
   };
 
     const handleSecond = async (targetId: string) => {
-    if (!me?.isAlive) return;
+    if (!canParticipate) return;
     await RoomService.submitDayIntent(roomCode, state.round, myPlayerId, { kind: 'SECOND', targetId, ts: Date.now() });
   };
 
@@ -194,6 +195,11 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
           </div>
         </div>
         <div className="space-y-4 mb-12">
+          {!canParticipate && (
+            <div className="text-center p-5 rounded-2xl bg-slate-800/30 border border-slate-700 italic text-slate-400">
+              You are eliminated. You may watch deliberation, but cannot nominate or second.
+            </div>
+          )}
           {alivePlayers.map(p => {
             const nominatorId = Object.keys(nominations).find(nid => nominations[nid] === p.id);
             const nominator = state.players.find(pl => pl.id === nominatorId);
@@ -218,15 +224,15 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
+                {canParticipate && <div className="flex gap-2">
                   {isMyNomination ? (
                     <Button variant="danger" className="text-xs py-2 px-4" onClick={() => handleRescind(p.id)}>Rescind</Button>
                   ) : !isNominated ? (
-                    <Button disabled={!me?.isAlive || !!myNominationTargetId || p.id === myPlayerId} variant="ghost" className="text-xs py-2 px-4" onClick={() => handleNominate(p.id)}>Nominate</Button>
+                    <Button disabled={!!myNominationTargetId || p.id === myPlayerId} variant="ghost" className="text-xs py-2 px-4" onClick={() => handleNominate(p.id)}>Nominate</Button>
                   ) : (
-                    <Button disabled={!me?.isAlive || myNominationTargetId === p.id || seconderIds.includes(myPlayerId) || (!isSeconded && candidatesOnTrial.length >= state.trialLimit)} variant={isSeconded ? 'secondary' : 'primary'} className="text-xs py-2 px-4" onClick={() => handleSecond(p.id)}>Second</Button>
+                    <Button disabled={myNominationTargetId === p.id || seconderIds.includes(myPlayerId) || (!isSeconded && candidatesOnTrial.length >= state.trialLimit)} variant={isSeconded ? 'secondary' : 'primary'} className="text-xs py-2 px-4" onClick={() => handleSecond(p.id)}>Second</Button>
                   )}
-                </div>
+                </div>}
               </div>
             );
           })}
@@ -274,7 +280,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
             <button
               key={player.id}
               onClick={() => handleCastVote(player.id)}
-              disabled={!me?.isAlive || hasVoted}
+              disabled={!canParticipate || hasVoted}
               className={`w-full p-6 rounded-2xl border-2 transition-all flex justify-between items-center group relative overflow-hidden
                 ${isMySelection ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'}
                 ${hasVoted && !isMySelection ? 'opacity-50 grayscale-[0.5]' : ''}`}
@@ -306,7 +312,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
         })}
         
         <div className="pt-10">
-          {!me?.isAlive ? (
+          {!canParticipate ? (
             <div className="text-center p-6 rounded-2xl bg-slate-800/30 border border-slate-700 italic text-slate-400">
               You are deceased. Watch the verdict unfold.
             </div>
