@@ -708,6 +708,41 @@
   line-height: 1.35;
 }
 
+.monopoly-page .building-supply{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -3px 0 14px;
+}
+
+.monopoly-page .building-supply span{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid rgba(29, 37, 33, 0.2);
+  border-radius: 999px;
+  background: #f5f0e6;
+  color: #44524b;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.monopoly-page .supply-house,
+.monopoly-page .supply-hotel{
+  display: inline-block;
+  width: 10px;
+  height: 9px;
+  background: #228c53;
+  clip-path: polygon(50% 0, 100% 42%, 88% 42%, 88% 100%, 12% 100%, 12% 42%, 0 42%);
+}
+
+.monopoly-page .supply-hotel{
+  width: 13px;
+  background: #c92d38;
+  clip-path: polygon(8% 32%, 25% 32%, 25% 4%, 43% 4%, 43% 32%, 90% 32%, 100% 52%, 92% 52%, 92% 100%, 8% 100%, 8% 52%, 0 52%);
+}
+
 .monopoly-page .lobby-actions{
   display: grid;
   grid-template-columns: 1fr 1fr;

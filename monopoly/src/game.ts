@@ -1,4 +1,5 @@
 import { board } from './board';
+import { canPurchaseBuilding, getRepairAssessment, getRepairPayment } from './buildingRules';
 import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
 import { CardDeck, DiceRoll, GameState, LogEntry, Player, PlayerColor, PlayerPiece } from './types';
 
@@ -793,6 +794,7 @@ export const buyImprovement = (state: GameState, playerId: string, spaceId: numb
   ) return state;
 
   const currentLevel = state.improvements[spaceId] ?? 0;
+  if (!canPurchaseBuilding(state.improvements, currentLevel)) return state;
   const cost = getImprovementCost(spaceId);
   const player = state.players[playerIndex];
   if (player.money < cost) return state;
@@ -1466,14 +1468,26 @@ const payForRepairs = (
 ) => {
   const players = [...state.players];
   const active = players[playerIndex];
-  const repairCost = active.properties.reduce((total, spaceId) => {
-    const level = state.improvements?.[spaceId] ?? 0;
-    return total + (level >= 5 ? hotelCost : level * houseCost);
-  }, 0);
-  const charged = normalizeCashAfterCard({ ...active, money: active.money - repairCost }, active, entries);
-  players[playerIndex] = markBankrupt(charged, entries);
-  entries.push(log(`${active.name} paid $${Math.min(active.money, repairCost)} for property repairs.`));
-  return { ...state, players };
+  const assessment = getRepairAssessment(active.properties, state.improvements, houseCost, hotelCost);
+  const repairCost = assessment.total;
+  const payment = getRepairPayment(active.money, repairCost);
+  players[playerIndex] = { ...active, money: payment.balance };
+  entries.push(log(
+    `${active.name} paid $${payment.paid} for ${assessment.houses} houses and ${assessment.hotels} hotels.`
+  ));
+  if (payment.amountOwed > 0) entries.push(log(`${active.name} still owes $${payment.amountOwed} for property repairs.`));
+  return {
+    ...state,
+    players,
+    pendingDebt: payment.amountOwed > 0
+      ? {
+          playerId: active.id,
+          creditorId: null,
+          amountOwed: payment.amountOwed,
+          reason: 'property repair card'
+        }
+      : state.pendingDebt
+  };
 };
 
 const startAuction = (state: GameState, spaceId: number, message: string): GameState => {
@@ -1644,6 +1658,7 @@ const canImproveProperty = (state: GameState, owner: Player, spaceId: number) =>
 
   const level = state.improvements?.[spaceId] ?? 0;
   if (level >= 5) return false;
+  if (!canPurchaseBuilding(state.improvements, level)) return false;
   if (level === 4) return group.every((candidate) => (state.improvements?.[candidate.id] ?? 0) >= 4);
 
   const lowestLevel = Math.min(...group.map((candidate) => state.improvements?.[candidate.id] ?? 0));

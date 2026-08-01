@@ -31,6 +31,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { board, cornerIds } from './board';
+import { canPurchaseBuilding, getBuildingSupply } from './buildingRules';
 import {
   acknowledgeCard,
   acknowledgeRent,
@@ -583,6 +584,7 @@ export default function App() {
           <section className="players-panel">
             <h3>Players</h3>
             <p className="properties-note">Every player&apos;s properties stay visible. Actions unlock only when allowed.</p>
+            <BuildingSupply improvements={game.improvements} />
             {game.players.map((player) => (
               <PlayerRow
                 key={player.id}
@@ -1286,6 +1288,16 @@ function PlayerRow({
   );
 }
 
+function BuildingSupply({ improvements }: { improvements: GameState['improvements'] }) {
+  const supply = getBuildingSupply(improvements);
+  return (
+    <div className="building-supply" aria-label={`${supply.housesRemaining} houses and ${supply.hotelsRemaining} hotels remaining in the bank`}>
+      <span><i className="supply-house" aria-hidden="true" /> {supply.housesRemaining} houses</span>
+      <span><i className="supply-hotel" aria-hidden="true" /> {supply.hotelsRemaining} hotels</span>
+    </div>
+  );
+}
+
 function MoneyOffer({ label, value, max, onChange }: { label: string; value: number; max: number; onChange: (value: number) => void }) {
   return (
     <label className="money-offer">
@@ -1493,6 +1505,7 @@ function canImproveProperty(game: GameState, owner: Player, spaceId: number) {
 
   const level = game.improvements[spaceId] ?? 0;
   if (level >= 5) return false;
+  if (!canPurchaseBuilding(game.improvements, level)) return false;
   if (level === 4) return group.every((candidate) => (game.improvements[candidate.id] ?? 0) >= 4);
 
   const lowestLevel = Math.min(...group.map((candidate) => game.improvements[candidate.id] ?? 0));
