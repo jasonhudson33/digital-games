@@ -30,6 +30,7 @@ export interface Player {
   isReady?: boolean;
   isComputer?: boolean;
   computerSince?: number;
+  hasLeft?: boolean;
 }
 
 /** Map of playerId -> Role. Stored privately in mafia_roles. */

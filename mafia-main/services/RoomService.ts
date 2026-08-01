@@ -203,9 +203,7 @@ export const RoomService = {
   async submitLeaveRequest(roomCode: string, uid: string) {
     const current = identity();
     if (uid !== current.playerId) throw new Error('Invalid Mafia player identity.');
-    await this.clearJoinRequest(roomCode, uid);
-    const payload: LeaveRequest = { ts: Date.now() };
-    await rpc('mafia_submit_request', { ...credentials(roomCode), request_type: 'leave', payload });
+    await rpc('mafia_leave_room', credentials(roomCode));
   },
 
   async clearLeaveRequest(roomCode: string, uid: string) {

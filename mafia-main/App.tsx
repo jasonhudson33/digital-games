@@ -68,6 +68,21 @@ const deterministicPlayer = (players: Player[], seed: string): Player | null => 
   return players[hash % players.length];
 };
 
+const RoomLeaveButton: React.FC<{
+  gameStarted: boolean;
+  isLeaving: boolean;
+  onLeave: () => void;
+}> = ({ gameStarted, isLeaving, onLeave }) => (
+  <Button
+    variant="danger"
+    className="fixed bottom-4 right-4 z-50 shadow-2xl"
+    disabled={isLeaving}
+    onClick={onLeave}
+  >
+    {isLeaving ? 'Leaving...' : gameStarted ? 'Leave Game' : 'Leave Room'}
+  </Button>
+);
+
 const App: React.FC = () => {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [cachedPlayerName, setCachedPlayerName] = useState<string>(() => getStoredValue('mafia_player_name') || '');
@@ -76,6 +91,7 @@ const App: React.FC = () => {
   const [presence, setPresence] = useState<PresenceMap>({});
   const [presenceReady, setPresenceReady] = useState(false);
   const [identityReady, setIdentityReady] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(getSupabaseSetupError());
 
   const [rolesMap, setRolesMap] = useState<RoleMap>({});
@@ -108,7 +124,7 @@ const App: React.FC = () => {
     const reconnect = async () => {
       const remote = await RoomService.getState(roomCode);
       const returningPlayer = remote?.players.find((player) => player.id === myPlayerId);
-      if (!active || !remote || !returningPlayer) {
+      if (!active || !remote || !returningPlayer || returningPlayer.hasLeft) {
         if (active && storedRoom === roomCode) forgetRoom();
         return;
       }
@@ -133,7 +149,7 @@ const App: React.FC = () => {
 
   // Acting host: alive host if present, else first alive player
   const actingHostId = useMemo(() => {
-    const alive = gameState.players.filter(p => p.isAlive);
+    const alive = gameState.players.filter(p => p.isAlive && !p.hasLeft);
     if (presenceReady) {
       const cutoff = Date.now() - PRESENCE_TIMEOUT_MS;
       const online = alive.filter((player) => (presence[player.id] || 0) > cutoff);
@@ -259,6 +275,7 @@ const App: React.FC = () => {
     const now = Date.now();
     let changed = false;
     const players = gameState.players.map((player) => {
+      if (player.hasLeft) return player;
       const lastSeen = presence[player.id] || 0;
       const shouldBeComputer = lastSeen > 0 && now - lastSeen >= PRESENCE_TIMEOUT_MS;
       if (Boolean(player.isComputer) === shouldBeComputer) return player;
@@ -328,18 +345,33 @@ const App: React.FC = () => {
       const leaving = new Set(Object.keys(reqs));
       if (!leaving.size) return;
 
-      const remaining = state.players.filter(p => !leaving.has(p.id));
-      if (remaining.length === state.players.length) return;
+      const gameInProgress = ![GamePhase.LOBBY, GamePhase.SETUP, GamePhase.GAME_OVER].includes(state.phase);
+      let changed = false;
+      let updated = state.players.flatMap((player) => {
+        if (!leaving.has(player.id)) return [{ ...player }];
+        changed = true;
+        if (gameInProgress && player.isAlive) {
+          return [{
+            ...player,
+            isComputer: true,
+            computerSince: Date.now(),
+            hasLeft: true,
+          }];
+        }
+        return [];
+      });
 
-      // Promote if host left
-      let updated = remaining.map(p => ({ ...p }));
+      // Promote a remaining human only when the old host's seat was removed.
       const hasHost = updated.some(p => p.isHost);
       if (!hasHost && updated.length) {
-        updated[0].isHost = true;
+        const nextHost = updated.find((player) => !player.hasLeft) || updated[0];
+        nextHost.isHost = true;
       }
 
-      const next = sanitizeState({ ...state, players: updated, lastUpdated: Date.now() });
-      await RoomService.saveState(code, next);
+      if (changed) {
+        const next = sanitizeState({ ...state, players: updated, lastUpdated: Date.now() });
+        await RoomService.saveState(code, next);
+      }
       await Promise.all(Object.keys(reqs).map((uid) => RoomService.clearLeaveRequest(code, uid)));
 
       // Keep meta.hostUid aligned with current host for rules
@@ -684,7 +716,7 @@ const App: React.FC = () => {
         return;
       }
 
-      const returningPlayer = remote.players.find((player) => player.id === uid);
+      const returningPlayer = remote.players.find((player) => player.id === uid && !player.hasLeft);
       if (returningPlayer) await RoomService.heartbeat(code);
       else await RoomService.submitJoinRequest(code, uid, name);
       localStorage.setItem('mafia_player_name', name);
@@ -708,11 +740,22 @@ const App: React.FC = () => {
 
   const handleLeaveRoom = useCallback(async () => {
     const code = gameStateRef.current.roomCode;
-    if (code && myPlayerId) {
+    if (!code || !myPlayerId || isLeaving) return;
+    const confirmed = window.confirm(
+      'Leave permanently? You will not be able to rejoin this room. If the game is active, a computer will take over for you.'
+    );
+    if (!confirmed) return;
+
+    setIsLeaving(true);
+    try {
       await RoomService.submitLeaveRequest(code, myPlayerId);
+      restartGame();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown room error';
+      alert(`Could not leave room: ${message}`);
+      setIsLeaving(false);
     }
-    restartGame();
-  }, [myPlayerId, restartGame]);
+  }, [isLeaving, myPlayerId, restartGame]);
 
   const handleLobbyStart = useCallback(async () => {
     if (!isActingHost) return;
@@ -758,6 +801,11 @@ const App: React.FC = () => {
     return gameState.players.find(p => p.id === myPlayerId) || null;
   }, [gameState.players, myPlayerId]);
 
+  const gameStarted = ![GamePhase.LOBBY, GamePhase.SETUP].includes(gameState.phase);
+  const leaveButton = (
+    <RoomLeaveButton gameStarted={gameStarted} isLeaving={isLeaving} onLeave={handleLeaveRoom} />
+  );
+
   // ---------- Render ----------
   if (gameState.phase === GamePhase.LANDING) {
     return (
@@ -773,12 +821,15 @@ const App: React.FC = () => {
 
   if (gameState.phase === GamePhase.LOBBY) {
     return (
-      <Lobby
-        roomCode={gameState.roomCode}
-        players={gameState.players}
-        isHost={isActingHost}
-        onStart={handleLobbyStart}
-      />
+      <>
+        <Lobby
+          roomCode={gameState.roomCode}
+          players={gameState.players}
+          isHost={isActingHost}
+          onStart={handleLobbyStart}
+        />
+        {leaveButton}
+      </>
     );
   }
 
@@ -790,7 +841,7 @@ const App: React.FC = () => {
           <div className="text-center">
             <p className="text-xl mb-2">Joining room…</p>
             <p className="text-slate-500">Waiting for host approval.</p>
-            <Button className="mt-6" onClick={restartGame}>Back</Button>
+            {leaveButton}
           </div>
         </div>
       );
@@ -798,20 +849,23 @@ const App: React.FC = () => {
   }
 
   if (gameState.phase === GamePhase.SETUP) {
-    return <Setup players={gameState.players} onStart={handleStartGame} />;
+    return <><Setup players={gameState.players} onStart={handleStartGame} />{leaveButton}</>;
   }
 
   if (gameState.phase === GamePhase.ROLE_REVEAL && myPlayer) {
     return (
-      <RoleReveal
-        player={myPlayer}
-        myRole={myRole}
-        players={gameState.players}
-        roomCode={gameState.roomCode}
-        round={gameState.round}
-        isHost={isActingHost}
-        onComplete={handleBeginNight}
-      />
+      <>
+        <RoleReveal
+          player={myPlayer}
+          myRole={myRole}
+          players={gameState.players}
+          roomCode={gameState.roomCode}
+          round={gameState.round}
+          isHost={isActingHost}
+          onComplete={handleBeginNight}
+        />
+        {leaveButton}
+      </>
     );
   }
 
@@ -824,50 +878,59 @@ const App: React.FC = () => {
           <div className="text-center">
             <h2 className="text-4xl font-serif mb-4">Night Falls</h2>
             <p className="text-slate-500">Preparing the next phase…</p>
-            <Button className="mt-8" onClick={handleLeaveRoom}>Leave Room</Button>
           </div>
+          {leaveButton}
         </div>
       );
     }
 
     return (
-      <NightPhase
-        state={gameState}
-        myPlayerId={myPlayerId}
-        myRole={myRole}
-        roomCode={gameState.roomCode}
-        rolesMap={isActingHost ? rolesMap : { [myPlayerId]: myRole }}
-      />
+      <>
+        <NightPhase
+          state={gameState}
+          myPlayerId={myPlayerId}
+          myRole={myRole}
+          roomCode={gameState.roomCode}
+          rolesMap={isActingHost ? rolesMap : { [myPlayerId]: myRole }}
+        />
+        {leaveButton}
+      </>
     );
   }
 
   if ([GamePhase.DAY_RESULTS, GamePhase.DAY_DELIBERATION, GamePhase.DAY_VOTING].includes(gameState.phase)) {
     return (
-      <DayPhase
-        state={gameState}
-        myPlayerId={myPlayerId}
-        isHost={isActingHost}
-        roomCode={gameState.roomCode}
-        onHostAction={hostUpdateState}
-      />
+      <>
+        <DayPhase
+          state={gameState}
+          myPlayerId={myPlayerId}
+          isHost={isActingHost}
+          roomCode={gameState.roomCode}
+          onHostAction={hostUpdateState}
+        />
+        {leaveButton}
+      </>
     );
   }
 
   if (gameState.phase === GamePhase.GAME_OVER) {
     return (
-      <GameOver
-        winner={gameState.winner}
-        players={gameState.players}
-        revealedRoles={gameState.revealedRoles}
-        onRestart={restartGame}
-      />
+      <>
+        <GameOver
+          winner={gameState.winner}
+          players={gameState.players}
+          revealedRoles={gameState.revealedRoles}
+          onRestart={restartGame}
+        />
+        {leaveButton}
+      </>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-slate-200">
       <p>Unknown state.</p>
-      <Button className="mt-6" onClick={restartGame}>Back</Button>
+      {leaveButton}
     </div>
   );
 };
