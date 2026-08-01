@@ -7,6 +7,7 @@ import RoleReveal from './components/RoleReveal';
 import NightPhase from './components/NightPhase';
 import DayPhase from './components/DayPhase';
 import GameOver from './components/GameOver';
+import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { narrator } from './services/SpeechService';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
@@ -558,8 +559,19 @@ const App: React.FC = () => {
     );
   }
 
+  if (gameState.phase === GamePhase.LOBBY) {
+    return (
+      <Lobby
+        roomCode={gameState.roomCode}
+        players={gameState.players}
+        isHost={isActingHost}
+        onStart={handleLobbyStart}
+      />
+    );
+  }
+
   if (!myPlayerId || !myPlayer) {
-    // If we've joined but host hasn't admitted us yet, show lobby-like waiting.
+    // The host may still be processing this player when the phase changes.
     if (gameState.phase !== GamePhase.LANDING) {
       return (
         <div className="min-h-screen flex items-center justify-center text-slate-200">
@@ -571,17 +583,6 @@ const App: React.FC = () => {
         </div>
       );
     }
-  }
-
-  if (gameState.phase === GamePhase.LOBBY) {
-    return (
-      <Lobby
-        roomCode={gameState.roomCode}
-        players={gameState.players}
-        isHost={isActingHost}
-        onStart={handleLobbyStart}
-      />
-    );
   }
 
   if (gameState.phase === GamePhase.SETUP) {
