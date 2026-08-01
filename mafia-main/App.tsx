@@ -247,13 +247,14 @@ const App: React.FC = () => {
     return RoomService.subscribeToRoles(gameState.roomCode, (rm) => setRolesMap(rm));
   }, [gameState.roomCode, isActingHost]);
 
-  // Non-host loads only their role
+  // Non-host continuously watches only their private role. The role row is created
+  // after the lobby loads, so a one-time read would leave them as a Citizen.
   useEffect(() => {
     const code = gameState.roomCode;
     if (!code || !myPlayerId) return;
     if (isActingHost) return;
 
-    RoomService.getMyRole(code, myPlayerId).then((role) => {
+    return RoomService.subscribeToMyRole(code, myPlayerId, (role) => {
       if (!role) return;
       setRolesMap((prev) => ({ ...prev, [myPlayerId]: role }));
     });
@@ -594,7 +595,12 @@ const App: React.FC = () => {
       narratedNightRef.current = '';
       console.error(error);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (gameStateRef.current.phase === GamePhase.NIGHT_TRANSITION) {
+        narratedNightRef.current = '';
+      }
+    };
   }, [gameState.phase, gameState.roomCode, gameState.round, hostUpdateState, isActingHost]);
 
   const narratedWinnerRef = useRef('');

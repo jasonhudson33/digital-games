@@ -44,8 +44,9 @@ export const MAFIA_NARRATION = {
 } as const;
 
 const GAME_SCRIPTS = Object.values(MAFIA_NARRATION);
+const DEFAULT_SPEECH_TIMEOUT_MS = 8_000;
 
-class SpeechService {
+export class SpeechService {
   private audioContext: AudioContext | null = null;
   private audioCache: Map<string, AudioBuffer> = new Map();
   private isPreloading = false;
@@ -53,8 +54,10 @@ class SpeechService {
   private lastSpokenText: string = "";
   private lastSpokenTime: number = 0;
   private speechQueue: Promise<void> = Promise.resolve();
+  private readonly speechTimeoutMs: number;
 
-  constructor() {
+  constructor(speechTimeoutMs = DEFAULT_SPEECH_TIMEOUT_MS) {
+    this.speechTimeoutMs = speechTimeoutMs;
     this.useWebSpeech = !geminiApiKey;
   }
 
@@ -216,7 +219,19 @@ class SpeechService {
   }
 
   speak(text: string): Promise<void> {
-    const queued = this.speechQueue.then(() => this.performSpeech(text));
+    const queued = this.speechQueue.then(async () => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        this.performSpeech(text),
+        new Promise<void>((resolve) => {
+          timeoutId = setTimeout(() => {
+            if (this.useWebSpeech) window.speechSynthesis?.cancel();
+            resolve();
+          }, this.speechTimeoutMs);
+        }),
+      ]);
+      if (timeoutId) clearTimeout(timeoutId);
+    });
     this.speechQueue = queued.catch(() => undefined);
     return queued;
   }

@@ -173,6 +173,10 @@ export const RoomService = {
     return await rpc<Role | null>('mafia_get_role', credentials(roomCode));
   },
 
+  subscribeToMyRole(roomCode: string, uid: string, cb: (role: Role | null) => void) {
+    return pollingSubscription(() => this.getMyRole(roomCode, uid), cb);
+  },
+
   subscribeToRoles(roomCode: string, cb: (roles: RoleMap) => void) {
     const load = async () => {
       const rows = await rpc<Array<{ role_player_id: string; role: Role }>>('mafia_get_roles', credentials(roomCode));
