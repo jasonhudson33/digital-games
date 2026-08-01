@@ -499,6 +499,64 @@
   font-weight: 950;
 }
 
+.monopoly-page .property-ownership{
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  max-width: calc(100% - 2px);
+  min-height: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 1px 4px;
+  border: 1px solid rgba(29, 37, 33, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.92);
+  color: #354139;
+  font-size: 0.48rem;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(29, 37, 33, 0.14);
+  overflow: hidden;
+}
+
+.monopoly-page .property-ownership.owned.red{
+  background: #ffd4d2;
+}
+
+.monopoly-page .property-ownership.owned.blue{
+  background: #d9e6fa;
+}
+
+.monopoly-page .property-ownership.owned.green{
+  background: #d7efdf;
+}
+
+.monopoly-page .property-ownership.owned.gold{
+  background: #fff0b7;
+}
+
+.monopoly-page .ownership-dot{
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border: 1.5px solid #68736c;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.monopoly-page .ownership-icon{
+  flex: 0 0 auto;
+}
+
+.monopoly-page .owner-name{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .monopoly-page .special-art{
   justify-self: center;
   align-self: center;
@@ -1353,6 +1411,16 @@
   }
 
   .monopoly-page .space-price{
+    display: none;
+  }
+
+  .monopoly-page .property-ownership{
+    min-width: 13px;
+    min-height: 13px;
+    padding: 1px;
+  }
+
+  .monopoly-page .property-ownership .owner-name{
     display: none;
   }
 

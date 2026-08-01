@@ -924,6 +924,7 @@ function Board({ game }: { game: GameState }) {
           key={space.id}
           space={space}
           players={game.players.filter((player) => player.position === space.id && !player.bankrupt)}
+          owner={game.players.find((player) => player.properties.includes(space.id))}
           improvementLevel={game.improvements[space.id] ?? 0}
         />
       ))}
@@ -935,7 +936,17 @@ function Board({ game }: { game: GameState }) {
   );
 }
 
-function BoardSpace({ space, players, improvementLevel }: { space: Space; players: Player[]; improvementLevel: number }) {
+function BoardSpace({
+  space,
+  players,
+  owner,
+  improvementLevel
+}: {
+  space: Space;
+  players: Player[];
+  owner?: Player;
+  improvementLevel: number;
+}) {
   const style = getGridPosition(space.id);
   return (
     <div className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space`} style={style}>
@@ -949,12 +960,37 @@ function BoardSpace({ space, players, improvementLevel }: { space: Space; player
       <span className="space-name">{space.name}</span>
       {space.price && <span className="space-price">${space.price}</span>}
       {space.kind === 'tax' && <span className="space-price">{getTaxText(space)}</span>}
+      {space.price && <PropertyOwnership owner={owner} />}
       <div className="tokens">
         {players.map((player) => (
           <PlayerToken key={player.id} player={player} />
         ))}
       </div>
     </div>
+  );
+}
+
+function PropertyOwnership({ owner }: { owner?: Player }) {
+  if (!owner) {
+    return (
+      <span className="property-ownership available" aria-label="Available from the bank" title="Available from the bank">
+        <span className="ownership-dot" aria-hidden="true" />
+        <span className="owner-name">Open</span>
+      </span>
+    );
+  }
+
+  const piece = getPlayerPiece(owner);
+  const Icon = pieceIcons[piece];
+  return (
+    <span
+      className={`property-ownership owned ${owner.color}`}
+      aria-label={`Owned by ${owner.name}`}
+      title={`Owned by ${owner.name}`}
+    >
+      <Icon className="ownership-icon" size={10} strokeWidth={3} aria-hidden="true" />
+      <span className="owner-name">{owner.name}</span>
+    </span>
   );
 }
 
