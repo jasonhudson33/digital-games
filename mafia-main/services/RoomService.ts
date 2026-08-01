@@ -1,196 +1,287 @@
-// Use scoped package @firebase/database to resolve export issues in some environments
-import {
-  ref,
-  set,
-  get,
-  onValue,
-  remove,
-} from '@firebase/database';
-import { db } from '../firebase';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
 import type {
+  DayIntent,
+  DetectiveResult,
   GameState,
-  RoomMeta,
   JoinRequest,
   LeaveRequest,
-  ReadyIntent,
   NightIntent,
-  DayIntent,
-  RoleMap,
+  ReadyIntent,
   Role,
-  DetectiveResult,
+  RoleMap,
+  RoomMeta
 } from '../types';
 
-export const RoomService = {
-  // ---------- Core Paths ----------
-  stateRef(roomCode: string) {
-    return ref(db, `rooms/${roomCode}/state`);
-  },
-  metaRef(roomCode: string) {
-    return ref(db, `rooms/${roomCode}/meta`);
-  },
-  rolesRef(roomCode: string) {
-    return ref(db, `rooms/${roomCode}/roles`);
-  },
-  roleRef(roomCode: string, uid: string) {
-    return ref(db, `rooms/${roomCode}/roles/${uid}`);
-  },
-  joinReqRef(roomCode: string) {
-    return ref(db, `rooms/${roomCode}/joinRequests`);
-  },
-  leaveReqRef(roomCode: string) {
-    return ref(db, `rooms/${roomCode}/leaveRequests`);
-  },
-  readyIntentsRef(roomCode: string, round: number) {
-    return ref(db, `rooms/${roomCode}/intents/${round}/ready`);
-  },
-  nightIntentsRef(roomCode: string, round: number) {
-    return ref(db, `rooms/${roomCode}/intents/${round}/night`);
-  },
-  dayIntentsRef(roomCode: string, round: number) {
-    return ref(db, `rooms/${roomCode}/intents/${round}/day`);
-  },
-  detectiveResultRef(roomCode: string, round: number, uid: string) {
-    return ref(db, `rooms/${roomCode}/private/${round}/detectiveResults/${uid}`);
-  },
+type Unsubscribe = () => void;
+type IntentType = 'ready' | 'night' | 'day';
 
-  // ---------- State ----------
-  async saveState(roomCode: string, state: GameState): Promise<void> {
+let subscriptionId = 0;
+
+const client = (): SupabaseClient => {
+  if (!supabase) throw new Error('Supabase is not configured for Mafia.');
+  return supabase;
+};
+
+const code = (roomCode: string) => roomCode.trim().toUpperCase();
+
+const throwIfError = (error: { message: string } | null) => {
+  if (error) throw new Error(error.message);
+};
+
+const subscribe = <T>(
+  roomCode: string,
+  table: string,
+  roomColumn: 'code' | 'room_code',
+  load: () => Promise<T>,
+  cb: (value: T) => void
+): Unsubscribe => {
+  const room = code(roomCode);
+  let stopped = false;
+  let lastValue = '';
+
+  const refresh = async () => {
     try {
-      await set(this.stateRef(roomCode), { ...state, lastUpdated: Date.now() });
-    } catch (e) {
-      console.error('Failed to save state to Firebase', e);
-      throw e;
+      const value = await load();
+      const serialized = JSON.stringify(value);
+      if (stopped || serialized === lastValue) return;
+      lastValue = serialized;
+      cb(value);
+    } catch (error) {
+      if (!stopped) console.error(`Failed to refresh Mafia ${table}`, error);
     }
+  };
+
+  void refresh();
+  const channel: RealtimeChannel = client()
+    .channel(`mafia:${table}:${room}:${subscriptionId++}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table, filter: `${roomColumn}=eq.${room}` },
+      () => void refresh()
+    )
+    .subscribe();
+  const pollId = window.setInterval(() => void refresh(), 1500);
+
+  return () => {
+    stopped = true;
+    window.clearInterval(pollId);
+    void client().removeChannel(channel);
+  };
+};
+
+const getRequests = async <T>(roomCode: string, requestType: 'join' | 'leave'): Promise<Record<string, T>> => {
+  const { data, error } = await client()
+    .from('mafia_requests')
+    .select('player_id,payload')
+    .eq('room_code', code(roomCode))
+    .eq('request_type', requestType)
+    .order('player_id');
+  throwIfError(error);
+  return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.payload as T]));
+};
+
+const getIntents = async <T>(roomCode: string, round: number, intentType: IntentType): Promise<Record<string, T>> => {
+  const { data, error } = await client()
+    .from('mafia_intents')
+    .select('player_id,payload')
+    .eq('room_code', code(roomCode))
+    .eq('round', round)
+    .eq('intent_type', intentType)
+    .order('player_id');
+  throwIfError(error);
+  return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.payload as T]));
+};
+
+const saveIntent = async (roomCode: string, round: number, intentType: IntentType, playerId: string, payload: unknown) => {
+  const { error } = await client().from('mafia_intents').upsert({
+    room_code: code(roomCode),
+    round,
+    intent_type: intentType,
+    player_id: playerId,
+    payload,
+    updated_at: new Date().toISOString()
+  });
+  throwIfError(error);
+};
+
+export const RoomService = {
+  async saveState(roomCode: string, state: GameState): Promise<void> {
+    const next = { ...state, lastUpdated: Math.max(Date.now(), state.lastUpdated + 1) };
+    const { data, error } = await client()
+      .from('mafia_rooms')
+      .update({ state: next, updated_at: new Date().toISOString() })
+      .eq('code', code(roomCode))
+      .select('code')
+      .maybeSingle();
+    throwIfError(error);
+    if (!data) throw new Error(`Mafia room ${code(roomCode)} has not been created.`);
   },
 
   async getState(roomCode: string): Promise<GameState | null> {
-    try {
-      const snap = await get(this.stateRef(roomCode));
-      return snap.exists() ? (snap.val() as GameState) : null;
-    } catch (e) {
-      console.error('Failed to get state from Firebase', e);
-      return null;
-    }
+    const { data, error } = await client()
+      .from('mafia_rooms')
+      .select('state')
+      .eq('code', code(roomCode))
+      .maybeSingle();
+    throwIfError(error);
+    return data?.state && Object.keys(data.state).length ? data.state as GameState : null;
   },
 
   subscribeToState(roomCode: string, cb: (state: GameState) => void) {
-    return onValue(this.stateRef(roomCode), (snap) => {
-      if (snap.exists()) cb(snap.val() as GameState);
+    return subscribe(roomCode, 'mafia_rooms', 'code', async () => {
+      const state = await this.getState(roomCode);
+      return state;
+    }, (state) => {
+      if (state) cb(state);
     });
   },
 
-  // ---------- Meta ----------
   async setMeta(roomCode: string, meta: RoomMeta) {
-    await set(this.metaRef(roomCode), meta);
+    const { error } = await client().from('mafia_rooms').upsert({
+      code: code(roomCode),
+      meta,
+      updated_at: new Date().toISOString()
+    });
+    throwIfError(error);
   },
 
   async getMeta(roomCode: string): Promise<RoomMeta | null> {
-    const snap = await get(this.metaRef(roomCode));
-    return snap.exists() ? (snap.val() as RoomMeta) : null;
+    const { data, error } = await client()
+      .from('mafia_rooms')
+      .select('meta')
+      .eq('code', code(roomCode))
+      .maybeSingle();
+    throwIfError(error);
+    return data?.meta && Object.keys(data.meta).length ? data.meta as RoomMeta : null;
   },
 
   subscribeToMeta(roomCode: string, cb: (meta: RoomMeta | null) => void) {
-    return onValue(this.metaRef(roomCode), (snap) => {
-      cb(snap.exists() ? (snap.val() as RoomMeta) : null);
-    });
+    return subscribe(roomCode, 'mafia_rooms', 'code', () => this.getMeta(roomCode), cb);
   },
 
-  // ---------- Roles (private-ish) ----------
   async setRoles(roomCode: string, roles: RoleMap) {
-    await set(this.rolesRef(roomCode), roles);
+    const room = code(roomCode);
+    const { error: deleteError } = await client().from('mafia_roles').delete().eq('room_code', room);
+    throwIfError(deleteError);
+    const rows = Object.entries(roles).map(([playerId, role]) => ({ room_code: room, player_id: playerId, role }));
+    if (!rows.length) return;
+    const { error } = await client().from('mafia_roles').insert(rows);
+    throwIfError(error);
   },
 
   async getMyRole(roomCode: string, uid: string): Promise<Role | null> {
-    const snap = await get(this.roleRef(roomCode, uid));
-    return snap.exists() ? (snap.val() as Role) : null;
+    const { data, error } = await client()
+      .from('mafia_roles')
+      .select('role')
+      .eq('room_code', code(roomCode))
+      .eq('player_id', uid)
+      .maybeSingle();
+    throwIfError(error);
+    return data?.role as Role ?? null;
   },
 
   subscribeToRoles(roomCode: string, cb: (roles: RoleMap) => void) {
-    return onValue(this.rolesRef(roomCode), (snap) => {
-      if (snap.exists()) cb(snap.val() as RoleMap);
-    });
+    const load = async () => {
+      const { data, error } = await client()
+        .from('mafia_roles')
+        .select('player_id,role')
+        .eq('room_code', code(roomCode))
+        .order('player_id');
+      throwIfError(error);
+      return Object.fromEntries((data ?? []).map((row) => [row.player_id, row.role as Role]));
+    };
+    return subscribe(roomCode, 'mafia_roles', 'room_code', load, cb);
   },
 
-  // ---------- Requests ----------
   async submitJoinRequest(roomCode: string, uid: string, name: string) {
+    await this.clearLeaveRequest(roomCode, uid);
     const payload: JoinRequest = { name, ts: Date.now() };
-    await set(ref(db, `rooms/${roomCode}/joinRequests/${uid}`), payload);
+    const { error } = await client().from('mafia_requests').upsert({
+      room_code: code(roomCode), player_id: uid, request_type: 'join', payload, updated_at: new Date().toISOString()
+    });
+    throwIfError(error);
   },
 
   async clearJoinRequest(roomCode: string, uid: string) {
-    await remove(ref(db, `rooms/${roomCode}/joinRequests/${uid}`));
+    const { error } = await client().from('mafia_requests').delete()
+      .eq('room_code', code(roomCode)).eq('player_id', uid).eq('request_type', 'join');
+    throwIfError(error);
   },
 
   subscribeToJoinRequests(roomCode: string, cb: (reqs: Record<string, JoinRequest>) => void) {
-    return onValue(this.joinReqRef(roomCode), (snap) => {
-      cb(snap.exists() ? (snap.val() as Record<string, JoinRequest>) : {});
-    });
+    return subscribe(roomCode, 'mafia_requests', 'room_code', () => getRequests<JoinRequest>(roomCode, 'join'), cb);
   },
 
   async submitLeaveRequest(roomCode: string, uid: string) {
+    await this.clearJoinRequest(roomCode, uid);
     const payload: LeaveRequest = { ts: Date.now() };
-    await set(ref(db, `rooms/${roomCode}/leaveRequests/${uid}`), payload);
+    const { error } = await client().from('mafia_requests').upsert({
+      room_code: code(roomCode), player_id: uid, request_type: 'leave', payload, updated_at: new Date().toISOString()
+    });
+    throwIfError(error);
+  },
+
+  async clearLeaveRequest(roomCode: string, uid: string) {
+    const { error } = await client().from('mafia_requests').delete()
+      .eq('room_code', code(roomCode)).eq('player_id', uid).eq('request_type', 'leave');
+    throwIfError(error);
   },
 
   subscribeToLeaveRequests(roomCode: string, cb: (reqs: Record<string, LeaveRequest>) => void) {
-    return onValue(this.leaveReqRef(roomCode), (snap) => {
-      cb(snap.exists() ? (snap.val() as Record<string, LeaveRequest>) : {});
-    });
+    return subscribe(roomCode, 'mafia_requests', 'room_code', () => getRequests<LeaveRequest>(roomCode, 'leave'), cb);
   },
 
-  // ---------- Ready intent ----------
   async submitReady(roomCode: string, round: number, uid: string) {
     const payload: ReadyIntent = { ready: true, ts: Date.now() };
-    await set(ref(db, `rooms/${roomCode}/intents/${round}/ready/${uid}`), payload);
+    await saveIntent(roomCode, round, 'ready', uid, payload);
   },
 
   subscribeToReady(roomCode: string, round: number, cb: (intents: Record<string, ReadyIntent>) => void) {
-    return onValue(this.readyIntentsRef(roomCode, round), (snap) => {
-      cb(snap.exists() ? (snap.val() as Record<string, ReadyIntent>) : {});
-    });
+    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<ReadyIntent>(roomCode, round, 'ready'), cb);
   },
 
-  // ---------- Intents ----------
   async submitNightIntent(roomCode: string, round: number, uid: string, intent: NightIntent) {
-    await set(ref(db, `rooms/${roomCode}/intents/${round}/night/${uid}`), intent);
+    await saveIntent(roomCode, round, 'night', uid, intent);
   },
 
   subscribeToNightIntents(roomCode: string, round: number, cb: (intents: Record<string, NightIntent>) => void) {
-    return onValue(this.nightIntentsRef(roomCode, round), (snap) => {
-      cb(snap.exists() ? (snap.val() as Record<string, NightIntent>) : {});
-    });
+    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<NightIntent>(roomCode, round, 'night'), cb);
   },
 
   async submitDayIntent(roomCode: string, round: number, uid: string, intent: DayIntent) {
-    await set(ref(db, `rooms/${roomCode}/intents/${round}/day/${uid}`), intent);
+    await saveIntent(roomCode, round, 'day', uid, intent);
   },
 
   subscribeToDayIntents(roomCode: string, round: number, cb: (intents: Record<string, DayIntent>) => void) {
-    return onValue(this.dayIntentsRef(roomCode, round), (snap) => {
-      cb(snap.exists() ? (snap.val() as Record<string, DayIntent>) : {});
-    });
+    return subscribe(roomCode, 'mafia_intents', 'room_code', () => getIntents<DayIntent>(roomCode, round, 'day'), cb);
   },
 
   async clearRoundIntents(roomCode: string, round: number) {
-    await remove(ref(db, `rooms/${roomCode}/intents/${round}`));
+    const { error } = await client().from('mafia_intents').delete()
+      .eq('room_code', code(roomCode)).eq('round', round);
+    throwIfError(error);
   },
 
-  // ---------- Private detective result ----------
   async setDetectiveResult(roomCode: string, round: number, uid: string, result: DetectiveResult) {
-    await set(this.detectiveResultRef(roomCode, round, uid), result);
+    const { error } = await client().from('mafia_detective_results').upsert({
+      room_code: code(roomCode), round, player_id: uid, result, updated_at: new Date().toISOString()
+    });
+    throwIfError(error);
   },
 
   subscribeToDetectiveResult(roomCode: string, round: number, uid: string, cb: (result: DetectiveResult | null) => void) {
-    return onValue(this.detectiveResultRef(roomCode, round, uid), (snap) => {
-      cb(snap.exists() ? (snap.val() as DetectiveResult) : null);
-    });
+    const load = async () => {
+      const { data, error } = await client().from('mafia_detective_results').select('result')
+        .eq('room_code', code(roomCode)).eq('round', round).eq('player_id', uid).maybeSingle();
+      throwIfError(error);
+      return data?.result as DetectiveResult ?? null;
+    };
+    return subscribe(roomCode, 'mafia_detective_results', 'room_code', load, cb);
   },
 
-  // ---------- Room code ----------
   generateRoomCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-    return result;
-  },
+    return Array.from({ length: 4 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+  }
 };

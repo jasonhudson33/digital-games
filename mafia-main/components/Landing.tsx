@@ -5,9 +5,11 @@ interface LandingProps {
   initialName?: string;
   onCreate: (name: string) => void;
   onJoin: (name: string, code: string) => void;
+  connectionError?: string | null;
+  connectionReady?: boolean;
 }
 
-const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin }) => {
+const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin, connectionError, connectionReady = false }) => {
   const [name, setName] = useState(initialName);
   const [code, setCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -25,6 +27,15 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin })
       </div>
 
       <div className="space-y-6">
+        {connectionError ? (
+          <div className="rounded-xl border border-red-500/40 bg-red-950/50 p-4 text-sm text-red-200" role="alert">
+            {connectionError}
+          </div>
+        ) : !connectionReady ? (
+          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-center text-sm text-slate-400">
+            Connecting to Supabase…
+          </div>
+        ) : null}
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Your Identity</label>
           <input
@@ -38,8 +49,8 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin })
 
         {!isJoining ? (
           <div className="space-y-3">
-            <Button fullWidth onClick={() => onCreate(name)} disabled={!name.trim()}>Create New Room</Button>
-            <Button fullWidth variant="ghost" onClick={() => setIsJoining(true)}>Join Existing Room</Button>
+            <Button fullWidth onClick={() => onCreate(name)} disabled={!name.trim() || !connectionReady}>Create New Room</Button>
+            <Button fullWidth variant="ghost" onClick={() => setIsJoining(true)} disabled={!connectionReady}>Join Existing Room</Button>
           </div>
         ) : (
           <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
@@ -55,7 +66,7 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin })
               />
             </div>
             <div className="flex gap-2">
-              <Button fullWidth onClick={() => onJoin(name, code)} disabled={!name.trim() || code.length < 4}>Join Game</Button>
+              <Button fullWidth onClick={() => onJoin(name, code)} disabled={!name.trim() || code.length < 4 || !connectionReady}>Join Game</Button>
               <Button variant="secondary" onClick={() => setIsJoining(false)}>Back</Button>
             </div>
           </div>

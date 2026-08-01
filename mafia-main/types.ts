@@ -21,7 +21,7 @@ export enum GamePhase {
 }
 
 export interface Player {
-  id: string; // Firebase auth.uid
+  id: string; // Supabase auth user id
   name: string;
   cardCode: string;
   isAlive: boolean;
@@ -30,7 +30,7 @@ export interface Player {
   isReady?: boolean;
 }
 
-/** Map of playerId -> Role. Stored privately under rooms/{code}/roles. */
+/** Map of playerId -> Role. Stored privately in mafia_roles. */
 export type RoleMap = Record<string, Role>;
 
 export type JoinRequest = { name: string; ts: number };

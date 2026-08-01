@@ -9,8 +9,7 @@ import DayPhase from './components/DayPhase';
 import GameOver from './components/GameOver';
 import { RoomService } from './services/RoomService';
 import { narrator } from './services/SpeechService';
-import { auth } from './firebase';
-import { onAuthStateChanged, signInAnonymously } from '@firebase/auth';
+import { getSupabaseSetupError, supabase } from './supabase';
 
 const makeInitialState = (): GameState => ({
   roomCode: '',
@@ -46,10 +45,12 @@ const getStoredValue = (key: string): string | null => {
 };
 
 const App: React.FC = () => {
-  const [myPlayerId, setMyPlayerId] = useState<string | null>(() => getStoredValue('mafia_player_id'));
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [cachedPlayerName, setCachedPlayerName] = useState<string>(() => getStoredValue('mafia_player_name') || '');
   const [gameState, setGameState] = useState<GameState>(makeInitialState());
   const [meta, setMeta] = useState<RoomMeta | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(getSupabaseSetupError());
 
   const [rolesMap, setRolesMap] = useState<RoleMap>({});
   const rolesMapRef = useRef<RoleMap>({});
@@ -60,16 +61,49 @@ const App: React.FC = () => {
 
   // ---------- Auth bootstrap ----------
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) signInAnonymously(auth).catch(console.error);
-      if (user && !myPlayerId) {
-        // default to uid for identity
-        setMyPlayerId(user.uid);
-        localStorage.setItem('mafia_player_id', user.uid);
+    if (!supabase) return;
+    let active = true;
+
+    const useUser = (uid: string) => {
+      if (!active) return;
+      setMyPlayerId(uid);
+      localStorage.setItem('mafia_player_id', uid);
+      setAuthReady(true);
+      setConnectionError(null);
+    };
+
+    const bootstrap = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (sessionData.session?.user) {
+        useUser(sessionData.session.user.id);
+        return;
       }
+
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      if (!data.user) throw new Error('Supabase did not create an anonymous player session.');
+      useUser(data.user.id);
+    };
+
+    void bootstrap().catch((error) => {
+      if (!active) return;
+      const message = error instanceof Error ? error.message : 'Could not connect to Supabase Auth.';
+      setConnectionError(
+        message.toLowerCase().includes('anonymous')
+          ? 'Anonymous Supabase sign-ins are disabled. Enable Anonymous Sign-Ins in Supabase Authentication settings.'
+          : `Could not connect to Supabase: ${message}`
+      );
     });
-    return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) useUser(session.user.id);
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const myRole: Role = useMemo(() => {
@@ -211,6 +245,7 @@ const App: React.FC = () => {
 
       const next = sanitizeState({ ...state, players: updated, lastUpdated: Date.now() });
       await RoomService.saveState(code, next);
+      await Promise.all(Object.keys(reqs).map((uid) => RoomService.clearLeaveRequest(code, uid)));
 
       // Keep meta.hostUid aligned with current host for rules
       const host = updated.find(p => p.isHost)?.id;
@@ -426,9 +461,9 @@ const App: React.FC = () => {
 
   // ---------- UI Handlers ----------
   const handleCreateRoom = useCallback(async (name: string) => {
-    const uid = auth.currentUser?.uid;
+    const uid = myPlayerId;
     if (!uid) {
-      alert('Auth not ready yet. Try again.');
+      alert(connectionError || 'Supabase Auth is not ready yet. Try again.');
       return;
     }
 
@@ -462,12 +497,12 @@ const App: React.FC = () => {
     await RoomService.saveState(code, state);
 
     setGameState(state);
-  }, []);
+  }, [connectionError, myPlayerId]);
 
   const handleJoinRoom = useCallback(async (name: string, code: string) => {
-    const uid = auth.currentUser?.uid;
+    const uid = myPlayerId;
     if (!uid) {
-      alert('Auth not ready yet. Try again.');
+      alert(connectionError || 'Supabase Auth is not ready yet. Try again.');
       return;
     }
 
@@ -484,7 +519,7 @@ const App: React.FC = () => {
 
     setGameState(sanitizeState(remote));
     await RoomService.submitJoinRequest(code, uid, name);
-  }, []);
+  }, [connectionError, myPlayerId]);
 
   const restartGame = useCallback(() => {
     setGameState(makeInitialState());
@@ -546,7 +581,15 @@ const App: React.FC = () => {
 
   // ---------- Render ----------
   if (gameState.phase === GamePhase.LANDING) {
-    return <Landing initialName={cachedPlayerName} onCreate={handleCreateRoom} onJoin={handleJoinRoom} />;
+    return (
+      <Landing
+        initialName={cachedPlayerName}
+        onCreate={handleCreateRoom}
+        onJoin={handleJoinRoom}
+        connectionError={connectionError}
+        connectionReady={authReady}
+      />
+    );
   }
 
   if (!myPlayerId || !myPlayer) {

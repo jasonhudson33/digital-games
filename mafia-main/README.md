@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Mafia Online
 
-# Run and deploy your AI Studio app
+Mafia is mounted at `/mafia` in the Digital Games Next.js app and uses Supabase for anonymous player identity, room state, private roles, actions, and Realtime updates.
 
-This contains everything you need to run your app locally.
+## Supabase setup
 
-View your app in AI Studio: https://ai.studio/apps/drive/1gxTW_RIBvub3k6lZWl3fhGRvmVvULUOr
+Set these values locally and in Vercel:
 
-## Run Locally
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
 
-**Prerequisites:**  Node.js
+Run [`supabase/migrations/20260731010000_create_mafia_rooms.sql`](../supabase/migrations/20260731010000_create_mafia_rooms.sql) in the Supabase SQL editor.
 
+In the Supabase dashboard, open **Authentication → Providers → Anonymous Sign-Ins** and enable anonymous sign-ins. Mafia uses the resulting persisted user id to enforce private-role and action policies.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Local development
+
+From the repository root:
+
+```bash
+npm install
+npm run dev
+```
