@@ -20,9 +20,9 @@ const games = [
   {
     name: "Mafia",
     href: "/mafia",
-    status: "Staged for integration",
+    status: "Ready to play",
     description:
-      "Your newly added Mafia app is in the repo and ready for its own launch surface next.",
+      "Create a room, assign hidden roles, and play through shared night and day phases.",
     tone: "night",
   },
 ];
