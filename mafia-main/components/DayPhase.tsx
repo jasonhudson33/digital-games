@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { GamePhase, GameState, Player } from '../types';
+import React, { useState, useMemo } from 'react';
+import { GamePhase, GameState } from '../types';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
-import { canParticipateInDay } from '../services/DayRules';
+import { canParticipateInDay, dayBallotRound } from '../services/DayRules';
 
 interface DayPhaseProps {
   state: GameState;
@@ -28,108 +28,20 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
     }) as string[];
   }, [nominations, seconds]);
 
-  const checkEnd = (_players: Player[]): { winner: 'CITIZENS' | 'KILLERS' | null } => {
-    // Winner is computed by the acting host using private roles.
-    return { winner: null };
-  };
-
   const handleAcknowledge = () => {
-    const { winner } = checkEnd(state.players);
-    if (winner) {
-      onHostAction({ phase: GamePhase.GAME_OVER, winner });
-    } else {
-      onHostAction({ phase: GamePhase.DAY_DELIBERATION, nominations: {}, seconds: {}, dayVotes: {} });
-    }
+    onHostAction({ phase: GamePhase.DAY_DELIBERATION, nominations: {}, seconds: {}, dayVotes: {}, isRunoff: false });
   };
 
   const handleStartVote = () => {
-    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {} });
+    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false });
   };
 
     const handleCastVote = async (candidateId: string) => {
     // LOCK-IN: If user already voted, don't allow changes
     if (!canParticipate || dayVotes[myPlayerId]) return;
 
-    await RoomService.submitDayIntent(roomCode, state.round, myPlayerId, { kind: 'VOTE', targetId: candidateId, ts: Date.now() });
+    await RoomService.submitDayIntent(roomCode, dayBallotRound(state.round, Boolean(state.isRunoff)), myPlayerId, { kind: 'VOTE', targetId: candidateId, ts: Date.now() });
   };
-
-  const processResults = () => {
-    const votes = Object.values(dayVotes);
-    if (votes.length === 0) {
-      onHostAction({ 
-        phase: GamePhase.NIGHT_TRANSITION, 
-        round: state.round + 1,
-        nominations: {},
-        seconds: {},
-        dayVotes: {}
-      });
-      return;
-    }
-
-    const tally: Record<string, number> = {};
-    candidatesOnTrial.forEach(id => tally[id] = 0);
-    votes.forEach(id => {
-      if (tally[id] !== undefined) tally[id]++;
-    });
-
-    const maxVotes = Math.max(...Object.values(tally));
-    const winners = Object.keys(tally).filter(id => tally[id] === maxVotes);
-
-    if (winners.length > 1) {
-      // Tie! Revote on just the winners
-      const tieNames = state.players.filter(p => winners.includes(p.id)).map(p => p.name).join(', ');
-      alert(`The vote is tied between ${tieNames}! A runoff election will begin now.`);
-      
-      // Update nominations/seconds to only include tied players to restrict candidates
-      const newNominations: Record<string, string> = {};
-      const newSeconds: Record<string, string[]> = {};
-      winners.forEach((id, idx) => {
-        newNominations[`tie_${idx}`] = id;
-        newSeconds[id] = ['tie_system'];
-      });
-
-      onHostAction({
-        nominations: newNominations,
-        seconds: newSeconds,
-        dayVotes: {},
-        phase: GamePhase.DAY_VOTING
-      });
-    } else {
-      const votedOutId = winners[0];
-      let updatedPlayers = state.players.map(p => 
-        p.id === votedOutId ? { ...p, isAlive: false } : p
-      );
-
-      const { winner } = checkEnd(updatedPlayers);
-      if (winner) {
-        onHostAction({ players: updatedPlayers, phase: GamePhase.GAME_OVER, winner });
-      } else {
-        onHostAction({ 
-          players: updatedPlayers, 
-          phase: GamePhase.NIGHT_TRANSITION, 
-          round: state.round + 1,
-          nominations: {},
-          seconds: {},
-          dayVotes: {}
-        });
-      }
-    }
-  };
-
-  // AUTO-RESOLUTION: Watch for all votes cast
-  useEffect(() => {
-    if (state.phase === GamePhase.DAY_VOTING && isHost) {
-      const totalVotesCount = Object.keys(dayVotes).length;
-      const totalAlive = alivePlayers.length;
-      if (totalVotesCount > 0 && totalVotesCount === totalAlive) {
-        // Short timeout to let the last voter see their selection reflected before the transition
-        const timer = setTimeout(() => {
-          processResults();
-        }, 1200);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [dayVotes, isHost, alivePlayers.length, state.phase]);
 
   const handleSkipTrial = () => {
     onHostAction({ 
@@ -137,7 +49,8 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
       round: state.round + 1,
       nominations: {},
       seconds: {},
-      dayVotes: {}
+      dayVotes: {},
+      isRunoff: false,
     });
   };
 
@@ -263,8 +176,8 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500 pb-24">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-serif font-bold text-white mb-2">The Trial</h2>
-        <p className="text-slate-400">{hasVoted ? "Your vote is locked in. Waiting for the town..." : "Cast your vote for the person you want to eliminate."}</p>
+        <h2 className="text-4xl font-serif font-bold text-white mb-2">{state.isRunoff ? 'Runoff Election' : 'The Trial'}</h2>
+        <p className="text-slate-400">{hasVoted ? "Your vote is locked in. Waiting for the town..." : state.isRunoff ? "The vote was tied. Vote again between the tied candidates." : "Cast your vote for the person you want to eliminate."}</p>
         <div className="mt-6 w-full max-w-xs mx-auto bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
           <div className="bg-indigo-500 h-full transition-all duration-700" style={{ width: `${voteProgress}%` }}></div>
         </div>

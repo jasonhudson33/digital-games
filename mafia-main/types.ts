@@ -89,6 +89,7 @@ export interface GameState {
   nominations: Record<string, string>;
   seconds: Record<string, string[]>;
   dayVotes: Record<string, string>; // voterId -> targetId
+  isRunoff?: boolean;
 
   winner: 'CITIZENS' | 'KILLERS' | null;
 

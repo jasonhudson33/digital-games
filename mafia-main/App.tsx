@@ -11,7 +11,7 @@ import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
-import { canParticipateInDay } from './services/DayRules';
+import { canParticipateInDay, dayBallotRound, resolveDayVote } from './services/DayRules';
 import { canSelectNightTarget, resolveNight } from './services/NightRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
@@ -30,6 +30,7 @@ const makeInitialState = (): GameState => ({
   nominations: {},
   seconds: {},
   dayVotes: {},
+  isRunoff: false,
   winner: null,
   lastUpdated: 0,
 });
@@ -41,6 +42,7 @@ const sanitizeState = (state: GameState): GameState => ({
   nominations: state.nominations || {},
   seconds: state.seconds || {},
   dayVotes: state.dayVotes || {},
+  isRunoff: state.isRunoff || false,
 });
 
 const getStoredValue = (key: string): string | null => {
@@ -300,17 +302,6 @@ const App: React.FC = () => {
     return null;
   }, []);
 
-  const maybeEndGame = useCallback(async () => {
-    if (!isActingHost) return;
-    const state = gameStateRef.current;
-    const rm = rolesMapRef.current;
-    if (!state.players.every((player) => rm[player.id])) return;
-    const winner = computeWinner(state, rm);
-    if (winner && state.phase !== GamePhase.GAME_OVER) {
-      await hostUpdateState({ phase: GamePhase.GAME_OVER, winner, revealedRoles: rm });
-    }
-  }, [computeWinner, hostUpdateState, isActingHost]);
-
   const finishNight = useCallback(async (state: GameState, saveId: string | null, rm: RoleMap) => {
     const resolution = resolveNight(state.players, state.killerTargetId, saveId);
     const resolvedState = { ...state, players: resolution.players };
@@ -505,9 +496,12 @@ const App: React.FC = () => {
       }
     });
 
-    const unsubDay = RoomService.subscribeToDayIntents(code, gameState.round, async (intents) => {
-      const state = gameStateRef.current;
-      if (![GamePhase.DAY_DELIBERATION, GamePhase.DAY_VOTING].includes(state.phase)) return;
+    const unsubDay = RoomService.subscribeToDayIntents(
+      code,
+      dayBallotRound(gameState.round, Boolean(gameState.isRunoff)),
+      async (intents) => {
+        const state = gameStateRef.current;
+        if (![GamePhase.DAY_DELIBERATION, GamePhase.DAY_VOTING].includes(state.phase)) return;
 
       const entries = Object.entries(intents).sort((a, b) => a[1].ts - b[1].ts);
 
@@ -566,9 +560,10 @@ const App: React.FC = () => {
         }
       }
 
-      const next = sanitizeState({ ...state, nominations, seconds, dayVotes, lastUpdated: Date.now() });
-      await RoomService.saveState(code, next);
-    });
+        const next = sanitizeState({ ...state, nominations, seconds, dayVotes, lastUpdated: Date.now() });
+        await RoomService.saveState(code, next);
+      }
+    );
 
     return () => {
       unsubJoin();
@@ -578,7 +573,7 @@ const App: React.FC = () => {
       unsubDay();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.roomCode, isActingHost, gameState.round, gameState.phase, computerPlayerKey]);
+  }, [gameState.roomCode, isActingHost, gameState.round, gameState.phase, gameState.isRunoff, computerPlayerKey]);
 
   // ---------- Host-owned phase narration ----------
   const narratedNightRef = useRef('');
@@ -630,27 +625,45 @@ const App: React.FC = () => {
 
     if (alive.length > 0 && votedCount === alive.length) {
       const timer = setTimeout(async () => {
-        // tally
-        const tally: Record<string, number> = {};
-        for (const t of Object.values(state.dayVotes)) tally[t] = (tally[t] || 0) + 1;
-
-        const maxVotes = Math.max(...Object.values(tally));
-        const top = Object.entries(tally).filter(([, v]) => v === maxVotes).map(([k]) => k);
+        const candidates = Array.from(new Set(Object.values(state.nominations))).filter(
+          (targetId) => (state.seconds[targetId] || []).length > 0
+        );
+        const { top } = resolveDayVote(candidates, state.dayVotes);
 
         if (top.length !== 1) {
+          if (!state.isRunoff && top.length > 1) {
+            const nominations = Object.fromEntries(top.map((targetId, index) => [`runoff_${index}`, targetId]));
+            const seconds = Object.fromEntries(top.map((targetId) => [targetId, ['runoff_system']]));
+            await hostUpdateState({
+              phase: GamePhase.DAY_VOTING,
+              nominations,
+              seconds,
+              dayVotes: {},
+              isRunoff: true,
+            });
+            await RoomService.clearRoundIntents(state.roomCode, dayBallotRound(state.round, false));
+            return;
+          }
+
           await hostUpdateState({
             phase: GamePhase.NIGHT_TRANSITION,
             round: state.round + 1,
             nominations: {},
             seconds: {},
             dayVotes: {},
+            isRunoff: false,
           });
-          await RoomService.clearRoundIntents(state.roomCode, state.round);
+          await RoomService.clearRoundIntents(
+            state.roomCode,
+            dayBallotRound(state.round, Boolean(state.isRunoff)),
+          );
           return;
         }
 
         const executedId = top[0];
         const updatedPlayers = state.players.map(p => p.id === executedId ? { ...p, isAlive: false } : p);
+        const rm = rolesMapRef.current;
+        const winner = computeWinner({ ...state, players: updatedPlayers }, rm);
 
         const executedName = state.players.find(p => p.id === executedId)?.name || 'Someone';
         const results = [`${executedName} was eliminated by vote.`];
@@ -658,20 +671,25 @@ const App: React.FC = () => {
         await hostUpdateState({
           players: updatedPlayers,
           nightResults: results,
-          phase: GamePhase.NIGHT_TRANSITION,
-          round: state.round + 1,
+          phase: winner ? GamePhase.GAME_OVER : GamePhase.NIGHT_TRANSITION,
+          round: winner ? state.round : state.round + 1,
           nominations: {},
           seconds: {},
           dayVotes: {},
+          isRunoff: false,
+          winner,
+          revealedRoles: winner ? rm : undefined,
         });
 
-        await RoomService.clearRoundIntents(state.roomCode, state.round);
-        await maybeEndGame();
+        await RoomService.clearRoundIntents(
+          state.roomCode,
+          dayBallotRound(state.round, Boolean(state.isRunoff)),
+        );
       }, 1200);
 
       return () => clearTimeout(timer);
     }
-  }, [gameState, isActingHost, hostUpdateState, maybeEndGame]);
+  }, [computeWinner, gameState, isActingHost, hostUpdateState]);
 
   // ---------- UI Handlers ----------
   const handleCreateRoom = useCallback(async (name: string) => {
@@ -798,6 +816,7 @@ const App: React.FC = () => {
       nominations: {},
       seconds: {},
       dayVotes: {},
+      isRunoff: false,
       winner: null,
       revealedRoles: undefined,
     });

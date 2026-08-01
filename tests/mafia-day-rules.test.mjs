@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canParticipateInDay } from '../mafia-main/services/DayRules.ts';
+import { canParticipateInDay, dayBallotRound, resolveDayVote } from '../mafia-main/services/DayRules.ts';
 
 const player = (overrides = {}) => ({
   id: 'player-1',
@@ -17,4 +17,18 @@ test('only active living players can participate in daytime actions', () => {
   assert.equal(canParticipateInDay([player({ isAlive: false })], 'player-1'), false);
   assert.equal(canParticipateInDay([player({ hasLeft: true })], 'player-1'), false);
   assert.equal(canParticipateInDay([player()], 'missing-player'), false);
+});
+
+test('a tied vote returns only the runoff candidates', () => {
+  const result = resolveDayVote(['a', 'b', 'c'], { one: 'a', two: 'b', three: 'c', four: 'a', five: 'b' });
+  assert.deepEqual(result.top, ['a', 'b']);
+});
+
+test('a decisive runoff returns one player', () => {
+  const result = resolveDayVote(['a', 'b'], { one: 'a', two: 'a', three: 'b' });
+  assert.deepEqual(result.top, ['a']);
+});
+
+test('a runoff uses a separate intent round from the first ballot', () => {
+  assert.notEqual(dayBallotRound(3, false), dayBallotRound(3, true));
 });
