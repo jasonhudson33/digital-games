@@ -5,6 +5,7 @@ create table if not exists public.mafia_players (
   player_id text not null,
   token_hash text not null,
   created_at timestamptz not null default now(),
+  last_seen timestamptz not null default now(),
   primary key (room_code, player_id)
 );
 
@@ -143,7 +144,8 @@ begin
   end if;
   insert into public.mafia_players(room_code, player_id, token_hash)
   values (normalized_code, player_id, public.mafia_token_hash(player_token))
-  on conflict on constraint mafia_players_pkey do nothing;
+  on conflict on constraint mafia_players_pkey
+  do update set last_seen = now();
   if not public.mafia_token_valid(normalized_code, player_id, player_token) then
     raise exception 'Mafia player identity is already in use';
   end if;

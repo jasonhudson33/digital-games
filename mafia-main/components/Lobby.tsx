@@ -42,6 +42,9 @@ const Lobby: React.FC<LobbyProps> = ({ roomCode, players, isHost, onStart }) => 
               {p.isHost && (
                 <span className="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded border border-indigo-400/30">HOST</span>
               )}
+              {p.isComputer && (
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">COMPUTER</span>
+              )}
             </div>
           ))}
         </div>

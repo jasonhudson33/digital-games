@@ -118,7 +118,9 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
               <div key={p.id} className={`p-4 rounded-2xl border ${selectedByMe ? 'border-yellow-400/60 bg-yellow-950/20' : 'border-slate-700 bg-slate-900/50'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold text-slate-200">{p.name}</h3>
+                    <h3 className="text-xl font-semibold text-slate-200">
+                      {p.name}{p.isComputer && <span className="ml-2 text-xs font-bold uppercase text-amber-400">Computer</span>}
+                    </h3>
                     <p className="text-slate-500 text-sm">{p.isAlive ? 'Alive' : 'Dead'}</p>
                   </div>
                   {amActor && (

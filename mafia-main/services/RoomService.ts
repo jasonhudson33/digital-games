@@ -7,6 +7,7 @@ import type {
   JoinRequest,
   LeaveRequest,
   NightIntent,
+  PresenceMap,
   ReadyIntent,
   Role,
   RoleMap,
@@ -103,6 +104,14 @@ const saveIntent = async (roomCode: string, round: number, intentType: IntentTyp
   });
 };
 
+const getPresence = async (roomCode: string): Promise<PresenceMap> => {
+  const rows = await rpc<Array<{ presence_player_id: string; last_seen_ms: number }>>(
+    'mafia_get_presence',
+    credentials(roomCode)
+  );
+  return Object.fromEntries((rows ?? []).map((row) => [row.presence_player_id, Number(row.last_seen_ms)]));
+};
+
 export const RoomService = {
   async createRoom(roomCode: string, state: GameState, meta: RoomMeta) {
     const current = identity();
@@ -144,6 +153,14 @@ export const RoomService = {
 
   subscribeToMeta(roomCode: string, cb: (meta: RoomMeta | null) => void) {
     return roomSubscription(roomCode, () => this.getMeta(roomCode), cb);
+  },
+
+  async heartbeat(roomCode: string) {
+    await rpc('mafia_heartbeat', credentials(roomCode));
+  },
+
+  subscribeToPresence(roomCode: string, cb: (presence: PresenceMap) => void) {
+    return pollingSubscription(() => getPresence(roomCode), cb, 5000);
   },
 
   async setRoles(roomCode: string, roles: RoleMap) {

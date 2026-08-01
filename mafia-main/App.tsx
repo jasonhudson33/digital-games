@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GamePhase, GameState, Player, Role, RoleMap, RoomMeta, DayIntent, NightIntent } from './types';
+import { GamePhase, GameState, Player, Role, RoleMap, RoomMeta, DayIntent, NightIntent, PresenceMap } from './types';
 import Landing from './components/Landing';
 import Lobby from './components/Lobby';
 import Setup from './components/Setup';
@@ -45,11 +45,36 @@ const getStoredValue = (key: string): string | null => {
   return window.localStorage.getItem(key);
 };
 
+const LAST_ROOM_KEY = 'mafia_last_room';
+const PRESENCE_TIMEOUT_MS = 5 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 15 * 1000;
+
+const rememberRoom = (roomCode: string) => {
+  if (typeof window === 'undefined') return;
+  const code = roomCode.trim().toUpperCase();
+  window.localStorage.setItem(LAST_ROOM_KEY, code);
+  window.history.replaceState(null, '', `${window.location.pathname}?room=${code}`);
+};
+
+const forgetRoom = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(LAST_ROOM_KEY);
+  window.history.replaceState(null, '', window.location.pathname);
+};
+
+const deterministicPlayer = (players: Player[], seed: string): Player | null => {
+  if (!players.length) return null;
+  const hash = Array.from(seed).reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
+  return players[hash % players.length];
+};
+
 const App: React.FC = () => {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [cachedPlayerName, setCachedPlayerName] = useState<string>(() => getStoredValue('mafia_player_name') || '');
   const [gameState, setGameState] = useState<GameState>(makeInitialState());
   const [meta, setMeta] = useState<RoomMeta | null>(null);
+  const [presence, setPresence] = useState<PresenceMap>({});
+  const [presenceReady, setPresenceReady] = useState(false);
   const [identityReady, setIdentityReady] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(getSupabaseSetupError());
 
@@ -72,6 +97,35 @@ const App: React.FC = () => {
     setIdentityReady(true);
   }, []);
 
+  useEffect(() => {
+    if (!identityReady || !myPlayerId || gameStateRef.current.phase !== GamePhase.LANDING) return;
+    const queryRoom = new URLSearchParams(window.location.search).get('room');
+    const storedRoom = getStoredValue(LAST_ROOM_KEY);
+    const roomCode = (queryRoom || storedRoom || '').trim().toUpperCase();
+    if (!roomCode) return;
+    let active = true;
+
+    const reconnect = async () => {
+      const remote = await RoomService.getState(roomCode);
+      const returningPlayer = remote?.players.find((player) => player.id === myPlayerId);
+      if (!active || !remote || !returningPlayer) {
+        if (active && storedRoom === roomCode) forgetRoom();
+        return;
+      }
+      await RoomService.heartbeat(roomCode);
+      if (!active) return;
+      localStorage.setItem('mafia_player_name', returningPlayer.name);
+      setCachedPlayerName(returningPlayer.name);
+      setGameState(sanitizeState(remote));
+      rememberRoom(roomCode);
+    };
+
+    void reconnect().catch((error) => {
+      console.error('Could not reconnect to Mafia room', error);
+    });
+    return () => { active = false; };
+  }, [identityReady, myPlayerId]);
+
   const myRole: Role = useMemo(() => {
     if (!myPlayerId) return Role.CITIZEN;
     return rolesMap[myPlayerId] || Role.CITIZEN;
@@ -80,11 +134,21 @@ const App: React.FC = () => {
   // Acting host: alive host if present, else first alive player
   const actingHostId = useMemo(() => {
     const alive = gameState.players.filter(p => p.isAlive);
-    const hostAlive = alive.find(p => p.isHost);
+    if (presenceReady) {
+      const cutoff = Date.now() - PRESENCE_TIMEOUT_MS;
+      const online = alive.filter((player) => (presence[player.id] || 0) > cutoff);
+      const onlineHost = online.find((player) => player.isHost);
+      return onlineHost?.id || online[0]?.id || null;
+    }
+    const hostAlive = alive.find((player) => player.isHost);
     return hostAlive?.id || alive[0]?.id || null;
-  }, [gameState.players]);
+  }, [gameState.players, presence, presenceReady]);
 
   const isActingHost = !!myPlayerId && actingHostId === myPlayerId;
+  const computerPlayerKey = useMemo(
+    () => gameState.players.map((player) => `${player.id}:${Boolean(player.isComputer)}`).join('|'),
+    [gameState.players]
+  );
 
   useEffect(() => {
     if (!isActingHost) return;
@@ -128,6 +192,37 @@ const App: React.FC = () => {
     };
   }, [gameState.roomCode, shouldUpdateState]);
 
+  useEffect(() => {
+    const roomCode = gameState.roomCode;
+    if (!roomCode || !myPlayerId) return;
+    setPresenceReady(false);
+    const unsubscribe = RoomService.subscribeToPresence(roomCode, (nextPresence) => {
+      setPresence(nextPresence);
+      setPresenceReady(true);
+    });
+    return unsubscribe;
+  }, [gameState.roomCode, myPlayerId]);
+
+  useEffect(() => {
+    const roomCode = gameState.roomCode;
+    if (!roomCode || !myPlayerId || !gameState.players.some((player) => player.id === myPlayerId)) return;
+    const heartbeat = () => void RoomService.heartbeat(roomCode).catch((error) => {
+      console.error('Could not update Mafia presence', error);
+    });
+    heartbeat();
+    const intervalId = window.setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') heartbeat();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', heartbeat);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', heartbeat);
+    };
+  }, [gameState.roomCode, gameState.players, myPlayerId]);
+
   // Host gets full roles for aggregation + win checks
   useEffect(() => {
     if (!gameState.roomCode) return;
@@ -158,6 +253,24 @@ const App: React.FC = () => {
       await RoomService.saveState(next.roomCode, next);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isActingHost || !presenceReady || !gameState.roomCode) return;
+    const now = Date.now();
+    let changed = false;
+    const players = gameState.players.map((player) => {
+      const lastSeen = presence[player.id] || 0;
+      const shouldBeComputer = lastSeen > 0 && now - lastSeen >= PRESENCE_TIMEOUT_MS;
+      if (Boolean(player.isComputer) === shouldBeComputer) return player;
+      changed = true;
+      return {
+        ...player,
+        isComputer: shouldBeComputer,
+        computerSince: shouldBeComputer ? now : undefined,
+      };
+    });
+    if (changed) void hostUpdateState({ players }).catch(console.error);
+  }, [gameState.players, gameState.roomCode, hostUpdateState, isActingHost, presence, presenceReady]);
 
   const computeWinner = useCallback((state: GameState, rm: RoleMap): 'CITIZENS' | 'KILLERS' | null => {
     const alive = state.players.filter(p => p.isAlive);
@@ -241,6 +354,7 @@ const App: React.FC = () => {
       if (state.phase !== GamePhase.ROLE_REVEAL) return;
 
       const readySet = new Set(Object.keys(ready));
+      state.players.filter((player) => player.isComputer).forEach((player) => readySet.add(player.id));
       const updatedPlayers = state.players.map(p => ({ ...p, isReady: readySet.has(p.id) }));
 
       const next = sanitizeState({ ...state, players: updatedPlayers, lastUpdated: Date.now() });
@@ -280,18 +394,28 @@ const App: React.FC = () => {
         return;
       }
 
-      // Host writes aggregated actor->target map for UI progress
+      const actorPlayers = state.players.filter((player) => actors.includes(player.id));
+      const humanTarget = actorPlayers
+        .filter((player) => !player.isComputer)
+        .map((player) => intents[player.id]?.targetId)
+        .find(Boolean);
+      const computerTarget = humanTarget || deterministicPlayer(
+        state.players.filter((player) => player.isAlive && !actors.includes(player.id)),
+        `${state.roomCode}:${state.round}:${state.phase}`
+      )?.id;
+
+      // Host writes aggregated human and computer actions for UI progress.
       const aggregated: Record<string, string> = {};
-      for (const uid of actors) {
-        const t = intents[uid]?.targetId;
-        if (t) aggregated[uid] = t;
+      for (const actor of actorPlayers) {
+        const t = actor.isComputer ? computerTarget : intents[actor.id]?.targetId;
+        if (t) aggregated[actor.id] = t;
       }
       if (JSON.stringify(aggregated) !== JSON.stringify(state.nightActions || {})) {
         await RoomService.saveState(code, sanitizeState({ ...state, nightActions: aggregated, lastUpdated: Date.now() }));
       }
 
       // Check consensus
-      const targets = actors.map(a => intents[a]?.targetId).filter(Boolean) as string[];
+      const targets = actors.map((actorId) => aggregated[actorId]).filter(Boolean) as string[];
       const hasAll = targets.length === actors.length;
       const allSame = hasAll && targets.every(t => t === targets[0]);
       if (!allSame) return;
@@ -349,8 +473,10 @@ const App: React.FC = () => {
 
       const entries = Object.entries(intents).sort((a, b) => a[1].ts - b[1].ts);
 
-      const nominations: Record<string, string> = {};
-      const seconds: Record<string, string[]> = {};
+      const nominations: Record<string, string> = state.phase === GamePhase.DAY_VOTING ? { ...state.nominations } : {};
+      const seconds: Record<string, string[]> = state.phase === GamePhase.DAY_VOTING
+        ? Object.fromEntries(Object.entries(state.seconds).map(([targetId, voters]) => [targetId, [...voters]]))
+        : {};
       const dayVotes: Record<string, string> = {};
 
       for (const [uid, intent] of entries) {
@@ -366,6 +492,41 @@ const App: React.FC = () => {
         if (intent.kind === 'VOTE') dayVotes[uid] = intent.targetId;
       }
 
+      const computerPlayers = state.players.filter((player) => player.isAlive && player.isComputer);
+      if (state.phase === GamePhase.DAY_DELIBERATION) {
+        for (const computer of computerPlayers) {
+          if (!nominations[computer.id]) {
+            const target = deterministicPlayer(
+              state.players.filter((player) => player.isAlive && player.id !== computer.id),
+              `${state.roomCode}:${state.round}:nominate:${computer.id}`
+            );
+            if (target) nominations[computer.id] = target.id;
+          }
+        }
+        const nominatedTargets = Array.from(new Set(Object.values(nominations)));
+        for (const computer of computerPlayers) {
+          const targetId = nominatedTargets.find((target) => target !== computer.id && target !== nominations[computer.id]);
+          if (!targetId) continue;
+          seconds[targetId] = seconds[targetId] || [];
+          if (!seconds[targetId].includes(computer.id)) seconds[targetId].push(computer.id);
+        }
+      }
+
+      if (state.phase === GamePhase.DAY_VOTING) {
+        const candidates = Array.from(new Set(Object.values(nominations))).filter(
+          (targetId) => (seconds[targetId] || []).length > 0
+        );
+        for (const computer of computerPlayers) {
+          const target = deterministicPlayer(
+            candidates.filter((targetId) => targetId !== computer.id).map((targetId) =>
+              state.players.find((player) => player.id === targetId)
+            ).filter(Boolean) as Player[],
+            `${state.roomCode}:${state.round}:vote:${computer.id}`
+          );
+          if (target) dayVotes[computer.id] = target.id;
+        }
+      }
+
       const next = sanitizeState({ ...state, nominations, seconds, dayVotes, lastUpdated: Date.now() });
       await RoomService.saveState(code, next);
     });
@@ -378,7 +539,7 @@ const App: React.FC = () => {
       unsubDay();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.roomCode, isActingHost, gameState.round]);
+  }, [gameState.roomCode, isActingHost, gameState.round, gameState.phase, computerPlayerKey]);
 
   // ---------- Host-owned phase narration ----------
   const narratedNightRef = useRef('');
@@ -506,6 +667,7 @@ const App: React.FC = () => {
     await RoomService.createRoom(code, state, { hostUid: uid, createdAt: Date.now(), version: 1 });
 
     setGameState(state);
+    rememberRoom(code);
   }, [connectionError, myPlayerId]);
 
   const handleJoinRoom = useCallback(async (name: string, code: string) => {
@@ -522,10 +684,13 @@ const App: React.FC = () => {
         return;
       }
 
-      await RoomService.submitJoinRequest(code, uid, name);
+      const returningPlayer = remote.players.find((player) => player.id === uid);
+      if (returningPlayer) await RoomService.heartbeat(code);
+      else await RoomService.submitJoinRequest(code, uid, name);
       localStorage.setItem('mafia_player_name', name);
       setCachedPlayerName(name);
       setGameState(sanitizeState(remote));
+      rememberRoom(code);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown room error';
       alert(`Could not join room: ${message}`);
@@ -533,9 +698,12 @@ const App: React.FC = () => {
   }, [connectionError, myPlayerId]);
 
   const restartGame = useCallback(() => {
+    forgetRoom();
     setGameState(makeInitialState());
     setRolesMap({});
     setMeta(null);
+    setPresence({});
+    setPresenceReady(false);
   }, []);
 
   const handleLeaveRoom = useCallback(async () => {

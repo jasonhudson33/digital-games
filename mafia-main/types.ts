@@ -28,10 +28,13 @@ export interface Player {
   voteCount: number;
   isHost?: boolean;
   isReady?: boolean;
+  isComputer?: boolean;
+  computerSince?: number;
 }
 
 /** Map of playerId -> Role. Stored privately in mafia_roles. */
 export type RoleMap = Record<string, Role>;
+export type PresenceMap = Record<string, number>;
 
 export type JoinRequest = { name: string; ts: number };
 export type LeaveRequest = { ts: number };

@@ -207,6 +207,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
                 <div className="flex-grow">
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-slate-100">{p.name}</span>
+                    {p.isComputer && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 px-2 py-0.5 rounded uppercase">Computer</span>}
                     {p.id === myPlayerId && <span className="text-[10px] font-bold text-indigo-400 border border-indigo-400/30 px-2 py-0.5 rounded uppercase tracking-tighter">You</span>}
                     {isSeconded && <span className="text-[10px] font-bold text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded uppercase tracking-tighter">On Trial</span>}
                   </div>
@@ -279,7 +280,9 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
                 ${hasVoted && !isMySelection ? 'opacity-50 grayscale-[0.5]' : ''}`}
             >
               <div className="relative z-10">
-                <span className="text-2xl font-bold block text-left">{player.name}</span>
+                <span className="text-2xl font-bold block text-left">
+                  {player.name}{player.isComputer && <span className="ml-2 text-xs font-bold uppercase text-amber-400">Computer</span>}
+                </span>
                 <span className="text-xs text-slate-500 uppercase tracking-widest text-left block">Trial Candidate</span>
               </div>
               
