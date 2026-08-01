@@ -12,7 +12,7 @@ import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
 import { canParticipateInDay } from './services/DayRules';
-import { resolveNight } from './services/NightRules';
+import { canSelectNightTarget, resolveNight } from './services/NightRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -447,12 +447,22 @@ const App: React.FC = () => {
       }
 
       const actorPlayers = state.players.filter((player) => actors.includes(player.id));
-      const humanTarget = actorPlayers
-        .filter((player) => !player.isComputer)
-        .map((player) => intents[player.id]?.targetId)
-        .find(Boolean);
+      let humanTarget: string | undefined;
+      for (const actor of actorPlayers) {
+        if (actor.isComputer) continue;
+        const targetId = intents[actor.id]?.targetId;
+        if (targetId && canSelectNightTarget(state.players, roleNeeded, actor.id, targetId, state.lastAngelSavedId)) {
+          humanTarget = targetId;
+          break;
+        }
+      }
+      const computerCandidates = state.players.filter((player) => {
+        if (!player.isAlive) return false;
+        if (roleNeeded === Role.ANGEL) return player.id !== state.lastAngelSavedId;
+        return !actors.includes(player.id);
+      });
       const computerTarget = humanTarget || deterministicPlayer(
-        state.players.filter((player) => player.isAlive && !actors.includes(player.id)),
+        computerCandidates,
         `${state.roomCode}:${state.round}:${state.phase}`
       )?.id;
 
@@ -460,7 +470,9 @@ const App: React.FC = () => {
       const aggregated: Record<string, string> = {};
       for (const actor of actorPlayers) {
         const t = actor.isComputer ? computerTarget : intents[actor.id]?.targetId;
-        if (t) aggregated[actor.id] = t;
+        if (t && canSelectNightTarget(state.players, roleNeeded, actor.id, t, state.lastAngelSavedId)) {
+          aggregated[actor.id] = t;
+        }
       }
       if (JSON.stringify(aggregated) !== JSON.stringify(state.nightActions || {})) {
         await RoomService.saveState(code, sanitizeState({ ...state, nightActions: aggregated, lastUpdated: Date.now() }));

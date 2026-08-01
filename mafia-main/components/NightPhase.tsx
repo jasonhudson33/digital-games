@@ -3,6 +3,7 @@ import { GamePhase, GameState, Role, Player, DetectiveResult, RoleMap } from '..
 import { ROLE_DETAILS } from '../constants';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
+import { canSelectNightTarget } from '../services/NightRules';
 
 interface NightPhaseProps {
   state: GameState;
@@ -111,19 +112,25 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
 
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
         {alivePlayers
-          .filter(p => p.id !== myPlayerId)
+          .filter(p => phaseRole === Role.ANGEL || p.id !== myPlayerId)
           .map(p => {
             const selectedByMe = votes[myPlayerId] === p.id;
+            const canSelect = phaseRole
+              ? canSelectNightTarget(state.players, phaseRole, myPlayerId, p.id, state.lastAngelSavedId)
+              : false;
             return (
               <div key={p.id} className={`p-4 rounded-2xl border ${selectedByMe ? 'border-yellow-400/60 bg-yellow-950/20' : 'border-slate-700 bg-slate-900/50'}`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-xl font-semibold text-slate-200">
                       {p.name}{p.isComputer && <span className="ml-2 text-xs font-bold uppercase text-amber-400">Computer</span>}
+                      {p.id === myPlayerId && <span className="ml-2 text-xs font-bold uppercase text-indigo-400">You</span>}
                     </h3>
-                    <p className="text-slate-500 text-sm">{p.isAlive ? 'Alive' : 'Dead'}</p>
+                    <p className="text-slate-500 text-sm">
+                      {p.id === state.lastAngelSavedId && phaseRole === Role.ANGEL ? 'Saved last night' : 'Alive'}
+                    </p>
                   </div>
-                  {amActor && (
+                  {amActor && canSelect && (
                     <Button onClick={() => handleSelect(p.id)}>
                       Select
                     </Button>

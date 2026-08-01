@@ -1,9 +1,22 @@
-import type { Player } from '../types';
+import type { Player, Role } from '../types';
 
 export interface NightResolution {
   players: Player[];
   results: string[];
 }
+
+export const canSelectNightTarget = (
+  players: Player[],
+  actingRole: Role,
+  actorId: string,
+  targetId: string,
+  lastAngelSavedId: string | null,
+): boolean => {
+  const target = players.find((player) => player.id === targetId);
+  if (!target?.isAlive) return false;
+  if (actingRole === 'Ace') return targetId !== lastAngelSavedId;
+  return targetId !== actorId;
+};
 
 export const resolveNight = (
   players: Player[],
