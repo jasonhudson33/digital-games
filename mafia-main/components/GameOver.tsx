@@ -3,6 +3,7 @@ import React from 'react';
 import { Player, RoleMap, Role } from '../types';
 import Button from './Button';
 import { ROLE_DETAILS } from '../constants';
+import { displayCardCode } from '../services/CardState';
 
 interface GameOverProps {
   winner: 'CITIZENS' | 'KILLERS' | null;
@@ -34,7 +35,7 @@ const GameOver: React.FC<GameOverProps> = ({ winner, players, revealedRoles, onR
           {players.map(player => {
             const role = revealedRoles?.[player.id] || Role.CITIZEN;
             const roleInfo = ROLE_DETAILS[role];
-            const cid = player.cardCode.replace(/^0/, 'T');
+            const cid = displayCardCode(player.cardCode, role);
             return (
               <div 
                 key={player.id} 

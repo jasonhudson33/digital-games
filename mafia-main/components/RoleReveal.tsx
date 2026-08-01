@@ -3,6 +3,7 @@ import { Player, Role } from '../types';
 import { ROLE_DETAILS } from '../constants';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
+import { displayCardCode } from '../services/CardState';
 
 interface RoleRevealProps {
   player: Player;
@@ -18,6 +19,7 @@ const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCo
   const [hasAcknowledged, setHasAcknowledged] = useState<boolean>(!!player.isReady);
 
   const details = ROLE_DETAILS[myRole];
+  const cardCode = displayCardCode(player.cardCode, myRole);
 
   const handleAcknowledge = async () => {
     try {
@@ -37,6 +39,13 @@ const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCo
     <div className="flex flex-col items-center py-10 animate-in fade-in zoom-in duration-700">
       <div className={`text-center mb-10 p-10 rounded-3xl border-4 ${details.borderColor} ${details.bgColor} shadow-2xl max-w-xl w-full`}>
         <h2 className="text-2xl font-serif text-slate-400 mb-3 tracking-widest uppercase">Your Role</h2>
+        <div
+          className="w-44 mx-auto mb-7 overflow-hidden rounded-xl bg-white border border-slate-600 shadow-2xl"
+          style={{ aspectRatio: '240 / 334' }}
+          aria-label={`Your assigned card is ${cardCode}`}
+        >
+          <playing-card cid={cardCode} bordercolor="#334155" shadow="2,4,3" class="w-full h-full" />
+        </div>
         <h1 className={`text-6xl font-serif font-black mb-6 ${details.color}`}>{details.card}</h1>
         <p className="text-xl text-slate-200 leading-relaxed">{details.description}</p>
       </div>
