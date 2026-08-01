@@ -12,6 +12,7 @@ import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
 import { canParticipateInDay } from './services/DayRules';
+import { resolveNight } from './services/NightRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -310,6 +311,24 @@ const App: React.FC = () => {
     }
   }, [computeWinner, hostUpdateState, isActingHost]);
 
+  const finishNight = useCallback(async (state: GameState, saveId: string | null, rm: RoleMap) => {
+    const resolution = resolveNight(state.players, state.killerTargetId, saveId);
+    const resolvedState = { ...state, players: resolution.players };
+    const winner = computeWinner(resolvedState, rm);
+
+    await narrator.speak(MAFIA_NARRATION.morning);
+    await hostUpdateState({
+      players: resolution.players,
+      angelSaveId: saveId,
+      lastAngelSavedId: saveId,
+      nightActions: {},
+      nightResults: resolution.results,
+      phase: winner ? GamePhase.GAME_OVER : GamePhase.DAY_RESULTS,
+      winner,
+      revealedRoles: winner ? rm : undefined,
+    });
+  }, [computeWinner, hostUpdateState]);
+
   // ---------- Host aggregation: join/leave/ready/intents ----------
   useEffect(() => {
     if (!gameState.roomCode || !isActingHost) return;
@@ -422,8 +441,7 @@ const App: React.FC = () => {
           await narrator.speak(MAFIA_NARRATION.angelsWake);
           await hostUpdateState({ phase: GamePhase.NIGHT_ANGEL, nightActions: {} });
         } else {
-          await narrator.speak(MAFIA_NARRATION.morning);
-          await hostUpdateState({ phase: GamePhase.DAY_RESULTS, nightActions: {} });
+          await finishNight(state, null, rm);
         }
         return;
       }
@@ -471,33 +489,7 @@ const App: React.FC = () => {
         await narrator.speak(MAFIA_NARRATION.angelsWake);
         await hostUpdateState({ detectiveCheckId: targetId, nightActions: {}, phase: GamePhase.NIGHT_ANGEL });
       } else if (state.phase === GamePhase.NIGHT_ANGEL) {
-        await hostUpdateState({ angelSaveId: targetId, nightActions: {} });
-        // Resolve night
-        const kill = state.killerTargetId;
-        const save = targetId;
-        const results: string[] = [];
-        const updatedPlayers = state.players.map(p => ({ ...p }));
-
-        if (kill && kill === save) {
-          results.push('A life was spared in the night.');
-        } else if (kill) {
-          const victim = updatedPlayers.find(p => p.id === kill);
-          if (victim) {
-            victim.isAlive = false;
-            results.push(`${victim.name} was eliminated in the night.`);
-          }
-        } else {
-          results.push('The night passed without incident.');
-        }
-
-        await narrator.speak(MAFIA_NARRATION.morning);
-        await hostUpdateState({
-          nightResults: results,
-          lastAngelSavedId: save,
-          phase: GamePhase.DAY_RESULTS,
-        });
-
-        await maybeEndGame();
+        await finishNight(state, targetId, rm);
       }
     });
 
