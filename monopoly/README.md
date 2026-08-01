@@ -23,29 +23,6 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Create a `monopoly_rooms` table:
-
-```sql
-create table if not exists public.monopoly_rooms (
-  code text primary key,
-  state jsonb not null,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.monopoly_rooms enable row level security;
-
-create policy "rooms are readable"
-on public.monopoly_rooms for select
-using (true);
-
-create policy "rooms can be created"
-on public.monopoly_rooms for insert
-with check (true);
-
-create policy "rooms can be updated"
-on public.monopoly_rooms for update
-using (true)
-with check (true);
-```
-
-Enable Realtime for the table in Supabase. When configured, the app stores rooms at `monopoly_rooms.code`.
+Run [`supabase/migrations/20260731000000_create_monopoly_rooms.sql`](../supabase/migrations/20260731000000_create_monopoly_rooms.sql)
+in the Supabase SQL editor. It creates the `monopoly_rooms` table, grants the anonymous client the required read/write access, and enables Realtime.
+When configured, the app stores rooms at `monopoly_rooms.code` and uses local storage only as a client cache.

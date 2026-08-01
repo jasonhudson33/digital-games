@@ -131,8 +131,8 @@ export default function App() {
         localStorage.setItem(storagePlayerPiece, getPlayerPiece(returningPlayer));
         window.history.replaceState(null, '', `?room=${existing.roomCode}`);
       })
-      .catch(() => {
-        if (!cancelled) setError(`Could not reconnect to room ${code}.`);
+      .catch((loadError) => {
+        if (!cancelled) setError(roomErrorMessage(loadError, `Could not reconnect to room ${code}.`));
       });
 
     return () => {
@@ -148,9 +148,9 @@ export default function App() {
   }, [game?.roomCode]);
 
   const persist = async (next: GameState) => {
+    await RoomService.save(next);
     setGame(next);
     latestGame.current = next;
-    await RoomService.save(next);
     if (canUseBrowser()) window.history.replaceState(null, '', `?room=${next.roomCode}`);
   };
 
@@ -182,7 +182,11 @@ export default function App() {
   const createRoom = async () => {
     setError('');
     const next = makeInitialState(playerId, useName(), undefined, selectedPiece);
-    await persist(next);
+    try {
+      await persist(next);
+    } catch (createError) {
+      setError(roomErrorMessage(createError, 'Could not create the room.'));
+    }
   };
 
   const joinRoom = async () => {
@@ -192,7 +196,13 @@ export default function App() {
       setError('Enter a room code first.');
       return;
     }
-    const existing = await RoomService.load(code);
+    let existing: GameState | null;
+    try {
+      existing = await RoomService.load(code);
+    } catch (loadError) {
+      setError(roomErrorMessage(loadError, `Could not join room ${code}.`));
+      return;
+    }
     if (!existing) {
       setError(
         isOnlineSyncEnabled
@@ -219,7 +229,11 @@ export default function App() {
       return;
     }
     const next = joinPlayer(existing, playerId, useName(), selectedPiece);
-    await persist(next);
+    try {
+      await persist(next);
+    } catch (joinError) {
+      setError(roomErrorMessage(joinError, `Could not join room ${code}.`));
+    }
   };
 
   const updateGame = async (updater: (state: GameState) => GameState) => {
@@ -1417,6 +1431,14 @@ function calculateImprovedRent(baseRent: number, improvementLevel: number) {
     5: 125
   };
   return baseRent * (multipliers[improvementLevel] ?? 1);
+}
+
+function roomErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('monopoly_rooms') || message.includes('schema cache')) {
+    return 'Monopoly room storage is not set up in Supabase. Run the Monopoly database migration, then try again.';
+  }
+  return message ? `${fallback} ${message}` : fallback;
 }
 
 function ownerHasColorMonopoly(owner: Player, space: Space) {

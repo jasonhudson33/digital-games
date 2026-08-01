@@ -40,10 +40,9 @@ export const isOnlineSyncEnabled = Boolean(supabase);
 
 export const RoomService = {
   async save(state: GameState) {
-    cacheRoom(state);
-
     if (!supabase) {
       await saveLocalRoom(state);
+      cacheRoom(state);
       return;
     }
 
@@ -53,6 +52,7 @@ export const RoomService = {
       updated_at: new Date().toISOString()
     });
     if (error) throw error;
+    cacheRoom(state);
   },
 
   async update(roomCode: string, updater: Updater): Promise<GameState | null> {
@@ -106,7 +106,7 @@ export const RoomService = {
     if (supabase) {
       const { data, error } = await supabase.from('monopoly_rooms').select('state').eq('code', code).maybeSingle();
       if (error) throw error;
-      if (data?.state) return normalizeState(data.state as GameState);
+      return data?.state ? normalizeState(data.state as GameState) : null;
     }
 
     const localRoom = await loadLocalRoom(code);
