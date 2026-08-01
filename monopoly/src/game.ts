@@ -1,4 +1,5 @@
 import { board } from './board';
+import { countRentBearingProperties } from './rentRules';
 import { CardDeck, DiceRoll, GameState, LogEntry, Player, PlayerColor, PlayerPiece } from './types';
 
 const playerColors: PlayerColor[] = ['red', 'blue', 'green', 'gold'];
@@ -637,7 +638,7 @@ export const rollUtilityRent = (state: GameState): GameState => {
   const dieTwo = Math.floor(Math.random() * 6) + 1;
   const total = dieOne + dieTwo;
   const owner = state.players[ownerIndex];
-  const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
+  const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
   const multiplier = pending.multiplier === 10 ? 10 : ownedUtilities >= 2 ? 10 : 4;
   const amount = total * multiplier;
   const players = [...state.players];
@@ -1309,7 +1310,7 @@ const resolvePostMoveSpace = (
       });
     }
     if (space.kind === 'utility') {
-      const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
+      const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
       const multiplier = options.utilityRentMultiplier ?? (ownedUtilities >= 2 ? 10 : 4);
       entries.push(log(`${active.name} landed on ${owner.name}'s ${space.name} and must roll for utility rent.`));
       players[playerIndex] = active;
@@ -1589,7 +1590,7 @@ const calculatePercentTax = (player: Player) => {
 const calculateRent = (state: GameState, space: (typeof board)[number], owner: Player, roll?: DiceRoll) => {
   const baseRent = space.rent ?? 10;
   if (space.kind === 'railroad') {
-    const ownedRailroads = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'railroad').length;
+    const ownedRailroads = countRentBearingProperties(owner, board, 'railroad');
     const amount = 25 * 2 ** Math.max(0, ownedRailroads - 1);
     return {
       amount,
@@ -1599,7 +1600,7 @@ const calculateRent = (state: GameState, space: (typeof board)[number], owner: P
     };
   }
   if (space.kind === 'utility') {
-    const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
+    const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
     const multiplier = ownedUtilities >= 2 ? 10 : 4;
     const diceTotal = rollUtilityDice();
     return {

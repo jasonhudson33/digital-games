@@ -69,6 +69,7 @@ import {
   useCardForForcedJailExit,
   useGetOutOfJailFree
 } from './game';
+import { countRentBearingProperties } from './rentRules';
 import { isOnlineSyncEnabled, RoomService } from './roomService';
 import { GameState, Player, PlayerColor, PlayerPiece, Space } from './types';
 const storagePlayerId = 'monopoly-player-id';
@@ -1441,11 +1442,11 @@ function getUnmortgageCost(spaceId: number) {
 function calculateDisplayRent(game: GameState, owner: Player, space: Space) {
   const baseRent = space.rent ?? 10;
   if (space.kind === 'railroad') {
-    const ownedRailroads = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'railroad').length;
+    const ownedRailroads = countRentBearingProperties(owner, board, 'railroad');
     return 25 * 2 ** Math.max(0, ownedRailroads - 1);
   }
   if (space.kind === 'utility') {
-    const ownedUtilities = owner.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length;
+    const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
     return ownedUtilities >= 2 ? '10x dice' : '4x dice';
   }
   const improvementLevel = game.improvements[space.id] ?? 0;
