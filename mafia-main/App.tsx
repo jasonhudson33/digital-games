@@ -11,7 +11,7 @@ import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
-import { canParticipateInDay, dayBallotRound, resolveDayVote } from './services/DayRules';
+import { canParticipateInDay, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
 import { canSelectNightTarget, resolveNight } from './services/NightRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
@@ -503,25 +503,15 @@ const App: React.FC = () => {
         const state = gameStateRef.current;
         if (![GamePhase.DAY_DELIBERATION, GamePhase.DAY_VOTING].includes(state.phase)) return;
 
-      const entries = Object.entries(intents).sort((a, b) => a[1].ts - b[1].ts);
-
-      const nominations: Record<string, string> = state.phase === GamePhase.DAY_VOTING ? { ...state.nominations } : {};
-      const seconds: Record<string, string[]> = state.phase === GamePhase.DAY_VOTING
-        ? Object.fromEntries(Object.entries(state.seconds).map(([targetId, voters]) => [targetId, [...voters]]))
-        : {};
+      const entries = Object.entries(intents)
+        .sort((a, b) => a[1].ts - b[1].ts)
+        .filter(([uid]) => canParticipateInDay(state.players, uid));
+      const mergedActions = mergeDayActions(state.nominations, state.seconds, entries);
+      const nominations = mergedActions.nominations;
+      const seconds = mergedActions.seconds;
       const dayVotes: Record<string, string> = {};
 
       for (const [uid, intent] of entries) {
-        if (!canParticipateInDay(state.players, uid)) continue;
-        if (intent.kind === 'NOMINATE') nominations[uid] = intent.targetId;
-        if (intent.kind === 'RESCIND') delete nominations[uid];
-
-        if (intent.kind === 'SECOND') {
-          const t = intent.targetId;
-          seconds[t] = seconds[t] || [];
-          if (!seconds[t].includes(uid)) seconds[t].push(uid);
-        }
-
         if (intent.kind === 'VOTE') dayVotes[uid] = intent.targetId;
       }
 

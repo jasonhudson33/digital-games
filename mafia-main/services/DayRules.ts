@@ -1,4 +1,4 @@
-import type { Player } from '../types';
+import type { DayIntent, Player } from '../types';
 
 const RUNOFF_ROUND_OFFSET = 1_000_000;
 
@@ -25,4 +25,26 @@ export const resolveDayVote = (
 
 export const dayBallotRound = (round: number, isRunoff: boolean): number => {
   return isRunoff ? round + RUNOFF_ROUND_OFFSET : round;
+};
+
+export const mergeDayActions = (
+  currentNominations: Record<string, string>,
+  currentSeconds: Record<string, string[]>,
+  entries: Array<[string, DayIntent]>,
+): { nominations: Record<string, string>; seconds: Record<string, string[]> } => {
+  const nominations = { ...currentNominations };
+  const seconds = Object.fromEntries(
+    Object.entries(currentSeconds).map(([targetId, playerIds]) => [targetId, [...playerIds]])
+  );
+
+  for (const [playerId, intent] of entries) {
+    if (intent.kind === 'NOMINATE') nominations[playerId] = intent.targetId;
+    if (intent.kind === 'RESCIND') delete nominations[playerId];
+    if (intent.kind === 'SECOND') {
+      seconds[intent.targetId] = seconds[intent.targetId] || [];
+      if (!seconds[intent.targetId].includes(playerId)) seconds[intent.targetId].push(playerId);
+    }
+  }
+
+  return { nominations, seconds };
 };
