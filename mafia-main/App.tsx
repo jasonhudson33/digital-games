@@ -13,6 +13,7 @@ import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
 import { canParticipateInDay, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
 import { canSelectNightTarget, resolveNight } from './services/NightRules';
+import { prepareReplayPlayers } from './services/ReplayRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -102,6 +103,10 @@ const App: React.FC = () => {
   const [rolesMap, setRolesMap] = useState<RoleMap>({});
   const rolesMapRef = useRef<RoleMap>({});
   useEffect(() => { rolesMapRef.current = rolesMap; }, [rolesMap]);
+
+  useEffect(() => {
+    if (gameState.phase === GamePhase.SETUP) setRolesMap({});
+  }, [gameState.phase]);
 
   const gameStateRef = useRef<GameState>(gameState);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -801,6 +806,33 @@ const App: React.FC = () => {
       killerTargetId: null,
       detectiveCheckId: null,
       angelSaveId: null,
+      lastAngelSavedId: null,
+      nightResults: [],
+      nightActions: {},
+      nominations: {},
+      seconds: {},
+      dayVotes: {},
+      isRunoff: false,
+      winner: null,
+      revealedRoles: undefined,
+    });
+  }, [hostUpdateState, isActingHost]);
+
+  const handleReplay = useCallback(async () => {
+    if (!isActingHost) return;
+    const state = gameStateRef.current;
+    if (!state.roomCode || state.phase !== GamePhase.GAME_OVER) return;
+
+    await RoomService.resetGameData(state.roomCode);
+    setRolesMap({});
+    await hostUpdateState({
+      players: prepareReplayPlayers(state.players),
+      phase: GamePhase.SETUP,
+      round: 1,
+      killerTargetId: null,
+      detectiveCheckId: null,
+      angelSaveId: null,
+      lastAngelSavedId: null,
       nightResults: [],
       nightActions: {},
       nominations: {},
@@ -870,7 +902,21 @@ const App: React.FC = () => {
   }
 
   if (gameState.phase === GamePhase.SETUP) {
-    return <><Setup players={gameState.players} onStart={handleStartGame} />{leaveButton}</>;
+    return (
+      <>
+        {isActingHost ? (
+          <Setup players={gameState.players} onStart={handleStartGame} />
+        ) : (
+          <div className="min-h-screen flex items-center justify-center text-slate-200">
+            <div className="text-center">
+              <h2 className="text-3xl font-serif font-bold mb-3">Preparing Another Game</h2>
+              <p className="text-slate-400">Waiting for the host to configure and deal new roles...</p>
+            </div>
+          </div>
+        )}
+        {leaveButton}
+      </>
+    );
   }
 
   if (gameState.phase === GamePhase.ROLE_REVEAL && myPlayer) {
@@ -958,7 +1004,8 @@ const App: React.FC = () => {
           winner={gameState.winner}
           players={gameState.players}
           revealedRoles={gameState.revealedRoles}
-          onRestart={restartGame}
+          isHost={isActingHost}
+          onReplay={handleReplay}
         />
         {leaveButton}
       </>

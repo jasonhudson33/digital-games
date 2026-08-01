@@ -252,6 +252,10 @@ export const RoomService = {
     await rpc('mafia_clear_round_intents', { ...credentials(roomCode), intent_round: round });
   },
 
+  async resetGameData(roomCode: string) {
+    await rpc('mafia_reset_game_data', credentials(roomCode));
+  },
+
   async setDetectiveResult(roomCode: string, round: number, uid: string, result: DetectiveResult) {
     await rpc('mafia_set_detective_result', {
       ...credentials(roomCode), intent_round: round, target_player_id: uid, result

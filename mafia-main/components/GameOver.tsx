@@ -9,10 +9,11 @@ interface GameOverProps {
   winner: 'CITIZENS' | 'KILLERS' | null;
   players: Player[];
   revealedRoles?: RoleMap;
-  onRestart: () => void;
+  isHost: boolean;
+  onReplay: () => void;
 }
 
-const GameOver: React.FC<GameOverProps> = ({ winner, players, revealedRoles, onRestart }) => {
+const GameOver: React.FC<GameOverProps> = ({ winner, players, revealedRoles, isHost, onReplay }) => {
   const isKillerWin = winner === 'KILLERS';
 
   return (
@@ -57,7 +58,11 @@ const GameOver: React.FC<GameOverProps> = ({ winner, players, revealedRoles, onR
         </div>
       </div>
 
-      <Button variant="primary" className="px-12 py-4" onClick={onRestart}>Play Again</Button>
+      {isHost ? (
+        <Button variant="primary" className="px-12 py-4" onClick={onReplay}>Play Again With Same Players</Button>
+      ) : (
+        <p className="text-slate-400 italic">Waiting for the host to start another game...</p>
+      )}
     </div>
   );
 };
