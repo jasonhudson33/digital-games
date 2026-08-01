@@ -697,6 +697,10 @@
   min-width: 0;
 }
 
+.monopoly-page .log-panel{
+  grid-column: auto;
+}
+
 .monopoly-page .players-panel{
   width: 100%;
 }
