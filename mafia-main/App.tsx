@@ -470,19 +470,21 @@ const App: React.FC = () => {
       return;
     }
 
-    const remote = await RoomService.getState(code);
-    if (!remote) {
-      alert('Room not found!');
-      return;
+    try {
+      const remote = await RoomService.getState(code);
+      if (!remote) {
+        alert('Room not found!');
+        return;
+      }
+
+      await RoomService.submitJoinRequest(code, uid, name);
+      localStorage.setItem('mafia_player_name', name);
+      setCachedPlayerName(name);
+      setGameState(sanitizeState(remote));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown room error';
+      alert(`Could not join room: ${message}`);
     }
-
-    localStorage.setItem('mafia_player_id', uid);
-    localStorage.setItem('mafia_player_name', name);
-    setCachedPlayerName(name);
-    setMyPlayerId(uid);
-
-    setGameState(sanitizeState(remote));
-    await RoomService.submitJoinRequest(code, uid, name);
   }, [connectionError, myPlayerId]);
 
   const restartGame = useCallback(() => {

@@ -143,7 +143,7 @@ begin
   end if;
   insert into public.mafia_players(room_code, player_id, token_hash)
   values (normalized_code, player_id, public.mafia_token_hash(player_token))
-  on conflict (room_code, player_id) do nothing;
+  on conflict on constraint mafia_players_pkey do nothing;
   if not public.mafia_token_valid(normalized_code, player_id, player_token) then
     raise exception 'Mafia player identity is already in use';
   end if;
@@ -247,7 +247,7 @@ begin
   end if;
   insert into public.mafia_requests(room_code, player_id, request_type, payload, updated_at)
   values (upper(trim(room_code)), player_id, request_type, payload, now())
-  on conflict (room_code, player_id, request_type)
+  on conflict on constraint mafia_requests_pkey
   do update set payload = excluded.payload, updated_at = now();
 end;
 $$;
@@ -306,7 +306,7 @@ begin
   end if;
   insert into public.mafia_intents(room_code, round, intent_type, player_id, payload, updated_at)
   values (upper(trim(room_code)), intent_round, intent_type, player_id, payload, now())
-  on conflict (room_code, round, intent_type, player_id)
+  on conflict on constraint mafia_intents_pkey
   do update set payload = excluded.payload, updated_at = now();
 end;
 $$;
@@ -364,7 +364,7 @@ begin
   end if;
   insert into public.mafia_detective_results(room_code, round, player_id, result, updated_at)
   values (upper(trim(room_code)), intent_round, target_player_id, result, now())
-  on conflict (room_code, round, player_id)
+  on conflict on constraint mafia_detective_results_pkey
   do update set result = excluded.result, updated_at = now();
 end;
 $$;
