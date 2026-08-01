@@ -10,6 +10,7 @@ import GameOver from './components/GameOver';
 import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
+import { resolvePrivateRole } from './services/RoleState';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -142,10 +143,7 @@ const App: React.FC = () => {
     return () => { active = false; };
   }, [identityReady, myPlayerId]);
 
-  const myRole: Role = useMemo(() => {
-    if (!myPlayerId) return Role.CITIZEN;
-    return rolesMap[myPlayerId] || Role.CITIZEN;
-  }, [rolesMap, myPlayerId]);
+  const myRole = useMemo(() => resolvePrivateRole(rolesMap, myPlayerId), [rolesMap, myPlayerId]);
 
   // Acting host: alive host if present, else first alive player
   const actingHostId = useMemo(() => {
@@ -304,6 +302,7 @@ const App: React.FC = () => {
     if (!isActingHost) return;
     const state = gameStateRef.current;
     const rm = rolesMapRef.current;
+    if (!state.players.every((player) => rm[player.id])) return;
     const winner = computeWinner(state, rm);
     if (winner && state.phase !== GamePhase.GAME_OVER) {
       await hostUpdateState({ phase: GamePhase.GAME_OVER, winner, revealedRoles: rm });
@@ -404,6 +403,7 @@ const App: React.FC = () => {
       if (![GamePhase.NIGHT_KILLER, GamePhase.NIGHT_DETECTIVE, GamePhase.NIGHT_ANGEL].includes(state.phase)) return;
 
       const rm = rolesMapRef.current;
+      if (!state.players.every((player) => rm[player.id])) return;
 
       const roleNeeded =
         state.phase === GamePhase.NIGHT_KILLER ? Role.KILLER :
@@ -859,6 +859,14 @@ const App: React.FC = () => {
   }
 
   if (gameState.phase === GamePhase.ROLE_REVEAL && myPlayer) {
+    if (!myRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-slate-200">
+          <p className="text-xl">Syncing your role...</p>
+          {leaveButton}
+        </div>
+      );
+    }
     return (
       <>
         <RoleReveal
@@ -885,6 +893,15 @@ const App: React.FC = () => {
             <h2 className="text-4xl font-serif mb-4">Night Falls</h2>
             <p className="text-slate-500">Preparing the next phase…</p>
           </div>
+          {leaveButton}
+        </div>
+      );
+    }
+
+    if (!myRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-slate-200">
+          <p className="text-xl">Syncing your role...</p>
           {leaveButton}
         </div>
       );
