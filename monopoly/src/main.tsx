@@ -69,7 +69,7 @@ import {
   useCardForForcedJailExit,
   useGetOutOfJailFree
 } from './game';
-import { countRentBearingProperties } from './rentRules';
+import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
 import { isOnlineSyncEnabled, RoomService } from './roomService';
 import { GameState, Player, PlayerColor, PlayerPiece, Space } from './types';
 const storagePlayerId = 'monopoly-player-id';
@@ -1446,8 +1446,7 @@ function calculateDisplayRent(game: GameState, owner: Player, space: Space) {
     return 25 * 2 ** Math.max(0, ownedRailroads - 1);
   }
   if (space.kind === 'utility') {
-    const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
-    return ownedUtilities >= 2 ? '10x dice' : '4x dice';
+    return `${getUtilityRentMultiplier(owner, board)}x dice`;
   }
   const improvementLevel = game.improvements[space.id] ?? 0;
   if (improvementLevel > 0) return calculateImprovedRent(baseRent, improvementLevel);

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { board } from './board';
+import { getUtilityRentMultiplier } from './rentRules';
 import { CardDeck, GameState, PlayerPiece } from './types';
 
 type Handler = (state: GameState) => void;
@@ -214,7 +215,7 @@ const normalizeState = (state: GameState): GameState => {
     pendingPurchase: gameOver ? null : state.pendingPurchase ?? null,
     pendingTax: gameOver ? null : state.pendingTax ?? null,
     pendingRent: gameOver ? null : state.pendingRent ?? null,
-    pendingUtilityRent: gameOver ? null : normalizeUtilityRent(state),
+    pendingUtilityRent: gameOver ? null : normalizeUtilityRent(state, players),
     pendingDebt: gameOver ? null : state.pendingDebt ?? null,
     pendingAuction: gameOver ? null : state.pendingAuction ?? null,
     pendingJailExit: gameOver ? null : state.pendingJailExit ?? null,
@@ -268,16 +269,16 @@ const normalizePlayers = (state: GameState): GameState['players'] => {
   });
 };
 
-const normalizeUtilityRent = (state: GameState) => {
+const normalizeUtilityRent = (state: GameState, players: GameState['players']) => {
   const pending = state.pendingUtilityRent;
   if (!pending) return null;
-  if (pending.multiplier === 10) return pending;
 
-  const owner = state.players.find((player) => player.id === pending.ownerId);
-  const ownedUtilities = owner?.properties.filter((spaceId) => board[spaceId]?.kind === 'utility').length ?? 0;
+  const owner = players.find((player) => player.id === pending.ownerId);
+  const isChanceRate = pending.isChanceRate ?? state.pendingCard?.id.startsWith('chance-nearest-utility') ?? false;
   return {
     ...pending,
-    multiplier: ownedUtilities >= 2 ? 10 : 4
+    multiplier: owner ? getUtilityRentMultiplier(owner, board, isChanceRate) : 4,
+    isChanceRate
   };
 };
 

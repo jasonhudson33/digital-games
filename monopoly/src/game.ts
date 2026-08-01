@@ -1,5 +1,5 @@
 import { board } from './board';
-import { countRentBearingProperties } from './rentRules';
+import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
 import { CardDeck, DiceRoll, GameState, LogEntry, Player, PlayerColor, PlayerPiece } from './types';
 
 const playerColors: PlayerColor[] = ['red', 'blue', 'green', 'gold'];
@@ -638,8 +638,7 @@ export const rollUtilityRent = (state: GameState): GameState => {
   const dieTwo = Math.floor(Math.random() * 6) + 1;
   const total = dieOne + dieTwo;
   const owner = state.players[ownerIndex];
-  const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
-  const multiplier = pending.multiplier === 10 ? 10 : ownedUtilities >= 2 ? 10 : 4;
+  const multiplier = getUtilityRentMultiplier(owner, board, pending.isChanceRate);
   const amount = total * multiplier;
   const players = [...state.players];
   const payer = { ...players[playerIndex] };
@@ -1310,8 +1309,7 @@ const resolvePostMoveSpace = (
       });
     }
     if (space.kind === 'utility') {
-      const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
-      const multiplier = options.utilityRentMultiplier ?? (ownedUtilities >= 2 ? 10 : 4);
+      const multiplier = options.utilityRentMultiplier ?? getUtilityRentMultiplier(owner, board);
       entries.push(log(`${active.name} landed on ${owner.name}'s ${space.name} and must roll for utility rent.`));
       players[playerIndex] = active;
       return touch({
@@ -1321,7 +1319,8 @@ const resolvePostMoveSpace = (
           spaceId: space.id,
           payerId: active.id,
           ownerId: owner.id,
-          multiplier
+          multiplier,
+          isChanceRate: options.utilityRentMultiplier === 10
         },
         log: [...entries.reverse(), ...state.log].slice(0, 30)
       });
@@ -1601,7 +1600,7 @@ const calculateRent = (state: GameState, space: (typeof board)[number], owner: P
   }
   if (space.kind === 'utility') {
     const ownedUtilities = countRentBearingProperties(owner, board, 'utility');
-    const multiplier = ownedUtilities >= 2 ? 10 : 4;
+    const multiplier = getUtilityRentMultiplier(owner, board);
     const diceTotal = rollUtilityDice();
     return {
       amount: diceTotal * multiplier,

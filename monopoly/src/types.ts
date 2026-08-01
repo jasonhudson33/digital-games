@@ -110,6 +110,7 @@ export type PendingUtilityRent = {
   payerId: string;
   ownerId: string;
   multiplier: number;
+  isChanceRate?: boolean;
 };
 
 export type PendingDebt = {
