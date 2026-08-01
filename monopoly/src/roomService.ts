@@ -3,6 +3,7 @@ import { board } from './board';
 import { CardDeck, GameState, PlayerPiece } from './types';
 
 type Handler = (state: GameState) => void;
+type Updater = (state: GameState) => GameState;
 
 const channelName = 'monopoly-room-updates';
 const validPieces: PlayerPiece[] = [
@@ -39,8 +40,7 @@ export const isOnlineSyncEnabled = Boolean(supabase);
 
 export const RoomService = {
   async save(state: GameState) {
-    localStorage.setItem(`monopoly:${state.roomCode}`, JSON.stringify(state));
-    broadcast(state);
+    cacheRoom(state);
 
     if (!supabase) {
       await saveLocalRoom(state);
@@ -55,6 +55,52 @@ export const RoomService = {
     if (error) throw error;
   },
 
+  async update(roomCode: string, updater: Updater): Promise<GameState | null> {
+    const code = roomCode.trim().toUpperCase();
+    if (!supabase) {
+      const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
+      if (!current) return null;
+      const next = updater(current);
+      if (next === current) return current;
+      await saveLocalRoom(next);
+      cacheRoom(next);
+      return next;
+    }
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const { data: loaded, error: loadError } = await supabase
+        .from('monopoly_rooms')
+        .select('state')
+        .eq('code', code)
+        .maybeSingle();
+      if (loadError) throw loadError;
+      if (!loaded?.state) return null;
+
+      const current = normalizeState(loaded.state as GameState);
+      const next = updater(current);
+      if (next === current) {
+        cacheRoom(current);
+        return current;
+      }
+
+      const { data: saved, error: saveError } = await supabase
+        .from('monopoly_rooms')
+        .update({ state: next, updated_at: new Date().toISOString() })
+        .eq('code', code)
+        .eq('state->>updatedAt', String(current.updatedAt))
+        .select('state')
+        .maybeSingle();
+      if (saveError) throw saveError;
+      if (saved?.state) {
+        const normalized = normalizeState(saved.state as GameState);
+        cacheRoom(normalized);
+        return normalized;
+      }
+    }
+
+    throw new Error('The room changed while this action was being saved. Please try again.');
+  },
+
   async load(roomCode: string): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
     if (supabase) {
@@ -66,30 +112,31 @@ export const RoomService = {
     const localRoom = await loadLocalRoom(code);
     if (localRoom) return localRoom;
 
-    const cached = localStorage.getItem(`monopoly:${code}`);
-    return cached ? normalizeState(JSON.parse(cached) as GameState) : null;
+    return loadCachedRoom(code);
   },
 
   subscribe(roomCode: string, handler: Handler) {
     const code = roomCode.trim().toUpperCase();
     const bc = 'BroadcastChannel' in window ? new BroadcastChannel(channelName) : null;
+    let lastSeen = 0;
+    const deliver = (remote: GameState) => {
+      const normalized = normalizeState(remote);
+      if (normalized.updatedAt <= lastSeen) return;
+      lastSeen = normalized.updatedAt;
+      handler(normalized);
+    };
 
     bc?.addEventListener('message', (event: MessageEvent<GameState>) => {
-      if (event.data.roomCode === code) handler(event.data);
+      if (event.data.roomCode === code) deliver(event.data);
     });
 
     let pollId: number | null = null;
-    let lastSeen = 0;
 
-    if (!supabase) {
-      pollId = window.setInterval(() => {
-        void loadLocalRoom(code).then((remote) => {
-          if (!remote || remote.updatedAt <= lastSeen) return;
-          lastSeen = remote.updatedAt;
-          handler(normalizeState(remote));
-        });
-      }, 1000);
-    }
+    pollId = window.setInterval(() => {
+      void RoomService.load(code).then((remote) => {
+        if (remote) deliver(remote);
+      }).catch(() => undefined);
+    }, 1500);
 
     const subscription = supabase
       ?.channel(`monopoly:${code}`)
@@ -98,7 +145,7 @@ export const RoomService = {
         { event: '*', schema: 'public', table: 'monopoly_rooms', filter: `code=eq.${code}` },
         (payload) => {
           const next = payload.new as { state?: GameState };
-          if (next?.state) handler(normalizeState(next.state));
+          if (next?.state) deliver(next.state);
         }
       )
       .subscribe();
@@ -113,6 +160,16 @@ export const RoomService = {
       }
     };
   }
+};
+
+const loadCachedRoom = (roomCode: string): GameState | null => {
+  const cached = localStorage.getItem(`monopoly:${roomCode}`);
+  return cached ? normalizeState(JSON.parse(cached) as GameState) : null;
+};
+
+const cacheRoom = (state: GameState) => {
+  localStorage.setItem(`monopoly:${state.roomCode}`, JSON.stringify(state));
+  broadcast(state);
 };
 
 const saveLocalRoom = async (state: GameState) => {

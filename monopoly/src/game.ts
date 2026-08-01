@@ -1929,8 +1929,8 @@ const touch = (state: GameState): GameState => {
       pendingJailExit: null,
       pendingTrade: null,
       log: [log(`${winner.name} won the game!`), ...state.log].slice(0, 30),
-      updatedAt: Date.now()
+      updatedAt: Math.max(Date.now(), state.updatedAt + 1)
     };
   }
-  return { ...state, updatedAt: Date.now() };
+  return { ...state, updatedAt: Math.max(Date.now(), state.updatedAt + 1) };
 };

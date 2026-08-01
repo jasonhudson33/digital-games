@@ -157,7 +157,10 @@ export default function App() {
   React.useEffect(() => {
     const trade = game?.pendingTrade;
     if (!trade || !playerId) return;
-    const canExpire = trade.toPlayerId === playerId || Boolean(game.hostId === playerId && trade.toPlayerId.startsWith('local-'));
+    const canExpire =
+      trade.fromPlayerId === playerId ||
+      trade.toPlayerId === playerId ||
+      Boolean(game.hostId === playerId && trade.toPlayerId.startsWith('local-'));
     if (!canExpire) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -220,8 +223,16 @@ export default function App() {
   };
 
   const updateGame = async (updater: (state: GameState) => GameState) => {
-    if (!latestGame.current) return;
-    await persist(updater(latestGame.current));
+    const current = latestGame.current;
+    if (!current) return;
+    try {
+      const next = await RoomService.update(current.roomCode, updater);
+      if (!next) return;
+      setGame(next);
+      latestGame.current = next;
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Could not save that game action.');
+    }
   };
 
   const activePlayer = game?.players[game.currentPlayerIndex];
@@ -551,6 +562,7 @@ export default function App() {
                       ? `Waiting for ${activePlayer?.name}. You may offer them a trade.`
                       : `Waiting for ${activePlayer?.name}.`}
             </p>
+            {error && <p className="error">{error}</p>}
           </section>
 
           <section className="players-panel">
