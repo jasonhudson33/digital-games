@@ -989,7 +989,6 @@ function PropertyOwnership({ owner }: { owner?: Player }) {
       title={`Owned by ${owner.name}`}
     >
       <Icon className="ownership-icon" size={10} strokeWidth={3} aria-hidden="true" />
-      <span className="owner-name">{owner.name}</span>
     </span>
   );
 }

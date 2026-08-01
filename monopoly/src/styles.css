@@ -537,6 +537,11 @@
   background: #fff0b7;
 }
 
+.monopoly-page .property-ownership.owned{
+  width: 15px;
+  padding: 1px;
+}
+
 .monopoly-page .ownership-dot{
   width: 6px;
   height: 6px;
