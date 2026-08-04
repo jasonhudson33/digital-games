@@ -42,14 +42,19 @@ export const CatanRoomService = {
   async update(roomCode, updater) {
     const code = roomCode.trim().toUpperCase();
     if (!supabase) {
-      const current = (await loadLocalRoom(code)) ?? loadCachedRoom(code);
-      if (!current) return null;
-      const updated = updater(current);
-      if (updated === current) return current;
-      const next = normalizeState({ ...updated, updatedAt: Date.now() });
-      await saveLocalRoom(next);
-      cacheRoom(next);
-      return next;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const current = (await loadLocalRoom(code)) ?? loadCachedRoom(code);
+        if (!current) return null;
+        const updated = updater(current);
+        if (updated === current) return current;
+        const next = normalizeState({ ...updated, updatedAt: Math.max(Date.now(), current.updatedAt + 1) });
+        const saved = await saveLocalRoom(next, current.updatedAt);
+        if (saved) {
+          cacheRoom(next);
+          return next;
+        }
+      }
+      throw new Error("The room changed while this action was being saved. Please try again.");
     }
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -63,7 +68,7 @@ export const CatanRoomService = {
       const current = normalizeState(loaded.state);
       const updated = updater(current);
       if (updated === current) return current;
-      const next = normalizeState({ ...updated, updatedAt: Date.now() });
+      const next = normalizeState({ ...updated, updatedAt: Math.max(Date.now(), current.updatedAt + 1) });
       const { data: saved, error: saveError } = await supabase
         .from("catan_rooms")
         .update({ state: next, updated_at: new Date().toISOString() })
@@ -123,15 +128,40 @@ export const CatanRoomService = {
 };
 
 function normalizeState(state) {
+  const board = state.board
+    ? {
+        ...state.board,
+        viewBoxHeight: state.boardVariant === "expanded"
+          ? Math.max(780, Number(state.board.viewBoxHeight) || 0)
+          : Number(state.board.viewBoxHeight) || 680,
+      }
+    : null;
   return {
     ...state,
     phase: state.phase ?? "lobby",
+    ruleset: state.ruleset ?? "original",
+    victoryTarget: state.victoryTarget ?? (state.ruleset === "cities-knights" ? 13 : state.ruleset === "seafarers" ? 14 : state.ruleset === "combined" ? 16 : 10),
     updatedAt: Number(state.updatedAt) || Date.now(),
     pendingSeven: state.pendingSeven ?? null,
-    pendingTrade: state.pendingTrade ?? null,
+    pendingGold: state.pendingGold ?? null,
+    pendingTrade: state.pendingTrade
+      ? { ...state.pendingTrade, declinedPlayerIds: state.pendingTrade.declinedPlayerIds ?? [] }
+      : null,
+    pairedTurn: state.pairedTurn ?? null,
+    ports: state.ports ?? [],
+    ships: state.ships ?? {},
+    pirateTileId: state.pirateTileId ?? null,
+    movedShipThisTurn: state.movedShipThisTurn ?? false,
+    builtShipsThisTurn: state.builtShipsThisTurn ?? [],
+    robberInactiveTileId: state.robberInactiveTileId ?? null,
+    citiesKnights: state.citiesKnights ?? null,
+    board,
+    boardVariant: state.boardVariant ?? null,
     players: (state.players ?? []).map((player) => ({
       ...player,
-      resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, ...(player.resources ?? {}) },
+      resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0, ...(player.resources ?? {}) },
+      settledIslandIds: player.settledIslandIds ?? [],
+      defenderPoints: player.defenderPoints ?? 0,
     })),
   };
 }
@@ -149,13 +179,15 @@ function cacheRoom(state) {
   channel.close();
 }
 
-async function saveLocalRoom(state) {
+async function saveLocalRoom(state, expectedUpdatedAt) {
   const response = await fetch(`/api/catan/rooms/${state.roomCode}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ state, expectedUpdatedAt }),
   });
+  if (response.status === 409) return false;
   if (!response.ok) throw new Error("Could not save the Catan room.");
+  return true;
 }
 
 async function loadLocalRoom(code) {
