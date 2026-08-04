@@ -20,10 +20,6 @@ export default function SiteHeader() {
     setMenuOpen(false);
   }, [pathname]);
 
-  if (pathname?.startsWith("/mafia")) {
-    return null;
-  }
-
   return (
     <header className="site-header">
       <div className="site-header-inner">
