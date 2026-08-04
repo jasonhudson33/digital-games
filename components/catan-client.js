@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightLeft,
   Castle,
   Check,
+  Copy,
   Crown,
   Dice5,
+  DoorOpen,
   Home,
   Map as MapIcon,
+  Play,
   RefreshCcw,
   Route,
   Sparkles,
@@ -16,6 +19,10 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { CatanRoomService, isCatanOnlineSyncEnabled } from "./catan-room-service";
+
+const playerIdStorageKey = "catan-player-id";
+const playerNameStorageKey = "catan-player-name";
 
 const SQRT3 = Math.sqrt(3);
 const BOARD_CENTER = { x: 430, y: 340 };
@@ -160,13 +167,15 @@ function isSettlementLegal(vertexId, settlements, requireConnection, playerId, r
 
 function isRoadLegal(edge, playerId, roads, settlements) {
   if (roads[edge.id]) return false;
-  if ([edge.from, edge.to].some((vertexId) => settlements[vertexId]?.playerId === playerId)) return true;
-  return [edge.from, edge.to].some((vertexId) =>
-    BOARD.vertexEdges[vertexId].some((edgeId) => roads[edgeId] === playerId),
-  );
+  return [edge.from, edge.to].some((vertexId) => {
+    const building = settlements[vertexId];
+    if (building?.playerId === playerId) return true;
+    if (building && building.playerId !== playerId) return false;
+    return BOARD.vertexEdges[vertexId].some((edgeId) => roads[edgeId] === playerId);
+  });
 }
 
-function createGame(names) {
+function createGame(lobby) {
   const terrainOrder = shuffled(TERRAIN_DECK);
   const numberOrder = shuffled(NUMBER_DECK);
   let numberIndex = 0;
@@ -178,9 +187,9 @@ function createGame(names) {
       number: resource === "desert" ? null : numberOrder[numberIndex++],
     };
   });
-  const players = names.map((name, index) => ({
-    id: `p${index}`,
-    name: name.trim() || `Player ${index + 1}`,
+  const players = lobby.players.map((player, index) => ({
+    id: player.id,
+    name: player.name,
     ...PLAYER_STYLES[index],
     resources: emptyResources(),
     points: 0,
@@ -191,6 +200,11 @@ function createGame(names) {
     ...[...players].reverse().map((player) => player.id),
   ];
   return {
+    roomCode: lobby.roomCode,
+    hostId: lobby.hostId,
+    phase: "playing",
+    createdAt: lobby.createdAt,
+    updatedAt: Date.now(),
     tiles,
     players,
     settlements: {},
@@ -201,6 +215,8 @@ function createGame(names) {
     dice: [1, 1],
     robberTileId: desert.id,
     winnerId: null,
+    pendingSeven: null,
+    pendingTrade: null,
     setup: {
       order: setupOrder,
       index: 0,
@@ -214,19 +230,104 @@ function createGame(names) {
   };
 }
 
+function createLobby(roomCode, playerId, name) {
+  const now = Date.now();
+  return {
+    roomCode,
+    hostId: playerId,
+    phase: "lobby",
+    players: [{ id: playerId, name, ...PLAYER_STYLES[0], resources: emptyResources(), points: 0 }],
+    tiles: [],
+    settlements: {},
+    roads: {},
+    currentPlayerIndex: 0,
+    turn: 1,
+    rolled: false,
+    dice: [1, 1],
+    robberTileId: null,
+    winnerId: null,
+    pendingSeven: null,
+    pendingTrade: null,
+    setup: null,
+    log: [`${name} created room ${roomCode}.`],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export default function CatanClient() {
-  const [playerCount, setPlayerCount] = useState(3);
-  const [names, setNames] = useState(["Player 1", "Player 2", "Player 3", "Player 4"]);
+  const [isReady, setIsReady] = useState(false);
+  const [playerId, setPlayerId] = useState("");
+  const [name, setName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [game, setGame] = useState(null);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [buildMode, setBuildMode] = useState(null);
   const [tradeGive, setTradeGive] = useState("wood");
   const [tradeGet, setTradeGet] = useState("brick");
+  const [discardSelection, setDiscardSelection] = useState(emptyResources);
+  const [tradePartnerId, setTradePartnerId] = useState("");
+  const [playerTradeOffer, setPlayerTradeOffer] = useState(emptyResources);
+  const [playerTradeRequest, setPlayerTradeRequest] = useState(emptyResources);
+  const latestGame = useRef(null);
+
+  useEffect(() => {
+    let storedId = localStorage.getItem(playerIdStorageKey);
+    if (!storedId) {
+      storedId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(playerIdStorageKey, storedId);
+    }
+    setPlayerId(storedId);
+    setName(localStorage.getItem(playerNameStorageKey) || "");
+    setJoinCode(new URLSearchParams(window.location.search).get("room")?.toUpperCase() || "");
+    setIsReady(true);
+  }, []);
+
+  useEffect(() => {
+    latestGame.current = game;
+  }, [game]);
+
+  useEffect(() => {
+    const code = joinCode.trim().toUpperCase();
+    if (!isReady || !playerId || !code || game) return;
+    let cancelled = false;
+    void CatanRoomService.load(code).then((existing) => {
+      if (cancelled || !existing?.players.some((player) => player.id === playerId)) return;
+      setGame(existing);
+      latestGame.current = existing;
+      const me = existing.players.find((player) => player.id === playerId);
+      if (me) setName(me.name);
+      window.history.replaceState(null, "", `?room=${existing.roomCode}`);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [game, isReady, joinCode, playerId]);
+
+  useEffect(() => {
+    if (!game?.roomCode) return undefined;
+    return CatanRoomService.subscribe(game.roomCode, (remote) => {
+      setGame((current) => {
+        const next = !current || remote.updatedAt >= current.updatedAt ? remote : current;
+        latestGame.current = next;
+        return next;
+      });
+    });
+  }, [game?.roomCode]);
 
   const activePlayer = game?.players[game.currentPlayerIndex];
+  const discardingPlayerId = game?.pendingSeven?.phase === "discard"
+    ? game.pendingSeven.remainingDiscardPlayerIds[0]
+    : null;
+  const discardingPlayer = game?.players.find((player) => player.id === discardingPlayerId);
+  const viewerPlayer = game?.players.find((player) => player.id === playerId);
+  const tradePartners = game?.players.filter((player) => player.id !== activePlayer?.id) ?? [];
+  const tradePartner = tradePartners.find((player) => player.id === tradePartnerId) ?? tradePartners[0];
   const placementMode = game?.setup?.step ?? buildMode;
+  const isHost = game?.hostId === playerId;
+  const isMyTurn = activePlayer?.id === playerId;
   const legalVertices = useMemo(() => {
-    if (!game || !activePlayer || placementMode !== "settlement") return new Set();
+    if (!game || !activePlayer || !isMyTurn || placementMode !== "settlement") return new Set();
     const startingPlacement = Boolean(game.setup);
     return new Set(
       BOARD.vertices
@@ -235,9 +336,9 @@ export default function CatanClient() {
         )
         .map((vertex) => vertex.id),
     );
-  }, [activePlayer, game, placementMode]);
+  }, [activePlayer, game, isMyTurn, placementMode]);
   const legalEdges = useMemo(() => {
-    if (!game || !activePlayer || placementMode !== "road") return new Set();
+    if (!game || !activePlayer || !isMyTurn || placementMode !== "road") return new Set();
     if (game.setup) {
       return new Set(
         BOARD.edges
@@ -253,23 +354,132 @@ export default function CatanClient() {
         .filter((edge) => isRoadLegal(edge, activePlayer.id, game.roads, game.settlements))
         .map((edge) => edge.id),
     );
-  }, [activePlayer, game, placementMode]);
+  }, [activePlayer, game, isMyTurn, placementMode]);
+
+  const resetLocalControls = () => {
+    setBuildMode(null);
+    setDiscardSelection(emptyResources());
+    setPlayerTradeOffer(emptyResources());
+    setPlayerTradeRequest(emptyResources());
+    setTradePartnerId("");
+  };
+
+  const usePlayerName = () => {
+    const cleanName = name.trim() || "Player";
+    localStorage.setItem(playerNameStorageKey, cleanName);
+    setName(cleanName);
+    return cleanName;
+  };
+
+  const persist = async (next) => {
+    const saved = await CatanRoomService.save(next);
+    setGame(saved);
+    latestGame.current = saved;
+    window.history.replaceState(null, "", `?room=${saved.roomCode}`);
+  };
+
+  const updateGame = async (updater) => {
+    const current = latestGame.current;
+    if (!current) return;
+    try {
+      const next = await CatanRoomService.update(current.roomCode, updater);
+      if (!next) return;
+      setGame(next);
+      latestGame.current = next;
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Could not save that action.");
+    }
+  };
+
+  const createRoom = async () => {
+    setError("");
+    try {
+      const roomCode = await CatanRoomService.createCode();
+      await persist(createLobby(roomCode, playerId, usePlayerName()));
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Could not create a room.");
+    }
+  };
+
+  const joinRoom = async () => {
+    setError("");
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return setError("Enter a room code first.");
+    try {
+      const existing = await CatanRoomService.load(code);
+      if (!existing) return setError(`Room ${code} was not found.`);
+      const returning = existing.players.find((player) => player.id === playerId);
+      if (returning) {
+        setGame(existing);
+        latestGame.current = existing;
+        setName(returning.name);
+        window.history.replaceState(null, "", `?room=${code}`);
+        return;
+      }
+      if (existing.phase !== "lobby") return setError("That game has already started.");
+      if (existing.players.length >= 4) return setError("That room already has four players.");
+      const cleanName = usePlayerName();
+      const next = await CatanRoomService.update(code, (state) => ({
+        ...state,
+        players: [...state.players, {
+          id: playerId,
+          name: cleanName,
+          ...PLAYER_STYLES[state.players.length],
+          resources: emptyResources(),
+          points: 0,
+        }],
+        log: [`${cleanName} joined the room.`, ...state.log].slice(0, 24),
+      }));
+      if (next) {
+        setGame(next);
+        latestGame.current = next;
+        window.history.replaceState(null, "", `?room=${code}`);
+      }
+    } catch (joinError) {
+      setError(joinError instanceof Error ? joinError.message : "Could not join the room.");
+    }
+  };
 
   const startGame = () => {
-    setGame(createGame(names.slice(0, playerCount)));
-    setBuildMode(null);
+    if (!game || !isHost || game.players.length < 2) return;
+    void updateGame((state) => createGame(state));
+    resetLocalControls();
     window.scrollTo(0, 0);
   };
 
+  const leaveRoom = () => {
+    setGame(null);
+    latestGame.current = null;
+    resetLocalControls();
+    window.history.replaceState(null, "", "/catan");
+  };
+
+  const restartRoom = () => {
+    if (!game || !isHost) return;
+    void updateGame((current) => ({
+      ...createLobby(current.roomCode, current.hostId, current.players[0].name),
+      players: current.players.map((player, index) => ({
+        id: player.id,
+        name: player.name,
+        ...PLAYER_STYLES[index],
+        resources: emptyResources(),
+        points: 0,
+      })),
+      createdAt: current.createdAt,
+      log: ["The room is ready for another game."],
+    }));
+    resetLocalControls();
+  };
+
   const rollDice = () => {
-    if (!game || game.setup || game.rolled || game.winnerId || isRolling) return;
+    if (!game || !isMyTurn || game.setup || game.pendingSeven || game.rolled || game.winnerId || isRolling) return;
     setIsRolling(true);
     setBuildMode(null);
     window.setTimeout(() => {
       const dieOne = Math.floor(Math.random() * 6) + 1;
       const dieTwo = Math.floor(Math.random() * 6) + 1;
       const total = dieOne + dieTwo;
-      setGame((current) => {
+      void updateGame((current) => {
         if (!current || current.rolled) return current;
         const players = current.players.map((player) => ({
           ...player,
@@ -277,31 +487,22 @@ export default function CatanClient() {
         }));
         const entries = [`${players[current.currentPlayerIndex].name} rolled ${dieOne} + ${dieTwo} = ${total}.`];
         let robberTileId = current.robberTileId;
+        let pendingSeven = null;
 
         if (total === 7) {
-          const candidates = current.tiles.filter((tile) => tile.id !== current.robberTileId && tile.resource !== "desert");
-          const target = candidates.sort((a, b) => {
-            const score = (tile) => tile.vertexIds.reduce((sum, vertexId) => {
-              const building = current.settlements[vertexId];
-              return sum + (building ? (building.type === "city" ? 2 : 1) : 0);
-            }, 0);
-            return score(b) - score(a);
-          })[0];
-          robberTileId = target?.id ?? robberTileId;
-          const currentPlayer = players[current.currentPlayerIndex];
-          const victims = players
-            .filter((player) => player.id !== currentPlayer.id && totalResources(player.resources) > 0)
-            .sort((a, b) => totalResources(b.resources) - totalResources(a.resources));
-          const victim = victims[0];
-          if (victim) {
-            const available = RESOURCES.filter((resource) => victim.resources[resource] > 0);
-            const stolen = available[Math.floor(Math.random() * available.length)];
-            victim.resources[stolen] -= 1;
-            currentPlayer.resources[stolen] += 1;
-            entries.push(`The robber moved and ${currentPlayer.name} stole one card from ${victim.name}.`);
-          } else {
-            entries.push("The robber moved, but there were no resource cards to steal.");
-          }
+          const discarders = players.filter((player) => totalResources(player.resources) >= 8);
+          pendingSeven = {
+            phase: discarders.length ? "discard" : "moveRobber",
+            remainingDiscardPlayerIds: discarders.map((player) => player.id),
+            discardCounts: Object.fromEntries(
+              discarders.map((player) => [player.id, Math.floor(totalResources(player.resources) / 2)]),
+            ),
+          };
+          entries.push(
+            discarders.length
+              ? `${discarders.map((player) => player.name).join(", ")} must discard half their resource cards.`
+              : `${players[current.currentPlayerIndex].name} must move the robber to a different tile.`,
+          );
         } else {
           const gains = Object.fromEntries(players.map((player) => [player.id, emptyResources()]));
           current.tiles.forEach((tile) => {
@@ -332,6 +533,7 @@ export default function CatanClient() {
           players,
           dice: [dieOne, dieTwo],
           robberTileId,
+          pendingSeven,
           rolled: true,
           log: [...entries, ...current.log].slice(0, 24),
         };
@@ -341,42 +543,48 @@ export default function CatanClient() {
   };
 
   const buildAtVertex = (vertexId) => {
-    if (!game || !activePlayer || game.winnerId) return;
+    if (!game || !activePlayer || game.pendingSeven || game.pendingTrade || game.winnerId) return;
     if (game.setup?.step === "settlement") {
       if (!legalVertices.has(vertexId)) return;
-      setGame((current) => placeStartingSettlement(current, activePlayer.id, vertexId));
+      if (!isMyTurn) return;
+      void updateGame((current) => placeStartingSettlement(current, activePlayer.id, vertexId));
       return;
     }
     if (!game.rolled) return;
     if (buildMode === "settlement") {
       if (!legalVertices.has(vertexId) || !canAfford(activePlayer, COSTS.settlement)) return;
-      setGame((current) => completeBuild(current, activePlayer.id, "settlement", vertexId));
+      if (!isMyTurn) return;
+      void updateGame((current) => completeBuild(current, activePlayer.id, "settlement", vertexId));
       setBuildMode(null);
       return;
     }
     if (buildMode === "city") {
       const building = game.settlements[vertexId];
       if (building?.playerId !== activePlayer.id || building.type !== "settlement" || !canAfford(activePlayer, COSTS.city)) return;
-      setGame((current) => completeBuild(current, activePlayer.id, "city", vertexId));
+      if (!isMyTurn) return;
+      void updateGame((current) => completeBuild(current, activePlayer.id, "city", vertexId));
       setBuildMode(null);
     }
   };
 
   const buildRoad = (edgeId) => {
-    if (!game || !activePlayer || game.winnerId || !legalEdges.has(edgeId)) return;
+    if (!game || !activePlayer || game.pendingSeven || game.pendingTrade || game.winnerId || !legalEdges.has(edgeId)) return;
     if (game.setup?.step === "road") {
-      setGame((current) => placeStartingRoad(current, activePlayer.id, edgeId));
+      if (!isMyTurn) return;
+      void updateGame((current) => placeStartingRoad(current, activePlayer.id, edgeId));
       return;
     }
     if (buildMode !== "road" || !game.rolled) return;
     if (!canAfford(activePlayer, COSTS.road)) return;
-    setGame((current) => completeBuild(current, activePlayer.id, "road", edgeId));
+    if (!isMyTurn) return;
+    void updateGame((current) => completeBuild(current, activePlayer.id, "road", edgeId));
     setBuildMode(null);
   };
 
   const bankTrade = () => {
-    if (!game || !activePlayer || !game.rolled || tradeGive === tradeGet || activePlayer.resources[tradeGive] < 4) return;
-    setGame((current) => {
+    if (!game || !activePlayer || game.pendingSeven || game.pendingTrade || !game.rolled || tradeGive === tradeGet || activePlayer.resources[tradeGive] < 4) return;
+    if (!isMyTurn) return;
+    void updateGame((current) => {
       const players = current.players.map((player) => {
         if (player.id !== activePlayer.id) return player;
         return {
@@ -399,11 +607,52 @@ export default function CatanClient() {
     });
   };
 
+  const adjustPlayerTrade = (side, resource, change) => {
+    if (!game || !activePlayer || !tradePartner || game.pendingTrade || !isMyTurn) return;
+    const setter = side === "offer" ? setPlayerTradeOffer : setPlayerTradeRequest;
+    setter((current) => {
+      const nextValue = current[resource] + change;
+      const maximum = side === "offer" ? activePlayer.resources[resource] : 19;
+      if (nextValue < 0 || nextValue > maximum) return current;
+      return { ...current, [resource]: nextValue };
+    });
+  };
+
+  const proposePlayerTrade = () => {
+    if (!game?.rolled || game.pendingSeven || game.pendingTrade || !activePlayer || !tradePartner) return;
+    if (totalResources(playerTradeOffer) === 0 || totalResources(playerTradeRequest) === 0) return;
+    const validOffer = RESOURCES.every((resource) => playerTradeOffer[resource] <= activePlayer.resources[resource]);
+    if (!validOffer) return;
+    if (!isMyTurn) return;
+    void updateGame((current) => ({
+      ...current,
+      pendingTrade: {
+        fromPlayerId: activePlayer.id,
+        toPlayerId: tradePartner.id,
+        offer: { ...playerTradeOffer },
+        request: { ...playerTradeRequest },
+      },
+      log: [`${activePlayer.name} offered ${tradePartner.name} a trade.`, ...current.log].slice(0, 24),
+    }));
+  };
+
+  const respondToPlayerTrade = (accepted) => {
+    if (!game?.pendingTrade) return;
+    const targetPlayerId = game.pendingTrade.toPlayerId;
+    const proposerPlayerId = game.pendingTrade.fromPlayerId;
+    if (accepted && targetPlayerId !== playerId) return;
+    if (!accepted && targetPlayerId !== playerId && proposerPlayerId !== playerId) return;
+    void updateGame((current) => resolvePlayerTrade(current, accepted));
+    setPlayerTradeOffer(emptyResources());
+    setPlayerTradeRequest(emptyResources());
+  };
+
   const endTurn = () => {
-    if (!game?.rolled || game.winnerId) return;
+    if (!game?.rolled || game.pendingSeven || game.pendingTrade || game.winnerId) return;
     const nextIndex = (game.currentPlayerIndex + 1) % game.players.length;
     const turn = nextIndex === 0 ? game.turn + 1 : game.turn;
-    setGame((current) => ({
+    if (!isMyTurn) return;
+    void updateGame((current) => ({
       ...current,
       currentPlayerIndex: nextIndex,
       turn,
@@ -411,7 +660,79 @@ export default function CatanClient() {
       log: [`${current.players[nextIndex].name} is up next.`, ...current.log].slice(0, 24),
     }));
     setBuildMode(null);
+    setPlayerTradeOffer(emptyResources());
+    setPlayerTradeRequest(emptyResources());
+    setTradePartnerId("");
   };
+
+  const adjustDiscard = (resource, change) => {
+    if (!discardingPlayer || !game?.pendingSeven || game.pendingSeven.phase !== "discard") return;
+    if (discardingPlayer.id !== playerId) return;
+    const required = game.pendingSeven.discardCounts[discardingPlayer.id];
+    setDiscardSelection((current) => {
+      const selected = totalResources(current);
+      const nextValue = current[resource] + change;
+      if (nextValue < 0 || nextValue > discardingPlayer.resources[resource]) return current;
+      if (change > 0 && selected >= required) return current;
+      return { ...current, [resource]: nextValue };
+    });
+  };
+
+  const confirmDiscard = () => {
+    if (!discardingPlayer || !game?.pendingSeven || game.pendingSeven.phase !== "discard") return;
+    const required = game.pendingSeven.discardCounts[discardingPlayer.id];
+    if (totalResources(discardSelection) !== required) return;
+    if (discardingPlayer.id !== playerId) return;
+    void updateGame((current) => {
+      if (!current?.pendingSeven || current.pendingSeven.phase !== "discard") return current;
+      const players = current.players.map((player) => {
+        if (player.id !== discardingPlayer.id) return player;
+        const resources = { ...player.resources };
+        RESOURCES.forEach((resource) => {
+          resources[resource] -= discardSelection[resource];
+        });
+        return { ...player, resources };
+      });
+      const remainingDiscardPlayerIds = current.pendingSeven.remainingDiscardPlayerIds.slice(1);
+      const phase = remainingDiscardPlayerIds.length ? "discard" : "moveRobber";
+      return {
+        ...current,
+        players,
+        pendingSeven: {
+          ...current.pendingSeven,
+          phase,
+          remainingDiscardPlayerIds,
+        },
+        log: [
+          `${discardingPlayer.name} discarded ${required} resource card${required === 1 ? "" : "s"}.${phase === "moveRobber" ? ` ${current.players[current.currentPlayerIndex].name} must now move the robber.` : ""}`,
+          ...current.log,
+        ].slice(0, 24),
+      };
+    });
+    setDiscardSelection(emptyResources());
+  };
+
+  const moveRobber = (tileId) => {
+    if (!game?.pendingSeven || game.pendingSeven.phase !== "moveRobber" || tileId === game.robberTileId) return;
+    if (!isMyTurn) return;
+    void updateGame((current) => resolveRobberMove(current, tileId));
+  };
+
+  const chooseRobberVictim = (playerId) => {
+    if (!game?.pendingSeven || game.pendingSeven.phase !== "chooseVictim") return;
+    if (!isMyTurn) return;
+    void updateGame((current) => selectRobberVictim(current, playerId));
+  };
+
+  const stealRobberCard = (cardIndex) => {
+    if (!game?.pendingSeven || game.pendingSeven.phase !== "chooseCard") return;
+    if (!isMyTurn) return;
+    void updateGame((current) => resolveRobberSteal(current, cardIndex));
+  };
+
+  if (!isReady) {
+    return <main className="catan-page catan-setup-page"><section className="catan-setup-card"><p>Loading Catan…</p></section></main>;
+  }
 
   if (!game) {
     return (
@@ -420,37 +741,63 @@ export default function CatanClient() {
           <div className="catan-mark" aria-hidden="true"><span /><span /><span /></div>
           <p className="catan-kicker">The island awaits</p>
           <h1>CATAN</h1>
-          <p className="catan-intro">Build roads, raise settlements, and trade your way to ten victory points.</p>
+          <p className="catan-intro">Create a shared room, invite up to three other settlers, and play together from different devices.</p>
 
-          <div className="setup-field">
-            <span>Players</span>
-            <div className="player-count" role="group" aria-label="Number of players">
-              {[2, 3, 4].map((count) => (
-                <button key={count} className={playerCount === count ? "selected" : ""} onClick={() => setPlayerCount(count)}>
-                  {count}
-                </button>
-              ))}
-            </div>
-          </div>
+          <label className="catan-entry-field">
+            <span>Your name</span>
+            <input value={name} maxLength={18} placeholder="Enter your name" onChange={(event) => setName(event.target.value)} />
+          </label>
 
-          <div className="catan-name-list">
-            {names.slice(0, playerCount).map((name, index) => (
-              <label key={index}>
-                <span className={`player-swatch ${PLAYER_STYLES[index].color}`} />
-                <input
-                  value={name}
-                  maxLength={18}
-                  aria-label={`Player ${index + 1} name`}
-                  onChange={(event) => setNames((current) => current.map((value, nameIndex) => nameIndex === index ? event.target.value : value))}
-                />
-              </label>
-            ))}
-          </div>
-
-          <button className="catan-primary catan-start" onClick={startGame}>
-            <MapIcon size={19} /> Settle the island
+          <button className="catan-primary catan-start" onClick={createRoom}>
+            <MapIcon size={19} /> Create room
           </button>
-          <p className="setup-note">Local pass-and-play · 2–4 players · Choose your own starting positions</p>
+
+          <div className="entry-divider"><span>or join a room</span></div>
+          <div className="join-room-row">
+            <input value={joinCode} maxLength={5} placeholder="ROOM CODE" aria-label="Room code" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} />
+            <button onClick={joinRoom}><DoorOpen size={18} /> Join</button>
+          </div>
+          {error && <p className="catan-room-error">{error}</p>}
+          <p className="setup-note">2–4 players · Live room sync {isCatanOnlineSyncEnabled ? "enabled" : "uses this game server"}</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (game.phase === "lobby") {
+    const roomLink = typeof window === "undefined" ? "" : `${window.location.origin}/catan?room=${game.roomCode}`;
+    return (
+      <main className="catan-page catan-setup-page">
+        <section className="catan-setup-card catan-lobby-card">
+          <p className="catan-kicker">Gather your settlers</p>
+          <h1>CATAN</h1>
+          <div className="room-code-panel">
+            <span>Room code</span>
+            <strong>{game.roomCode}</strong>
+            <button onClick={() => {
+              void navigator.clipboard.writeText(roomLink);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            }}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
+          </div>
+          <div className="lobby-player-list">
+            {game.players.map((player) => (
+              <div key={player.id}>
+                <span className={`player-swatch ${player.color}`} />
+                <strong>{player.name}</strong>
+                <small>{player.id === game.hostId ? "Host" : player.id === playerId ? "You" : "Ready"}</small>
+              </div>
+            ))}
+            {Array.from({ length: 4 - game.players.length }, (_, index) => <div key={`empty-${index}`} className="empty"><span /> Waiting for player…</div>)}
+          </div>
+          {isHost ? (
+            <button className="catan-primary catan-start" disabled={game.players.length < 2} onClick={startGame}>
+              <Play size={18} /> Start game
+            </button>
+          ) : <p className="lobby-waiting">Waiting for the host to start the game…</p>}
+          {isHost && game.players.length < 2 && <p className="setup-note">At least two players are needed.</p>}
+          {error && <p className="catan-room-error">{error}</p>}
+          <button className="leave-room-button" onClick={leaveRoom}>Leave room</button>
         </section>
       </main>
     );
@@ -460,7 +807,7 @@ export default function CatanClient() {
 
   return (
     <main className="catan-page">
-      {winner && <Winner player={winner} onNewGame={() => setGame(null)} />}
+      {winner && <Winner player={winner} canRestart={isHost} onRestart={restartRoom} onLeave={leaveRoom} />}
       <header className="catan-game-header">
         <div>
           <p className="catan-kicker">{game.setup ? `Setup round ${game.setup.index < game.players.length ? 1 : 2}` : `Turn ${game.turn}`}</p>
@@ -470,15 +817,31 @@ export default function CatanClient() {
           <span className={`player-swatch ${activePlayer.color}`} />
           <div><small>{game.setup ? "Now placing" : "Current turn"}</small><strong>{activePlayer.name}</strong></div>
         </div>
-        <button className="icon-button" aria-label="Start a new game" title="Start a new game" onClick={() => window.confirm("Leave this game and return to setup?") && setGame(null)}>
-          <RefreshCcw size={18} />
+        <button className="icon-button" aria-label="Leave room" title="Leave room" onClick={() => window.confirm("Leave this room and return to Catan home?") && leaveRoom()}>
+          <DoorOpen size={18} />
         </button>
       </header>
 
       <section className="catan-layout">
         <section className="board-panel">
           <div className="board-instruction">
-            <span>{game.setup ? `Choose where ${activePlayer.name} will place a starting ${game.setup.step}` : buildMode ? `Choose a place for your ${buildMode}` : game.rolled ? "Build, trade, or end your turn" : "Roll to begin your turn"}</span>
+            <span>{game.setup
+              ? `Choose where ${activePlayer.name} will place a starting ${game.setup.step}`
+              : game.pendingSeven?.phase === "discard"
+                ? `${discardingPlayer.name} must choose half their cards to discard`
+                : game.pendingSeven?.phase === "moveRobber"
+                  ? `${activePlayer.name}, choose a different tile for the robber`
+                  : game.pendingSeven?.phase === "chooseVictim"
+                    ? `${activePlayer.name}, choose an adjacent player to steal from`
+                    : game.pendingSeven?.phase === "chooseCard"
+                      ? `${activePlayer.name}, pick one face-down card to steal`
+                    : game.pendingTrade
+                      ? `${game.players.find((player) => player.id === game.pendingTrade.toPlayerId)?.name} must answer the trade offer`
+                  : buildMode
+                    ? `Choose a place for your ${buildMode}`
+                    : game.rolled
+                      ? "Build, trade, or end your turn"
+                      : "Roll to begin your turn"}</span>
             {!game.setup && buildMode && <button onClick={() => setBuildMode(null)}><X size={15} /> Cancel</button>}
           </div>
           <CatanBoard
@@ -488,6 +851,8 @@ export default function CatanClient() {
             legalEdges={legalEdges}
             onVertex={buildAtVertex}
             onEdge={buildRoad}
+            robberMoveMode={game.pendingSeven?.phase === "moveRobber" && isMyTurn}
+            onTile={moveRobber}
           />
           <div className="board-legend">
             <span><i className="number-hot">6</i> High production</span>
@@ -499,7 +864,7 @@ export default function CatanClient() {
           <section className="turn-card">
             <div className="turn-card-head">
               <div>
-                <p className="panel-kicker">{game.setup ? "Starting placement" : "Your turn"}</p>
+                <p className="panel-kicker">{game.setup ? "Starting placement" : isMyTurn ? "Your turn" : "Current turn"}</p>
                 <h2>{activePlayer.name}</h2>
               </div>
               <span className={`victory-chip ${activePlayer.color}`}><Crown size={16} /> {activePlayer.points}/10</span>
@@ -511,29 +876,50 @@ export default function CatanClient() {
                   {game.setup.step === "settlement" ? <Home size={25} /> : <Route size={25} />}
                 </span>
                 <div>
-                  <strong>Place your {game.setup.step}</strong>
-                  <p>{game.setup.step === "settlement" ? "Choose any highlighted corner. Settlements cannot be adjacent." : "Choose a highlighted edge touching your new settlement."}</p>
+                  <strong>{isMyTurn ? `Place your ${game.setup.step}` : `Waiting for ${activePlayer.name}`}</strong>
+                  <p>{isMyTurn ? (game.setup.step === "settlement" ? "Choose any highlighted corner. Settlements cannot be adjacent." : "Choose a highlighted edge touching your new settlement.") : `${activePlayer.name} is choosing a starting ${game.setup.step} on their device.`}</p>
                 </div>
                 <small>{game.setup.index + 1} of {game.setup.order.length}</small>
               </div>
             ) : <>
               <DiceTray dice={game.dice} rolling={isRolling} />
-              {!game.rolled ? (
-              <button className="catan-primary roll-button" disabled={isRolling} onClick={rollDice}>
+              {game.pendingSeven || game.pendingTrade ? (
+                <p className="seven-turn-note">{game.pendingSeven ? "Resolve the seven" : "Resolve the trade offer"} before continuing your turn.</p>
+              ) : !game.rolled ? (
+              <button className="catan-primary roll-button" disabled={isRolling || !isMyTurn} onClick={rollDice}>
                 {isRolling ? <RefreshCcw className="spin" size={19} /> : <Dice5 size={20} />}
-                {isRolling ? "Rolling…" : "Roll dice"}
+                {isRolling ? "Rolling…" : isMyTurn ? "Roll dice" : `Waiting for ${activePlayer.name}`}
               </button>
             ) : (
-              <button className="catan-primary end-button" onClick={endTurn}>
-                End turn <ArrowRightLeft size={18} />
+              <button className="catan-primary end-button" disabled={!isMyTurn} onClick={endTurn}>
+                {isMyTurn ? "End turn" : `Waiting for ${activePlayer.name}`} <ArrowRightLeft size={18} />
               </button>
               )}
             </>}
           </section>
 
-          <ResourceHand player={activePlayer} />
+          {game.pendingSeven && (
+            <SevenResolution
+              pendingSeven={game.pendingSeven}
+              activePlayer={activePlayer}
+              discardingPlayer={discardingPlayer}
+              selection={discardSelection}
+              onAdjust={adjustDiscard}
+              onConfirm={confirmDiscard}
+              players={game.players}
+              onVictimChoice={chooseRobberVictim}
+              onCardChoice={stealRobberCard}
+              viewerPlayerId={playerId}
+            />
+          )}
 
-          {!game.setup && <section className="action-card">
+          {viewerPlayer && <ResourceHand player={viewerPlayer} title="Your resource hand" />}
+
+          {game.pendingTrade && (
+            <TradeDecision game={game} viewerPlayerId={playerId} onRespond={respondToPlayerTrade} />
+          )}
+
+          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingTrade && <section className="action-card">
             <div className="section-title"><h2>Build</h2><span>Click the board to place</span></div>
             <div className="build-list">
               <BuildButton icon={Route} label="Road" cost={COSTS.road} disabled={!game.rolled || !canAfford(activePlayer, COSTS.road)} active={buildMode === "road"} onClick={() => setBuildMode(buildMode === "road" ? null : "road")} />
@@ -542,7 +928,21 @@ export default function CatanClient() {
             </div>
           </section>}
 
-          {!game.setup && <section className="trade-card">
+          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingTrade && game.rolled && (
+            <PlayerTradeBuilder
+              activePlayer={activePlayer}
+              partners={tradePartners}
+              partner={tradePartner}
+              partnerId={tradePartner?.id ?? ""}
+              onPartnerChange={setTradePartnerId}
+              offer={playerTradeOffer}
+              request={playerTradeRequest}
+              onAdjust={adjustPlayerTrade}
+              onPropose={proposePlayerTrade}
+            />
+          )}
+
+          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingTrade && <section className="trade-card">
             <div className="section-title"><h2>Bank trade</h2><span>Give 4 · Get 1</span></div>
             <div className="trade-row">
               <ResourceSelect value={tradeGive} onChange={setTradeGive} label="Give" />
@@ -646,6 +1046,50 @@ function placeStartingRoad(game, playerId, edgeId) {
   };
 }
 
+function resolvePlayerTrade(game, accepted) {
+  const trade = game.pendingTrade;
+  if (!trade) return game;
+  const fromPlayer = game.players.find((player) => player.id === trade.fromPlayerId);
+  const toPlayer = game.players.find((player) => player.id === trade.toPlayerId);
+  if (!fromPlayer || !toPlayer) return { ...game, pendingTrade: null };
+  if (!accepted) {
+    return {
+      ...game,
+      pendingTrade: null,
+      log: [`${toPlayer.name} declined ${fromPlayer.name}'s trade.`, ...game.log].slice(0, 24),
+    };
+  }
+  const canComplete = RESOURCES.every((resource) =>
+    fromPlayer.resources[resource] >= trade.offer[resource] &&
+    toPlayer.resources[resource] >= trade.request[resource],
+  );
+  if (!canComplete) {
+    return {
+      ...game,
+      pendingTrade: null,
+      log: ["The trade expired because the required cards were no longer available.", ...game.log].slice(0, 24),
+    };
+  }
+  const players = game.players.map((player) => {
+    if (player.id !== fromPlayer.id && player.id !== toPlayer.id) return player;
+    const resources = { ...player.resources };
+    RESOURCES.forEach((resource) => {
+      if (player.id === fromPlayer.id) {
+        resources[resource] += trade.request[resource] - trade.offer[resource];
+      } else {
+        resources[resource] += trade.offer[resource] - trade.request[resource];
+      }
+    });
+    return { ...player, resources };
+  });
+  return {
+    ...game,
+    players,
+    pendingTrade: null,
+    log: [`${fromPlayer.name} and ${toPlayer.name} completed a trade.`, ...game.log].slice(0, 24),
+  };
+}
+
 function completeBuild(game, playerId, kind, targetId) {
   const cost = COSTS[kind];
   const players = game.players.map((player) => {
@@ -670,7 +1114,70 @@ function completeBuild(game, playerId, kind, targetId) {
   };
 }
 
-function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEdge }) {
+function resolveRobberMove(game, tileId) {
+  if (!game.pendingSeven || game.pendingSeven.phase !== "moveRobber" || tileId === game.robberTileId) return game;
+  const tile = game.tiles.find((candidate) => candidate.id === tileId);
+  if (!tile) return game;
+  const activePlayer = game.players[game.currentPlayerIndex];
+  const victimIds = [...new Set(
+    tile.vertexIds
+      .map((vertexId) => game.settlements[vertexId]?.playerId)
+      .filter((playerId) => playerId && playerId !== activePlayer.id),
+  )];
+  const eligibleVictimIds = victimIds.filter((playerId) => {
+    const player = game.players.find((candidate) => candidate.id === playerId);
+    return player && totalResources(player.resources) > 0;
+  });
+  const needsVictimChoice = eligibleVictimIds.length > 0;
+  return {
+    ...game,
+    robberTileId: tileId,
+    pendingSeven: needsVictimChoice
+      ? { ...game.pendingSeven, phase: "chooseVictim", eligibleVictimIds }
+      : null,
+    log: [
+      needsVictimChoice
+        ? `${activePlayer.name} moved the robber and must choose an adjacent player to steal from.`
+        : `${activePlayer.name} moved the robber. No adjacent player had a card to steal.`,
+      ...game.log,
+    ].slice(0, 24),
+  };
+}
+
+function selectRobberVictim(game, victimId) {
+  const pending = game.pendingSeven;
+  if (!pending || pending.phase !== "chooseVictim" || !pending.eligibleVictimIds.includes(victimId)) return game;
+  const victim = game.players.find((player) => player.id === victimId);
+  if (!victim || totalResources(victim.resources) === 0) {
+    return { ...game, pendingSeven: null };
+  }
+  return {
+    ...game,
+    pendingSeven: { ...pending, phase: "chooseCard", victimId },
+    log: [`${game.players[game.currentPlayerIndex].name} chose to steal from ${victim.name}.`, ...game.log].slice(0, 24),
+  };
+}
+
+function resolveRobberSteal(game, cardIndex) {
+  const pending = game.pendingSeven;
+  if (!pending || pending.phase !== "chooseCard" || !Number.isInteger(cardIndex)) return game;
+  const players = game.players.map((player) => ({ ...player, resources: { ...player.resources } }));
+  const roller = players[game.currentPlayerIndex];
+  const victim = players.find((player) => player.id === pending.victimId);
+  if (!victim || cardIndex < 0 || cardIndex >= totalResources(victim.resources)) return game;
+  const availableResources = RESOURCES.filter((resource) => victim.resources[resource] > 0);
+  const stolenResource = availableResources[Math.floor(Math.random() * availableResources.length)];
+  victim.resources[stolenResource] -= 1;
+  roller.resources[stolenResource] += 1;
+  return {
+    ...game,
+    players,
+    pendingSeven: null,
+    log: [`${roller.name} picked a face-down card from ${victim.name}.`, ...game.log].slice(0, 24),
+  };
+}
+
+function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEdge, robberMoveMode, onTile }) {
   const vertexById = Object.fromEntries(BOARD.vertices.map((vertex) => [vertex.id, vertex]));
   return (
     <div className="board-wrap">
@@ -690,8 +1197,22 @@ function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEd
         <rect width="860" height="680" rx="28" fill="url(#waves)" />
         <path className="island-halo" d="M119 339C119 172 266 63 430 63S741 172 741 339 597 617 430 617 119 506 119 339Z" />
 
-        {game.tiles.map((tile) => (
-          <g key={tile.id} className={`terrain-tile ${tile.resource}`} filter="url(#tile-shadow)">
+        {game.tiles.map((tile) => {
+          const robberTarget = robberMoveMode && tile.id !== game.robberTileId;
+          const terrainLabel = tile.resource === "desert" ? "desert" : RESOURCE_INFO[tile.resource].label.toLowerCase();
+          return (
+          <g
+            key={tile.id}
+            className={`terrain-tile ${tile.resource} ${robberTarget ? "robber-target" : ""}`}
+            filter="url(#tile-shadow)"
+            role={robberTarget ? "button" : undefined}
+            tabIndex={robberTarget ? 0 : undefined}
+            aria-label={robberTarget ? `Move robber to ${terrainLabel} tile${tile.number ? ` number ${tile.number}` : ""}` : undefined}
+            onClick={() => robberTarget && onTile(tile.id)}
+            onKeyDown={(event) => {
+              if (robberTarget && (event.key === "Enter" || event.key === " ")) onTile(tile.id);
+            }}
+          >
             <polygon points={tile.vertexIds.map((id) => `${vertexById[id].x},${vertexById[id].y}`).join(" ")} />
             <TerrainArt resource={tile.resource} x={tile.center.x} y={tile.center.y} />
             {tile.number && (
@@ -705,7 +1226,8 @@ function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEd
             )}
             {game.robberTileId === tile.id && <g className="robber" transform={`translate(${tile.center.x + 31} ${tile.center.y - 30})`}><circle r="17" /><text y="6">♟</text></g>}
           </g>
-        ))}
+          );
+        })}
 
         {BOARD.edges.map((edge) => {
           const from = vertexById[edge.from];
@@ -771,10 +1293,16 @@ function DiceTray({ dice, rolling }) {
 
 function Die({ value, rolling, tone, delay }) {
   return (
-    <div className={`catan-die ${tone} ${rolling ? "rolling" : ""} ${delay ? "delay" : ""}`}>
+    <div className={`catan-die value-${value} ${tone} ${rolling ? "rolling" : ""} ${delay ? "delay" : ""}`} aria-label={`Die showing ${value}`}>
       <div className="die-shadow" />
-      <div className="die-face">
-        {Array.from({ length: 9 }, (_, index) => <span key={index} className={pipIsVisible(value, index) ? "pip visible" : "pip"} />)}
+      <div className="die-cube">
+        {[1, 2, 3, 4, 5, 6].map((faceValue) => (
+          <div key={faceValue} className={`die-face face-${faceValue}`}>
+            {Array.from({ length: 9 }, (_, index) => (
+              <span key={index} className={pipIsVisible(faceValue, index) ? "pip visible" : "pip"} />
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -787,10 +1315,180 @@ function pipIsVisible(value, index) {
   return pips[value].includes(index);
 }
 
-function ResourceHand({ player }) {
+function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selection, onAdjust, onConfirm, players, onVictimChoice, onCardChoice, viewerPlayerId }) {
+  const isRobberController = activePlayer.id === viewerPlayerId;
+  if (pendingSeven.phase === "moveRobber") {
+    return (
+      <section className="seven-card robber-choice-card">
+        <div className="seven-badge">7</div>
+        <div>
+          <p className="panel-kicker">Move the robber</p>
+          <h2>{activePlayer.name}, choose a new tile</h2>
+          <p>{isRobberController ? "Every available tile is highlighted. The robber cannot stay on its previous tile." : `Waiting for ${activePlayer.name} to choose on their device.`}</p>
+        </div>
+      </section>
+    );
+  }
+  if (pendingSeven.phase === "chooseVictim") {
+    const victims = players.filter((player) => pendingSeven.eligibleVictimIds.includes(player.id));
+    return (
+      <section className="seven-card victim-choice-card">
+        <div className="section-title">
+          <div><p className="panel-kicker">Robber placed</p><h2>Choose who to steal from</h2></div>
+          <span>Adjacent players only</span>
+        </div>
+        <div className="victim-list">
+          {victims.map((player) => (
+            <button key={player.id} disabled={!isRobberController} onClick={() => onVictimChoice(player.id)}>
+              <span className={`player-swatch ${player.color}`} />
+              <strong>{player.name}</strong>
+              <small>{totalResources(player.resources)} cards</small>
+              <span>Steal 1</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  }
+  if (pendingSeven.phase === "chooseCard") {
+    const victim = players.find((player) => player.id === pendingSeven.victimId);
+    if (!victim) return null;
+    return (
+      <section className="seven-card card-choice-card">
+        <div className="section-title">
+          <div><p className="panel-kicker">Choose a card</p><h2>Take one from {victim.name}</h2></div>
+          <span>{totalResources(victim.resources)} cards available</span>
+        </div>
+        <p className="hidden-card-copy">{isRobberController ? "The cards are face down. Pick one without seeing its resource." : `Waiting for ${activePlayer.name} to pick a face-down card.`}</p>
+        <div className="robber-card-options">
+          {Array.from({ length: totalResources(victim.resources) }, (_, index) => (
+            <button key={index} disabled={!isRobberController} onClick={() => onCardChoice(index)} aria-label={`Pick face-down card ${index + 1}`}>
+              <span>?</span>
+              <strong>Card {index + 1}</strong>
+              <small>Face down</small>
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  }
+  if (!discardingPlayer) return null;
+  const required = pendingSeven.discardCounts[discardingPlayer.id];
+  if (discardingPlayer.id !== viewerPlayerId) {
+    return (
+      <section className="seven-card discard-card waiting-discard-card">
+        <div className="section-title">
+          <div><p className="panel-kicker">Seven rolled</p><h2>Waiting for {discardingPlayer.name}</h2></div>
+          <span>{required} cards</span>
+        </div>
+        <p className="discard-copy">They are choosing cards privately on their device.</p>
+      </section>
+    );
+  }
+  const selected = totalResources(selection);
+  return (
+    <section className="seven-card discard-card">
+      <div className="section-title">
+        <div><p className="panel-kicker">Seven rolled</p><h2>{discardingPlayer.name} discards</h2></div>
+        <span>{selected} of {required} selected</span>
+      </div>
+      <p className="discard-copy">Choose exactly {required} of your {totalResources(discardingPlayer.resources)} cards.</p>
+      <div className="discard-grid">
+        {RESOURCES.map((resource) => (
+          <div key={resource} className={`discard-resource ${RESOURCE_INFO[resource].terrain}`}>
+            <span>{RESOURCE_INFO[resource].short}</span>
+            <small>{discardingPlayer.resources[resource]} owned</small>
+            <div>
+              <button aria-label={`Remove one ${RESOURCE_INFO[resource].short} from discard`} disabled={selection[resource] === 0} onClick={() => onAdjust(resource, -1)}>−</button>
+              <strong>{selection[resource]}</strong>
+              <button aria-label={`Add one ${RESOURCE_INFO[resource].short} to discard`} disabled={selection[resource] >= discardingPlayer.resources[resource] || selected >= required} onClick={() => onAdjust(resource, 1)}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button className="catan-primary confirm-discard" disabled={selected !== required} onClick={onConfirm}>
+        <Check size={18} /> Discard {required} card{required === 1 ? "" : "s"}
+      </button>
+    </section>
+  );
+}
+
+function PlayerTradeBuilder({ activePlayer, partners, partner, partnerId, onPartnerChange, offer, request, onAdjust, onPropose }) {
+  const canPropose = partner && totalResources(offer) > 0 && totalResources(request) > 0;
+  return (
+    <section className="player-trade-card">
+      <div className="section-title"><h2>Player trade</h2><span>Negotiate resources</span></div>
+      <label className="trade-partner-select">
+        <span>Trade with</span>
+        <select value={partnerId} onChange={(event) => onPartnerChange(event.target.value)}>
+          {partners.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+        </select>
+      </label>
+      <div className="player-trade-columns">
+        <TradeResourceEditor title={`${activePlayer.name} offers`} values={offer} owner={activePlayer} side="offer" onAdjust={onAdjust} />
+        <TradeResourceEditor title={`${partner?.name ?? "Player"} gives`} values={request} owner={partner} side="request" hideInventory onAdjust={onAdjust} />
+      </div>
+      <button className="catan-primary propose-trade" disabled={!canPropose} onClick={onPropose}>
+        <ArrowRightLeft size={17} /> Propose trade
+      </button>
+    </section>
+  );
+}
+
+function TradeResourceEditor({ title, values, owner, side, hideInventory = false, onAdjust }) {
+  return (
+    <div className="trade-editor">
+      <strong>{title}</strong>
+      {RESOURCES.map((resource) => (
+        <div key={resource}>
+          <span>{RESOURCE_INFO[resource].short}</span>
+          <small>{hideInventory ? "?" : owner?.resources[resource] ?? 0}</small>
+          <button aria-label={`Remove ${RESOURCE_INFO[resource].short} from ${side}`} disabled={values[resource] === 0} onClick={() => onAdjust(side, resource, -1)}>−</button>
+          <b>{values[resource]}</b>
+          <button aria-label={`Add ${RESOURCE_INFO[resource].short} to ${side}`} disabled={!owner || values[resource] >= (hideInventory ? 19 : owner.resources[resource])} onClick={() => onAdjust(side, resource, 1)}>+</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TradeDecision({ game, viewerPlayerId, onRespond }) {
+  const trade = game.pendingTrade;
+  if (!trade) return null;
+  const fromPlayer = game.players.find((player) => player.id === trade.fromPlayerId);
+  const toPlayer = game.players.find((player) => player.id === trade.toPlayerId);
+  const isTarget = viewerPlayerId === trade.toPlayerId;
+  const isProposer = viewerPlayerId === trade.fromPlayerId;
+  return (
+    <section className="player-trade-card trade-decision-card">
+      <p className="panel-kicker">Trade offer for {toPlayer?.name}</p>
+      <h2>{fromPlayer?.name} proposes a trade</h2>
+      <div className="trade-summary">
+        <div><span>{toPlayer?.name} receives</span><strong>{formatResourceBundle(trade.offer)}</strong></div>
+        <ArrowRightLeft size={18} />
+        <div><span>{toPlayer?.name} gives</span><strong>{formatResourceBundle(trade.request)}</strong></div>
+      </div>
+      {isTarget && <div className="trade-response-actions">
+          <button className="catan-primary" onClick={() => onRespond(true)}><Check size={17} /> Accept</button>
+          <button onClick={() => onRespond(false)}><X size={17} /> Decline</button>
+        </div>}
+      {isProposer && <div className="trade-response-actions single"><button onClick={() => onRespond(false)}><X size={17} /> Cancel offer</button></div>}
+      {!isTarget && !isProposer && <p className="trade-waiting-copy">Waiting for {toPlayer?.name} to answer on their device.</p>}
+    </section>
+  );
+}
+
+function formatResourceBundle(resources) {
+  return RESOURCES
+    .filter((resource) => resources[resource] > 0)
+    .map((resource) => `${resources[resource]} ${RESOURCE_INFO[resource].short}`)
+    .join(" · ");
+}
+
+function ResourceHand({ player, title = "Resource hand" }) {
   return (
     <section className="resource-card">
-      <div className="section-title"><h2>Resource hand</h2><span>{totalResources(player.resources)} cards</span></div>
+      <div className="section-title"><h2>{title}</h2><span>{totalResources(player.resources)} cards</span></div>
       <div className="resource-grid">
         {RESOURCES.map((resource) => (
           <div key={resource} className={`resource-tile ${RESOURCE_INFO[resource].terrain}`}>
@@ -825,7 +1523,7 @@ function ResourceSelect({ value, onChange, label }) {
   );
 }
 
-function Winner({ player, onNewGame }) {
+function Winner({ player, canRestart, onRestart, onLeave }) {
   return (
     <div className="catan-winner" role="dialog" aria-modal="true" aria-label={`${player.name} won`}>
       <section>
@@ -833,7 +1531,10 @@ function Winner({ player, onNewGame }) {
         <p className="catan-kicker">The island has a new ruler</p>
         <h2>{player.name} wins!</h2>
         <p>Ten victory points and a settlement worthy of legend.</p>
-        <button className="catan-primary" onClick={onNewGame}><Users size={18} /> Play again</button>
+        {canRestart
+          ? <button className="catan-primary" onClick={onRestart}><Users size={18} /> Return room to lobby</button>
+          : <p className="winner-waiting">Waiting for the host to start another game.</p>}
+        <button className="leave-room-button" onClick={onLeave}>Leave room</button>
       </section>
     </div>
   );
