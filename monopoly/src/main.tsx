@@ -281,6 +281,22 @@ export default function App() {
     Boolean(game?.pendingAuction?.activePlayerId === playerId) || Boolean(isHost && auctionActivePlayer?.id.startsWith('local-'));
   const canChooseJail = Boolean(activePlayer?.id === playerId) || Boolean(isHost && activePlayer?.id.startsWith('local-'));
   const needsJailChoice = Boolean(activePlayer?.inJail && !game?.jailRollMode);
+  const showBoardRollButton = Boolean(
+    game &&
+    game.phase === 'playing' &&
+    game.turnStage === 'roll' &&
+    canControlTurn &&
+    !needsJailChoice &&
+    !game.pendingCard &&
+    !game.pendingPurchase &&
+    !game.pendingTax &&
+    !game.pendingRent &&
+    !game.pendingUtilityRent &&
+    !game.pendingDebt &&
+    !game.pendingAuction &&
+    !game.pendingJailExit &&
+    !game.pendingTrade
+  );
   const pendingJailExitPlayer = game?.players.find((player) => player.id === game.pendingJailExit?.playerId);
   const canResolveJailExit =
     Boolean(game?.pendingJailExit?.playerId === playerId) || Boolean(isHost && pendingJailExitPlayer?.id.startsWith('local-'));
@@ -387,7 +403,12 @@ export default function App() {
       </header>
 
       <section className="layout">
-        <Board game={game} />
+        <Board
+          game={game}
+          isRolling={isRolling}
+          showRollButton={showBoardRollButton}
+          onRoll={handleRoll}
+        />
 
         <aside className="sidebar">
           <section className="turn-panel">
@@ -405,8 +426,6 @@ export default function App() {
                 <span className={game.turnStage === 'manage' ? 'active' : ''}>2. Trade & build</span>
               </div>
             )}
-
-            <DiceTray roll={game.lastRoll} rolling={isRolling} />
 
             {game.pendingCard && <DrawnCardPanel game={game} />}
             {game.pendingPurchase && <PurchasePanel game={game} />}
@@ -539,11 +558,7 @@ export default function App() {
                   Stay & Roll
                 </button>
               </div>
-            ) : (
-              <button className="primary full" disabled={!canControlTurn || isRolling || game.phase === 'gameOver'} onClick={handleRoll}>
-                {isRolling ? <RefreshCcw size={18} /> : <Dice5 size={18} />} Roll dice
-              </button>
-            )}
+            ) : null}
 
             <p className="hint">
               {game.phase === 'lobby'
@@ -919,7 +934,17 @@ function AuctionPanel({ game }: { game: GameState }) {
   );
 }
 
-function Board({ game }: { game: GameState }) {
+function Board({
+  game,
+  isRolling,
+  showRollButton,
+  onRoll
+}: {
+  game: GameState;
+  isRolling: boolean;
+  showRollButton: boolean;
+  onRoll: () => void;
+}) {
   return (
     <section className="board" aria-label="Monopoly board">
       {board.map((space) => (
@@ -932,7 +957,15 @@ function Board({ game }: { game: GameState }) {
         />
       ))}
       <div className="board-center">
-        <span>Monopoly</span>
+        <span className="board-title">Monopoly</span>
+        <div className={`board-dice-area ${showRollButton ? 'actionable' : ''}`}>
+          <DiceTray roll={game.lastRoll} rolling={isRolling} />
+          {showRollButton && (
+            <button className="primary board-roll-button" disabled={isRolling} onClick={onRoll}>
+              {isRolling ? <RefreshCcw size={18} /> : <Dice5 size={18} />} Roll dice
+            </button>
+          )}
+        </div>
         <p>Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.</p>
       </div>
     </section>
@@ -964,7 +997,7 @@ function BoardSpace({
       {space.price && <span className="space-price">${space.price}</span>}
       {space.kind === 'tax' && <span className="space-price">{getTaxText(space)}</span>}
       {space.price && <PropertyOwnership owner={owner} />}
-      <div className="tokens">
+      <div className={`tokens ${players.length > 1 ? 'stacked' : ''}`}>
         {players.map((player) => (
           <PlayerToken key={player.id} player={player} />
         ))}

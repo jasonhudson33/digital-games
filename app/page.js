@@ -18,6 +18,14 @@ const games = [
     tone: "warm",
   },
   {
+    name: "Catan",
+    href: "/catan",
+    status: "Ready to play",
+    description:
+      "Settle a randomized island, gather resources, trade with the bank, and race to ten victory points.",
+    tone: "catan",
+  },
+  {
     name: "Mafia",
     href: "/mafia",
     status: "Ready to play",
@@ -44,7 +52,7 @@ export default function Page() {
           <Link
             key={game.name}
             href={game.href}
-            className={`game-card ${game.tone === "night" ? "night" : "warm"}`}
+            className={`game-card ${game.tone === "night" ? "night" : game.tone === "catan" ? "catan" : "warm"}`}
           >
             <span className="game-status">{game.status}</span>
             <h2>{game.name}</h2>

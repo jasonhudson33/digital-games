@@ -9,6 +9,7 @@ const games = [
   { name: "7-Up", href: "/seven-up" },
   { name: "Mafia", href: "/mafia" },
   { name: "Monopoly", href: "/monopoly" },
+  { name: "Catan", href: "/catan" },
 ];
 
 export default function SiteHeader() {

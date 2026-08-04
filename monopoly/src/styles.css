@@ -340,7 +340,7 @@
   background: #dce9de;
 }
 
-.monopoly-page .board-center span{
+.monopoly-page .board-center .board-title{
   color: #d73b3e;
   font-size: clamp(2.5rem, 8vw, 6.4rem);
   line-height: 0.95;
@@ -353,6 +353,46 @@
   max-width: 430px;
   color: #44524b;
   font-weight: 700;
+}
+
+.monopoly-page .board-dice-area{
+  width: min(360px, 86%);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #26332d;
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.96);
+  box-shadow: 6px 7px 0 rgba(29, 37, 33, 0.18);
+}
+
+.monopoly-page .board-dice-area.actionable{
+  border-color: #1e7045;
+  box-shadow:
+    0 0 0 3px rgba(36, 130, 79, 0.16),
+    6px 7px 0 rgba(29, 37, 33, 0.18);
+}
+
+.monopoly-page .board-center .dice-tray{
+  width: 100%;
+  height: 108px;
+  gap: 22px;
+  box-shadow: inset 0 0 0 1px rgba(29, 37, 33, 0.06);
+}
+
+.monopoly-page .board-center .die{
+  width: 66px;
+  height: 66px;
+}
+
+.monopoly-page .board-center .die-cube{
+  --die-size: 60px;
+}
+
+.monopoly-page .board-roll-button{
+  width: 100%;
+  min-height: 46px;
+  font-weight: 950;
 }
 
 .monopoly-page .space{
@@ -542,6 +582,37 @@
   padding: 1px;
 }
 
+.monopoly-page .bottom-side .property-ownership,
+.monopoly-page .top-side .property-ownership,
+.monopoly-page .left-side .property-ownership,
+.monopoly-page .right-side .property-ownership{
+  position: absolute;
+}
+
+.monopoly-page .bottom-side .property-ownership{
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.monopoly-page .top-side .property-ownership{
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.monopoly-page .left-side .property-ownership{
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+}
+
+.monopoly-page .right-side .property-ownership{
+  top: 50%;
+  left: 15px;
+  transform: translateY(-50%);
+}
+
 .monopoly-page .ownership-dot{
   width: 6px;
   height: 6px;
@@ -612,28 +683,61 @@
 }
 
 .monopoly-page .tokens{
-  min-height: 25px;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 3px;
+  position: absolute;
+  z-index: 4;
+  inset: 2px;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
 }
 
 .monopoly-page .bottom-side .tokens{
-  margin-top: 3px;
+  inset: 15px 2px 2px;
+  align-items: end;
 }
 
 .monopoly-page .top-side .tokens{
-  margin-bottom: 15px;
+  inset: 2px 2px 15px;
+  align-items: start;
 }
 
 .monopoly-page .left-side .tokens{
-  margin-right: 15px;
+  inset: 2px 15px 2px 2px;
+  justify-items: start;
 }
 
 .monopoly-page .right-side .tokens{
-  margin-left: 15px;
+  inset: 2px 2px 2px 15px;
+  justify-items: end;
+}
+
+.monopoly-page .corner .tokens{
+  align-items: end;
+}
+
+.monopoly-page .tokens.stacked{
+  place-items: center;
+}
+
+.monopoly-page .tokens .token{
+  grid-area: 1 / 1;
+}
+
+.monopoly-page .tokens .token:not(:only-child):nth-child(1){
+  transform: translate(-4px, -4px) rotate(-5deg);
+}
+
+.monopoly-page .tokens .token:not(:only-child):nth-child(2){
+  transform: translate(4px, -4px) rotate(4deg);
+}
+
+.monopoly-page .tokens .token:not(:only-child):nth-child(3){
+  transform: translate(-4px, 4px) rotate(4deg);
+}
+
+.monopoly-page .tokens .token:not(:only-child):nth-child(4){
+  transform: translate(4px, 4px) rotate(-5deg);
 }
 
 .monopoly-page .token{
@@ -1479,15 +1583,88 @@
     height: 12px;
   }
 
+  .monopoly-page .tokens.stacked .token{
+    width: 15px;
+    height: 15px;
+  }
+
+  .monopoly-page .tokens.stacked .token svg{
+    width: 9px;
+    height: 9px;
+  }
+
+  .monopoly-page .tokens.stacked .token:not(:only-child):nth-child(1){
+    transform: translate(-3px, -3px) rotate(-5deg);
+  }
+
+  .monopoly-page .tokens.stacked .token:not(:only-child):nth-child(2){
+    transform: translate(3px, -3px) rotate(4deg);
+  }
+
+  .monopoly-page .tokens.stacked .token:not(:only-child):nth-child(3){
+    transform: translate(-3px, 3px) rotate(4deg);
+  }
+
+  .monopoly-page .tokens.stacked .token:not(:only-child):nth-child(4){
+    transform: translate(3px, 3px) rotate(-5deg);
+  }
+
   .monopoly-page .board-center{
+    gap: 7px;
     padding: 12px;
   }
 
-  .monopoly-page .board-center span{
+  .monopoly-page .board-center .board-title{
     font-size: clamp(1.5rem, 10vw, 3.4rem);
   }
 
   .monopoly-page .board-center p{
     font-size: 0.78rem;
+  }
+
+  .monopoly-page .board-dice-area{
+    width: min(230px, 94%);
+    gap: 8px;
+    padding: 8px;
+    border-radius: 9px;
+    box-shadow: 4px 5px 0 rgba(29, 37, 33, 0.18);
+  }
+
+  .monopoly-page .board-dice-area.actionable{
+    box-shadow:
+      0 0 0 2px rgba(36, 130, 79, 0.16),
+      4px 5px 0 rgba(29, 37, 33, 0.18);
+  }
+
+  .monopoly-page .board-center .dice-tray{
+    height: 76px;
+    gap: 14px;
+  }
+
+  .monopoly-page .board-center .die{
+    width: 48px;
+    height: 48px;
+  }
+
+  .monopoly-page .board-center .die-cube{
+    --die-size: 44px;
+  }
+
+  .monopoly-page .board-center .die-shadow{
+    bottom: -10px;
+  }
+
+  .monopoly-page .board-center .die-face{
+    border-radius: 9px;
+    padding: 5px;
+  }
+
+  .monopoly-page .board-center .pip{
+    width: 7px;
+    height: 7px;
+  }
+
+  .monopoly-page .board-roll-button{
+    min-height: 40px;
   }
 }

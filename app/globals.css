@@ -183,6 +183,20 @@ input {
     linear-gradient(180deg, rgba(29, 36, 57, 0.98), rgba(16, 19, 31, 0.98));
 }
 
+.game-card.catan {
+  color: #fff8df;
+  border-color: rgba(255, 239, 190, 0.22);
+  background:
+    radial-gradient(circle at 85% 15%, rgba(243, 188, 53, 0.46), transparent 22%),
+    radial-gradient(circle at 15% 90%, rgba(67, 151, 151, 0.58), transparent 30%),
+    linear-gradient(145deg, #b92f34, #7f2228 62%, #183f4e);
+}
+
+.game-card.catan .game-status {
+  color: #fff5d6;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .game-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 26px 60px rgba(39, 26, 16, 0.16);
