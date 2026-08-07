@@ -20,8 +20,10 @@ import {
   hasSeafarers,
   canPromoteKnight,
   pillageChosenCity,
+  playProgressCard,
   PROGRESS_DECKS,
   progressCardEligible,
+  resolveProgressCardChoice,
   longestRouteLength,
   reconcileCatanAwards,
   resolveBarbarianAttack,
@@ -82,6 +84,98 @@ test("progress decks contain 18 official cards in each color and use improvement
   assert.equal(progressCardEligible(1, 3), false);
   assert.equal(progressCardEligible(2, 3), true);
   assert.equal(progressCardEligible(5, 6), true);
+});
+
+test("green production progress cards can be played and return to their deck", () => {
+  const board = {
+    vertices: [{ id: "v1", tileIds: [1, 2] }],
+    edges: [],
+  };
+  const game = {
+    ruleset: "cities-knights",
+    players: [{
+      id: "red",
+      name: "Red",
+      points: 2,
+      resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0 },
+      progressCards: [{ id: "card-1", type: "irrigation", color: "science" }],
+    }],
+    settlements: { v1: { playerId: "red", type: "settlement" } },
+    tiles: [{ id: 1, resource: "wheat" }, { id: 2, resource: "wheat" }],
+    citiesKnights: { progressDecks: { science: [], trade: [], politics: [] }, knights: {}, cityWalls: {} },
+    log: [],
+  };
+  const played = playProgressCard(game, "red", "card-1", board, () => 0);
+  assert.equal(played.players[0].resources.wheat, 4);
+  assert.equal(played.players[0].progressCards.length, 0);
+  assert.deepEqual(played.citiesKnights.progressDecks.science, ["irrigation"]);
+});
+
+test("yellow Merchant Fleet cards prompt for and apply a two-for-one card type", () => {
+  const game = {
+    ruleset: "cities-knights",
+    players: [{
+      id: "red",
+      name: "Red",
+      points: 2,
+      resources: { wood: 2, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0 },
+      progressCards: [{ id: "card-2", type: "merchantFleet", color: "trade" }],
+    }],
+    settlements: {},
+    tiles: [],
+    citiesKnights: { progressDecks: { science: [], trade: [], politics: [] }, knights: {}, cityWalls: {} },
+    log: [],
+  };
+  const started = playProgressCard(game, "red", "card-2", { vertices: [], edges: [] }, () => 0);
+  assert.equal(started.pendingProgress.type, "merchantFleet");
+  const resolved = resolveProgressCardChoice(started, "red", "wood", { vertices: [], edges: [] }, () => 0);
+  assert.deepEqual(resolved.citiesKnights.merchantFleet, { playerId: "red", cardType: "wood" });
+  assert.equal(resolved.pendingProgress, null);
+});
+
+test("a newly drawn progress card waits until the player's next turn", () => {
+  const game = {
+    ruleset: "cities-knights",
+    turn: 4,
+    victoryTarget: 13,
+    players: [{
+      id: "red",
+      name: "Red",
+      points: 2,
+      resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0 },
+      progressCards: [{ id: "new-card", type: "irrigation", color: "science", drawnTurn: 4 }],
+    }],
+    settlements: {},
+    tiles: [],
+    citiesKnights: { progressDecks: { science: [], trade: [], politics: [] }, knights: {}, cityWalls: {} },
+    log: [],
+  };
+  const blocked = playProgressCard(game, "red", "new-card", { vertices: [], edges: [] }, () => 0);
+  assert.equal(blocked, game);
+  const nextTurn = playProgressCard({ ...game, turn: 5 }, "red", "new-card", { vertices: [], edges: [] }, () => 0);
+  assert.equal(nextTurn.players[0].progressCards.length, 0);
+});
+
+test("a waited progress victory-point card can be revealed to win", () => {
+  const game = {
+    ruleset: "cities-knights",
+    turn: 8,
+    victoryTarget: 13,
+    players: [{
+      id: "red",
+      name: "Red",
+      points: 12,
+      progressVictoryPoints: 0,
+      resources: {},
+      progressCards: [{ id: "printing", type: "printing", color: "science", drawnTurn: 7 }],
+    }],
+    citiesKnights: { progressDecks: { science: [], trade: [], politics: [] } },
+    log: [],
+  };
+  const won = playProgressCard(game, "red", "printing", { vertices: [], edges: [] });
+  assert.equal(won.players[0].points, 13);
+  assert.equal(won.players[0].progressVictoryPoints, 1);
+  assert.equal(won.winnerId, "red");
 });
 
 test("knights promote one level at a time and mighty knights require politics level 3", () => {

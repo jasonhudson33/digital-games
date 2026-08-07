@@ -36,7 +36,7 @@ export const ALL_CARD_TYPES = [...RESOURCE_TYPES, ...COMMODITY_TYPES];
 
 export const DEVELOPMENT_CARD_INFO = {
   knight: { label: "Knight", description: "Move the robber and steal from an adjacent player." },
-  victoryPoint: { label: "Victory Point", description: "A hidden victory point." },
+  victoryPoint: { label: "Victory Point", description: "Play on a later turn to reveal one victory point." },
   roadBuilding: { label: "Road Building", description: "Build 2 roads—or ships in Seafarers—for free." },
   yearOfPlenty: { label: "Year of Plenty", description: "Take any 2 resources from the supply." },
   monopoly: { label: "Monopoly", description: "Choose a resource; every player gives you all of that resource." },
@@ -58,7 +58,7 @@ export const PROGRESS_CARD_INFO = {
   irrigation: { color: "science", label: "Irrigation", description: "Gain two grain for each fields hex beside one of your buildings." },
   medicine: { color: "science", label: "Medicine", description: "Upgrade a settlement for one grain and two ore." },
   mining: { color: "science", label: "Mining", description: "Gain two ore for each mountains hex beside one of your buildings." },
-  printing: { color: "science", label: "Printing", description: "Reveal immediately for one victory point.", victoryPoint: true },
+  printing: { color: "science", label: "Printing", description: "Play on a later turn for one victory point.", victoryPoint: true },
   roadBuildingProgress: { color: "science", label: "Road Building", description: "Build two roads or eligible ships for free." },
   smithing: { color: "science", label: "Smithing", description: "Promote up to two different knights for free." },
   commercialHarbor: { color: "trade", label: "Commercial Harbor", description: "Offer each player a resource for one commodity." },
@@ -72,7 +72,7 @@ export const PROGRESS_CARD_INFO = {
   encouragement: { color: "politics", label: "Encouragement", description: "Activate all of your knights for free." },
   intrigue: { color: "politics", label: "Intrigue", description: "Displace an opponent’s knight connected to one of your routes." },
   taxation: { color: "politics", label: "Taxation", description: "Move the robber and steal one random card from every adjacent opponent." },
-  constitution: { color: "politics", label: "Constitution", description: "Reveal immediately for one victory point.", victoryPoint: true },
+  constitution: { color: "politics", label: "Constitution", description: "Play on a later turn for one victory point.", victoryPoint: true },
   treason: { color: "politics", label: "Treason", description: "An opponent removes a knight; you may replace it with your own." },
   wedding: { color: "politics", label: "Wedding", description: "Players with more victory points give you two cards." },
   sabotage: { color: "politics", label: "Sabotage", description: "Players with at least your victory points discard half their hand." },
@@ -96,6 +96,431 @@ export const PROGRESS_DECKS = {
     ...repeatedCards("treason", 2), ...repeatedCards("wedding", 2), ...repeatedCards("sabotage", 2),
   ],
 };
+
+const PROGRESS_CARD_TYPE_LABELS = {
+  wood: "Lumber", brick: "Brick", sheep: "Wool", wheat: "Grain", ore: "Ore",
+  paper: "Paper", cloth: "Cloth", coin: "Coin",
+};
+
+const progressOptions = (types) => types.map((id) => ({ id, label: PROGRESS_CARD_TYPE_LABELS[id] ?? String(id) }));
+
+function progressLog(game, message) {
+  return { ...game, log: [message, ...(game.log ?? [])].slice(0, 24) };
+}
+
+function finishProgress(game, message) {
+  const winner = game.players.find((player) => totalVictoryPoints(player) >= game.victoryTarget);
+  return progressLog({ ...game, pendingProgress: null, winnerId: game.winnerId ?? winner?.id ?? null }, message);
+}
+
+function returnPlayedProgressCard(game, playerId, card) {
+  return {
+    ...game,
+    players: game.players.map((player) => player.id === playerId
+      ? { ...player, progressCards: player.progressCards.filter((candidate) => candidate.id !== card.id) }
+      : player),
+    citiesKnights: {
+      ...game.citiesKnights,
+      progressDecks: {
+        ...game.citiesKnights.progressDecks,
+        [card.color]: [...(game.citiesKnights.progressDecks?.[card.color] ?? []), card.type],
+      },
+    },
+  };
+}
+
+function resourceTotal(player, types = ALL_CARD_TYPES) {
+  return types.reduce((sum, type) => sum + (player.resources?.[type] ?? 0), 0);
+}
+
+function randomCardType(player, types, random) {
+  const available = types.flatMap((type) => Array.from({ length: player.resources?.[type] ?? 0 }, () => type));
+  return available.length ? available[Math.floor(random() * available.length)] : null;
+}
+
+function transferRandomCards(players, fromPlayerId, toPlayerId, count, types, random) {
+  const next = players.map((player) => ({ ...player, resources: { ...player.resources } }));
+  const from = next.find((player) => player.id === fromPlayerId);
+  const to = next.find((player) => player.id === toPlayerId);
+  let moved = 0;
+  while (from && to && moved < count) {
+    const type = randomCardType(from, types, random);
+    if (!type) break;
+    from.resources[type] -= 1;
+    to.resources[type] = (to.resources[type] ?? 0) + 1;
+    moved += 1;
+  }
+  return { players: next, moved };
+}
+
+function adjacentProducingTileIds(game, board, playerId, resource) {
+  const tileIds = new Set();
+  Object.entries(game.settlements ?? {}).forEach(([vertexId, building]) => {
+    if (building.playerId !== playerId) return;
+    const vertex = board?.vertices?.find((candidate) => candidate.id === vertexId);
+    vertex?.tileIds?.forEach((tileId) => {
+      if (game.tiles.find((tile) => tile.id === tileId)?.resource === resource) tileIds.add(tileId);
+    });
+  });
+  return tileIds;
+}
+
+function ownRouteTouchesVertex(game, board, playerId, vertexId) {
+  return (board?.edges ?? []).some((edge) => (edge.from === vertexId || edge.to === vertexId)
+    && (game.roads?.[edge.id] === playerId || game.ships?.[edge.id] === playerId));
+}
+
+function openRouteOptions(game, board) {
+  return (board?.edges ?? []).flatMap((edge) => {
+    const ownerId = game.roads?.[edge.id] ?? game.ships?.[edge.id];
+    if (!ownerId) return [];
+    const isOpen = [edge.from, edge.to].some((vertexId) => {
+      if (game.settlements?.[vertexId]?.playerId === ownerId) return false;
+      const connected = (board.edges ?? []).filter((candidate) => candidate.id !== edge.id
+        && (candidate.from === vertexId || candidate.to === vertexId)
+        && (game.roads?.[candidate.id] === ownerId || game.ships?.[candidate.id] === ownerId));
+      return connected.length === 0;
+    });
+    const owner = game.players.find((player) => player.id === ownerId);
+    return isOpen ? [{ id: edge.id, label: `${owner?.name ?? "Player"} · ${game.ships?.[edge.id] ? "ship" : "road"}` }] : [];
+  });
+}
+
+function pendingProgress(game, type, stage, playerId, options, extra = {}) {
+  return { ...game, pendingProgress: { type, stage, playerId, chooserId: playerId, options, ...extra } };
+}
+
+export function playProgressCard(game, playerId, cardId, board, random = Math.random) {
+  if (!hasCitiesKnights(game) || game.pendingProgress || game.pendingSeven || game.pendingDevelopment) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  const card = player?.progressCards?.find((candidate) => candidate.id === cardId);
+  if (!card || (Number.isInteger(card.drawnTurn) && card.drawnTurn === game.turn)) return game;
+  let next = returnPlayedProgressCard(game, playerId, card);
+  const playedMessage = `${player.name} played ${PROGRESS_CARD_INFO[card.type].label}.`;
+
+  if (PROGRESS_CARD_INFO[card.type]?.victoryPoint) {
+    next = {
+      ...next,
+      players: next.players.map((candidate) => candidate.id === playerId
+        ? { ...candidate, points: candidate.points + 1, progressVictoryPoints: (candidate.progressVictoryPoints ?? 0) + 1 }
+        : candidate),
+    };
+    return finishProgress(next, `${playedMessage} ${player.name} revealed one victory point.`);
+  }
+
+  if (card.type === "irrigation" || card.type === "mining") {
+    const resource = card.type === "irrigation" ? "wheat" : "ore";
+    const amount = adjacentProducingTileIds(next, board, playerId, resource).size * 2;
+    next = {
+      ...next,
+      players: next.players.map((candidate) => candidate.id === playerId
+        ? { ...candidate, resources: { ...candidate.resources, [resource]: candidate.resources[resource] + amount } }
+        : candidate),
+    };
+    return finishProgress(next, `${playedMessage} ${player.name} received ${amount} ${PROGRESS_CARD_TYPE_LABELS[resource].toLowerCase()}.`);
+  }
+  if (card.type === "crane") {
+    const cranePlayerIds = [...new Set([...(next.citiesKnights.cranePlayerIds ?? []), playerId])];
+    return finishProgress({ ...next, citiesKnights: { ...next.citiesKnights, cranePlayerIds } }, `${playedMessage} Their next city improvement costs one fewer commodity.`);
+  }
+  if (card.type === "roadBuildingProgress") {
+    return progressLog({ ...next, pendingDevelopment: { type: "roadBuilding", remaining: 2, playerId, source: "progress" } }, playedMessage);
+  }
+  if (card.type === "encouragement") {
+    const knights = Object.fromEntries(Object.entries(next.citiesKnights.knights ?? {}).map(([vertexId, knight]) => [vertexId, knight.playerId === playerId ? { ...knight, active: true } : knight]));
+    return finishProgress({ ...next, citiesKnights: { ...next.citiesKnights, knights } }, `${playedMessage} All of ${player.name}'s knights are active.`);
+  }
+  if (card.type === "wedding") {
+    let players = next.players;
+    let moved = 0;
+    for (const opponent of next.players.filter((candidate) => candidate.id !== playerId && totalVictoryPoints(candidate) > totalVictoryPoints(player))) {
+      const transfer = transferRandomCards(players, opponent.id, playerId, 2, ALL_CARD_TYPES, random);
+      players = transfer.players;
+      moved += transfer.moved;
+    }
+    return finishProgress({ ...next, players }, `${playedMessage} Players with more victory points gave ${moved} hidden card${moved === 1 ? "" : "s"}.`);
+  }
+  if (card.type === "sabotage") {
+    const targets = next.players.filter((candidate) => candidate.id !== playerId && totalVictoryPoints(candidate) >= totalVictoryPoints(player) && resourceTotal(candidate) > 1);
+    const discardCounts = Object.fromEntries(targets.map((candidate) => [candidate.id, Math.floor(resourceTotal(candidate) / 2)]));
+    return progressLog({
+      ...next,
+      pendingSeven: targets.length ? { phase: "discard", source: "sabotage", remainingDiscardPlayerIds: targets.map((candidate) => candidate.id), discardCounts, afterDiscardPhase: null } : null,
+    }, targets.length ? `${playedMessage} Eligible opponents must discard half their cards.` : `${playedMessage} No opponent had to discard.`);
+  }
+  if (card.type === "taxation") {
+    return progressLog({ ...next, pendingSeven: { phase: "moveRobber", source: "bishop", remainingDiscardPlayerIds: [], discardCounts: {} } }, playedMessage);
+  }
+
+  if (card.type === "alchemy") return progressLog(pendingProgress(next, card.type, "firstDie", playerId, progressOptions([1, 2, 3, 4, 5, 6])), playedMessage);
+  if (card.type === "engineering") {
+    const options = Object.entries(next.settlements ?? {}).filter(([vertexId, building]) => building.playerId === playerId && building.type === "city" && !next.citiesKnights.cityWalls?.[vertexId]).map(([id], index) => ({ id, label: `City ${index + 1}` }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "city", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} There was no city without a wall.`);
+  }
+  if (card.type === "invention") {
+    const options = next.tiles.filter((tile) => tile.number && ![2, 6, 8, 12].includes(tile.number)).map((tile) => ({ id: String(tile.id), label: `${tile.number} · ${tile.resource}` }));
+    return options.length >= 2 ? progressLog(pendingProgress(next, card.type, "firstTile", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} There were not two eligible number tokens.`);
+  }
+  if (card.type === "medicine") {
+    const canPay = (player.resources.wheat ?? 0) >= 1 && (player.resources.ore ?? 0) >= 2;
+    const options = canPay ? Object.entries(next.settlements ?? {}).filter(([, building]) => building.playerId === playerId && building.type === "settlement").map(([id], index) => ({ id, label: `Settlement ${index + 1}` })) : [];
+    return options.length ? progressLog(pendingProgress(next, card.type, "settlement", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No affordable settlement could be upgraded.`);
+  }
+  if (card.type === "smithing") {
+    const options = Object.entries(next.citiesKnights.knights ?? {}).filter(([vertexId, knight]) => knight.playerId === playerId && knight.level < 3 && (knight.level < 2 || (next.citiesKnights.improvements?.[playerId]?.politics ?? 0) >= 3)).map(([id, knight], index) => ({ id, label: `Knight ${index + 1} · level ${knight.level}` }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "knight", playerId, [...options, { id: "done", label: "Finish" }], { remaining: 2, promotedVertexIds: [] }), playedMessage) : finishProgress(next, `${playedMessage} No knight could be promoted.`);
+  }
+  if (card.type === "commercialHarbor") {
+    const options = next.players.filter((candidate) => candidate.id !== playerId).map((candidate) => ({ id: candidate.id, label: candidate.name }));
+    return options.length && resourceTotal(player, RESOURCE_TYPES) ? progressLog(pendingProgress(next, card.type, "target", playerId, options, { remainingPlayerIds: options.map((option) => option.id) }), playedMessage) : finishProgress(next, `${playedMessage} No trade was possible.`);
+  }
+  if (card.type === "guildDues") {
+    const options = next.players.filter((candidate) => candidate.id !== playerId && totalVictoryPoints(candidate) > totalVictoryPoints(player) && resourceTotal(candidate) > 0).map((candidate) => ({ id: candidate.id, label: `${candidate.name} · ${resourceTotal(candidate)} cards` }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "target", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No player had more victory points and cards.`);
+  }
+  if (card.type === "merchant") {
+    const tileIds = new Set();
+    Object.entries(next.settlements ?? {}).forEach(([vertexId, building]) => {
+      if (building.playerId !== playerId) return;
+      const vertex = board?.vertices?.find((candidate) => candidate.id === vertexId);
+      vertex?.tileIds?.forEach((tileId) => {
+        const tile = next.tiles.find((candidate) => candidate.id === tileId);
+        if (RESOURCE_TYPES.includes(tile?.resource)) tileIds.add(tileId);
+      });
+    });
+    const options = [...tileIds].map((tileId) => { const tile = next.tiles.find((candidate) => candidate.id === tileId); return { id: String(tileId), label: `${PROGRESS_CARD_TYPE_LABELS[tile.resource]} · ${tile.number}` }; });
+    return options.length ? progressLog(pendingProgress(next, card.type, "tile", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No adjacent producing tile was eligible.`);
+  }
+  if (card.type === "merchantFleet") return progressLog(pendingProgress(next, card.type, "cardType", playerId, progressOptions(ALL_CARD_TYPES)), playedMessage);
+  if (card.type === "resourceMonopolyProgress") return progressLog(pendingProgress(next, card.type, "cardType", playerId, progressOptions(RESOURCE_TYPES)), playedMessage);
+  if (card.type === "tradeMonopoly") return progressLog(pendingProgress(next, card.type, "cardType", playerId, progressOptions(COMMODITY_TYPES)), playedMessage);
+  if (card.type === "diplomacy") {
+    const options = openRouteOptions(next, board);
+    return options.length ? progressLog(pendingProgress(next, card.type, "route", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No open route could be removed.`);
+  }
+  if (card.type === "espionage") {
+    const options = next.players.filter((candidate) => candidate.id !== playerId && candidate.progressCards?.length).map((candidate) => ({ id: candidate.id, label: `${candidate.name} · ${candidate.progressCards.length} cards` }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "target", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No opponent held a progress card.`);
+  }
+  if (card.type === "intrigue") {
+    const options = Object.entries(next.citiesKnights.knights ?? {}).filter(([vertexId, knight]) => knight.playerId !== playerId && ownRouteTouchesVertex(next, board, playerId, vertexId)).map(([id, knight], index) => ({ id, label: `Opponent knight ${index + 1} · level ${knight.level}` }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "knight", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No opponent knight touched their route.`);
+  }
+  if (card.type === "treason") {
+    const options = next.players.filter((candidate) => candidate.id !== playerId && Object.values(next.citiesKnights.knights ?? {}).some((knight) => knight.playerId === candidate.id)).map((candidate) => ({ id: candidate.id, label: candidate.name }));
+    return options.length ? progressLog(pendingProgress(next, card.type, "target", playerId, options), playedMessage) : finishProgress(next, `${playedMessage} No opponent had a knight.`);
+  }
+  return finishProgress(next, playedMessage);
+}
+
+export function resolveProgressCardChoice(game, chooserId, choice, board, random = Math.random) {
+  const pending = game.pendingProgress;
+  if (!pending || pending.chooserId !== chooserId || !pending.options?.some((option) => String(option.id) === String(choice))) return game;
+  const player = game.players.find((candidate) => candidate.id === pending.playerId);
+  const selected = String(choice);
+
+  if (pending.type === "alchemy") {
+    if (pending.stage === "firstDie") {
+      return { ...game, pendingProgress: { ...pending, stage: "secondDie", firstDie: Number(choice), options: progressOptions([1, 2, 3, 4, 5, 6]) } };
+    }
+    return finishProgress({
+      ...game,
+      citiesKnights: { ...game.citiesKnights, alchemyDice: { playerId: pending.playerId, dice: [pending.firstDie, Number(choice)] } },
+    }, `${player.name} chose ${pending.firstDie} and ${Number(choice)} for the production dice.`);
+  }
+  if (pending.type === "engineering") {
+    return finishProgress({
+      ...game,
+      citiesKnights: { ...game.citiesKnights, cityWalls: { ...game.citiesKnights.cityWalls, [choice]: pending.playerId } },
+    }, `${player.name} built a city wall for free.`);
+  }
+  if (pending.type === "invention") {
+    if (pending.stage === "firstTile") {
+      return {
+        ...game,
+        pendingProgress: {
+          ...pending,
+          stage: "secondTile",
+          firstTileId: choice,
+          options: pending.options.filter((option) => String(option.id) !== selected),
+        },
+      };
+    }
+    const firstTile = game.tiles.find((tile) => String(tile.id) === String(pending.firstTileId));
+    const secondTile = game.tiles.find((tile) => String(tile.id) === selected);
+    if (!firstTile || !secondTile) return game;
+    const tiles = game.tiles.map((tile) => tile.id === firstTile.id
+      ? { ...tile, number: secondTile.number }
+      : tile.id === secondTile.id
+        ? { ...tile, number: firstTile.number }
+        : tile);
+    return finishProgress({ ...game, tiles }, `${player.name} swapped the ${firstTile.number} and ${secondTile.number} number tokens.`);
+  }
+  if (pending.type === "medicine") {
+    const settlement = game.settlements[choice];
+    if (settlement?.playerId !== pending.playerId || settlement.type !== "settlement" || player.resources.wheat < 1 || player.resources.ore < 2) return game;
+    return finishProgress({
+      ...game,
+      players: game.players.map((candidate) => candidate.id === pending.playerId ? {
+        ...candidate,
+        points: candidate.points + 1,
+        resources: { ...candidate.resources, wheat: candidate.resources.wheat - 1, ore: candidate.resources.ore - 2 },
+      } : candidate),
+      settlements: { ...game.settlements, [choice]: { ...settlement, type: "city" } },
+    }, `${player.name} used Medicine to upgrade a settlement for 1 grain and 2 ore.`);
+  }
+  if (pending.type === "smithing") {
+    if (choice === "done") return finishProgress(game, `${player.name} finished resolving Smithing.`);
+    const knight = game.citiesKnights.knights?.[choice];
+    if (!knight || knight.playerId !== pending.playerId || knight.level >= 3) return game;
+    const knights = { ...game.citiesKnights.knights, [choice]: { ...knight, level: knight.level + 1 } };
+    const remaining = pending.remaining - 1;
+    const promotedVertexIds = [...pending.promotedVertexIds, choice];
+    const options = Object.entries(knights).filter(([vertexId, candidate]) => candidate.playerId === pending.playerId && candidate.level < 3 && !promotedVertexIds.includes(vertexId) && (candidate.level < 2 || (game.citiesKnights.improvements?.[pending.playerId]?.politics ?? 0) >= 3)).map(([id, candidate], index) => ({ id, label: `Knight ${index + 1} · level ${candidate.level}` }));
+    const updated = { ...game, citiesKnights: { ...game.citiesKnights, knights } };
+    return remaining > 0 && options.length
+      ? { ...updated, pendingProgress: { ...pending, remaining, promotedVertexIds, options: [...options, { id: "done", label: "Finish" }] } }
+      : finishProgress(updated, `${player.name} promoted ${promotedVertexIds.length} knight${promotedVertexIds.length === 1 ? "" : "s"} for free.`);
+  }
+  if (pending.type === "commercialHarbor") {
+    if (pending.stage === "target") {
+      const resourceOptions = RESOURCE_TYPES.filter((type) => player.resources[type] > 0);
+      return resourceOptions.length ? {
+        ...game,
+        pendingProgress: { ...pending, stage: "resource", targetPlayerId: choice, options: progressOptions(resourceOptions) },
+      } : finishProgress(game, `${player.name} had no resource left to offer.`);
+    }
+    if (pending.stage === "resource") {
+      const target = game.players.find((candidate) => candidate.id === pending.targetPlayerId);
+      const commodityOptions = COMMODITY_TYPES.filter((type) => target?.resources?.[type] > 0);
+      const remainingPlayerIds = pending.remainingPlayerIds.filter((id) => id !== pending.targetPlayerId);
+      if (!commodityOptions.length) {
+        const options = game.players.filter((candidate) => remainingPlayerIds.includes(candidate.id)).map((candidate) => ({ id: candidate.id, label: candidate.name }));
+        return options.length ? { ...game, pendingProgress: { ...pending, stage: "target", targetPlayerId: null, chooserId: pending.playerId, remainingPlayerIds, options } } : finishProgress(game, `${player.name} finished Commercial Harbor.`);
+      }
+      return {
+        ...game,
+        pendingProgress: { ...pending, stage: "commodity", offeredResource: choice, chooserId: pending.targetPlayerId, remainingPlayerIds, options: progressOptions(commodityOptions) },
+      };
+    }
+    const target = game.players.find((candidate) => candidate.id === chooserId);
+    const players = game.players.map((candidate) => {
+      if (candidate.id === pending.playerId) return { ...candidate, resources: { ...candidate.resources, [pending.offeredResource]: candidate.resources[pending.offeredResource] - 1, [choice]: candidate.resources[choice] + 1 } };
+      if (candidate.id === chooserId) return { ...candidate, resources: { ...candidate.resources, [pending.offeredResource]: candidate.resources[pending.offeredResource] + 1, [choice]: candidate.resources[choice] - 1 } };
+      return candidate;
+    });
+    const options = players.filter((candidate) => pending.remainingPlayerIds.includes(candidate.id)).map((candidate) => ({ id: candidate.id, label: candidate.name }));
+    const updated = { ...game, players };
+    return options.length ? { ...updated, pendingProgress: { ...pending, stage: "target", chooserId: pending.playerId, targetPlayerId: null, offeredResource: null, options } } : finishProgress(updated, `${player.name} finished Commercial Harbor after trading with ${target.name}.`);
+  }
+  if (pending.type === "guildDues") {
+    if (pending.stage === "target") {
+      const target = game.players.find((candidate) => candidate.id === choice);
+      const options = progressOptions(ALL_CARD_TYPES.filter((type) => target.resources[type] > 0));
+      return { ...game, pendingProgress: { ...pending, stage: "card", targetPlayerId: choice, remaining: 2, options } };
+    }
+    const players = game.players.map((candidate) => {
+      if (candidate.id === pending.playerId) return { ...candidate, resources: { ...candidate.resources, [choice]: candidate.resources[choice] + 1 } };
+      if (candidate.id === pending.targetPlayerId) return { ...candidate, resources: { ...candidate.resources, [choice]: candidate.resources[choice] - 1 } };
+      return candidate;
+    });
+    const target = players.find((candidate) => candidate.id === pending.targetPlayerId);
+    const remaining = pending.remaining - 1;
+    const options = progressOptions(ALL_CARD_TYPES.filter((type) => target.resources[type] > 0));
+    return remaining > 0 && options.length ? { ...game, players, pendingProgress: { ...pending, remaining, options } } : finishProgress({ ...game, players }, `${player.name} took ${2 - remaining} card${2 - remaining === 1 ? "" : "s"} with Master Merchant.`);
+  }
+  if (pending.type === "merchant") {
+    const tile = game.tiles.find((candidate) => String(candidate.id) === selected);
+    if (!tile) return game;
+    const previousHolderId = game.citiesKnights.merchant?.playerId;
+    const players = game.players.map((candidate) => candidate.id === pending.playerId
+      ? { ...candidate, points: candidate.points + (previousHolderId === pending.playerId ? 0 : 1) }
+      : candidate.id === previousHolderId
+        ? { ...candidate, points: Math.max(0, candidate.points - 1) }
+        : candidate);
+    return finishProgress({ ...game, players, citiesKnights: { ...game.citiesKnights, merchant: { playerId: pending.playerId, tileId: tile.id, resource: tile.resource } } }, `${player.name} placed the Merchant on ${PROGRESS_CARD_TYPE_LABELS[tile.resource]} and gained 1 victory point.`);
+  }
+  if (pending.type === "merchantFleet") {
+    return finishProgress({ ...game, citiesKnights: { ...game.citiesKnights, merchantFleet: { playerId: pending.playerId, cardType: choice } } }, `${player.name} may trade ${PROGRESS_CARD_TYPE_LABELS[choice]} at 2:1 for the rest of the turn.`);
+  }
+  if (pending.type === "resourceMonopolyProgress" || pending.type === "tradeMonopoly") {
+    const limit = pending.type === "resourceMonopolyProgress" ? 2 : 1;
+    let collected = 0;
+    const players = game.players.map((candidate) => {
+      if (candidate.id === pending.playerId) return candidate;
+      const amount = Math.min(limit, candidate.resources[choice]);
+      collected += amount;
+      return { ...candidate, resources: { ...candidate.resources, [choice]: candidate.resources[choice] - amount } };
+    }).map((candidate) => candidate.id === pending.playerId ? { ...candidate, resources: { ...candidate.resources, [choice]: candidate.resources[choice] + collected } } : candidate);
+    return finishProgress({ ...game, players }, `${player.name} collected ${collected} ${PROGRESS_CARD_TYPE_LABELS[choice]} card${collected === 1 ? "" : "s"}.`);
+  }
+  if (pending.type === "diplomacy") {
+    const wasRoad = Boolean(game.roads?.[choice]);
+    const ownerId = game.roads?.[choice] ?? game.ships?.[choice];
+    const roads = { ...game.roads };
+    const ships = { ...game.ships };
+    delete roads[choice];
+    delete ships[choice];
+    const updated = { ...game, roads, ships };
+    return ownerId === pending.playerId
+      ? progressLog({ ...updated, pendingProgress: null, pendingDevelopment: { type: "roadBuilding", remaining: 1, playerId: pending.playerId, source: "diplomacy", fixedKind: wasRoad ? "road" : "ship" } }, `${player.name} removed their own open route and may replace it for free.`)
+      : finishProgress(updated, `${player.name} removed an opponent's open route.`);
+  }
+  if (pending.type === "espionage") {
+    if (pending.stage === "target") {
+      const target = game.players.find((candidate) => candidate.id === choice);
+      const options = target.progressCards.map((card) => ({ id: card.id, label: PROGRESS_CARD_INFO[card.type].label }));
+      return { ...game, pendingProgress: { ...pending, stage: "card", targetPlayerId: choice, options } };
+    }
+    const target = game.players.find((candidate) => candidate.id === pending.targetPlayerId);
+    const card = target?.progressCards.find((candidate) => candidate.id === choice);
+    if (!card) return game;
+    const players = game.players.map((candidate) => candidate.id === pending.playerId
+      ? { ...candidate, progressCards: [...candidate.progressCards, card] }
+      : candidate.id === pending.targetPlayerId
+        ? { ...candidate, progressCards: candidate.progressCards.filter((candidateCard) => candidateCard.id !== card.id) }
+        : candidate);
+    return finishProgress({ ...game, players }, `${player.name} took one progress card with Spy.`);
+  }
+  if (pending.type === "intrigue") {
+    if (pending.stage === "knight") {
+      const knight = game.citiesKnights.knights[choice];
+      if (!knight || knight.playerId === pending.playerId) return game;
+      const options = (board?.vertices ?? []).filter((vertex) => vertex.id !== choice && !game.settlements?.[vertex.id] && !game.citiesKnights.knights?.[vertex.id] && ownRouteTouchesVertex(game, board, knight.playerId, vertex.id)).map((vertex, index) => ({ id: vertex.id, label: `Connected intersection ${index + 1}` }));
+      if (options.length) {
+        return { ...game, pendingProgress: { ...pending, stage: "relocateKnight", chooserId: knight.playerId, sourceVertexId: choice, displacedKnight: knight, options } };
+      }
+      const knights = { ...game.citiesKnights.knights };
+      delete knights[choice];
+      return finishProgress({ ...game, citiesKnights: { ...game.citiesKnights, knights } }, `${player.name} displaced an opponent's knight off the board.`);
+    }
+    const knights = { ...game.citiesKnights.knights };
+    delete knights[pending.sourceVertexId];
+    knights[choice] = pending.displacedKnight;
+    return finishProgress({ ...game, citiesKnights: { ...game.citiesKnights, knights } }, `${player.name} displaced an opponent's knight to a connected intersection.`);
+  }
+  if (pending.type === "treason") {
+    if (pending.stage === "target") {
+      const options = Object.entries(game.citiesKnights.knights).filter(([, knight]) => knight.playerId === choice).map(([id, knight], index) => ({ id, label: `Knight ${index + 1} · level ${knight.level}` }));
+      return { ...game, pendingProgress: { ...pending, stage: "opponentKnight", chooserId: choice, targetPlayerId: choice, options } };
+    }
+    if (pending.stage === "opponentKnight") {
+      const knight = game.citiesKnights.knights[choice];
+      if (!knight || knight.playerId !== chooserId) return game;
+      const knights = { ...game.citiesKnights.knights };
+      delete knights[choice];
+      const options = (board?.vertices ?? []).filter((vertex) => !game.settlements?.[vertex.id] && !knights[vertex.id] && ownRouteTouchesVertex(game, board, pending.playerId, vertex.id)).map((vertex, index) => ({ id: vertex.id, label: `Open route intersection ${index + 1}` }));
+      const updated = { ...game, citiesKnights: { ...game.citiesKnights, knights } };
+      return options.length ? { ...updated, pendingProgress: { ...pending, stage: "placeKnight", chooserId: pending.playerId, removedLevel: knight.level, options: [...options, { id: "skip", label: "Do not replace" }] } } : finishProgress(updated, `${player.name}'s opponent removed a knight.`);
+    }
+    if (choice === "skip") return finishProgress(game, `${player.name} chose not to replace the deserted knight.`);
+    return finishProgress({
+      ...game,
+      citiesKnights: { ...game.citiesKnights, knights: { ...game.citiesKnights.knights, [choice]: { playerId: pending.playerId, level: pending.removedLevel, active: false } } },
+    }, `${player.name} replaced the deserted knight at equal strength.`);
+  }
+  return game;
+}
 
 export function progressCardEligible(improvementLevel, redDie) {
   return improvementLevel > 0 && redDie >= 1 && redDie <= Math.min(6, improvementLevel + 1);
@@ -308,6 +733,10 @@ export function createCitiesKnightsState(players) {
     cityWalls: {},
     promotedKnightIdsThisTurn: [],
     progressDecks: { science: [], trade: [], politics: [] },
+    cranePlayerIds: [],
+    merchant: null,
+    merchantFleet: null,
+    alchemyDice: null,
     improvements: Object.fromEntries(players.map((player) => [player.id, { trade: 0, politics: 0, science: 0 }])),
     metropolises: { trade: null, politics: null, science: null },
   };
