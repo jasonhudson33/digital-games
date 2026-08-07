@@ -192,6 +192,20 @@ input {
     linear-gradient(145deg, #b92f34, #7f2228 62%, #183f4e);
 }
 
+.game-card.hearts {
+  color: #fff8ef;
+  border-color: rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 98, 85, 0.52), transparent 25%),
+    radial-gradient(circle at 12% 92%, rgba(31, 114, 88, 0.5), transparent 30%),
+    linear-gradient(145deg, #8f1f28, #421a21 68%, #142b25);
+}
+
+.game-card.hearts .game-status {
+  color: #fff4e8;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .game-card.catan .game-status {
   color: #fff5d6;
   background: rgba(255, 255, 255, 0.12);

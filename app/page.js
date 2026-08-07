@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Hearts",
+    href: "/hearts",
+    status: "New · Two ways to play",
+    description:
+      "Play Classic Hearts or remove every guardrail with fast, unforgiving Killer Hearts.",
+    tone: "hearts",
+  },
+  {
     name: "7-Up",
     href: "/seven-up",
     status: "Ready to play",
@@ -52,7 +60,7 @@ export default function Page() {
           <Link
             key={game.name}
             href={game.href}
-            className={`game-card ${game.tone === "night" ? "night" : game.tone === "catan" ? "catan" : "warm"}`}
+            className={`game-card ${game.tone}`}
           >
             <span className="game-status">{game.status}</span>
             <h2>{game.name}</h2>
