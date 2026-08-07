@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
+import { PROGRESS_DECKS } from "./catan-rules";
 
 const channelName = "catan-room-updates";
 
@@ -147,14 +148,34 @@ function normalizeState(state) {
     pendingTrade: state.pendingTrade
       ? { ...state.pendingTrade, declinedPlayerIds: state.pendingTrade.declinedPlayerIds ?? [] }
       : null,
+    pendingDevelopment: state.pendingDevelopment ?? null,
+    pendingCityLoss: state.pendingCityLoss ?? null,
+    pendingProgressDiscard: state.pendingProgressDiscard ?? null,
     pairedTurn: state.pairedTurn ?? null,
     ports: state.ports ?? [],
     ships: state.ships ?? {},
     pirateTileId: state.pirateTileId ?? null,
     movedShipThisTurn: state.movedShipThisTurn ?? false,
     builtShipsThisTurn: state.builtShipsThisTurn ?? [],
+    developmentDeck: state.developmentDeck ?? [],
+    developmentCardPlayedThisTurn: state.developmentCardPlayedThisTurn ?? false,
+    longestRoadPlayerId: state.longestRoadPlayerId ?? null,
+    longestRouteLengths: state.longestRouteLengths ?? {},
+    largestArmyPlayerId: state.largestArmyPlayerId ?? null,
+    barbarianAlert: state.barbarianAlert ?? null,
     robberInactiveTileId: state.robberInactiveTileId ?? null,
-    citiesKnights: state.citiesKnights ?? null,
+    citiesKnights: state.citiesKnights
+      ? {
+          ...state.citiesKnights,
+          attacks: state.citiesKnights.attacks ?? 0,
+          knights: state.citiesKnights.knights ?? {},
+          cityWalls: state.citiesKnights.cityWalls ?? {},
+          promotedKnightIdsThisTurn: state.citiesKnights.promotedKnightIdsThisTurn ?? [],
+          progressDecks: Object.fromEntries(Object.entries(PROGRESS_DECKS).map(([color, deck]) => [color, state.citiesKnights.progressDecks?.[color] ?? [...deck]])),
+          improvements: Object.fromEntries((state.players ?? []).map((player) => [player.id, { trade: 0, politics: 0, science: 0, ...(state.citiesKnights.improvements?.[player.id] ?? {}) }])),
+          metropolises: { trade: null, politics: null, science: null, ...(state.citiesKnights.metropolises ?? {}) },
+        }
+      : null,
     board,
     boardVariant: state.boardVariant ?? null,
     players: (state.players ?? []).map((player) => ({
@@ -162,6 +183,11 @@ function normalizeState(state) {
       resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0, ...(player.resources ?? {}) },
       settledIslandIds: player.settledIslandIds ?? [],
       defenderPoints: player.defenderPoints ?? 0,
+      hiddenVictoryPoints: player.hiddenVictoryPoints ?? 0,
+      developmentCards: player.developmentCards ?? [],
+      playedKnights: player.playedKnights ?? 0,
+      progressCards: player.progressCards ?? [],
+      progressVictoryPoints: player.progressVictoryPoints ?? 0,
     })),
   };
 }

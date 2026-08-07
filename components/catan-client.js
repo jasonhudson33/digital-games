@@ -28,10 +28,14 @@ import {
   cardTypesFor,
   CATAN_RULESETS,
   canProvideTradeResources,
+  canPromoteKnight,
   cityProduction,
   COMMODITY_TYPES,
   createCitiesKnightsState,
   createPairedTurn,
+  DEVELOPMENT_CARD_INFO,
+  DEVELOPMENT_DECK,
+  eligiblePirateVictimIds,
   getPortTradeRate,
   handLimitFor,
   hasCitiesKnights,
@@ -39,11 +43,21 @@ import {
   numberDeckForPlayers,
   normalizeRuleset,
   portTypesForPlayers,
+  pillageChosenCity,
+  PROGRESS_CARD_INFO,
+  PROGRESS_DECKS,
+  progressCardEligible,
+  reconcileCatanAwards,
   RESOURCE_TYPES,
+  resolveBarbarianAttack,
   resolveTradeResponse,
   rollEventDie,
+  SEAFARERS_FOREIGN_TERRAIN_DECK,
+  startingBuildingType,
   terrainDeckForPlayers,
+  totalVictoryPoints,
   usesExpandedBoard,
+  usesDevelopmentCards,
   victoryTargetFor,
 } from "./catan-rules";
 
@@ -79,8 +93,10 @@ const COSTS = {
   ship: { wood: 1, sheep: 1 },
   settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1 },
   city: { wheat: 2, ore: 3 },
+  development: { sheep: 1, wheat: 1, ore: 1 },
   knight: { sheep: 1, ore: 1 },
   activateKnight: { wheat: 1 },
+  promoteKnight: { sheep: 1, ore: 1 },
   cityWall: { brick: 2 },
 };
 
@@ -314,7 +330,7 @@ function createGame(lobby) {
   const board = boardForPlayerCount(lobby.players.length, ruleset);
   const terrainOrder = shuffled(terrainDeckForPlayers(lobby.players.length));
   const mainIslandTerrain = shuffled(terrainDeckForPlayers(4));
-  const foreignTerrain = shuffled(["wood", "sheep", "wheat", "brick", "ore", "gold"]);
+  const foreignTerrain = shuffled(SEAFARERS_FOREIGN_TERRAIN_DECK);
   const numberOrder = shuffled(seafarers ? [...numberDeckForPlayers(6)] : numberDeckForPlayers(lobby.players.length));
   let numberIndex = 0;
   let mainTerrainIndex = 0;
@@ -353,6 +369,11 @@ function createGame(lobby) {
       ...style,
       resources: emptyResources(),
       points: 0,
+      hiddenVictoryPoints: 0,
+      developmentCards: [],
+      playedKnights: 0,
+      progressCards: [],
+      progressVictoryPoints: 0,
       settledIslandIds: [],
       defenderPoints: 0,
     };
@@ -364,6 +385,12 @@ function createGame(lobby) {
     ...players.map((player) => player.id),
     ...[...players].reverse().map((player) => player.id),
   ];
+  const citiesKnightsState = citiesKnightsMode
+    ? {
+        ...createCitiesKnightsState(players),
+        progressDecks: Object.fromEntries(Object.entries(PROGRESS_DECKS).map(([color, deck]) => [color, shuffled(deck)])),
+      }
+    : null;
   return {
     roomCode: lobby.roomCode,
     hostId: lobby.hostId,
@@ -393,10 +420,18 @@ function createGame(lobby) {
     pendingSeven: null,
     pendingGold: null,
     pendingTrade: null,
+    pendingDevelopment: null,
+    pendingCityLoss: null,
+    pendingProgressDiscard: null,
     movedShipThisTurn: false,
     builtShipsThisTurn: [],
+    developmentDeck: usesDevelopmentCards(ruleset) ? shuffled(DEVELOPMENT_DECK) : [],
+    developmentCardPlayedThisTurn: false,
+    longestRoadPlayerId: null,
+    longestRouteLengths: Object.fromEntries(players.map((player) => [player.id, 0])),
+    largestArmyPlayerId: null,
     pairedTurn: createPairedTurn(players),
-    citiesKnights: citiesKnightsMode ? createCitiesKnightsState(players) : null,
+    citiesKnights: citiesKnightsState,
     setup: {
       order: setupOrder,
       index: 0,
@@ -435,8 +470,16 @@ function createLobby(roomCode, playerId, name) {
     pendingSeven: null,
     pendingGold: null,
     pendingTrade: null,
+    pendingDevelopment: null,
+    pendingCityLoss: null,
+    pendingProgressDiscard: null,
     movedShipThisTurn: false,
     builtShipsThisTurn: [],
+    developmentDeck: [],
+    developmentCardPlayedThisTurn: false,
+    longestRoadPlayerId: null,
+    longestRouteLengths: {},
+    largestArmyPlayerId: null,
     pairedTurn: null,
     setup: null,
     log: [`${name} created room ${roomCode}.`],
@@ -462,6 +505,7 @@ export default function CatanClient() {
   const [playerTradeOffer, setPlayerTradeOffer] = useState(emptyResources);
   const [playerTradeRequest, setPlayerTradeRequest] = useState(emptyResources);
   const [shipMoveSource, setShipMoveSource] = useState(null);
+  const [barbarianNotice, setBarbarianNotice] = useState(null);
   const latestGame = useRef(null);
 
   useEffect(() => {
@@ -479,6 +523,21 @@ export default function CatanClient() {
   useEffect(() => {
     latestGame.current = game;
   }, [game]);
+
+  useEffect(() => {
+    if (!game?.barbarianAlert?.id) return undefined;
+    const age = Date.now() - (game.barbarianAlert.createdAt ?? Date.now());
+    if (age >= 3000) {
+      setBarbarianNotice(null);
+      return undefined;
+    }
+    setBarbarianNotice(game.barbarianAlert);
+    const timeoutId = window.setTimeout(() => setBarbarianNotice(null), 3000);
+    return () => {
+      window.clearTimeout(timeoutId);
+      setBarbarianNotice(null);
+    };
+  }, [game?.barbarianAlert?.id]);
 
   useEffect(() => {
     const code = joinCode.trim().toUpperCase();
@@ -513,6 +572,8 @@ export default function CatanClient() {
     : null;
   const discardingPlayer = game?.players.find((player) => player.id === discardingPlayerId);
   const viewerPlayer = game?.players.find((player) => player.id === playerId);
+  const cityLossPlayer = game?.players.find((player) => player.id === game?.pendingCityLoss?.currentPlayerId);
+  const progressDiscardPlayer = game?.players.find((player) => player.id === game?.pendingProgressDiscard?.currentPlayerId);
   const tradePartners = game?.players.filter((player) => player.id !== activePlayer?.id) ?? [];
   const tradePartner = tradePartnerId === "any"
     ? null
@@ -529,7 +590,12 @@ export default function CatanClient() {
   const activePlayerPorts = game?.ports?.filter((port) =>
     [port.from, port.to].some((vertexId) => game.settlements[vertexId]?.playerId === activePlayer?.id),
   ) ?? [];
+  const canPlaceStartingShip = Boolean(game?.setup?.settlementVertexId && hasSeafarers(game) && board.vertexEdges[game.setup.settlementVertexId].some((edgeId) => {
+    const edge = board.edges.find((candidate) => candidate.id === edgeId);
+    return isTransportLegal(board, edge, activePlayer?.id, game.roads, game.ships, game.settlements, "ship", game.tiles, game.pirateTileId, game.citiesKnights?.knights);
+  }));
   const legalVertices = useMemo(() => {
+    if (game?.pendingCityLoss?.currentPlayerId === playerId) return new Set(game.pendingCityLoss.eligibleVertexIds);
     if (!game || !activePlayer || !isMyTurn) return new Set();
     if (placementMode === "knight") {
       return new Set(board.vertices.filter((vertex) =>
@@ -609,7 +675,11 @@ export default function CatanClient() {
     const current = latestGame.current;
     if (!current) return;
     try {
-      const next = await CatanRoomService.update(current.roomCode, updater);
+      const next = await CatanRoomService.update(current.roomCode, (room) => {
+        const updated = updater(room);
+        if (!updated || updated === room || updated.phase !== "playing" || !updated.board) return updated;
+        return reconcileCatanAwards(updated, boardForGame(updated));
+      });
       if (!next) return;
       setGame(next);
       latestGame.current = next;
@@ -704,6 +774,7 @@ export default function CatanClient() {
 
   const leaveRoom = () => {
     setGame(null);
+    setJoinCode("");
     latestGame.current = null;
     resetLocalControls();
     window.history.replaceState(null, "", "/catan");
@@ -728,7 +799,7 @@ export default function CatanClient() {
   };
 
   const rollDice = () => {
-    if (!game || !isMyTurn || isPairedSecondary || game.setup || game.pendingSeven || game.pendingGold || game.rolled || game.winnerId || isRolling) return;
+    if (!game || !isMyTurn || isPairedSecondary || game.setup || game.pendingSeven || game.pendingGold || game.pendingDevelopment || game.pendingCityLoss || game.pendingProgressDiscard || game.rolled || game.winnerId || isRolling) return;
     setIsRolling(true);
     setBuildMode(null);
     window.setTimeout(() => {
@@ -812,6 +883,7 @@ export default function CatanClient() {
           log: [...entries, ...current.log].slice(0, 24),
         };
         if (eventDie === "barbarian") next = advanceBarbarians(next);
+        else if (eventDie) next = awardProgressCards(next, eventDie, dieOne);
         return next;
       });
       setIsRolling(false);
@@ -819,7 +891,11 @@ export default function CatanClient() {
   };
 
   const buildAtVertex = (vertexId) => {
-    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || game.winnerId) return;
+    if (game?.pendingCityLoss?.currentPlayerId === playerId && legalVertices.has(vertexId)) {
+      void updateGame((current) => pillageChosenCity(current, playerId, vertexId));
+      return;
+    }
+    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || game.pendingCityLoss || game.pendingProgressDiscard || game.winnerId) return;
     if (game.setup?.step === "settlement") {
       if (!legalVertices.has(vertexId)) return;
       if (!isMyTurn) return;
@@ -854,7 +930,8 @@ export default function CatanClient() {
   };
 
   const buildRoad = (edgeId) => {
-    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || game.winnerId || !legalEdges.has(edgeId)) return;
+    const resolvingRoadBuilding = game?.pendingDevelopment?.type === "roadBuilding";
+    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || (game.pendingDevelopment && !resolvingRoadBuilding) || game.winnerId || !legalEdges.has(edgeId)) return;
     if (game.setup?.step === "road") {
       if (!isMyTurn) return;
       void updateGame((current) => placeStartingRoad(current, activePlayer.id, edgeId, placementMode));
@@ -872,6 +949,11 @@ export default function CatanClient() {
       setBuildMode(null);
       return;
     }
+    if (resolvingRoadBuilding && ["road", "ship"].includes(buildMode)) {
+      void updateGame((current) => completeFreeTransport(current, activePlayer.id, edgeId, buildMode));
+      if (game.pendingDevelopment.remaining === 1) setBuildMode(null);
+      return;
+    }
     if (!["road", "ship"].includes(buildMode) || !game.rolled) return;
     if (!canAfford(activePlayer, COSTS[buildMode])) return;
     if (!isMyTurn) return;
@@ -880,7 +962,7 @@ export default function CatanClient() {
   };
 
   const bankTrade = () => {
-    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || !game.rolled || tradeGive === tradeGet || activePlayer.resources[tradeGive] < bankTradeRate) return;
+    if (!game || !activePlayer || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || !game.rolled || tradeGive === tradeGet || activePlayer.resources[tradeGive] < bankTradeRate) return;
     if (!isMyTurn) return;
     void updateGame((current) => {
       const players = current.players.map((player) => {
@@ -906,7 +988,7 @@ export default function CatanClient() {
   };
 
   const adjustPlayerTrade = (side, resource, change) => {
-    if (!game || !activePlayer || game.pendingTrade || !isMyTurn || isPairedSecondary) return;
+    if (!game || !activePlayer || game.pendingTrade || game.pendingDevelopment || !isMyTurn || isPairedSecondary) return;
     const setter = side === "offer" ? setPlayerTradeOffer : setPlayerTradeRequest;
     setter((current) => {
       const nextValue = current[resource] + change;
@@ -917,7 +999,7 @@ export default function CatanClient() {
   };
 
   const proposePlayerTrade = () => {
-    if (!game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || !activePlayer || isPairedSecondary) return;
+    if (!game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || !activePlayer || isPairedSecondary) return;
     const openOffer = tradePartnerId === "any";
     if (!openOffer && !tradePartner) return;
     if (totalResources(playerTradeOffer) === 0 || totalResources(playerTradeRequest) === 0) return;
@@ -944,8 +1026,26 @@ export default function CatanClient() {
     setPlayerTradeRequest(emptyResources());
   };
 
+  const buyDevelopmentCard = () => {
+    if (!game || !isMyTurn || !game.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || !usesDevelopmentCards(game) || !canAfford(activePlayer, COSTS.development) || !game.developmentDeck.length) return;
+    void updateGame((current) => buyDevelopmentCardFor(current, activePlayer.id));
+  };
+
+  const playDevelopmentCard = (cardId) => {
+    if (!game || !isMyTurn || isPairedSecondary || game.setup || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || game.developmentCardPlayedThisTurn) return;
+    const card = activePlayer.developmentCards.find((candidate) => candidate.id === cardId);
+    if (!card || card.boughtTurn === game.turn || card.type === "victoryPoint") return;
+    void updateGame((current) => playDevelopmentCardFor(current, activePlayer.id, cardId));
+    if (card.type === "roadBuilding") setBuildMode("road");
+  };
+
+  const chooseDevelopmentResource = (resource) => {
+    if (!game?.pendingDevelopment || !RESOURCES.includes(resource) || !isMyTurn) return;
+    void updateGame((current) => resolveDevelopmentResourceChoice(current, activePlayer.id, resource));
+  };
+
   const endTurn = () => {
-    if (!game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.winnerId) return;
+    if (!game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || game.pendingCityLoss || game.pendingProgressDiscard || game.winnerId) return;
     if (!isMyTurn) return;
     void updateGame((current) => {
       if (current.pairedTurn) {
@@ -956,6 +1056,8 @@ export default function CatanClient() {
             ...current,
             currentPlayerIndex: secondaryIndex,
             pairedTurn: nextPairedTurn,
+            developmentCardPlayedThisTurn: false,
+            citiesKnights: current.citiesKnights ? { ...current.citiesKnights, promotedKnightIdsThisTurn: [] } : null,
             log: [`${current.players[secondaryIndex].name} now takes the paired build and bank-trade phase.`, ...current.log].slice(0, 24),
           };
         }
@@ -968,6 +1070,8 @@ export default function CatanClient() {
           rolled: false,
           movedShipThisTurn: false,
           builtShipsThisTurn: [],
+          developmentCardPlayedThisTurn: false,
+          citiesKnights: current.citiesKnights ? { ...current.citiesKnights, promotedKnightIdsThisTurn: [] } : null,
           log: [`${current.players[nextPrimaryIndex].name} is the next dice player.`, ...current.log].slice(0, 24),
         };
       }
@@ -979,6 +1083,8 @@ export default function CatanClient() {
         rolled: false,
         movedShipThisTurn: false,
         builtShipsThisTurn: [],
+        developmentCardPlayedThisTurn: false,
+        citiesKnights: current.citiesKnights ? { ...current.citiesKnights, promotedKnightIdsThisTurn: [] } : null,
         log: [`${current.players[nextIndex].name} is up next.`, ...current.log].slice(0, 24),
       };
     });
@@ -1075,12 +1181,22 @@ export default function CatanClient() {
   };
 
   const activateKnight = (vertexId) => {
-    if (!isMyTurn || !game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade) return;
+    if (!isMyTurn || !game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment) return;
     void updateGame((current) => activateKnightAt(current, activePlayer.id, vertexId));
   };
 
+  const promoteKnight = (vertexId) => {
+    if (!isMyTurn || !game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || game.pendingCityLoss || game.pendingProgressDiscard) return;
+    void updateGame((current) => promoteKnightAt(current, activePlayer.id, vertexId));
+  };
+
+  const discardProgressCard = (cardId) => {
+    if (game?.pendingProgressDiscard?.currentPlayerId !== playerId) return;
+    void updateGame((current) => discardProgressCardFor(current, playerId, cardId));
+  };
+
   const improveCity = (track) => {
-    if (!isMyTurn || !game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade) return;
+    if (!isMyTurn || !game?.rolled || game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment) return;
     void updateGame((current) => improveCityTrack(current, activePlayer.id, track));
   };
 
@@ -1205,10 +1321,16 @@ export default function CatanClient() {
   }
 
   const winner = game.players.find((player) => player.id === game.winnerId);
+  const longestRouteHolder = game.players.find((player) => player.id === game.longestRoadPlayerId);
+  const largestArmyHolder = game.players.find((player) => player.id === game.largestArmyPlayerId);
+  const longestRouteLabel = hasSeafarers(game) ? "Longest Route" : "Longest Road";
+  const bestRouteLength = Math.max(0, ...Object.values(game.longestRouteLengths ?? {}));
+  const bestArmySize = Math.max(0, ...game.players.map((player) => player.playedKnights ?? 0));
 
   return (
     <main className="catan-page">
       {winner && <Winner player={winner} target={game.victoryTarget} canRestart={isHost} onRestart={restartRoom} onLeave={leaveRoom} />}
+      {barbarianNotice && <div className={`barbarian-notice ${barbarianNotice.kind}`} role="alert"><Shield size={28} /><div><strong>{barbarianNotice.kind === "warning" ? "Prepare your knights" : "Barbarian attack"}</strong><span>{barbarianNotice.message}</span></div></div>}
       <header className="catan-game-header">
         <div>
           <p className="catan-kicker">{CATAN_RULESETS[game.ruleset].shortLabel} · {game.setup ? `Setup round ${game.setup.index < game.players.length ? 1 : 2}` : `Turn ${game.turn}`}</p>
@@ -1228,6 +1350,10 @@ export default function CatanClient() {
           <div className="board-instruction">
             <span>{game.setup
               ? `Choose where ${activePlayer.name} will place a starting ${game.setup.step === "settlement" && hasCitiesKnights(game) && game.setup.index >= game.players.length ? "city" : game.setup.step}`
+              : game.pendingCityLoss
+                ? `${cityLossPlayer.name}, choose which highlighted city the barbarians pillage`
+              : game.pendingProgressDiscard
+                ? `${progressDiscardPlayer.name} must return ${game.pendingProgressDiscard.required} progress card${game.pendingProgressDiscard.required === 1 ? "" : "s"}`
               : game.pendingSeven?.phase === "discard"
                 ? `${discardingPlayer.name} must choose half their cards to discard`
                 : game.pendingSeven?.phase === "moveRobber"
@@ -1246,12 +1372,18 @@ export default function CatanClient() {
                         : "Open trade: the first eligible player to accept gets it"
                   : game.pendingGold
                     ? `${game.players.find((player) => player.id === game.pendingGold.claims[0]?.playerId)?.name} chooses a gold-field resource`
+                  : game.pendingDevelopment?.type === "roadBuilding"
+                    ? `${activePlayer.name}, place ${game.pendingDevelopment.remaining} free route piece${game.pendingDevelopment.remaining === 1 ? "" : "s"}`
+                  : game.pendingDevelopment?.type === "yearOfPlenty"
+                    ? `${activePlayer.name}, choose ${game.pendingDevelopment.remaining} resource${game.pendingDevelopment.remaining === 1 ? "" : "s"}`
+                  : game.pendingDevelopment?.type === "monopoly"
+                    ? `${activePlayer.name}, choose a resource to monopolize`
                   : buildMode
                     ? `Choose a place for your ${buildMode}`
                     : game.rolled
                       ? isPairedSecondary ? "Player 2 may build or trade with the bank" : "Build, trade, or end your turn"
                       : "Roll to begin your turn"}</span>
-            {!game.setup && buildMode && <button onClick={() => setBuildMode(null)}><X size={15} /> Cancel</button>}
+            {!game.setup && buildMode && !game.pendingDevelopment && <button onClick={() => setBuildMode(null)}><X size={15} /> Cancel</button>}
           </div>
           <CatanBoard
             game={game}
@@ -1277,7 +1409,7 @@ export default function CatanClient() {
                 <p className="panel-kicker">{game.setup ? "Starting placement" : isMyTurn ? "Your turn" : "Current turn"}</p>
                 <h2>{activePlayer.name}</h2>
               </div>
-              <span className={`victory-chip ${activePlayer.color}`}><Crown size={16} /> {activePlayer.points}/{game.victoryTarget}</span>
+              <span className={`victory-chip ${activePlayer.color}`}><Crown size={16} /> {activePlayer.id === playerId ? totalVictoryPoints(activePlayer) : activePlayer.points}/{game.victoryTarget}</span>
             </div>
 
             {game.setup ? (
@@ -1288,14 +1420,14 @@ export default function CatanClient() {
                 <div>
                   <strong>{isMyTurn ? `Place your ${game.setup.step === "settlement" && hasCitiesKnights(game) && game.setup.index >= game.players.length ? "city" : game.setup.step}` : `Waiting for ${activePlayer.name}`}</strong>
                   <p>{isMyTurn ? (game.setup.step === "settlement" ? `Choose a highlighted corner${hasSeafarers(game) ? " on the main island" : ""}. Buildings cannot be adjacent.` : `Choose a highlighted ${placementMode} touching your new building.`) : `${activePlayer.name} is choosing a starting ${game.setup.step} on their device.`}</p>
-                  {isMyTurn && game.setup.step === "road" && hasSeafarers(game) && <div className="setup-route-choice"><button className={placementMode === "road" ? "active" : ""} onClick={() => setBuildMode("road")}>Road</button><button className={placementMode === "ship" ? "active" : ""} onClick={() => setBuildMode("ship")}>Ship</button></div>}
+                  {isMyTurn && game.setup.step === "road" && hasSeafarers(game) && <div className="setup-route-choice"><button className={placementMode === "road" ? "active" : ""} onClick={() => setBuildMode("road")}>Road</button><button className={placementMode === "ship" ? "active" : ""} disabled={!canPlaceStartingShip} title={canPlaceStartingShip ? "Place a coastal ship" : "Ships require a coastal building"} onClick={() => setBuildMode("ship")}>Ship</button></div>}
                 </div>
                 <small>{game.setup.index + 1} of {game.setup.order.length}</small>
               </div>
             ) : <>
               <DiceTray dice={game.dice} rolling={isRolling} eventDie={game.eventDie} />
-              {game.pendingSeven || game.pendingGold || game.pendingTrade ? (
-                <p className="seven-turn-note">{game.pendingSeven ? "Resolve the seven" : game.pendingGold ? "Resolve gold production" : "Resolve the trade offer"} before continuing your turn.</p>
+              {game.pendingSeven || game.pendingGold || game.pendingTrade || game.pendingDevelopment || game.pendingCityLoss || game.pendingProgressDiscard ? (
+                <p className="seven-turn-note">{game.pendingCityLoss ? "Resolve the barbarian city loss" : game.pendingProgressDiscard ? "Return excess progress cards" : game.pendingSeven ? (game.pendingSeven.source === "knight" ? "Resolve the knight" : "Resolve the seven") : game.pendingGold ? "Resolve gold production" : game.pendingDevelopment ? "Resolve the development card" : "Resolve the trade offer"} before continuing the turn.</p>
               ) : !game.rolled ? (
               <button className="catan-primary roll-button" disabled={isRolling || !isMyTurn} onClick={rollDice}>
                 {isRolling ? <RefreshCcw className="spin" size={19} /> : <Dice5 size={20} />}
@@ -1308,6 +1440,10 @@ export default function CatanClient() {
               )}
             </>}
           </section>
+
+          {game.pendingCityLoss && <CityLossChoice pending={game.pendingCityLoss} player={cityLossPlayer} viewerPlayerId={playerId} />}
+
+          {game.pendingProgressDiscard && <ProgressDiscardChoice pending={game.pendingProgressDiscard} player={progressDiscardPlayer} viewerPlayerId={playerId} onDiscard={discardProgressCard} />}
 
           {game.pendingSeven && (
             <SevenResolution
@@ -1328,13 +1464,29 @@ export default function CatanClient() {
 
           {game.pendingGold && <GoldChoice pendingGold={game.pendingGold} players={game.players} viewerPlayerId={playerId} onChoose={chooseGoldResource} />}
 
+          {game.pendingDevelopment && <DevelopmentResolution pending={game.pendingDevelopment} activePlayer={activePlayer} viewerPlayerId={playerId} onChooseResource={chooseDevelopmentResource} hasShips={hasSeafarers(game)} transportKind={buildMode} onTransportChange={setBuildMode} />}
+
           {viewerPlayer && <ResourceHand player={viewerPlayer} title="Your resource hand" cardTypes={cardTypesFor(game)} />}
+
+          {viewerPlayer && hasCitiesKnights(game) && <ProgressCards player={viewerPlayer} game={game} />}
+
+          {viewerPlayer && usesDevelopmentCards(game) && <DevelopmentCards
+            player={viewerPlayer}
+            isActivePlayer={isMyTurn}
+            canPlayCards={isMyTurn && !isPairedSecondary && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment}
+            currentTurn={game.turn}
+            canBuy={isMyTurn && game.rolled && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment && canAfford(activePlayer, COSTS.development) && game.developmentDeck.length > 0}
+            deckCount={game.developmentDeck.length}
+            cardPlayedThisTurn={game.developmentCardPlayedThisTurn}
+            onBuy={buyDevelopmentCard}
+            onPlay={playDevelopmentCard}
+          />}
 
           {game.pendingTrade && (
             <TradeDecision game={game} viewerPlayerId={playerId} onRespond={respondToPlayerTrade} />
           )}
 
-          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && <section className="action-card">
+          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment && !game.pendingCityLoss && !game.pendingProgressDiscard && <section className="action-card">
             <div className="section-title"><h2>Build</h2><span>Click the board to place</span></div>
             <div className="build-list">
               <BuildButton icon={Route} label="Road" cost={COSTS.road} disabled={!game.rolled || !canAfford(activePlayer, COSTS.road)} active={buildMode === "road"} onClick={() => setBuildMode(buildMode === "road" ? null : "road")} />
@@ -1347,9 +1499,9 @@ export default function CatanClient() {
             </div>
           </section>}
 
-          {isMyTurn && hasCitiesKnights(game) && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && game.rolled && <CitiesKnightsActions game={game} player={activePlayer} onActivateKnight={activateKnight} onImprove={improveCity} />}
+          {isMyTurn && hasCitiesKnights(game) && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment && !game.pendingCityLoss && !game.pendingProgressDiscard && game.rolled && <CitiesKnightsActions game={game} player={activePlayer} onActivateKnight={activateKnight} onPromoteKnight={promoteKnight} onImprove={improveCity} />}
 
-          {isMyTurn && !isPairedSecondary && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && game.rolled && (
+          {isMyTurn && !isPairedSecondary && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment && game.rolled && (
             <PlayerTradeBuilder
               activePlayer={activePlayer}
               partners={tradePartners}
@@ -1364,7 +1516,7 @@ export default function CatanClient() {
             />
           )}
 
-          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && <section className="trade-card">
+          {isMyTurn && !game.setup && !game.pendingSeven && !game.pendingGold && !game.pendingTrade && !game.pendingDevelopment && <section className="trade-card">
             <div className="section-title"><h2>Maritime trade</h2><span>Give {bankTradeRate} · Get 1</span></div>
             <PortPrivileges ports={activePlayerPorts} />
             <div className="trade-row">
@@ -1380,13 +1532,17 @@ export default function CatanClient() {
       <section className="game-footer-grid">
         <section className="score-card">
           <div className="section-title"><h2>Settlers</h2><span>First to {game.victoryTarget} points wins</span></div>
+          <div className="catan-awards" aria-label="Catan special awards">
+            <div className={longestRouteHolder ? "claimed" : ""}><Route size={17} /><span><strong>{longestRouteLabel}</strong><small>{longestRouteHolder ? `${longestRouteHolder.name} · ${game.longestRouteLengths?.[longestRouteHolder.id] ?? 0} pieces · 2 VP` : `Unclaimed · best route ${bestRouteLength}/5`}</small></span></div>
+            {usesDevelopmentCards(game) && <div className={largestArmyHolder ? "claimed" : ""}><Shield size={17} /><span><strong>Largest Army</strong><small>{largestArmyHolder ? `${largestArmyHolder.name} · ${largestArmyHolder.playedKnights} knights · 2 VP` : `Unclaimed · best army ${bestArmySize}/3`}</small></span></div>}
+          </div>
           <div className="score-list">
             {[...game.players].sort((a, b) => b.points - a.points).map((player) => (
               <div key={player.id} className={player.id === activePlayer.id ? "active" : ""}>
                 <span className={`player-swatch ${player.color}`} />
                 <strong>{player.name}</strong>
-                <small>{totalResources(player.resources)} {totalResources(player.resources) === 1 ? "card" : "cards"}</small>
-                <b>{player.points} VP</b>
+                <small>{totalResources(player.resources)} {totalResources(player.resources) === 1 ? "card" : "cards"}{player.defenderPoints ? ` · Defender of Catan ×${player.defenderPoints}` : ""}{game.longestRoadPlayerId === player.id ? ` · ${longestRouteLabel}` : ""}{game.largestArmyPlayerId === player.id ? " · Largest Army" : ""}</small>
+                <b>{player.id === playerId ? totalVictoryPoints(player) : player.points} VP{player.id === playerId && player.hiddenVictoryPoints ? " (includes hidden)" : ""}</b>
               </div>
             ))}
           </div>
@@ -1405,7 +1561,7 @@ export default function CatanClient() {
 function placeStartingSettlement(game, playerId, vertexId) {
   if (!game.setup || game.setup.step !== "settlement") return game;
   const isSecondRound = game.setup.index >= game.players.length;
-  const startingType = isSecondRound && hasCitiesKnights(game) ? "city" : "settlement";
+  const startingType = startingBuildingType(game.setup.index, game.players.length, game);
   const players = game.players.map((player) => {
     if (player.id !== playerId) return player;
     const resources = { ...player.resources };
@@ -1496,6 +1652,123 @@ function moveShip(game, playerId, sourceEdgeId, targetEdgeId) {
   return { ...game, ships, movedShipThisTurn: true, log: [`${player.name} moved an open ship.`, ...game.log].slice(0, 24) };
 }
 
+function buyDevelopmentCardFor(game, playerId) {
+  if (!usesDevelopmentCards(game) || !game.developmentDeck.length) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  if (!player || !canAfford(player, COSTS.development)) return game;
+  const [type, ...developmentDeck] = game.developmentDeck;
+  const card = { id: `${game.turn}-${playerId}-${game.developmentDeck.length}`, type, boughtTurn: game.turn };
+  const players = game.players.map((candidate) => {
+    if (candidate.id !== playerId) return candidate;
+    const paid = payCost(candidate, COSTS.development);
+    return {
+      ...paid,
+      developmentCards: [...paid.developmentCards, card],
+      hiddenVictoryPoints: paid.hiddenVictoryPoints + (type === "victoryPoint" ? 1 : 0),
+    };
+  });
+  const buyer = players.find((candidate) => candidate.id === playerId);
+  const winnerId = totalVictoryPoints(buyer) >= game.victoryTarget ? playerId : game.winnerId;
+  return {
+    ...game,
+    players,
+    developmentDeck,
+    winnerId,
+    log: [`${player.name} bought a development card${winnerId ? " and revealed enough victory points to win!" : "."}`, ...game.log].slice(0, 24),
+  };
+}
+
+function playDevelopmentCardFor(game, playerId, cardId) {
+  if (!usesDevelopmentCards(game) || game.developmentCardPlayedThisTurn) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  const card = player?.developmentCards.find((candidate) => candidate.id === cardId);
+  if (!card || card.boughtTurn === game.turn || card.type === "victoryPoint") return game;
+  let players = game.players.map((candidate) => candidate.id === playerId
+    ? { ...candidate, developmentCards: candidate.developmentCards.filter((developmentCard) => developmentCard.id !== cardId) }
+    : candidate);
+  let pendingSeven = game.pendingSeven;
+  let pendingDevelopment = null;
+
+  if (card.type === "knight") {
+    players = players.map((candidate) => candidate.id === playerId ? { ...candidate, playedKnights: candidate.playedKnights + 1 } : candidate);
+    pendingSeven = {
+      phase: hasSeafarers(game) ? "chooseToken" : "moveRobber",
+      remainingDiscardPlayerIds: [],
+      discardCounts: {},
+      source: "knight",
+    };
+  } else if (card.type === "roadBuilding") {
+    pendingDevelopment = { type: "roadBuilding", remaining: 2, playerId };
+  } else if (card.type === "yearOfPlenty") {
+    pendingDevelopment = { type: "yearOfPlenty", remaining: 2, playerId };
+  } else if (card.type === "monopoly") {
+    pendingDevelopment = { type: "monopoly", playerId };
+  }
+  const winner = players.find((candidate) => totalVictoryPoints(candidate) >= game.victoryTarget);
+  return {
+    ...game,
+    players,
+    pendingSeven,
+    pendingDevelopment,
+    developmentCardPlayedThisTurn: true,
+    winnerId: winner?.id ?? game.winnerId,
+    log: [`${player.name} played ${DEVELOPMENT_CARD_INFO[card.type].label}.`, ...game.log].slice(0, 24),
+  };
+}
+
+function completeFreeTransport(game, playerId, edgeId, kind) {
+  const pending = game.pendingDevelopment;
+  if (pending?.type !== "roadBuilding" || pending.playerId !== playerId || pending.remaining < 1 || !["road", "ship"].includes(kind) || (kind === "ship" && !hasSeafarers(game))) return game;
+  const board = boardForGame(game);
+  const edge = board.edges.find((candidate) => candidate.id === edgeId);
+  if (!edge || !isTransportLegal(board, edge, playerId, game.roads, game.ships, game.settlements, kind, game.tiles, game.pirateTileId, game.citiesKnights?.knights)) return game;
+  const remaining = pending.remaining - 1;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  return {
+    ...game,
+    roads: kind === "road" ? { ...game.roads, [edgeId]: playerId } : game.roads,
+    ships: kind === "ship" ? { ...game.ships, [edgeId]: playerId } : game.ships,
+    builtShipsThisTurn: kind === "ship" ? [...(game.builtShipsThisTurn ?? []), edgeId] : game.builtShipsThisTurn,
+    pendingDevelopment: remaining ? { ...pending, remaining } : null,
+    log: [`${player.name} placed a free ${kind}${remaining ? ` (${remaining} remaining)` : "."}`, ...game.log].slice(0, 24),
+  };
+}
+
+function resolveDevelopmentResourceChoice(game, playerId, resource) {
+  const pending = game.pendingDevelopment;
+  if (!pending || pending.playerId !== playerId || !RESOURCES.includes(resource)) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  if (pending.type === "yearOfPlenty") {
+    const remaining = pending.remaining - 1;
+    return {
+      ...game,
+      players: game.players.map((candidate) => candidate.id === playerId
+        ? { ...candidate, resources: { ...candidate.resources, [resource]: candidate.resources[resource] + 1 } }
+        : candidate),
+      pendingDevelopment: remaining ? { ...pending, remaining } : null,
+      log: [`${player.name} chose ${RESOURCE_INFO[resource].short} from Year of Plenty.`, ...game.log].slice(0, 24),
+    };
+  }
+  if (pending.type === "monopoly") {
+    let collected = 0;
+    const players = game.players.map((candidate) => {
+      if (candidate.id === playerId) return candidate;
+      const amount = candidate.resources[resource];
+      collected += amount;
+      return { ...candidate, resources: { ...candidate.resources, [resource]: 0 } };
+    }).map((candidate) => candidate.id === playerId
+      ? { ...candidate, resources: { ...candidate.resources, [resource]: candidate.resources[resource] + collected } }
+      : candidate);
+    return {
+      ...game,
+      players,
+      pendingDevelopment: null,
+      log: [`${player.name} monopolized ${RESOURCE_INFO[resource].short} and collected ${collected}.`, ...game.log].slice(0, 24),
+    };
+  }
+  return game;
+}
+
 function completeBuild(game, playerId, kind, targetId) {
   const cost = COSTS[kind];
   const players = game.players.map((player) => {
@@ -1521,7 +1794,7 @@ function completeBuild(game, playerId, kind, targetId) {
   if (kind === "ship") ships[targetId] = playerId;
   if (kind === "settlement") settlements[targetId] = { playerId, type: "settlement" };
   if (kind === "city") settlements[targetId] = { playerId, type: "city" };
-  const winnerId = player.points >= game.victoryTarget ? playerId : null;
+  const winnerId = totalVictoryPoints(player) >= game.victoryTarget ? playerId : null;
   return {
     ...game,
     players,
@@ -1602,12 +1875,7 @@ function resolvePirateMove(game, tileId) {
   const tile = game.tiles.find((candidate) => candidate.id === tileId);
   if (!tile || tile.resource !== "sea") return game;
   const activePlayer = game.players[game.currentPlayerIndex];
-  const eligibleVictimIds = [...new Set(
-    boardForGame(game).edges
-      .filter((edge) => edge.tileIds.includes(tileId))
-      .map((edge) => game.ships?.[edge.id])
-      .filter((ownerId) => ownerId && ownerId !== activePlayer.id),
-  )].filter((ownerId) => totalResources(game.players.find((player) => player.id === ownerId).resources) > 0);
+  const eligibleVictimIds = eligiblePirateVictimIds(boardForGame(game), game.ships, tileId, game.players, activePlayer.id);
   return {
     ...game,
     pirateTileId: tileId,
@@ -1638,78 +1906,135 @@ function resolveGoldChoice(game, playerId, resource) {
   };
 }
 
+function awardProgressCards(game, color, redDie) {
+  if (!hasCitiesKnights(game) || !PROGRESS_DECKS[color]) return game;
+  const citiesKnights = {
+    ...game.citiesKnights,
+    progressDecks: Object.fromEntries(Object.entries(game.citiesKnights.progressDecks).map(([track, deck]) => [track, [...deck]])),
+  };
+  let players = game.players.map((player) => ({ ...player, progressCards: [...(player.progressCards ?? [])] }));
+  const order = Array.from({ length: players.length }, (_, offset) => (game.currentPlayerIndex + offset) % players.length);
+  const awardedNames = [];
+  for (const playerIndex of order) {
+    const player = players[playerIndex];
+    const level = citiesKnights.improvements?.[player.id]?.[color] ?? 0;
+    if (!progressCardEligible(level, redDie) || citiesKnights.progressDecks[color].length === 0) continue;
+    const type = citiesKnights.progressDecks[color].shift();
+    const info = PROGRESS_CARD_INFO[type];
+    awardedNames.push(player.name);
+    if (info.victoryPoint) {
+      players[playerIndex] = {
+        ...player,
+        points: player.points + 1,
+        progressVictoryPoints: (player.progressVictoryPoints ?? 0) + 1,
+      };
+    } else {
+      players[playerIndex] = {
+        ...player,
+        progressCards: [...player.progressCards, { id: `${game.turn}-${color}-${player.id}-${citiesKnights.progressDecks[color].length}`, type, color }],
+      };
+    }
+  }
+  const overLimitPlayerIds = order
+    .map((index) => players[index])
+    .filter((player) => player.progressCards.length > 4)
+    .map((player) => player.id);
+  const firstOverLimitId = overLimitPlayerIds[0];
+  const pendingProgressDiscard = firstOverLimitId
+    ? { playerIds: overLimitPlayerIds, currentPlayerId: firstOverLimitId, required: players.find((player) => player.id === firstOverLimitId).progressCards.length - 4 }
+    : null;
+  const winner = players.find((player) => totalVictoryPoints(player) >= game.victoryTarget);
+  return {
+    ...game,
+    players,
+    citiesKnights,
+    pendingProgressDiscard,
+    winnerId: winner?.id ?? game.winnerId,
+    log: [awardedNames.length
+      ? `${awardedNames.join(", ")} drew a ${color} progress card because the red die showed ${redDie}.`
+      : `No player qualified for a ${color} progress card on red ${redDie}.`, ...game.log].slice(0, 24),
+  };
+}
+
+function discardProgressCardFor(game, playerId, cardId) {
+  const pending = game.pendingProgressDiscard;
+  if (!pending || pending.currentPlayerId !== playerId) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  const card = player?.progressCards.find((candidate) => candidate.id === cardId);
+  if (!card) return game;
+  const players = game.players.map((candidate) => candidate.id === playerId
+    ? { ...candidate, progressCards: candidate.progressCards.filter((candidateCard) => candidateCard.id !== cardId) }
+    : candidate);
+  const progressDecks = {
+    ...game.citiesKnights.progressDecks,
+    [card.color]: [...game.citiesKnights.progressDecks[card.color], card.type],
+  };
+  const required = pending.required - 1;
+  let pendingProgressDiscard = required > 0 ? { ...pending, required } : null;
+  if (!pendingProgressDiscard) {
+    const remainingIds = pending.playerIds.slice(1);
+    const nextPlayerId = remainingIds[0];
+    if (nextPlayerId) {
+      pendingProgressDiscard = {
+        playerIds: remainingIds,
+        currentPlayerId: nextPlayerId,
+        required: Math.max(1, players.find((candidate) => candidate.id === nextPlayerId).progressCards.length - 4),
+      };
+    }
+  }
+  return {
+    ...game,
+    players,
+    citiesKnights: { ...game.citiesKnights, progressDecks },
+    pendingProgressDiscard,
+    log: [`${player.name} returned a progress card to the bottom of its deck.`, ...game.log].slice(0, 24),
+  };
+}
+
 function advanceBarbarians(game) {
   const citiesKnights = { ...game.citiesKnights };
   if (citiesKnights.barbarianDistance > 1) {
     citiesKnights.barbarianDistance -= 1;
-    return { ...game, citiesKnights, log: [`The barbarian ship advanced to ${citiesKnights.barbarianDistance} spaces away.`, ...game.log].slice(0, 24) };
+    return {
+      ...game,
+      citiesKnights,
+      barbarianAlert: citiesKnights.barbarianDistance === 1
+        ? { id: `warning-${game.turn}-${Date.now()}`, createdAt: Date.now(), kind: "warning", message: "Warning: the barbarians are one space away!" }
+        : game.barbarianAlert,
+      log: [`The barbarian ship advanced to ${citiesKnights.barbarianDistance} spaces away.`, ...game.log].slice(0, 24),
+    };
   }
 
-  const cityCount = Object.values(game.settlements).filter((building) => building.type === "city").length;
-  const strengthByPlayer = Object.fromEntries(game.players.map((player) => [player.id, 0]));
-  Object.values(citiesKnights.knights).forEach((knight) => {
-    if (knight.active) strengthByPlayer[knight.playerId] += knight.level;
-  });
-  const totalStrength = Object.values(strengthByPlayer).reduce((sum, strength) => sum + strength, 0);
-  let players = game.players.map((player) => ({ ...player }));
-  let settlements = { ...game.settlements };
-  let resultLog;
-
-  if (totalStrength >= cityCount) {
-    const best = Math.max(...Object.values(strengthByPlayer));
-    const defenders = players.filter((player) => best > 0 && strengthByPlayer[player.id] === best);
-    if (defenders.length === 1) {
-      players = players.map((player) => player.id === defenders[0].id
-        ? { ...player, points: player.points + 1, defenderPoints: (player.defenderPoints ?? 0) + 1 }
-        : player);
-      resultLog = `Catan was defended! ${defenders[0].name} earned 1 Defender of Catan victory point.`;
-    } else {
-      resultLog = "Catan was defended, but tied defenders receive no victory point.";
-    }
-  } else {
-    const cityOwners = [...new Set(Object.values(settlements).filter((building) => building.type === "city").map((building) => building.playerId))];
-    const lowest = Math.min(...cityOwners.map((ownerId) => strengthByPlayer[ownerId]));
-    const raidedIds = cityOwners.filter((ownerId) => strengthByPlayer[ownerId] === lowest);
-    const downgraded = [];
-    raidedIds.forEach((ownerId) => {
-      const cityEntry = Object.entries(settlements).find(([, building]) => building.playerId === ownerId && building.type === "city");
-      if (cityEntry) {
-        settlements[cityEntry[0]] = { ...cityEntry[1], type: "settlement" };
-        downgraded.push(ownerId);
-      }
-    });
-    players = players.map((player) => downgraded.includes(player.id) ? { ...player, points: Math.max(0, player.points - 1) } : player);
-    resultLog = downgraded.length
-      ? `The barbarians won. ${players.filter((player) => downgraded.includes(player.id)).map((player) => player.name).join(", ")} lost a city.`
-      : "The barbarians attacked, but there were no cities to raid.";
-  }
-
-  const firstAttack = citiesKnights.attacks === 0;
-  citiesKnights.attacks += 1;
-  citiesKnights.barbarianDistance = 7;
-  citiesKnights.knights = Object.fromEntries(Object.entries(citiesKnights.knights).map(([vertexId, knight]) => [vertexId, { ...knight, active: false }]));
-  const winner = players.find((player) => player.points >= game.victoryTarget);
-  return {
-    ...game,
-    players,
-    settlements,
-    citiesKnights,
-    robberTileId: firstAttack ? game.robberInactiveTileId : game.robberTileId,
-    robberInactiveTileId: firstAttack ? null : game.robberInactiveTileId,
-    winnerId: winner?.id ?? game.winnerId,
-    log: [`${resultLog}${firstAttack ? " The robber and pirate are now active." : ""}`, ...game.log].slice(0, 24),
-  };
+  return resolveBarbarianAttack(game);
 }
 
 function buildKnight(game, playerId, vertexId) {
   if (!hasCitiesKnights(game) || game.settlements[vertexId] || game.citiesKnights.knights[vertexId]) return game;
   const player = game.players.find((candidate) => candidate.id === playerId);
-  if (!player || !canAfford(player, COSTS.knight)) return game;
+  const playerKnights = Object.values(game.citiesKnights.knights).filter((knight) => knight.playerId === playerId);
+  if (!player || !canAfford(player, COSTS.knight) || playerKnights.length >= 6 || playerKnights.filter((knight) => knight.level === 1).length >= 2) return game;
   return {
     ...game,
     players: game.players.map((candidate) => candidate.id === playerId ? payCost(candidate, COSTS.knight) : candidate),
     citiesKnights: { ...game.citiesKnights, knights: { ...game.citiesKnights.knights, [vertexId]: { playerId, level: 1, active: false } } },
     log: [`${player.name} built an inactive knight.`, ...game.log].slice(0, 24),
+  };
+}
+
+function promoteKnightAt(game, playerId, vertexId) {
+  if (!canPromoteKnight(game, playerId, vertexId)) return game;
+  const player = game.players.find((candidate) => candidate.id === playerId);
+  if (!player || !canAfford(player, COSTS.promoteKnight)) return game;
+  const knight = game.citiesKnights.knights[vertexId];
+  return {
+    ...game,
+    players: game.players.map((candidate) => candidate.id === playerId ? payCost(candidate, COSTS.promoteKnight) : candidate),
+    citiesKnights: {
+      ...game.citiesKnights,
+      knights: { ...game.citiesKnights.knights, [vertexId]: { ...knight, level: knight.level + 1 } },
+      promotedKnightIdsThisTurn: [...(game.citiesKnights.promotedKnightIdsThisTurn ?? []), vertexId],
+    },
+    log: [`${player.name} promoted a knight to level ${knight.level + 1}; its active status stayed the same.`, ...game.log].slice(0, 24),
   };
 }
 
@@ -1728,7 +2053,8 @@ function activateKnightAt(game, playerId, vertexId) {
 function buildCityWall(game, playerId, vertexId) {
   const city = game.settlements[vertexId];
   const player = game.players.find((candidate) => candidate.id === playerId);
-  if (city?.playerId !== playerId || city.type !== "city" || game.citiesKnights.cityWalls[vertexId] || !canAfford(player, COSTS.cityWall)) return game;
+  const wallCount = Object.values(game.citiesKnights.cityWalls).filter((ownerId) => ownerId === playerId).length;
+  if (city?.playerId !== playerId || city.type !== "city" || game.citiesKnights.cityWalls[vertexId] || wallCount >= 3 || !canAfford(player, COSTS.cityWall)) return game;
   return {
     ...game,
     players: game.players.map((candidate) => candidate.id === playerId ? payCost(candidate, COSTS.cityWall) : candidate),
@@ -1760,7 +2086,7 @@ function improveCityTrack(game, playerId, track) {
         ? { ...candidate, points: candidate.points - 2 }
         : candidate);
   }
-  const winner = players.find((candidate) => candidate.points >= game.victoryTarget);
+  const winner = players.find((candidate) => totalVictoryPoints(candidate) >= game.victoryTarget);
   return {
     ...game,
     players,
@@ -1773,6 +2099,7 @@ function improveCityTrack(game, playerId, track) {
 function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEdge, robberMoveMode, pirateMoveMode, onTile }) {
   const board = boardForGame(game);
   const vertexById = Object.fromEntries(board.vertices.map((vertex) => [vertex.id, vertex]));
+  const robberTile = game.tiles.find((tile) => tile.id === game.robberTileId);
   const expanded = game.boardVariant !== "base";
   return (
     <div className={`board-wrap ${expanded ? "expanded" : ""}`}>
@@ -1821,7 +2148,6 @@ function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEd
                 </g>
               </g>
             )}
-            {game.robberTileId === tile.id && <g className="robber" transform={`translate(${tile.center.x + 31} ${tile.center.y - 30})`}><circle r="17" /><text y="6">♟</text></g>}
             {game.pirateTileId === tile.id && <g className="pirate" transform={`translate(${tile.center.x} ${tile.center.y - 3})`}><circle r="17" /><text y="6">☠</text></g>}
           </g>
           );
@@ -1880,11 +2206,19 @@ function CatanBoard({ game, buildMode, legalVertices, legalEdges, onVertex, onEd
               {building?.type === "settlement" && <Settlement color={owner.hex} />}
               {building?.type === "city" && <City color={owner.hex} />}
               {game.citiesKnights?.cityWalls?.[vertex.id] && <circle className="city-wall" r="18" />}
-              {knight && <g className={`knight-piece ${knight.active ? "active" : ""}`} style={{ "--piece-color": knightOwner.hex }}><circle r="11" /><text y="5">♞</text></g>}
+              {knight && <g className={`knight-piece level-${knight.level} ${knight.active ? "active" : ""}`} style={{ "--piece-color": knightOwner.hex }}><circle r={10 + knight.level} /><text y="5">{knight.level}</text></g>}
               <circle className="vertex-hit" r="15" />
             </g>
           );
         })}
+
+        {robberTile && (
+          <g className="robber" transform={`translate(${robberTile.center.x + 25} ${robberTile.center.y - 27})`} aria-label="Robber">
+            <circle className="robber-halo" r="20" />
+            <circle className="robber-token" r="15" />
+            <text y="6">♟</text>
+          </g>
+        )}
       </svg>
     </div>
   );
@@ -1962,7 +2296,7 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
     );
   }
   if (pendingSeven.phase === "movePirate") {
-    return <section className="seven-card robber-choice-card"><div className="seven-badge">☠</div><div><p className="panel-kicker">Move the pirate</p><h2>{activePlayer.name}, choose a new sea tile</h2><p>{isRobberController ? "Available sea tiles are highlighted. The pirate cannot stay in its previous location." : `Waiting for ${activePlayer.name} to choose on their device.`}</p></div></section>;
+    return <section className="seven-card robber-choice-card"><div className="seven-badge">☠</div><div><p className="panel-kicker">Move the pirate</p><h2>{activePlayer.name}, choose a new sea tile</h2><p>{isRobberController ? "Available sea tiles are highlighted. After placing it, choose a player with a ship on that hex and steal one hidden card. The pirate cannot stay in its previous location." : `Waiting for ${activePlayer.name} to choose on their device.`}</p></div></section>;
   }
   if (pendingSeven.phase === "chooseVictim") {
     const victims = players.filter((player) => pendingSeven.eligibleVictimIds.includes(player.id));
@@ -1970,7 +2304,7 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
       <section className="seven-card victim-choice-card">
         <div className="section-title">
           <div><p className="panel-kicker">{pendingSeven.stealSource === "pirate" ? "Pirate placed" : "Robber placed"}</p><h2>Choose who to steal from</h2></div>
-          <span>{pendingSeven.stealSource === "pirate" ? "Adjacent ship owners" : "Adjacent players only"}</span>
+          <span>{pendingSeven.stealSource === "pirate" ? "Ship owners on this sea hex" : "Adjacent players only"}</span>
         </div>
         <div className="victim-list">
           {victims.map((player) => (
@@ -2065,10 +2399,90 @@ function GoldChoice({ pendingGold, players, viewerPlayerId, onChoose }) {
   );
 }
 
-function CitiesKnightsActions({ game, player, onActivateKnight, onImprove }) {
+function DevelopmentResolution({ pending, activePlayer, viewerPlayerId, onChooseResource, hasShips, transportKind, onTransportChange }) {
+  const isChooser = pending.playerId === viewerPlayerId;
+  if (pending.type === "roadBuilding") {
+    return <section className="development-card development-resolution"><p className="panel-kicker">Road Building</p><h2>Place {pending.remaining} free route piece{pending.remaining === 1 ? "" : "s"}</h2><p>{isChooser ? "Choose a highlighted board edge. The card pays the building cost." : `Waiting for ${activePlayer.name} to place free routes.`}</p>{isChooser && hasShips && <div className="setup-route-choice"><button className={transportKind === "road" ? "active" : ""} onClick={() => onTransportChange("road")}>Road</button><button className={transportKind === "ship" ? "active" : ""} onClick={() => onTransportChange("ship")}>Ship</button></div>}</section>;
+  }
+  const title = pending.type === "monopoly" ? "Choose a monopoly resource" : `Choose ${pending.remaining} resource${pending.remaining === 1 ? "" : "s"}`;
+  return (
+    <section className="development-card development-resolution">
+      <p className="panel-kicker">{DEVELOPMENT_CARD_INFO[pending.type].label}</p>
+      <h2>{title}</h2>
+      <p>{isChooser ? (pending.type === "monopoly" ? "All other players will give you every card of the chosen resource." : "Choose one resource at a time from the supply.") : `Waiting for ${activePlayer.name} to choose.`}</p>
+      <div className="development-resource-buttons">
+        {RESOURCES.map((resource) => <button key={resource} disabled={!isChooser} className={RESOURCE_INFO[resource].terrain} onClick={() => onChooseResource(resource)}><span>{RESOURCE_INFO[resource].icon}</span><strong>{RESOURCE_INFO[resource].short}</strong></button>)}
+      </div>
+    </section>
+  );
+}
+
+function DevelopmentCards({ player, isActivePlayer, canPlayCards, currentTurn, canBuy, deckCount, cardPlayedThisTurn, onBuy, onPlay }) {
+  return (
+    <section className="development-card">
+      <div className="section-title"><h2>Development cards</h2><span>{deckCount} in deck</span></div>
+      <button className="buy-development" disabled={!canBuy} onClick={onBuy}><Sparkles size={17} /><span><strong>Buy development card</strong><small>1 Wool · 1 Grain · 1 Ore</small></span></button>
+      {player.developmentCards.length === 0 ? <p className="empty-development">You do not have any development cards.</p> : <div className="development-hand">
+        {player.developmentCards.map((card) => {
+          const info = DEVELOPMENT_CARD_INFO[card.type];
+          const boughtThisTurn = card.boughtTurn === currentTurn;
+          const playable = isActivePlayer && canPlayCards && !boughtThisTurn && !cardPlayedThisTurn && card.type !== "victoryPoint";
+          return <div key={card.id}><span className="development-symbol">{card.type === "knight" ? "♞" : card.type === "victoryPoint" ? "★" : "✦"}</span><span><strong>{info.label}</strong><small>{boughtThisTurn ? "Playable next turn" : info.description}</small></span>{card.type === "victoryPoint" ? <b>Hidden +1 VP</b> : <button disabled={!playable} onClick={() => onPlay(card.id)}>Play</button>}</div>;
+        })}
+      </div>}
+    </section>
+  );
+}
+
+function CityLossChoice({ pending, player, viewerPlayerId }) {
+  const isChooser = pending.currentPlayerId === viewerPlayerId;
+  return (
+    <section className="seven-card city-loss-card">
+      <div className="section-title"><div><p className="panel-kicker">Barbarian pillage</p><h2>{player.name} chooses the city</h2></div><Shield size={23} /></div>
+      <p>{isChooser ? "Choose one of your highlighted cities on the board. It becomes a settlement, costs 1 victory point, and its city wall is removed." : `Waiting for ${player.name} to choose on their device.`}</p>
+    </section>
+  );
+}
+
+function ProgressDiscardChoice({ pending, player, viewerPlayerId, onDiscard }) {
+  const isChooser = pending.currentPlayerId === viewerPlayerId;
+  return (
+    <section className="progress-card-panel progress-discard-card">
+      <div className="section-title"><div><p className="panel-kicker">Progress hand limit</p><h2>Return {pending.required} card{pending.required === 1 ? "" : "s"}</h2></div><span>Maximum 4</span></div>
+      <p>{isChooser ? "Choose which card to return face-down to the bottom of its matching deck." : `Waiting for ${player.name} to choose privately.`}</p>
+      {isChooser && <div className="progress-hand">{player.progressCards.map((card) => <button key={card.id} className={card.color} onClick={() => onDiscard(card.id)}><strong>{PROGRESS_CARD_INFO[card.type].label}</strong><small>{PROGRESS_CARD_INFO[card.type].description}</small></button>)}</div>}
+    </section>
+  );
+}
+
+function ProgressCards({ player, game }) {
+  const improvements = game.citiesKnights.improvements[player.id] ?? { science: 0, trade: 0, politics: 0 };
+  const colors = [
+    { key: "science", label: "Green · Science" },
+    { key: "trade", label: "Yellow · Trade" },
+    { key: "politics", label: "Blue · Politics" },
+  ];
+  return (
+    <section className="progress-card-panel">
+      <div className="section-title"><h2>Progress cards</h2><span>{player.progressCards.length}/4 held secretly</span></div>
+      <div className="progress-eligibility">
+        {colors.map(({ key, label }) => {
+          const level = improvements[key] ?? 0;
+          return <div key={key} className={key}><strong>{label}</strong><small>{level ? `Draw when its event icon appears and the red die is 1–${Math.min(6, level + 1)}` : "Build level 1 to qualify"}</small><b>{game.citiesKnights.progressDecks?.[key]?.length ?? 0} cards</b></div>;
+        })}
+      </div>
+      {player.progressVictoryPoints > 0 && <p className="progress-vp"><Trophy size={15} /> {player.progressVictoryPoints} revealed progress-card victory point{player.progressVictoryPoints === 1 ? "" : "s"}</p>}
+      {player.progressCards.length === 0 ? <p className="empty-development">No progress cards yet. Improve a city track, then match its colored event icon and red-die range.</p> : <div className="progress-hand">{player.progressCards.map((card) => {
+        const info = PROGRESS_CARD_INFO[card.type];
+        return <div key={card.id} className={card.color}><strong>{info.label}</strong><small>{info.description}</small><b>Secret {card.color} card</b></div>;
+      })}</div>}
+    </section>
+  );
+}
+
+function CitiesKnightsActions({ game, player, onActivateKnight, onPromoteKnight, onImprove }) {
   const state = game.citiesKnights;
   const improvements = state.improvements[player.id];
-  const inactiveKnights = Object.entries(state.knights).filter(([, knight]) => knight.playerId === player.id && !knight.active);
   const commodityForTrack = { trade: "cloth", politics: "coin", science: "paper" };
   const activeStrength = Object.values(state.knights).filter((knight) => knight.playerId === player.id && knight.active).reduce((sum, knight) => sum + knight.level, 0);
   return (
@@ -2076,7 +2490,13 @@ function CitiesKnightsActions({ game, player, onActivateKnight, onImprove }) {
       <div className="section-title"><h2>Cities & Knights</h2><span>Barbarians: {state.barbarianDistance} away</span></div>
       <div className="barbarian-track" aria-label={`${state.barbarianDistance} spaces until barbarian attack`}><span style={{ width: `${(8 - state.barbarianDistance) / 7 * 100}%` }} /></div>
       <p className="knight-strength"><Shield size={15} /> Your active strength: <strong>{activeStrength}</strong></p>
-      {inactiveKnights.map(([vertexId]) => <button key={vertexId} className="ck-action-button" disabled={!canAfford(player, COSTS.activateKnight)} onClick={() => onActivateKnight(vertexId)}>Activate knight · 1 Grain</button>)}
+      <div className="knight-action-list">
+        {Object.entries(state.knights).filter(([, knight]) => knight.playerId === player.id).map(([vertexId, knight], index) => {
+          const promotable = canPromoteKnight(game, player.id, vertexId);
+          const politicsLocked = knight.level === 2 && (state.improvements[player.id]?.politics ?? 0) < 3;
+          return <div key={vertexId}><span><strong>Knight {index + 1}</strong><small>Level {knight.level} · {knight.active ? "Active" : "Inactive"}</small></span><div>{!knight.active && <button disabled={!canAfford(player, COSTS.activateKnight)} onClick={() => onActivateKnight(vertexId)}>Activate · 1 Grain</button>}<button disabled={!promotable || !canAfford(player, COSTS.promoteKnight)} title={politicsLocked ? "Politics level 3 is required for a mighty knight" : "Promote one level; active status stays the same"} onClick={() => onPromoteKnight(vertexId)}>Promote · 1 Wool + 1 Ore</button></div></div>;
+        })}
+      </div>
       <div className="improvement-grid">
         {Object.entries(commodityForTrack).map(([track, commodity]) => {
           const level = improvements[track];
