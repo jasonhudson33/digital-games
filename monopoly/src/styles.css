@@ -408,6 +408,39 @@
   overflow: hidden;
 }
 
+.monopoly-page .space.trade-selectable{
+  --trade-accent: #3f6fb5;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.monopoly-page .space.trade-selectable.trade-offer{
+  --trade-accent: #24824f;
+}
+
+.monopoly-page .space.trade-selectable:hover{
+  background-color: #fffdf7;
+  box-shadow: inset 0 0 0 3px var(--trade-accent);
+  z-index: 2;
+}
+
+.monopoly-page .space.trade-selectable:focus-visible{
+  outline: 3px solid var(--trade-accent);
+  outline-offset: -4px;
+  z-index: 4;
+}
+
+.monopoly-page .space.trade-selectable.trade-selected{
+  background-color: #f0f7ff;
+  box-shadow: inset 0 0 0 4px var(--trade-accent);
+  z-index: 2;
+}
+
+.monopoly-page .space.trade-selectable.trade-offer.trade-selected{
+  background-color: #edf8f1;
+}
+
 .monopoly-page .space.corner{
   place-items: center;
   text-align: center;

@@ -100,6 +100,9 @@ export default function App() {
   const [game, setGame] = React.useState<GameState | null>(null);
   const [error, setError] = React.useState('');
   const [isRolling, setIsRolling] = React.useState(false);
+  const [activeTradeTargetId, setActiveTradeTargetId] = React.useState('');
+  const [activeOfferedPropertyIds, setActiveOfferedPropertyIds] = React.useState<number[]>([]);
+  const [activeRequestedPropertyIds, setActiveRequestedPropertyIds] = React.useState<number[]>([]);
   const latestGame = React.useRef<GameState | null>(null);
 
   React.useEffect(() => {
@@ -281,6 +284,20 @@ export default function App() {
     Boolean(game?.pendingAuction?.activePlayerId === playerId) || Boolean(isHost && auctionActivePlayer?.id.startsWith('local-'));
   const canChooseJail = Boolean(activePlayer?.id === playerId) || Boolean(isHost && activePlayer?.id.startsWith('local-'));
   const needsJailChoice = Boolean(activePlayer?.inJail && !game?.jailRollMode);
+  const activeTradeTargets = game && activePlayer
+    ? game.players.filter((candidate) => candidate.id !== activePlayer.id && !candidate.bankrupt)
+    : [];
+  const selectedActiveTradeTarget =
+    activeTradeTargets.find((candidate) => candidate.id === activeTradeTargetId) ?? activeTradeTargets[0];
+  const canSelectTradeProperties = Boolean(
+    game &&
+    activePlayer &&
+    canControlTurn &&
+    game.phase === 'playing' &&
+    game.turnStage === 'manage' &&
+    !game.pendingTrade &&
+    activeTradeTargets.length > 0
+  );
   const showBoardRollButton = Boolean(
     game &&
     game.phase === 'playing' &&
@@ -309,6 +326,12 @@ export default function App() {
     return () => window.clearTimeout(timeoutId);
   }, [game, isHost]);
 
+  React.useEffect(() => {
+    setActiveTradeTargetId('');
+    setActiveOfferedPropertyIds([]);
+    setActiveRequestedPropertyIds([]);
+  }, [activePlayer?.id]);
+
   const handleRoll = () => {
     if (
       !game ||
@@ -328,6 +351,29 @@ export default function App() {
     window.setTimeout(() => {
       void updateGame(rollDice).finally(() => setIsRolling(false));
     }, 1100);
+  };
+
+  const handleBoardTradeProperty = (spaceId: number) => {
+    if (!game || !activePlayer || !canSelectTradeProperties || (game.improvements[spaceId] ?? 0) > 0) return;
+    const owner = game.players.find((player) => player.properties.includes(spaceId));
+    if (!owner) return;
+
+    if (owner.id === activePlayer.id) {
+      setActiveOfferedPropertyIds((current) =>
+        current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]
+      );
+      return;
+    }
+
+    const targetChanged = owner.id !== selectedActiveTradeTarget?.id;
+    setActiveTradeTargetId(owner.id);
+    setActiveRequestedPropertyIds((current) =>
+      targetChanged
+        ? [spaceId]
+        : current.includes(spaceId)
+          ? current.filter((id) => id !== spaceId)
+          : [...current, spaceId]
+    );
   };
 
   if (!isReady) {
@@ -407,6 +453,12 @@ export default function App() {
           game={game}
           isRolling={isRolling}
           showRollButton={showBoardRollButton}
+          canSelectTradeProperties={canSelectTradeProperties}
+          tradePlayerId={activePlayer?.id}
+          tradeTargetId={selectedActiveTradeTarget?.id}
+          offeredPropertyIds={activeOfferedPropertyIds}
+          requestedPropertyIds={activeRequestedPropertyIds}
+          onTradePropertyToggle={handleBoardTradeProperty}
           onRoll={handleRoll}
         />
 
@@ -612,6 +664,14 @@ export default function App() {
                 onUnmortgage={(spaceId) => updateGame((state) => unmortgageProperty(state, player.id, spaceId))}
                 onBuild={(spaceId) => updateGame((state) => buyImprovement(state, player.id, spaceId))}
                 onSellImprovement={(spaceId) => updateGame((state) => sellImprovement(state, player.id, spaceId))}
+                boardTradeDraft={player.id === activePlayer?.id ? {
+                  targetId: activeTradeTargetId,
+                  offeredPropertyIds: activeOfferedPropertyIds,
+                  requestedPropertyIds: activeRequestedPropertyIds,
+                  setTargetId: setActiveTradeTargetId,
+                  setOfferedPropertyIds: setActiveOfferedPropertyIds,
+                  setRequestedPropertyIds: setActiveRequestedPropertyIds
+                } : undefined}
                 onProposeTrade={(toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards) =>
                   updateGame((state) =>
                     proposeTrade(state, player.id, toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards)
@@ -938,23 +998,50 @@ function Board({
   game,
   isRolling,
   showRollButton,
+  canSelectTradeProperties,
+  tradePlayerId,
+  tradeTargetId,
+  offeredPropertyIds,
+  requestedPropertyIds,
+  onTradePropertyToggle,
   onRoll
 }: {
   game: GameState;
   isRolling: boolean;
   showRollButton: boolean;
+  canSelectTradeProperties: boolean;
+  tradePlayerId?: string;
+  tradeTargetId?: string;
+  offeredPropertyIds: number[];
+  requestedPropertyIds: number[];
+  onTradePropertyToggle: (spaceId: number) => void;
   onRoll: () => void;
 }) {
   return (
     <section className="board" aria-label="Monopoly board">
-      {board.map((space) => (
-        <BoardSpace
-          key={space.id}
-          space={space}
-          players={game.players.filter((player) => player.position === space.id && !player.bankrupt)}
-          improvementLevel={game.improvements[space.id] ?? 0}
-        />
-      ))}
+      {board.map((space) => {
+        const owner = game.players.find((player) => player.properties.includes(space.id));
+        const improvementLevel = game.improvements[space.id] ?? 0;
+        const tradeRole = owner?.id === tradePlayerId ? 'offer' : owner ? 'request' : undefined;
+        const tradeSelected = tradeRole === 'offer'
+          ? offeredPropertyIds.includes(space.id)
+          : tradeRole === 'request' && owner?.id === tradeTargetId
+            ? requestedPropertyIds.includes(space.id)
+            : false;
+        const tradeSelectable = Boolean(canSelectTradeProperties && owner && improvementLevel === 0);
+
+        return (
+          <BoardSpace
+            key={space.id}
+            space={space}
+            players={game.players.filter((player) => player.position === space.id && !player.bankrupt)}
+            improvementLevel={improvementLevel}
+            tradeRole={tradeSelectable ? tradeRole : undefined}
+            tradeSelected={tradeSelected}
+            onTradeToggle={tradeSelectable ? () => onTradePropertyToggle(space.id) : undefined}
+          />
+        );
+      })}
       {board.filter((space) => space.price).map((space) => (
         <div
           key={`status-${space.id}`}
@@ -974,7 +1061,11 @@ function Board({
             </button>
           )}
         </div>
-        <p>Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.</p>
+        <p>
+          {canSelectTradeProperties
+            ? 'Click owned deeds on the board to add or remove them from your trade.'
+            : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
+        </p>
       </div>
     </section>
   );
@@ -983,15 +1074,37 @@ function Board({
 function BoardSpace({
   space,
   players,
-  improvementLevel
+  improvementLevel,
+  tradeRole,
+  tradeSelected = false,
+  onTradeToggle
 }: {
   space: Space;
   players: Player[];
   improvementLevel: number;
+  tradeRole?: 'offer' | 'request';
+  tradeSelected?: boolean;
+  onTradeToggle?: () => void;
 }) {
   const style = getGridPosition(space.id);
+  const tradeAction = tradeRole === 'offer' ? 'your offer' : 'your request';
   return (
-    <div className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space`} style={style}>
+    <div
+      className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
+      style={style}
+      role={onTradeToggle ? 'button' : undefined}
+      tabIndex={onTradeToggle ? 0 : undefined}
+      aria-pressed={onTradeToggle ? tradeSelected : undefined}
+      aria-label={onTradeToggle ? `${tradeSelected ? 'Remove' : 'Add'} ${space.name} ${tradeSelected ? 'from' : 'to'} ${tradeAction}` : undefined}
+      title={onTradeToggle ? `Click to ${tradeSelected ? 'remove from' : 'add to'} ${tradeAction}` : undefined}
+      onClick={onTradeToggle}
+      onKeyDown={onTradeToggle ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onTradeToggle();
+        }
+      } : undefined}
+    >
       {space.color && (
         <div className="color-band" style={{ backgroundColor: space.color }}>
           {improvementLevel > 0 && <PropertyImprovements level={improvementLevel} />}
@@ -1145,6 +1258,15 @@ function PiecePicker({ selectedPiece, onSelect }: { selectedPiece: PlayerPiece; 
   );
 }
 
+type BoardTradeDraft = {
+  targetId: string;
+  offeredPropertyIds: number[];
+  requestedPropertyIds: number[];
+  setTargetId: (playerId: string) => void;
+  setOfferedPropertyIds: React.Dispatch<React.SetStateAction<number[]>>;
+  setRequestedPropertyIds: React.Dispatch<React.SetStateAction<number[]>>;
+};
+
 function PlayerRow({
   player,
   active,
@@ -1155,6 +1277,7 @@ function PlayerRow({
   onUnmortgage,
   onBuild,
   onSellImprovement,
+  boardTradeDraft,
   onProposeTrade
 }: {
   player: Player;
@@ -1166,6 +1289,7 @@ function PlayerRow({
   onUnmortgage: (spaceId: number) => void;
   onBuild: (spaceId: number) => void;
   onSellImprovement: (spaceId: number) => void;
+  boardTradeDraft?: BoardTradeDraft;
   onProposeTrade: (
     toPlayerId: string,
     offeredPropertyIds: number[],
@@ -1176,13 +1300,19 @@ function PlayerRow({
     requestedJailCards: number
   ) => void;
 }) {
-  const [tradeTargetId, setTradeTargetId] = React.useState('');
-  const [offeredPropertyIds, setOfferedPropertyIds] = React.useState<number[]>([]);
-  const [requestedPropertyIds, setRequestedPropertyIds] = React.useState<number[]>([]);
+  const [localTradeTargetId, setLocalTradeTargetId] = React.useState('');
+  const [localOfferedPropertyIds, setLocalOfferedPropertyIds] = React.useState<number[]>([]);
+  const [localRequestedPropertyIds, setLocalRequestedPropertyIds] = React.useState<number[]>([]);
   const [offeredMoney, setOfferedMoney] = React.useState(0);
   const [requestedMoney, setRequestedMoney] = React.useState(0);
   const [offeredJailCards, setOfferedJailCards] = React.useState(0);
   const [requestedJailCards, setRequestedJailCards] = React.useState(0);
+  const tradeTargetId = boardTradeDraft?.targetId ?? localTradeTargetId;
+  const offeredPropertyIds = boardTradeDraft?.offeredPropertyIds ?? localOfferedPropertyIds;
+  const requestedPropertyIds = boardTradeDraft?.requestedPropertyIds ?? localRequestedPropertyIds;
+  const setTradeTargetId = boardTradeDraft?.setTargetId ?? setLocalTradeTargetId;
+  const setOfferedPropertyIds = boardTradeDraft?.setOfferedPropertyIds ?? setLocalOfferedPropertyIds;
+  const setRequestedPropertyIds = boardTradeDraft?.setRequestedPropertyIds ?? setLocalRequestedPropertyIds;
   const activePlayer = game.players[game.currentPlayerIndex];
   const tradeTargets = active
     ? game.players.filter((candidate) => candidate.id !== player.id && !candidate.bankrupt)
@@ -1191,6 +1321,7 @@ function PlayerRow({
       : [];
   const selectedTradeTarget = tradeTargets.find((candidate) => candidate.id === tradeTargetId) ?? tradeTargets[0];
   const canOpenTrade = canManage && game.phase === 'playing' && game.turnStage === 'manage' && !game.pendingTrade && tradeTargets.length > 0;
+  const previousTradeTargetId = React.useRef(selectedTradeTarget?.id);
 
   React.useEffect(() => {
     if (!selectedTradeTarget) return;
@@ -1199,6 +1330,14 @@ function PlayerRow({
       setRequestedPropertyIds([]);
     }
   }, [selectedTradeTarget, tradeTargetId, tradeTargets]);
+
+  React.useEffect(() => {
+    if (previousTradeTargetId.current && previousTradeTargetId.current !== selectedTradeTarget?.id) {
+      setRequestedMoney(0);
+      setRequestedJailCards(0);
+    }
+    previousTradeTargetId.current = selectedTradeTarget?.id;
+  }, [selectedTradeTarget?.id]);
 
   const toggleOffered = (spaceId: number) =>
     setOfferedPropertyIds((current) => (current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]));
