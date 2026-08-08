@@ -463,6 +463,11 @@ export default function App() {
           game={game}
           isRolling={isRolling}
           showRollButton={showBoardRollButton}
+          canManageBuildings={Boolean(canControlTurn && game.phase === 'playing' && game.turnStage === 'manage')}
+          buildingPlayerId={activePlayer?.id}
+          onBuild={(spaceId) => {
+            if (activePlayer) void updateGame((state) => buyImprovement(state, activePlayer.id, spaceId));
+          }}
           canSelectTradeProperties={canSelectTradeProperties}
           tradePlayerId={activePlayer?.id}
           tradeTargetId={selectedActiveTradeTarget?.id}
@@ -1015,6 +1020,9 @@ function Board({
   game,
   isRolling,
   showRollButton,
+  canManageBuildings,
+  buildingPlayerId,
+  onBuild,
   canSelectTradeProperties,
   tradePlayerId,
   tradeTargetId,
@@ -1028,6 +1036,9 @@ function Board({
   game: GameState;
   isRolling: boolean;
   showRollButton: boolean;
+  canManageBuildings: boolean;
+  buildingPlayerId?: string;
+  onBuild: (spaceId: number) => void;
   canSelectTradeProperties: boolean;
   tradePlayerId?: string;
   tradeTargetId?: string;
@@ -1063,15 +1074,52 @@ function Board({
           />
         );
       })}
-      {board.filter((space) => space.price).map((space) => (
-        <div
-          key={`status-${space.id}`}
-          className={`board-status-marker ${getBoardSide(space.id)}`}
-          style={getGridPosition(space.id)}
-        >
-          <PropertyOwnership owner={game.players.find((player) => player.properties.includes(space.id))} />
-        </div>
-      ))}
+      {board.filter((space) => space.price).map((space) => {
+        const owner = game.players.find((player) => player.properties.includes(space.id));
+        const improvementLevel = game.improvements[space.id] ?? 0;
+        const improvementCost = getImprovementCost(space.id);
+        const showBuildButton = Boolean(
+          canManageBuildings &&
+          owner &&
+          owner?.id === buildingPlayerId &&
+          space.kind === 'property' &&
+          ownerHasColorMonopoly(owner, space) &&
+          !owner.mortgagedProperties.includes(space.id) &&
+          improvementLevel < 5
+        );
+        const canBuild = Boolean(
+          showBuildButton &&
+          owner &&
+          owner.money >= improvementCost &&
+          canImproveProperty(game, owner, space.id)
+        );
+        const buildingType = improvementLevel === 4 ? 'hotel' : 'house';
+
+        return (
+          <div
+            key={`status-${space.id}`}
+            className={`board-status-marker ${getBoardSide(space.id)}`}
+            style={getGridPosition(space.id)}
+          >
+            <PropertyOwnership owner={owner} />
+            {showBuildButton && (
+              <button
+                className="board-build-button"
+                disabled={!canBuild}
+                aria-label={`Buy ${buildingType} on ${space.name} for $${improvementCost}`}
+                title={canBuild
+                  ? `Buy ${buildingType} for $${improvementCost}`
+                  : owner && owner.money < improvementCost
+                    ? `Need $${improvementCost} to buy a ${buildingType}`
+                    : 'Build evenly across the monopoly first'}
+                onClick={() => onBuild(space.id)}
+              >
+                <Home size={10} aria-hidden="true" /> ${improvementCost}
+              </button>
+            )}
+          </div>
+        );
+      })}
       <div className="board-center">
         <span className="board-title">Monopoly</span>
         <div className={`board-dice-area ${showRollButton ? 'actionable' : ''}`}>
@@ -1091,7 +1139,7 @@ function Board({
         )}
         <p>
           {canSelectTradeProperties
-            ? 'Click owned deeds on the board to add or remove them from your trade.'
+            ? 'Click deeds to trade, or use the house buttons to build on a monopoly.'
             : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
         </p>
       </div>

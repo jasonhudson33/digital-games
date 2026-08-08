@@ -667,6 +667,49 @@
   transform: translateY(-50%);
 }
 
+.monopoly-page .board-build-button{
+  position: absolute;
+  z-index: 2;
+  min-height: 20px;
+  height: 20px;
+  padding: 0 5px;
+  gap: 2px;
+  border: 1px solid #6d4300;
+  border-radius: 999px;
+  background: #f5bc35;
+  color: #412a00;
+  font-size: 0.5rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  box-shadow: 0 2px 0 rgba(29, 37, 33, 0.2);
+}
+
+.monopoly-page .board-status-marker.bottom-side .board-build-button{
+  bottom: calc(100% + 21px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.monopoly-page .board-status-marker.top-side .board-build-button{
+  top: calc(100% + 21px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.monopoly-page .board-status-marker.left-side .board-build-button{
+  top: 50%;
+  left: calc(100% + 21px);
+  transform: translateY(-50%);
+}
+
+.monopoly-page .board-status-marker.right-side .board-build-button{
+  top: 50%;
+  right: calc(100% + 21px);
+  transform: translateY(-50%);
+}
+
 .monopoly-page .ownership-dot{
   width: 6px;
   height: 6px;
