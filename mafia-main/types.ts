@@ -65,6 +65,14 @@ export interface DetectiveResult {
   ts: number;
 }
 
+export interface PhaseResult {
+  eliminatedPlayerId: string | null;
+  eliminatedRole: Role | null;
+  source: 'NIGHT' | 'VOTE';
+  nextPhase: GamePhase.DAY_DELIBERATION | GamePhase.NIGHT_TRANSITION | GamePhase.GAME_OVER;
+  nextRound: number;
+}
+
 export interface GameState {
   roomCode: string;
   players: Player[];
@@ -78,6 +86,7 @@ export interface GameState {
   lastAngelSavedId: string | null;
 
   nightResults: string[];
+  phaseResult: PhaseResult | null;
 
   /**
    * Aggregated actions for the current phase, written by host.

@@ -216,8 +216,8 @@ export default function HeartsClient() {
               {!game.trick.length && <div className="empty-trick"><span>{game.variant === "killer" ? "☠" : "♥"}</span></div>}
             </div>
             <div className="table-meta">
-              <span>
-                <Heart size={14} fill="currentColor" /> Lead hearts only when they are all you hold
+              <span className={game.heartsPlayed ? "broken" : ""}>
+                <Heart size={14} fill="currentColor" /> {game.heartsPlayed ? "Hearts are broken" : "Hearts are not broken"}
               </span>
               <span>Pass: {game.variant === "killer" ? "none" : game.passDirection}</span>
               {(game.carryoverCards.length > 0 || (!game.kittyClaimed && game.kitty.length > 0)) && (
@@ -332,8 +332,8 @@ function RulesDialog({ open, variant, onClose }) {
           </p>
         </div>
         <p className="rules-footnote">
-          You must follow the led suit when possible. If you cannot, you may discard any card—including a heart.
-          Hearts may only be led when your whole hand is hearts. Leftover deal cards form a kitty for the first trick winner.
+          You must follow the led suit when possible. Damage cards—every heart and the Queen of Spades—cannot be played anywhere in the first trick. After that, if you cannot follow suit, you may discard any card.
+          Before hearts are broken, they may only be led when your whole hand is hearts. Once anyone discards a heart, hearts may lead later tricks. Leftover deal cards form a kitty for the first trick winner.
           Take every penalty point to shoot the moon. The match ends when someone reaches 100; the lowest total wins.
         </p>
         <button type="button" className="hearts-primary full" onClick={onClose}>Back to the table</button>

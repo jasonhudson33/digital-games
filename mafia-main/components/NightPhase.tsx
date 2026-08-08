@@ -3,7 +3,7 @@ import { GamePhase, GameState, Role, Player, DetectiveResult, RoleMap } from '..
 import { ROLE_DETAILS } from '../constants';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
-import { canSelectNightTarget } from '../services/NightRules';
+import { canSelectNightTarget, nightActorsForRole, nightSelectionsByTarget } from '../services/NightRules';
 
 interface NightPhaseProps {
   state: GameState;
@@ -39,12 +39,18 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
   const actorsInPhase = useMemo(() => {
     if (!phaseRole) return [];
     if (!rolesMap) return amActor ? [me].filter(Boolean) as Player[] : [];
-    return state.players.filter(p => p.isAlive && rolesMap[p.id] === phaseRole);
+    return nightActorsForRole(state.players, phaseRole, rolesMap);
   }, [phaseRole, rolesMap, state.players, amActor, me]);
 
   const votes = state.nightActions || {};
   const totalActors = actorsInPhase.length || (amActor ? 1 : 0);
-  const actedCount = Object.keys(votes).length;
+  const actorIds = useMemo(() => actorsInPhase.map((player) => player.id), [actorsInPhase]);
+  const actedCount = actorIds.filter((actorId) => Boolean(votes[actorId])).length;
+  const selectionsByTarget = useMemo(
+    () => nightSelectionsByTarget(votes, actorIds),
+    [votes, actorIds],
+  );
+  const showTeamDetails = amActor && (phaseRole === Role.KILLER || phaseRole === Role.DETECTIVE);
 
   const consensusTargetId = useMemo(() => {
     const targets = Object.values(votes);
@@ -87,6 +93,16 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
         {totalActors > 0 && (
           <p className="text-slate-500 mt-2">Actions received: {actedCount}/{totalActors}</p>
         )}
+        {showTeamDetails && (
+          <div className="max-w-xl mx-auto mt-4 rounded-xl border border-slate-700 bg-slate-900/70 p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
+              {phaseRole === Role.KILLER ? 'Kings' : 'Jacks'} acting tonight
+            </p>
+            <p className="text-slate-200">
+              {actorsInPhase.map((actor) => actor.id === myPlayerId ? `${actor.name} (you)` : actor.name).join(', ')}
+            </p>
+          </div>
+        )}
         {consensusTargetId && (
           <p className="text-green-400 mt-2">Consensus reached.</p>
         )}
@@ -115,8 +131,11 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
           .filter(p => phaseRole === Role.ANGEL || p.id !== myPlayerId)
           .map(p => {
             const selectedByMe = votes[myPlayerId] === p.id;
+            const selectingActors = (selectionsByTarget[p.id] || [])
+              .map((actorId) => actorsInPhase.find((actor) => actor.id === actorId))
+              .filter(Boolean) as Player[];
             const canSelect = phaseRole
-              ? canSelectNightTarget(state.players, phaseRole, myPlayerId, p.id, state.lastAngelSavedId)
+              ? canSelectNightTarget(state.players, phaseRole, myPlayerId, p.id, state.lastAngelSavedId, actorIds)
               : false;
             return (
               <div key={p.id} className={`p-4 rounded-2xl border ${selectedByMe ? 'border-yellow-400/60 bg-yellow-950/20' : 'border-slate-700 bg-slate-900/50'}`}>
@@ -129,6 +148,11 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
                     <p className="text-slate-500 text-sm">
                       {p.id === state.lastAngelSavedId && phaseRole === Role.ANGEL ? 'Saved last night' : 'Alive'}
                     </p>
+                    {showTeamDetails && selectingActors.length > 0 && (
+                      <p className="text-amber-300 text-sm mt-2">
+                        Selected by {selectingActors.map((actor) => actor.id === myPlayerId ? 'you' : actor.name).join(', ')}
+                      </p>
+                    )}
                   </div>
                   {amActor && canSelect && (
                     <Button onClick={() => handleSelect(p.id)}>

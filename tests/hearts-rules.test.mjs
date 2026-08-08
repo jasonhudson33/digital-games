@@ -85,13 +85,38 @@ test("hearts cannot lead while the player holds another suit", () => {
   assert.deepEqual(getLegalHeartCards(game, 0).map((candidate) => candidate.id), ["clubs-4-0"]);
 });
 
+test("hearts may lead after a heart has been played off-suit", () => {
+  const game = createHeartsMatch({ variant: "killer", playerCount: 5 });
+  game.players[0].hand = [card("hearts", 14), card("clubs", 4)];
+  game.currentPlayerIndex = 0;
+  game.trick = [];
+  game.trickNumber = 2;
+  game.heartsPlayed = true;
+
+  assert.deepEqual(
+    getLegalHeartCards(game, 0).map((candidate) => candidate.id),
+    ["hearts-14-0", "clubs-4-0"]
+  );
+});
+
 test("a player who cannot follow suit may discard a heart", () => {
   const game = createHeartsMatch({ variant: "killer", playerCount: 5 });
   game.players[1].hand = [card("hearts", 8), card("diamonds", 4)];
   game.currentPlayerIndex = 1;
   game.trick = [{ playerIndex: 0, card: card("clubs", 10) }];
+  game.trickNumber = 2;
 
   assert.deepEqual(getLegalHeartCards(game, 1).map((candidate) => candidate.id), ["hearts-8-0", "diamonds-4-0"]);
+});
+
+test("damage cards cannot be discarded on the first trick", () => {
+  const game = createHeartsMatch({ variant: "killer", playerCount: 5 });
+  game.players[1].hand = [card("hearts", 8), card("spades", 12), card("diamonds", 4)];
+  game.currentPlayerIndex = 1;
+  game.trick = [{ playerIndex: 0, card: card("clubs", 2) }];
+  game.trickNumber = 1;
+
+  assert.deepEqual(getLegalHeartCards(game, 1).map((candidate) => candidate.id), ["diamonds-4-0"]);
 });
 
 test("matching lead-suit cards cancel as trick winners", () => {
@@ -124,7 +149,7 @@ test("a fully canceled trick carries into the next winning trick", () => {
     kittyClaimed: true,
     currentPlayerIndex: 0,
     trick: [],
-    trickNumber: 1,
+    trickNumber: 2,
   };
 
   for (const cardId of ["clubs-10-0", "clubs-10-1", "hearts-2-0", "spades-2-0", "diamonds-3-0"]) {

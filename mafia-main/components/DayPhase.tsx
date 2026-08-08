@@ -3,6 +3,7 @@ import { GamePhase, GameState } from '../types';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
 import { canParticipateInDay, dayBallotRound } from '../services/DayRules';
+import { displayCardCode } from '../services/CardState';
 
 interface DayPhaseProps {
   state: GameState;
@@ -10,9 +11,10 @@ interface DayPhaseProps {
   onHostAction: (updates: Partial<GameState>) => void;
   isHost: boolean;
   roomCode: string;
+  onAcknowledgeResult: () => void;
 }
 
-const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, isHost, roomCode }) => {
+const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, isHost, roomCode, onAcknowledgeResult }) => {
   const alivePlayers = useMemo(() => state.players.filter(p => p.isAlive), [state.players]);
   const canParticipate = canParticipateInDay(state.players, myPlayerId);
 
@@ -27,10 +29,6 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
       return seconderIds.length > 0;
     }) as string[];
   }, [nominations, seconds]);
-
-  const handleAcknowledge = () => {
-    onHostAction({ phase: GamePhase.DAY_DELIBERATION, nominations: {}, seconds: {}, dayVotes: {}, isRunoff: false });
-  };
 
   const handleStartVote = () => {
     onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false });
@@ -71,6 +69,9 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
   };
 
   if (state.phase === GamePhase.DAY_RESULTS) {
+    const eliminatedPlayer = state.players.find((player) => player.id === state.phaseResult?.eliminatedPlayerId);
+    const eliminatedRole = state.phaseResult?.eliminatedRole;
+    const title = state.phaseResult?.source === 'VOTE' ? 'The Verdict' : 'Daylight Breaks';
     return (
       <div className="flex flex-col items-center justify-center py-12 animate-in fade-in duration-700 text-center">
         <div className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 border-4 border-yellow-500/40">
@@ -78,16 +79,35 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
              <path d="M12 7C14.76 7 17 9.24 17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12C7 9.24 9.24 7 12 7ZM12 5C8.13 5 5 8.13 5 12C5 15.87 8.13 19 12 19C15.87 19 19 15.87 19 12C19 8.13 15.87 5 12 5ZM12 2L14.39 5.42L11 7.33L12 2ZM12 22L9.61 18.58L13 16.67L12 22ZM2 12L5.42 9.61L7.33 13L2 12ZM22 12L18.58 14.39L16.67 11L22 12Z" />
            </svg>
         </div>
-        <h2 className="text-5xl font-serif font-bold mb-8 text-yellow-500">Daylight Breaks</h2>
+        <h2 className="text-5xl font-serif font-bold mb-8 text-yellow-500">{title}</h2>
         <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 w-full max-w-xl space-y-4">
           {(state.nightResults || []).map((result, i) => (
             <p key={i} className="text-xl text-slate-200">{result}</p>
           ))}
+          {eliminatedPlayer && eliminatedRole && (
+            <div className="pt-4" aria-live="polite">
+              <div
+                className="w-40 mx-auto overflow-hidden rounded-xl bg-white border border-slate-600 shadow-2xl"
+                style={{ aspectRatio: '240 / 334' }}
+                aria-label={`${eliminatedPlayer.name}'s card is ${displayCardCode(eliminatedPlayer.cardCode, eliminatedRole)}`}
+              >
+                <playing-card
+                  cid={displayCardCode(eliminatedPlayer.cardCode, eliminatedRole)}
+                  bordercolor="#334155"
+                  shadow="2,4,3"
+                  class="w-full h-full"
+                />
+              </div>
+              <p className="mt-4 text-2xl font-serif font-bold text-white">
+                {eliminatedPlayer.name} was the {eliminatedRole}.
+              </p>
+            </div>
+          )}
         </div>
         {isHost ? (
-          <Button className="mt-12" onClick={handleAcknowledge}>Begin Deliberation</Button>
+          <Button className="mt-12" onClick={onAcknowledgeResult}>Narrator: Acknowledge Result</Button>
         ) : (
-          <p className="mt-12 text-slate-500 italic">Waiting for host to acknowledge...</p>
+          <p className="mt-12 text-slate-500 italic">Waiting for the narrator to acknowledge the result...</p>
         )}
       </div>
     );

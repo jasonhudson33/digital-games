@@ -177,6 +177,19 @@ export const RoomService = {
     return pollingSubscription(() => this.getMyRole(roomCode, uid), cb);
   },
 
+  subscribeToRoleTeam(roomCode: string, uid: string, cb: (roles: RoleMap) => void) {
+    const current = identity();
+    if (uid !== current.playerId) return () => undefined;
+    const load = async () => {
+      const rows = await rpc<Array<{ role_player_id: string; role: Role }>>(
+        'mafia_get_role_team',
+        credentials(roomCode),
+      );
+      return Object.fromEntries((rows ?? []).map((row) => [row.role_player_id, row.role]));
+    };
+    return pollingSubscription(load, cb);
+  },
+
   subscribeToRoles(roomCode: string, cb: (roles: RoleMap) => void) {
     const load = async () => {
       const rows = await rpc<Array<{ role_player_id: string; role: Role }>>('mafia_get_roles', credentials(roomCode));

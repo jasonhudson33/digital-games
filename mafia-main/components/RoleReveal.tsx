@@ -13,9 +13,10 @@ interface RoleRevealProps {
   round: number;
   onComplete: () => void; // host-only transition
   isHost: boolean;
+  teammates?: Player[];
 }
 
-const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCode, round, onComplete, isHost }) => {
+const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCode, round, onComplete, isHost, teammates = [] }) => {
   const [hasAcknowledged, setHasAcknowledged] = useState<boolean>(!!player.isReady);
 
   const details = ROLE_DETAILS[myRole];
@@ -49,6 +50,14 @@ const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCo
           </div>
           <h1 className={`text-6xl font-serif font-black mb-6 ${details.color}`}>{details.card}</h1>
           <p className="text-xl text-slate-200 leading-relaxed">{details.description}</p>
+          {myRole === Role.KILLER && (
+            <div className="mt-7 rounded-2xl border border-red-500/30 bg-slate-950/50 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-red-400 mb-2">Your fellow Kings</p>
+              <p className="text-lg text-slate-100">
+                {teammates.length ? teammates.map((teammate) => teammate.name).join(', ') : 'You are the only King.'}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

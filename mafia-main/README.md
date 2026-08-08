@@ -20,6 +20,7 @@ Run these migrations in order in the Supabase SQL editor:
 5. [`supabase/migrations/20260801020000_mafia_permanent_leave.sql`](../supabase/migrations/20260801020000_mafia_permanent_leave.sql)
 6. [`supabase/migrations/20260801030000_mafia_alive_day_intents.sql`](../supabase/migrations/20260801030000_mafia_alive_day_intents.sql)
 7. [`supabase/migrations/20260801040000_mafia_replay.sql`](../supabase/migrations/20260801040000_mafia_replay.sql)
+8. [`supabase/migrations/20260807000000_mafia_role_teams.sql`](../supabase/migrations/20260807000000_mafia_role_teams.sql)
 
 Leave Anonymous Sign-Ins disabled. The second migration removes the Auth-based policies and exposes token-validated RPCs instead.
 

@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Scum",
+    href: "/scum",
+    status: "New · Any-size table",
+    description:
+      "Climb from lowly 2s to Jokers, shed every card, and fight your way from Scum to President.",
+    tone: "scum",
+  },
+  {
     name: "Hearts",
     href: "/hearts",
     status: "New · Two ways to play",
@@ -50,8 +58,7 @@ export default function Page() {
         <p className="hub-eyebrow">Digital Games</p>
         <h1>Pick a game night.</h1>
         <p className="hub-copy">
-          The landing page now acts as a simple launcher, so we can keep adding
-          more games here without replacing the homepage each time.
+          Pull up a chair. Choose a classic and start playing right in your browser.
         </p>
       </section>
 

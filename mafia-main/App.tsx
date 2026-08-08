@@ -14,6 +14,11 @@ import { resolvePrivateRole } from './services/RoleState';
 import { canParticipateInDay, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
 import { canSelectNightTarget, resolveNight } from './services/NightRules';
 import { prepareReplayPlayers } from './services/ReplayRules';
+import {
+  acknowledgePhaseResult,
+  createNightPhaseResult,
+  createVotePhaseResult,
+} from './services/ResultRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 
 const makeInitialState = (): GameState => ({
@@ -27,6 +32,7 @@ const makeInitialState = (): GameState => ({
   angelSaveId: null,
   lastAngelSavedId: null,
   nightResults: [],
+  phaseResult: null,
   nightActions: {},
   nominations: {},
   seconds: {},
@@ -39,6 +45,7 @@ const makeInitialState = (): GameState => ({
 const sanitizeState = (state: GameState): GameState => ({
   ...state,
   nightResults: state.nightResults || [],
+  phaseResult: state.phaseResult || null,
   nightActions: state.nightActions || {},
   nominations: state.nominations || {},
   seconds: state.seconds || {},
@@ -254,16 +261,16 @@ const App: React.FC = () => {
     return RoomService.subscribeToRoles(gameState.roomCode, (rm) => setRolesMap(rm));
   }, [gameState.roomCode, isActingHost]);
 
-  // Non-host continuously watches only their private role. The role row is created
-  // after the lobby loads, so a one-time read would leave them as a Citizen.
+  // Non-hosts receive their own role plus same-role teammates for collaborative
+  // King and Jack phases. Other private roles remain hidden.
   useEffect(() => {
     const code = gameState.roomCode;
     if (!code || !myPlayerId) return;
     if (isActingHost) return;
 
-    return RoomService.subscribeToMyRole(code, myPlayerId, (role) => {
-      if (!role) return;
-      setRolesMap((prev) => ({ ...prev, [myPlayerId]: role }));
+    return RoomService.subscribeToRoleTeam(code, myPlayerId, (team) => {
+      if (!team[myPlayerId]) return;
+      setRolesMap(team);
     });
   }, [gameState.roomCode, myPlayerId, isActingHost]);
 
@@ -311,6 +318,9 @@ const App: React.FC = () => {
     const resolution = resolveNight(state.players, state.killerTargetId, saveId);
     const resolvedState = { ...state, players: resolution.players };
     const winner = computeWinner(resolvedState, rm);
+    const eliminatedRole = resolution.eliminatedPlayerId
+      ? rm[resolution.eliminatedPlayerId] || null
+      : null;
 
     await narrator.speak(MAFIA_NARRATION.morning);
     await hostUpdateState({
@@ -319,9 +329,15 @@ const App: React.FC = () => {
       lastAngelSavedId: saveId,
       nightActions: {},
       nightResults: resolution.results,
-      phase: winner ? GamePhase.GAME_OVER : GamePhase.DAY_RESULTS,
+      phaseResult: createNightPhaseResult(
+        resolution.eliminatedPlayerId,
+        eliminatedRole,
+        state.round,
+        winner,
+      ),
+      phase: GamePhase.DAY_RESULTS,
       winner,
-      revealedRoles: winner ? rm : undefined,
+      revealedRoles: undefined,
     });
   }, [computeWinner, hostUpdateState]);
 
@@ -447,7 +463,7 @@ const App: React.FC = () => {
       for (const actor of actorPlayers) {
         if (actor.isComputer) continue;
         const targetId = intents[actor.id]?.targetId;
-        if (targetId && canSelectNightTarget(state.players, roleNeeded, actor.id, targetId, state.lastAngelSavedId)) {
+        if (targetId && canSelectNightTarget(state.players, roleNeeded, actor.id, targetId, state.lastAngelSavedId, actors)) {
           humanTarget = targetId;
           break;
         }
@@ -466,7 +482,7 @@ const App: React.FC = () => {
       const aggregated: Record<string, string> = {};
       for (const actor of actorPlayers) {
         const t = actor.isComputer ? computerTarget : intents[actor.id]?.targetId;
-        if (t && canSelectNightTarget(state.players, roleNeeded, actor.id, t, state.lastAngelSavedId)) {
+        if (t && canSelectNightTarget(state.players, roleNeeded, actor.id, t, state.lastAngelSavedId, actors)) {
           aggregated[actor.id] = t;
         }
       }
@@ -662,18 +678,19 @@ const App: React.FC = () => {
 
         const executedName = state.players.find(p => p.id === executedId)?.name || 'Someone';
         const results = [`${executedName} was eliminated by vote.`];
+        const executedRole = rm[executedId] || Role.CITIZEN;
 
         await hostUpdateState({
           players: updatedPlayers,
           nightResults: results,
-          phase: winner ? GamePhase.GAME_OVER : GamePhase.NIGHT_TRANSITION,
-          round: winner ? state.round : state.round + 1,
+          phaseResult: createVotePhaseResult(executedId, executedRole, state.round, winner),
+          phase: GamePhase.DAY_RESULTS,
           nominations: {},
           seconds: {},
           dayVotes: {},
           isRunoff: false,
           winner,
-          revealedRoles: winner ? rm : undefined,
+          revealedRoles: undefined,
         });
 
         await RoomService.clearRoundIntents(
@@ -808,6 +825,7 @@ const App: React.FC = () => {
       angelSaveId: null,
       lastAngelSavedId: null,
       nightResults: [],
+      phaseResult: null,
       nightActions: {},
       nominations: {},
       seconds: {},
@@ -834,6 +852,7 @@ const App: React.FC = () => {
       angelSaveId: null,
       lastAngelSavedId: null,
       nightResults: [],
+      phaseResult: null,
       nightActions: {},
       nominations: {},
       seconds: {},
@@ -847,6 +866,35 @@ const App: React.FC = () => {
   const handleBeginNight = useCallback(async () => {
     if (!isActingHost) return;
     await hostUpdateState({ phase: GamePhase.NIGHT_TRANSITION });
+  }, [hostUpdateState, isActingHost]);
+
+  const handleAcknowledgeResult = useCallback(async () => {
+    if (!isActingHost) return;
+    const state = gameStateRef.current;
+    if (state.phase !== GamePhase.DAY_RESULTS) return;
+
+    if (!state.phaseResult) {
+      await hostUpdateState({
+        phase: GamePhase.DAY_DELIBERATION,
+        nightResults: [],
+        nominations: {},
+        seconds: {},
+        dayVotes: {},
+        isRunoff: false,
+      });
+      return;
+    }
+
+    const transition = acknowledgePhaseResult(state.phaseResult);
+    await hostUpdateState({
+      ...transition,
+      nightResults: [],
+      nominations: {},
+      seconds: {},
+      dayVotes: {},
+      isRunoff: false,
+      revealedRoles: transition.phase === GamePhase.GAME_OVER ? rolesMapRef.current : undefined,
+    });
   }, [hostUpdateState, isActingHost]);
 
   const myPlayer = useMemo(() => {
@@ -888,17 +936,15 @@ const App: React.FC = () => {
 
   if (!myPlayerId || !myPlayer) {
     // The host may still be processing this player when the phase changes.
-    if (gameState.phase !== GamePhase.LANDING) {
-      return (
-        <div className="min-h-screen flex items-center justify-center text-slate-200">
-          <div className="text-center">
-            <p className="text-xl mb-2">Joining room…</p>
-            <p className="text-slate-500">Waiting for host approval.</p>
-            {leaveButton}
-          </div>
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-200">
+        <div className="text-center">
+          <p className="text-xl mb-2">Joining room…</p>
+          <p className="text-slate-500">Waiting for host approval.</p>
+          {leaveButton}
         </div>
-      );
-    }
+      </div>
+    );
   }
 
   if (gameState.phase === GamePhase.SETUP) {
@@ -938,6 +984,7 @@ const App: React.FC = () => {
           round={gameState.round}
           isHost={isActingHost}
           onComplete={handleBeginNight}
+          teammates={gameState.players.filter((player) => player.id !== myPlayerId && rolesMap[player.id] === myRole)}
         />
         {leaveButton}
       </>
@@ -975,7 +1022,7 @@ const App: React.FC = () => {
           myPlayerId={myPlayerId}
           myRole={myRole}
           roomCode={gameState.roomCode}
-          rolesMap={isActingHost ? rolesMap : { [myPlayerId]: myRole }}
+          rolesMap={rolesMap}
         />
         {leaveButton}
       </>
@@ -991,6 +1038,7 @@ const App: React.FC = () => {
           isHost={isActingHost}
           roomCode={gameState.roomCode}
           onHostAction={hostUpdateState}
+          onAcknowledgeResult={handleAcknowledgeResult}
         />
         {leaveButton}
       </>

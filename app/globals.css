@@ -201,6 +201,20 @@ input {
     linear-gradient(145deg, #8f1f28, #421a21 68%, #142b25);
 }
 
+.game-card.scum {
+  color: #fff6df;
+  border-color: rgba(238, 200, 96, 0.22);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(226, 184, 79, 0.44), transparent 23%),
+    radial-gradient(circle at 10% 92%, rgba(190, 67, 49, 0.42), transparent 29%),
+    linear-gradient(145deg, #1d5948, #12352c 68%, #391d1b);
+}
+
+.game-card.scum .game-status {
+  color: #fff3d2;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .game-card.hearts .game-status {
   color: #fff4e8;
   background: rgba(255, 255, 255, 0.12);
