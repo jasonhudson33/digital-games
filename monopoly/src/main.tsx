@@ -952,9 +952,17 @@ function Board({
           key={space.id}
           space={space}
           players={game.players.filter((player) => player.position === space.id && !player.bankrupt)}
-          owner={game.players.find((player) => player.properties.includes(space.id))}
           improvementLevel={game.improvements[space.id] ?? 0}
         />
+      ))}
+      {board.filter((space) => space.price).map((space) => (
+        <div
+          key={`status-${space.id}`}
+          className={`board-status-marker ${getBoardSide(space.id)}`}
+          style={getGridPosition(space.id)}
+        >
+          <PropertyOwnership owner={game.players.find((player) => player.properties.includes(space.id))} />
+        </div>
       ))}
       <div className="board-center">
         <span className="board-title">Monopoly</span>
@@ -975,12 +983,10 @@ function Board({
 function BoardSpace({
   space,
   players,
-  owner,
   improvementLevel
 }: {
   space: Space;
   players: Player[];
-  owner?: Player;
   improvementLevel: number;
 }) {
   const style = getGridPosition(space.id);
@@ -996,7 +1002,6 @@ function BoardSpace({
       <span className="space-name">{space.name}</span>
       {space.price && <span className="space-price">${space.price}</span>}
       {space.kind === 'tax' && <span className="space-price">{getTaxText(space)}</span>}
-      {space.price && <PropertyOwnership owner={owner} />}
       <div className={`tokens ${players.length > 1 ? 'stacked' : ''}`}>
         {players.map((player) => (
           <PlayerToken key={player.id} player={player} />

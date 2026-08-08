@@ -582,34 +582,39 @@
   padding: 1px;
 }
 
-.monopoly-page .bottom-side .property-ownership,
-.monopoly-page .top-side .property-ownership,
-.monopoly-page .left-side .property-ownership,
-.monopoly-page .right-side .property-ownership{
+.monopoly-page .board-status-marker{
+  position: relative;
+  z-index: 3;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.monopoly-page .board-status-marker .property-ownership{
   position: absolute;
 }
 
-.monopoly-page .bottom-side .property-ownership{
-  top: 15px;
+.monopoly-page .board-status-marker.bottom-side .property-ownership{
+  bottom: calc(100% + 3px);
   left: 50%;
   transform: translateX(-50%);
 }
 
-.monopoly-page .top-side .property-ownership{
-  bottom: 15px;
+.monopoly-page .board-status-marker.top-side .property-ownership{
+  top: calc(100% + 3px);
   left: 50%;
   transform: translateX(-50%);
 }
 
-.monopoly-page .left-side .property-ownership{
+.monopoly-page .board-status-marker.left-side .property-ownership{
   top: 50%;
-  right: 15px;
+  left: calc(100% + 3px);
   transform: translateY(-50%);
 }
 
-.monopoly-page .right-side .property-ownership{
+.monopoly-page .board-status-marker.right-side .property-ownership{
   top: 50%;
-  left: 15px;
+  right: calc(100% + 3px);
   transform: translateY(-50%);
 }
 
