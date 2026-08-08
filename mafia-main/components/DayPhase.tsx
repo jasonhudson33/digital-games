@@ -49,6 +49,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
       seconds: {},
       dayVotes: {},
       isRunoff: false,
+      nightSelectionHistory: {},
     });
   };
 

@@ -51,6 +51,11 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
     [votes, actorIds],
   );
   const showTeamDetails = amActor && (phaseRole === Role.KILLER || phaseRole === Role.DETECTIVE);
+  const completedTeamSelections = myRole === Role.KILLER
+    ? state.nightSelectionHistory?.KILLER
+    : myRole === Role.DETECTIVE
+      ? state.nightSelectionHistory?.DETECTIVE
+      : undefined;
 
   const consensusTargetId = useMemo(() => {
     const targets = Object.values(votes);
@@ -111,6 +116,19 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
       {feedback && (
         <div className="max-w-xl mx-auto mb-6 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-200">
           {feedback}
+        </div>
+      )}
+
+      {!amActor && completedTeamSelections && (
+        <div className="max-w-xl mx-auto mb-6 bg-slate-900 border border-amber-500/30 rounded-xl p-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3">Your team’s completed choices</p>
+          <div className="space-y-1 text-slate-200">
+            {Object.entries(completedTeamSelections).map(([actorId, targetId]) => {
+              const actor = state.players.find((player) => player.id === actorId);
+              const target = state.players.find((player) => player.id === targetId);
+              return <p key={actorId}>{actor?.name || 'A teammate'} selected {target?.name || 'an unknown player'}.</p>;
+            })}
+          </div>
         </div>
       )}
 

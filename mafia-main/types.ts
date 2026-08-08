@@ -36,6 +36,7 @@ export interface Player {
 /** Map of playerId -> Role. Stored privately in mafia_roles. */
 export type RoleMap = Record<string, Role>;
 export type PresenceMap = Record<string, number>;
+export type NightSelectionHistory = Partial<Record<'KILLER' | 'DETECTIVE', Record<string, string>>>;
 
 export type JoinRequest = { name: string; ts: number };
 export type LeaveRequest = { ts: number };
@@ -93,6 +94,7 @@ export interface GameState {
    * actorId -> targetId
    */
   nightActions: Record<string, string>;
+  nightSelectionHistory: NightSelectionHistory;
 
   /** Aggregated daytime data, written by host. */
   nominations: Record<string, string>;

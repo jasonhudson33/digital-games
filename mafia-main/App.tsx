@@ -34,6 +34,7 @@ const makeInitialState = (): GameState => ({
   nightResults: [],
   phaseResult: null,
   nightActions: {},
+  nightSelectionHistory: {},
   nominations: {},
   seconds: {},
   dayVotes: {},
@@ -47,6 +48,7 @@ const sanitizeState = (state: GameState): GameState => ({
   nightResults: state.nightResults || [],
   phaseResult: state.phaseResult || null,
   nightActions: state.nightActions || {},
+  nightSelectionHistory: state.nightSelectionHistory || {},
   nominations: state.nominations || {},
   seconds: state.seconds || {},
   dayVotes: state.dayVotes || {},
@@ -500,7 +502,12 @@ const App: React.FC = () => {
 
       if (state.phase === GamePhase.NIGHT_KILLER) {
         await narrator.speak(MAFIA_NARRATION.detectivesWake);
-        await hostUpdateState({ killerTargetId: targetId, nightActions: {}, phase: GamePhase.NIGHT_DETECTIVE });
+        await hostUpdateState({
+          killerTargetId: targetId,
+          nightActions: {},
+          nightSelectionHistory: { ...state.nightSelectionHistory, KILLER: aggregated },
+          phase: GamePhase.NIGHT_DETECTIVE,
+        });
       } else if (state.phase === GamePhase.NIGHT_DETECTIVE) {
         // Save private results for each detective
         for (const uid of actors) {
@@ -511,7 +518,12 @@ const App: React.FC = () => {
           });
         }
         await narrator.speak(MAFIA_NARRATION.angelsWake);
-        await hostUpdateState({ detectiveCheckId: targetId, nightActions: {}, phase: GamePhase.NIGHT_ANGEL });
+        await hostUpdateState({
+          detectiveCheckId: targetId,
+          nightActions: {},
+          nightSelectionHistory: { ...state.nightSelectionHistory, DETECTIVE: aggregated },
+          phase: GamePhase.NIGHT_ANGEL,
+        });
       } else if (state.phase === GamePhase.NIGHT_ANGEL) {
         await finishNight(state, targetId, rm);
       }
@@ -663,6 +675,7 @@ const App: React.FC = () => {
             seconds: {},
             dayVotes: {},
             isRunoff: false,
+            nightSelectionHistory: {},
           });
           await RoomService.clearRoundIntents(
             state.roomCode,
@@ -827,6 +840,7 @@ const App: React.FC = () => {
       nightResults: [],
       phaseResult: null,
       nightActions: {},
+      nightSelectionHistory: {},
       nominations: {},
       seconds: {},
       dayVotes: {},
@@ -854,6 +868,7 @@ const App: React.FC = () => {
       nightResults: [],
       phaseResult: null,
       nightActions: {},
+      nightSelectionHistory: {},
       nominations: {},
       seconds: {},
       dayVotes: {},
@@ -865,7 +880,7 @@ const App: React.FC = () => {
 
   const handleBeginNight = useCallback(async () => {
     if (!isActingHost) return;
-    await hostUpdateState({ phase: GamePhase.NIGHT_TRANSITION });
+    await hostUpdateState({ phase: GamePhase.NIGHT_TRANSITION, nightSelectionHistory: {} });
   }, [hostUpdateState, isActingHost]);
 
   const handleAcknowledgeResult = useCallback(async () => {
@@ -893,6 +908,7 @@ const App: React.FC = () => {
       seconds: {},
       dayVotes: {},
       isRunoff: false,
+      nightSelectionHistory: transition.phase === GamePhase.NIGHT_TRANSITION ? {} : state.nightSelectionHistory,
       revealedRoles: transition.phase === GamePhase.GAME_OVER ? rolesMapRef.current : undefined,
     });
   }, [hostUpdateState, isActingHost]);
