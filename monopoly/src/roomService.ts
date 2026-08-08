@@ -212,6 +212,7 @@ const normalizeState = (state: GameState): GameState => {
     doubleRollCount: state.doubleRollCount ?? 0,
     jailRollMode: state.jailRollMode ?? null,
     pendingCard: gameOver ? null : state.pendingCard ?? null,
+    pendingCardQueue: gameOver ? [] : state.pendingCardQueue ?? [],
     pendingPurchase: gameOver ? null : state.pendingPurchase ?? null,
     pendingTax: gameOver ? null : state.pendingTax ?? null,
     pendingRent: gameOver ? null : state.pendingRent ?? null,

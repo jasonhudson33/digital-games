@@ -104,7 +104,9 @@ const chanceCards: Card[] = [
     text: 'A surprise detour sends you backward.',
     actionText: 'Move back 3 spaces.',
     resolve: (state, playerIndex, entries) =>
-      moveFromCard(state, playerIndex, (state.players[playerIndex].position + board.length - 3) % board.length, entries)
+      moveFromCard(state, playerIndex, (state.players[playerIndex].position + board.length - 3) % board.length, entries, {
+        collectGoSalary: false
+      })
   },
   {
     id: 'chance-boardwalk',
@@ -293,6 +295,7 @@ export const makeInitialState = (hostId: string, hostName: string, roomCode = ma
   doubleRollCount: 0,
   jailRollMode: null,
   pendingCard: null,
+  pendingCardQueue: [],
   pendingPurchase: null,
   pendingTax: null,
   pendingRent: null,
@@ -362,6 +365,7 @@ export const startGame = (state: GameState): GameState =>
     turnStageVersion: 2,
     doubleRollCount: 0,
     jailRollMode: null,
+    pendingCardQueue: [],
     pendingPurchase: null,
     pendingTax: null,
     pendingRent: null,
@@ -549,12 +553,15 @@ export const stayInJailAndRoll = (state: GameState): GameState => {
 
 export const acknowledgeCard = (state: GameState): GameState => {
   if (!state.pendingCard) return state;
+  const [nextPendingCard, ...remainingCards] = state.pendingCardQueue ?? [];
   const next = {
     ...state,
-    pendingCard: null,
+    pendingCard: nextPendingCard ?? null,
+    pendingCardQueue: remainingCards,
     log: [log(`${playerName(state, state.pendingCard.playerId)} acknowledged the ${deckLabel(state.pendingCard.deck)} card.`), ...state.log].slice(0, 30)
   };
   const hasFollowUp =
+    next.pendingCard ||
     next.pendingPurchase ||
     next.pendingTax ||
     next.pendingRent ||
@@ -1230,6 +1237,10 @@ type LandingOptions = {
   utilityRentMultiplier?: number;
 };
 
+type CardMoveOptions = LandingOptions & {
+  collectGoSalary?: boolean;
+};
+
 const resolvePostMoveSpace = (
   state: GameState,
   playerIndex: number,
@@ -1280,6 +1291,10 @@ const resolvePostMoveSpace = (
     }
     const cardPlayer = cardState.players[playerIndex];
     const cardLog = log(`${cardPlayer.name} drew ${card.title}: ${card.actionText}`);
+    const pendingCardQueue = [
+      ...(cardState.pendingCard ? [cardState.pendingCard] : []),
+      ...(cardState.pendingCardQueue ?? [])
+    ];
 
     return touch({
       ...cardState,
@@ -1291,6 +1306,7 @@ const resolvePostMoveSpace = (
         actionText: card.actionText,
         playerId: cardPlayer.id
       },
+      pendingCardQueue,
       log: [cardLog, ...cardState.log].slice(0, 30)
     });
   } else if (space.price && owner && owner.id !== active.id) {
@@ -1405,20 +1421,21 @@ const moveFromCard = (
   playerIndex: number,
   destination: number,
   entries: LogEntry[],
-  options: LandingOptions = {}
+  options: CardMoveOptions = {}
 ) => {
+  const { collectGoSalary = true, ...landingOptions } = options;
   const players = [...state.players];
   const active = { ...players[playerIndex] };
   const previous = active.position;
   active.position = destination;
-  if (destination < previous) {
+  if (collectGoSalary && destination < previous) {
     active.money += 200;
     entries.push(log(`${active.name} passed GO and collected $200.`));
   }
   players[playerIndex] = active;
-  entries.push(log(`${active.name} advanced to ${board[destination].name}.`));
+  entries.push(log(`${active.name} ${collectGoSalary ? 'advanced' : 'moved back'} to ${board[destination].name}.`));
   return resolvePostMoveSpace({ ...state, players }, playerIndex, entries, undefined, {
-    ...options,
+    ...landingOptions,
     deferTurnEnd: true
   });
 };
@@ -1886,6 +1903,7 @@ const finishTurn = (state: GameState): GameState => {
     currentPlayerIndex: gameOver ? winnerIndex : state.currentPlayerIndex,
     jailRollMode: null,
     pendingCard: gameOver ? null : state.pendingCard,
+    pendingCardQueue: gameOver ? [] : state.pendingCardQueue,
     pendingPurchase: gameOver ? null : state.pendingPurchase,
     pendingTax: gameOver ? null : state.pendingTax,
     pendingRent: gameOver ? null : state.pendingRent,
@@ -1936,6 +1954,7 @@ const touch = (state: GameState): GameState => {
       phase: 'gameOver',
       currentPlayerIndex: state.players.findIndex((player) => player.id === winner.id),
       pendingCard: null,
+      pendingCardQueue: [],
       pendingPurchase: null,
       pendingTax: null,
       pendingRent: null,

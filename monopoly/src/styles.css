@@ -355,6 +355,22 @@
   font-weight: 700;
 }
 
+.monopoly-page .board-trade-action{
+  position: relative;
+  z-index: 2;
+  width: min(260px, 82%);
+}
+
+.monopoly-page .board-trade-action button{
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 16px;
+  border-color: #164c32;
+  font-weight: 950;
+  white-space: nowrap;
+  box-shadow: 4px 5px 0 rgba(29, 37, 33, 0.22);
+}
+
 .monopoly-page .board-dice-area{
   width: min(360px, 86%);
   display: grid;

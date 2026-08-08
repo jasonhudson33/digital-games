@@ -162,6 +162,7 @@ export type GameState = {
   doubleRollCount: number;
   jailRollMode: JailRollMode;
   pendingCard: DrawnCard | null;
+  pendingCardQueue: DrawnCard[];
   pendingPurchase: PendingPurchase | null;
   pendingTax: PendingTax | null;
   pendingRent: PendingRent | null;

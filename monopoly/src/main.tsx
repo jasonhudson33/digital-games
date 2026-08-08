@@ -104,6 +104,7 @@ export default function App() {
   const [activeOfferedPropertyIds, setActiveOfferedPropertyIds] = React.useState<number[]>([]);
   const [activeRequestedPropertyIds, setActiveRequestedPropertyIds] = React.useState<number[]>([]);
   const latestGame = React.useRef<GameState | null>(null);
+  const activeTradeSubmit = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     setPlayerId(getPlayerId());
@@ -327,6 +328,7 @@ export default function App() {
   }, [game, isHost]);
 
   React.useEffect(() => {
+    activeTradeSubmit.current = null;
     setActiveTradeTargetId('');
     setActiveOfferedPropertyIds([]);
     setActiveRequestedPropertyIds([]);
@@ -374,6 +376,14 @@ export default function App() {
           ? current.filter((id) => id !== spaceId)
           : [...current, spaceId]
     );
+  };
+
+  const registerActiveTradeSubmit = React.useCallback((submit: (() => void) | null) => {
+    activeTradeSubmit.current = submit;
+  }, []);
+
+  const handleBoardTradeSubmit = () => {
+    activeTradeSubmit.current?.();
   };
 
   if (!isReady) {
@@ -459,6 +469,12 @@ export default function App() {
           offeredPropertyIds={activeOfferedPropertyIds}
           requestedPropertyIds={activeRequestedPropertyIds}
           onTradePropertyToggle={handleBoardTradeProperty}
+          showProposeTradeButton={Boolean(
+            canSelectTradeProperties &&
+            activeOfferedPropertyIds.length > 0 &&
+            activeRequestedPropertyIds.length > 0
+          )}
+          onProposeTrade={handleBoardTradeSubmit}
           onRoll={handleRoll}
         />
 
@@ -670,7 +686,8 @@ export default function App() {
                   requestedPropertyIds: activeRequestedPropertyIds,
                   setTargetId: setActiveTradeTargetId,
                   setOfferedPropertyIds: setActiveOfferedPropertyIds,
-                  setRequestedPropertyIds: setActiveRequestedPropertyIds
+                  setRequestedPropertyIds: setActiveRequestedPropertyIds,
+                  registerSubmit: registerActiveTradeSubmit
                 } : undefined}
                 onProposeTrade={(toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards) =>
                   updateGame((state) =>
@@ -1004,6 +1021,8 @@ function Board({
   offeredPropertyIds,
   requestedPropertyIds,
   onTradePropertyToggle,
+  showProposeTradeButton,
+  onProposeTrade,
   onRoll
 }: {
   game: GameState;
@@ -1015,6 +1034,8 @@ function Board({
   offeredPropertyIds: number[];
   requestedPropertyIds: number[];
   onTradePropertyToggle: (spaceId: number) => void;
+  showProposeTradeButton: boolean;
+  onProposeTrade: () => void;
   onRoll: () => void;
 }) {
   return (
@@ -1061,6 +1082,13 @@ function Board({
             </button>
           )}
         </div>
+        {showProposeTradeButton && (
+          <div className="board-trade-action">
+            <button className="primary" onClick={onProposeTrade}>
+              <Check size={18} /> Propose trade
+            </button>
+          </div>
+        )}
         <p>
           {canSelectTradeProperties
             ? 'Click owned deeds on the board to add or remove them from your trade.'
@@ -1265,6 +1293,7 @@ type BoardTradeDraft = {
   setTargetId: (playerId: string) => void;
   setOfferedPropertyIds: React.Dispatch<React.SetStateAction<number[]>>;
   setRequestedPropertyIds: React.Dispatch<React.SetStateAction<number[]>>;
+  registerSubmit: (submit: (() => void) | null) => void;
 };
 
 function PlayerRow({
@@ -1359,6 +1388,12 @@ function PlayerRow({
     setOfferedJailCards(0);
     setRequestedJailCards(0);
   };
+
+  React.useEffect(() => {
+    if (!boardTradeDraft) return;
+    boardTradeDraft.registerSubmit(submitTrade);
+    return () => boardTradeDraft.registerSubmit(null);
+  }, [boardTradeDraft, submitTrade]);
 
   return (
     <div className={`player-row ${active ? 'active' : ''}`}>
