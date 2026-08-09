@@ -66,7 +66,7 @@
 .scum-setup {
   max-width: 720px;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px auto;
+  grid-template-columns: minmax(160px, 1fr) 108px 128px auto;
   align-items: end;
   gap: 10px;
   padding: 12px;
@@ -79,6 +79,7 @@
 .scum-setup label { margin: 0; }
 .scum-setup label > span,
 .scum-player-count > span,
+.scum-pass-groups > span,
 .scum-table-size > span {
   display: block;
   margin: 0 0 7px 4px;
@@ -95,16 +96,19 @@
   background: #fffdf7;
 }
 
-.scum-player-count {
+.scum-player-count,
+.scum-pass-groups {
   position: relative;
   margin: 0;
 }
 
-.scum-player-count input {
+.scum-player-count input,
+.scum-pass-groups input {
   padding-right: 66px;
 }
 
-.scum-player-count small {
+.scum-player-count small,
+.scum-pass-groups small {
   position: absolute;
   right: 13px;
   bottom: 16px;
@@ -140,6 +144,7 @@
   transition: transform 160ms ease, background 160ms ease;
 }
 .scum-primary:hover { transform: translateY(-2px); background: #205445; }
+.scum-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
 .scum-text-button {
   margin-top: 18px;
@@ -405,9 +410,9 @@
 .hand-empty { margin: auto; display: flex; align-items: center; gap: 8px; color: var(--scum-gold); font-family: Georgia, serif; }
 
 .scum-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: rgba(7,17,13,.76); backdrop-filter: blur(8px); }
-.rules-card, .results-card { position: relative; width: min(540px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 36px; border: 1px solid rgba(39,56,43,.13); border-radius: 24px; color: var(--scum-ink); background: #f4eddc; box-shadow: 0 30px 90px rgba(0,0,0,.4); }
+.rules-card, .results-card, .trade-card { position: relative; width: min(540px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 36px; border: 1px solid rgba(39,56,43,.13); border-radius: 24px; color: var(--scum-ink); background: #f4eddc; box-shadow: 0 30px 90px rgba(0,0,0,.4); }
 .dialog-close { position: absolute; right: 18px; top: 18px; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid rgba(29,43,32,.12); border-radius: 50%; color: #34483a; background: transparent; cursor: pointer; }
-.rules-card h2, .results-card h2 { margin: 14px 0 24px; font: 500 clamp(2.2rem, 7vw, 3.4rem)/.95 Georgia, serif; letter-spacing: -.045em; }
+.rules-card h2, .results-card h2, .trade-card h2 { margin: 14px 0 24px; font: 500 clamp(2.2rem, 7vw, 3.4rem)/.95 Georgia, serif; letter-spacing: -.045em; }
 .rules-card ol { margin: 0 0 22px; padding: 0; list-style: none; counter-reset: rules; }
 .rules-card li { counter-increment: rules; position: relative; display: grid; grid-template-columns: 110px 1fr; gap: 15px; padding: 14px 0 14px 42px; border-bottom: 1px solid rgba(27,43,31,.1); }
 .rules-card li::before { content: counter(rules); position: absolute; left: 0; top: 12px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f7edd2; background: #173f33; font-size: .72rem; font-weight: 800; }
@@ -422,6 +427,182 @@
 .results-list > div { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; padding: 12px 8px; border-bottom: 1px solid rgba(27,43,31,.1); }
 .results-list > div.you { color: #8b3d31; }.results-list span { font-family: Georgia, serif; font-size: 1.1rem; }.results-list small { color: #747970; }
 .results-card .scum-primary { width: 100%; }
+
+.trade-card { width: min(760px, 100%); }
+.trade-intro { margin: -8px 0 20px; color: #666d64; line-height: 1.55; }
+.trade-groups { display: grid; gap: 7px; margin-bottom: 20px; }
+.trade-groups > div {
+  display: grid;
+  grid-template-columns: 28px minmax(85px, 1fr) auto 24px minmax(85px, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(29, 53, 39, .1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .45);
+}
+.trade-groups > div.is-you { border-color: rgba(139, 61, 49, .35); background: rgba(255, 249, 239, .86); }
+.trade-groups > div > span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f8edd4; background: #173f33; font-size: .72rem; font-weight: 800; }
+.trade-groups strong { font-size: .8rem; }.trade-groups small { color: #777d74; font-size: .66rem; }.trade-groups i { color: #a67827; text-align: center; font-style: normal; }
+.trade-choice { margin: 0 0 18px; padding: 15px; border-radius: 16px; background: rgba(24, 63, 51, .07); }
+.trade-choice > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.trade-choice > div:first-child strong { font-size: .82rem; }.trade-choice > div:first-child small { color: #777d74; font-size: .72rem; }
+.trade-hand { display: flex; align-items: flex-end; min-height: 102px; padding-top: 10px; overflow-x: auto; overflow-y: hidden; }
+.trade-hand button { width: 55px; min-width: 55px; height: 92px; margin-left: -7px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; transition: transform 140ms ease; }
+.trade-hand button:first-child { margin-left: 0; }.trade-hand button.selected { transform: translateY(-10px); }
+.trade-notice { padding: 13px 15px; border-radius: 13px; color: #6b5540; background: rgba(226, 184, 79, .13); font-size: .78rem; line-height: 1.5; }
+.trade-card > .scum-primary { width: 100%; }
+
+.scum-room-loading {
+  min-height: calc(100vh - 73px);
+  display: grid;
+  place-items: center;
+  color: #365244;
+  font: 500 1.15rem Georgia, serif;
+}
+
+.scum-room-entry {
+  max-width: 590px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(30, 48, 35, .12);
+  border-radius: 20px;
+  background: rgba(255, 253, 246, .72);
+  box-shadow: 0 22px 50px rgba(74, 53, 28, .08);
+}
+
+.scum-room-entry label > span {
+  display: block;
+  margin: 0 0 7px 4px;
+  color: #6e746c;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-size: .66rem;
+  font-weight: 800;
+}
+
+.scum-room-entry input {
+  min-height: 50px;
+  border-color: rgba(30, 48, 35, .12);
+  background: #fffdf7;
+}
+
+.scum-room-entry > .scum-primary { align-self: end; }
+.scum-room-entry > small { grid-column: 1 / -1; color: #777d74; text-align: center; font-size: .69rem; }
+
+.scum-entry-divider {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8a8e87;
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.scum-entry-divider::before, .scum-entry-divider::after { content: ""; height: 1px; flex: 1; background: rgba(30, 48, 35, .1); }
+
+.scum-join-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.scum-join-row input { letter-spacing: .16em; text-transform: uppercase; font-weight: 800; }
+.scum-join-row button, .scum-add-computer, .scum-lobby-footer button, .scum-room-code button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(30, 48, 35, .13);
+  border-radius: 12px;
+  color: #244a3b;
+  background: rgba(255, 255, 255, .62);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.scum-room-error, .scum-game-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #9f3328;
+  font-size: .76rem;
+  line-height: 1.4;
+}
+.scum-game-error { padding: 8px 4px 0; text-align: right; }
+
+.scum-lobby-shell {
+  min-height: calc(100vh - 73px);
+  display: grid;
+  place-items: center;
+  padding: 36px 18px;
+}
+
+.scum-lobby-card {
+  width: min(720px, 100%);
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid rgba(30, 48, 35, .13);
+  border-radius: 28px;
+  background: rgba(255, 253, 246, .84);
+  box-shadow: 0 32px 80px rgba(74, 53, 28, .14);
+}
+.scum-lobby-card > h1 { margin: 10px 0 4px; font: 500 clamp(3.4rem, 10vw, 5.7rem)/.9 Georgia, serif; letter-spacing: -.065em; }
+.scum-lobby-card > p { margin: 10px 0 24px; color: #666d64; line-height: 1.55; }
+
+.scum-room-code {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  color: #f7eed9;
+  background: #173f33;
+}
+.scum-room-code > span { text-transform: uppercase; letter-spacing: .12em; font-size: .64rem; font-weight: 800; }
+.scum-room-code > strong { color: var(--scum-gold); font: 700 1.7rem Georgia, serif; letter-spacing: .16em; }
+.scum-room-code button { min-height: 38px; color: #f7eed9; border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.07); }
+
+.scum-lobby-players { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.scum-lobby-players > div {
+  min-height: 55px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(29, 53, 39, .1);
+  border-radius: 13px;
+  background: rgba(255,255,255,.46);
+}
+.scum-lobby-players > div > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #173f33; background: var(--scum-gold); font: 700 .85rem Georgia, serif; }
+.scum-lobby-players strong { font-size: .82rem; }
+.scum-lobby-players small { color: #777d74; font-size: .66rem; }
+.scum-lobby-players button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border: 0; color: #9f3328; background: transparent; font-size: .66rem; font-weight: 800; cursor: pointer; }
+
+.scum-add-computer { margin-top: 10px; min-height: 38px; font-size: .75rem; }
+
+.scum-lobby-options {
+  display: grid;
+  grid-template-columns: 1fr 92px;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0 12px;
+  padding: 15px;
+  border-radius: 15px;
+  background: rgba(23, 63, 51, .07);
+}
+.scum-lobby-options strong, .scum-lobby-options span { display: block; }
+.scum-lobby-options strong { font-size: .82rem; }
+.scum-lobby-options span { margin-top: 4px; color: #70766e; font-size: .7rem; }
+.scum-lobby-options select { min-height: 42px; padding: 0 12px; border: 1px solid rgba(30,48,35,.15); border-radius: 10px; color: #173f33; background: #fffdf7; font-weight: 800; }
+
+.scum-lobby-summary { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 17px; }
+.scum-lobby-summary span { padding: 6px 9px; border-radius: 999px; color: #6d746c; background: rgba(23,63,51,.07); font-size: .66rem; font-weight: 700; }
+.scum-lobby-start { width: 100%; }
+.scum-lobby-waiting { color: #777d74; text-align: center; font-size: .76rem; }
+.scum-lobby-footer { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
+.scum-lobby-footer button { min-height: 38px; font-size: .72rem; }
 
 @media (max-width: 800px) {
   .scum-intro { grid-template-columns: 1fr; padding-top: 48px; }
@@ -444,6 +625,11 @@
   .intro-card b { font-size: 1.2rem; }.intro-card i { font-size: 1rem; }.intro-card em { font-size: 2.8rem; }
   .scum-intro h1 { font-size: clamp(3.5rem, 18vw, 5rem); }
   .scum-setup { grid-template-columns: 1fr; }
+  .scum-room-entry { grid-template-columns: 1fr; }
+  .scum-room-entry > .scum-primary, .scum-entry-divider, .scum-join-row, .scum-room-entry > small { grid-column: 1; }
+  .scum-room-code { grid-template-columns: 1fr auto; }
+  .scum-room-code button { grid-column: 1 / -1; }
+  .scum-lobby-options { grid-template-columns: 1fr 76px; }
   .scum-table-size { display: none; }
   .scum-gamebar { min-height: 56px; padding-inline: 12px; }
   .scum-wordmark strong { display: none; }
@@ -460,8 +646,10 @@
   .scum-controls > span { display: none; }
   .scum-controls { justify-content: flex-end; }
   .scum-controls .scum-pass { margin-left: auto; }
-  .rules-card, .results-card { padding: 30px 22px 24px; }
+  .rules-card, .results-card, .trade-card { padding: 30px 22px 24px; }
   .rules-card li { grid-template-columns: 1fr; gap: 4px; }
+  .trade-groups > div { grid-template-columns: 25px 1fr auto 1fr; }
+  .trade-groups > div small { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
