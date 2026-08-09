@@ -6,6 +6,7 @@ import {
   createHandFootMatch,
   discardHandFootCard,
   drawHandFootCards,
+  getHandFootGoOutBlockReason,
   handFootMeldBonus,
   playHandFootCards,
   scoreHandFootTeam,
@@ -216,13 +217,48 @@ test("a player cannot go out before their teammate reaches their foot", () => {
     }),
   };
 
-  assert.throws(() => discardHandFootCard(game, 0, lastCard.id), /teammate has reached their foot/i);
+  assert.throws(() => discardHandFootCard(game, 0, lastCard.id), /teammate has not reached their foot/i);
   game.teams[0] = {
     ...game.teams[0],
     opened: true,
     melds: { 9: [card("9a", "diamonds", 9), card("9b", "hearts", 9), card("9c", "spades", 9)] },
   };
-  assert.throws(() => playHandFootCards(game, 0, [lastCard.id]), /teammate has reached their foot/i);
+  assert.throws(() => playHandFootCards(game, 0, [lastCard.id]), /teammate has not reached their foot/i);
+});
+
+test("a blocked player must keep two foot cards before discarding down to one", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const foot = [
+    card("9-one", "clubs", 9),
+    card("9-two", "diamonds", 9),
+    card("9-three", "hearts", 9),
+    card("discard", "spades", 6),
+  ];
+  game = {
+    ...game,
+    turnStage: "play",
+    teams: game.teams.map((team, index) => index === 0
+      ? { ...team, opened: true, melds: { 9: [card("laid-9a", "clubs", 9), card("laid-9b", "diamonds", 9), card("laid-9c", "spades", 9)] } }
+      : team),
+    players: game.players.map((player, index) => {
+      if (index === 0) return { ...player, hand: [], foot, usingFoot: true };
+      if (index === 2) return { ...player, usingFoot: false };
+      return player;
+    }),
+  };
+
+  const leavesOne = foot.slice(0, 3).map((candidate) => candidate.id);
+  const leavesTwo = foot.slice(0, 2).map((candidate) => candidate.id);
+  assert.equal(getHandFootGoOutBlockReason(game, 0), "your teammate has not reached their foot");
+  assert.equal(canPlayHandFootCards(game, 0, leavesOne), false);
+  assert.throws(() => playHandFootCards(game, 0, leavesOne), /Keep at least two cards in your foot/i);
+
+  game = playHandFootCards(game, 0, leavesTwo);
+  assert.equal(game.players[0].foot.length, 2);
+  game = discardHandFootCard(game, 0, "discard");
+  assert.equal(game.phase, "playing");
+  assert.equal(game.players[0].foot.length, 1);
+  assert.equal(game.currentPlayerIndex, 1);
 });
 
 test("a player's foot is sorted when their hand becomes empty", () => {

@@ -12,6 +12,7 @@ import {
   discardHandFootCard,
   drawHandFootCards,
   formatHandFootCard,
+  getHandFootGoOutBlockReason,
   handFootCardPoints,
   handFootMeldBonus,
   handFootRankLabel,
@@ -345,6 +346,7 @@ export default function HandAndFootClient() {
   const activeCards = activeCardsFor(game, viewerPlayerIndex);
   const yourTurn = game.currentPlayerIndex === viewerPlayerIndex;
   const humanTeam = game.teams[human.teamId];
+  const goOutBlockReason = getHandFootGoOutBlockReason(game, viewerPlayerIndex);
   const selectedCards = activeCards.filter((card) => selectedIds.includes(card.id));
   const wildOnlySelection = selectedCards.length > 0 && selectedCards.every(isWildCard);
   const requiresWildTarget = wildOnlySelection && humanTeam.opened;
@@ -442,6 +444,11 @@ export default function HandAndFootClient() {
               })}
             </div>
             {!wildTargetRanks.some((rank) => canPlayHandFootCards(game, viewerPlayerIndex, selectedIds, rank)) && <small>No pile can legally accept this selection.</small>}
+          </div>
+        )}
+        {human.usingFoot && goOutBlockReason && (
+          <div className="hf-go-out-warning" role="status">
+            You cannot go out because {goOutBlockReason}. Keep at least two cards in your foot before discarding.
           </div>
         )}
         {error && <div className="hf-error" role="alert">{error}</div>}
@@ -584,7 +591,7 @@ function RulesDialog({ open, onClose }) {
           <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two. Meld three or more matching ranks, add to your team’s melds, then discard one card to finish your turn.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
-          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. You may meld or discard its last card to go out only after your teammate has reached their foot and no longer holds a 3.</p></div></article>
+          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></div></article>
           <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
         </div>
         <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>

@@ -107,6 +107,7 @@
 .hf-turn-dot { width: 9px; height: 9px; border-radius: 50%; background: #b7bdb5; }.hf-turn-dot.on { background: #4cae6f; box-shadow: 0 0 0 4px rgba(76,174,111,.14); }
 .hf-turn-actions { display: flex; gap: 8px; }.hf-turn-actions button { min-height: 42px; padding: 0 16px; font-size: .76rem; }
 .hf-error { margin: 10px 0 0; padding: 8px 11px; color: #862d1c; border-radius: 9px; background: #fbe5db; font-size: .72rem; }
+.hf-go-out-warning { margin: 10px 0 0; padding: 9px 12px; color: #704715; border: 1px solid rgba(190,126,35,.22); border-radius: 9px; background: #fff1cf; font-size: .72rem; font-weight: 750; }
 .hf-wild-target-picker { margin: 12px 0 0; padding: 11px 13px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(223,101,56,.24); border-radius: 13px; background: #fff5e7; }
 .hf-wild-target-picker > span { color: #77422e; font-size: .72rem; font-weight: 850; }
 .hf-wild-target-picker > div { display: flex; flex-wrap: wrap; gap: 6px; }
