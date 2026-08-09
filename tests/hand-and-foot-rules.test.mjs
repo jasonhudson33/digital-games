@@ -52,6 +52,26 @@ test("a turn starts by drawing exactly two cards and ends with one discard", () 
   assert.equal(game.turnStage, "draw");
 });
 
+test("an exhausted draw pile ends and scores the round without reshuffling discards", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const finalDrawCard = card("final-draw", "clubs", 5);
+  const discards = [card("old-discard", "diamonds", 8), card("top-discard", "hearts", 10)];
+  const expectedScores = game.teams.map((team) => scoreHandFootTeam(team, game.players));
+  game = { ...game, drawPile: [finalDrawCard], discardPile: discards };
+
+  const ended = drawHandFootCards(game, 0);
+
+  assert.equal(ended.phase, "round-over");
+  assert.equal(ended.roundSummary.endReason, "draw-pile-empty");
+  assert.equal(ended.roundSummary.wentOutPlayerId, null);
+  assert.deepEqual(ended.drawPile, [finalDrawCard]);
+  assert.deepEqual(ended.discardPile, discards);
+  assert.deepEqual(
+    ended.roundSummary.breakdowns.map(({ teamId, ...breakdown }) => breakdown),
+    expectedScores,
+  );
+});
+
 test("the complete first lay-down may contain several melds and must meet the round threshold", () => {
   let game = createHandFootMatch({ playerCount: 4 });
   const opening = [

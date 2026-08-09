@@ -553,12 +553,13 @@ function TeamMelds({ team, players, isYours }) {
 
 function RoundResults({ game, onNext, onLeave }) {
   const winner = game.phase === "game-over" ? game.teams[game.winnerTeamId] : null;
+  const drawPileEndedRound = game.roundSummary?.endReason === "draw-pile-empty";
   return (
     <main className="hf-app hf-results-shell">
       <section className="hf-results-card">
         <span className="hf-kicker">{winner ? "Game complete" : `Round ${game.roundNumber} complete`}</span>
-        <h1>{winner ? `Team ${winner.id + 1} wins!` : "Count the table."}</h1>
-        <p>{winner ? `${winner.memberIds.map((id) => game.players[id].name).join(" and ")} finish with ${winner.score.toLocaleString()} points.` : "Books are counted, loose cards come off, and the next opening gets tougher."}</p>
+        <h1>{winner ? `Team ${winner.id + 1} wins!` : drawPileEndedRound ? "The draw pile ran out." : "Count the table."}</h1>
+        <p>{winner ? `${winner.memberIds.map((id) => game.players[id].name).join(" and ")} finish with ${winner.score.toLocaleString()} points.` : drawPileEndedRound ? "The discard pile stays put. Laid cards and books are counted, and every card left in a hand or foot is subtracted." : "Books are counted, loose cards come off, and the next opening gets tougher."}</p>
         <div className="hf-result-teams">
           {game.teams.map((team) => {
             const breakdown = game.roundSummary.breakdowns[team.id];
@@ -592,7 +593,7 @@ function RulesDialog({ open, onClose }) {
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
           <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></div></article>
-          <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
+          <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. The draw pile is never reshuffled; if fewer than two cards remain for a draw, the round ends and is scored. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
         </div>
         <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
       </section>
