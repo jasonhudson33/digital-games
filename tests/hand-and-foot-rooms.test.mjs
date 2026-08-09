@@ -67,3 +67,16 @@ test("only the host can add computers or start a room", async () => {
     /Only the host/
   );
 });
+
+test("a Hand and Foot room supports sixteen players in eight opposite teams", async () => {
+  const created = await createHandFootRoom({ name: "Host" });
+  for (let index = 0; index < 15; index += 1) {
+    await addHandFootComputer({ roomCode: created.state.roomCode, token: created.token });
+  }
+
+  const started = await startHandFootRoom({ roomCode: created.state.roomCode, token: created.token });
+  assert.equal(started.state.players.length, 16);
+  assert.equal(started.state.teams.length, 8);
+  assert.ok(started.state.teams.every((team) => team.memberIds.length === 2));
+  assert.equal(started.state.drawPile.length, 16 * 54 - 16 * 26);
+});

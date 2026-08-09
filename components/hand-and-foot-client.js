@@ -22,7 +22,7 @@ import {
 } from "../lib/hand-and-foot";
 import { HandFootRoomService } from "./hand-and-foot-room-service";
 
-const BOT_NAMES = ["Marlow", "Vega", "Kit", "Rowan", "Jules", "Nova", "Ash"];
+const BOT_NAMES = ["Marlow", "Vega", "Kit", "Rowan", "Jules", "Nova", "Ash", "Sage", "Remy", "Quinn", "Blair", "Drew", "Lane", "Parker", "Sky"];
 const PLAYER_NAME_KEY = "hand-foot-player-name";
 
 export default function HandAndFootClient() {
@@ -110,7 +110,7 @@ export default function HandAndFootClient() {
           return { ...current, message: `${current.players[current.currentPlayerIndex].name} could not complete the turn.` };
         }
       });
-    }, 720);
+    }, game.playerCount > 8 ? 280 : 720);
     return () => window.clearTimeout(timer);
   }, [game]);
 
@@ -247,7 +247,7 @@ export default function HandAndFootClient() {
               <label>
                 <span>Players</span>
                 <select value={playerCount} onChange={(event) => setPlayerCount(Number(event.target.value))}>
-                  {[4, 6, 8].map((count) => <option key={count} value={count}>{count} players</option>)}
+                  {[4, 6, 8, 10, 12, 14, 16].map((count) => <option key={count} value={count}>{count} players</option>)}
                 </select>
               </label>
               <label>
@@ -400,7 +400,7 @@ export default function HandAndFootClient() {
 }
 
 function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
-  const canStart = game.players.length >= 4 && game.players.length % 2 === 0;
+  const canStart = game.players.length >= 4 && game.players.length <= 16 && game.players.length % 2 === 0;
   const viewer = game.players.find((player) => player.isViewer);
   const playerNameById = Object.fromEntries(game.players.map((player) => [player.playerId, player.name]));
   return (
@@ -408,7 +408,7 @@ function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules
       <section className="hf-lobby-card">
         <span className="hf-kicker"><Sparkles size={15} /> Gather your teams</span>
         <h1>Hand <em>&amp;</em> Foot</h1>
-        <p>Invite an even table of four to eight. Everyone can name a preferred teammate; mutual choices are paired first and seated opposite.</p>
+        <p>Invite an even table of four to sixteen. Everyone can name a preferred teammate; mutual choices are paired first and seated opposite.</p>
 
         <div className="hf-room-code">
           <span>Room code</span>
@@ -430,7 +430,7 @@ function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules
           ))}
         </div>
 
-        {game.players.length < 8 && game.hostControls && (
+        {game.players.length < 16 && game.hostControls && (
           <button type="button" className="hf-add-computer" onClick={() => onAction("addComputer")}><UserPlus size={17} /> Add computer</button>
         )}
 
@@ -525,7 +525,7 @@ function RulesDialog({ open, onClose }) {
         <button type="button" className="hf-dialog-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
         <span className="hf-kicker">How to play</span><h2 id="hf-rules-title">Hand &amp; Foot</h2>
         <div className="hf-rules-grid">
-          <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four, six, or eight players form two-person teams. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
+          <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
           <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two. Meld three or more matching ranks, add to your team’s melds, then discard one card to finish your turn.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. A regular meld may hold at most two wilds and never more wilds than natural cards. Wild-only melds are allowed.</p></div></article>

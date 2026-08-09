@@ -15,7 +15,7 @@ import {
 const card = (id, suit, rank, copy = 0) => ({ id, suit, rank, copy });
 
 test("deals a 13-card hand and hidden 13-card foot from one deck per player", () => {
-  for (const playerCount of [4, 6, 8]) {
+  for (const playerCount of [4, 6, 8, 16]) {
     const game = createHandFootMatch({ playerCount, random: () => 0.42 });
     assert.ok(game.players.every((player) => player.hand.length === 13));
     assert.ok(game.players.every((player) => player.foot.length === 13));

@@ -85,7 +85,7 @@
 .hf-team-score span { color: #697168; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }.hf-team-score strong { font-size: 1.15rem; }.hf-team-score small { grid-column: 1/-1; margin-top: 3px; color: #747b74; font-size: .68rem; }
 
 .hf-table { width: min(1420px, calc(100% - 28px)); min-height: 430px; margin: 12px auto 0; display: grid; grid-template-columns: 260px minmax(0, 1fr); overflow: hidden; border: 1px solid rgba(20,51,40,.25); border-radius: 24px; background: #1f5a45; box-shadow: 0 18px 45px rgba(39,58,43,.16); }
-.hf-seats { padding: 12px; display: flex; flex-direction: column; gap: 7px; border-right: 1px solid rgba(255,255,255,.1); background: rgba(5,30,22,.28); }
+.hf-seats { max-height: 560px; padding: 12px; display: flex; flex-direction: column; gap: 7px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,.1); background: rgba(5,30,22,.28); }
 .hf-seat { min-height: 54px; padding: 8px; display: grid; grid-template-columns: 36px 1fr; gap: 9px; align-items: center; color: rgba(255,255,255,.65); border: 1px solid transparent; border-radius: 13px; }
 .hf-seat.active { color: white; border-color: rgba(231,181,74,.5); background: rgba(255,255,255,.1); }.hf-seat.teammate .hf-avatar { color: #173a2f; background: var(--hf-gold); }
 .hf-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: rgba(255,255,255,.13); font-weight: 900; }
