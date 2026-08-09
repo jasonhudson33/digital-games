@@ -11,6 +11,7 @@ import {
   playHandFootCards,
   scoreHandFootTeam,
   startNextHandFootRound,
+  toggleHandFootCardSelection,
 } from "../lib/hand-and-foot.js";
 
 const card = (id, suit, rank, copy = 0) => ({ id, suit, rank, copy });
@@ -22,6 +23,8 @@ test("deals a 13-card hand and hidden 13-card foot from one deck per player", ()
     assert.ok(game.players.every((player) => player.foot.length === 13));
     assert.ok(game.players.every((player) => player.usingFoot === false));
     assert.equal(game.drawPile.length, playerCount * 54 - playerCount * 26);
+    assert.ok(game.drawPiles.every((pile) => pile.length <= 65));
+    assert.equal(game.drawPiles.flat().length, game.drawPile.length);
   }
 });
 
@@ -50,6 +53,71 @@ test("a turn starts by drawing exactly two cards and ends with one discard", () 
   assert.equal(game.discardPile.at(-1).id, discarded.id);
   assert.equal(game.currentPlayerIndex, 1);
   assert.equal(game.turnStage, "draw");
+});
+
+test("draw piles can be clicked one card at a time and drawing stops after two", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  assert.equal(game.drawPiles.length, 2);
+  const firstPileCount = game.drawPiles[0].length;
+  const secondPileCount = game.drawPiles[1].length;
+
+  game = drawHandFootCards(game, 0, 0, 1);
+  assert.equal(game.players[0].hand.length, 14);
+  assert.equal(game.drawPiles[0].length, firstPileCount - 1);
+  assert.equal(game.drawPiles[1].length, secondPileCount);
+  assert.equal(game.cardsDrawnThisTurn, 1);
+  assert.equal(game.turnStage, "draw");
+
+  game = drawHandFootCards(game, 0, 1, 1);
+  assert.equal(game.players[0].hand.length, 15);
+  assert.equal(game.drawPiles[1].length, secondPileCount - 1);
+  assert.equal(game.cardsDrawnThisTurn, 2);
+  assert.equal(game.turnStage, "play");
+  assert.throws(() => drawHandFootCards(game, 0, 0, 1), /already drawn two|Draw before playing/i);
+});
+
+test("clicking a natural rank selects all matches while twos, jokers, and threes toggle alone", () => {
+  const cards = [
+    card("nine-clubs", "clubs", 9),
+    card("nine-hearts", "hearts", 9),
+    card("nine-spades", "spades", 9),
+    card("five", "spades", 5),
+    card("two-one", "clubs", 2),
+    card("two-two", "hearts", 2),
+    card("joker-one", null, "joker"),
+    card("joker-two", null, "joker"),
+    card("three-one", "clubs", 3),
+    card("three-two", "diamonds", 3),
+  ];
+
+  let selected = toggleHandFootCardSelection(cards, [], "nine-clubs");
+  assert.deepEqual(new Set(selected), new Set(["nine-clubs", "nine-hearts", "nine-spades"]));
+  selected = toggleHandFootCardSelection(cards, selected, "nine-hearts");
+  assert.deepEqual(selected, ["nine-hearts"]);
+  selected = toggleHandFootCardSelection(cards, selected, "nine-hearts");
+  assert.deepEqual(selected, []);
+
+  selected = toggleHandFootCardSelection(cards, selected, "two-one");
+  selected = toggleHandFootCardSelection(cards, selected, "joker-one");
+  selected = toggleHandFootCardSelection(cards, selected, "three-one");
+  assert.deepEqual(new Set(selected), new Set(["two-one", "joker-one", "three-one"]));
+  assert.ok(!selected.includes("two-two"));
+  assert.ok(!selected.includes("joker-two"));
+  assert.ok(!selected.includes("three-two"));
+});
+
+test("an unplayed natural pair selects one card, but a laid pair selects together", () => {
+  const cards = [card("eight-clubs", "clubs", 8), card("eight-hearts", "hearts", 8)];
+
+  let selected = toggleHandFootCardSelection(cards, [], "eight-clubs", {});
+  assert.deepEqual(selected, ["eight-clubs"]);
+  selected = toggleHandFootCardSelection(cards, selected, "eight-hearts", {});
+  assert.deepEqual(new Set(selected), new Set(["eight-clubs", "eight-hearts"]));
+
+  selected = toggleHandFootCardSelection(cards, [], "eight-clubs", {
+    8: [card("laid-eight-1", "diamonds", 8), card("laid-eight-2", "spades", 8), card("laid-eight-3", "clubs", 8)],
+  });
+  assert.deepEqual(new Set(selected), new Set(["eight-clubs", "eight-hearts"]));
 });
 
 test("an exhausted draw pile ends and scores the round without reshuffling discards", () => {
@@ -312,7 +380,9 @@ test("seven-card meld bonuses distinguish clean, dirty, wild, and seven books", 
   assert.equal(handFootMeldBonus("8", naturals), 500);
   assert.equal(handFootMeldBonus("8", dirty), 300);
   assert.equal(handFootMeldBonus("wild", wilds), 2500);
-  assert.equal(handFootMeldBonus("7", naturals.map((candidate) => ({ ...candidate, rank: 7 }))), 3000);
+  const cleanSevens = naturals.map((candidate) => ({ ...candidate, rank: 7 }));
+  assert.equal(handFootMeldBonus("7", cleanSevens), 3000);
+  assert.equal(handFootMeldBonus("7", [...cleanSevens.slice(0, 6), card("seven-wild", "clubs", 2)]), 300);
 });
 
 test("round scoring adds laid cards and books, then subtracts both players' leftovers", () => {

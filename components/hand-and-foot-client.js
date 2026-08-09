@@ -20,6 +20,7 @@ import {
   isWildCard,
   playHandFootCards,
   startNextHandFootRound,
+  toggleHandFootCardSelection,
 } from "../lib/hand-and-foot";
 import { HandFootRoomService } from "./hand-and-foot-room-service";
 
@@ -241,9 +242,14 @@ export default function HandAndFootClient() {
   function toggleCard(cardId) {
     setError("");
     setSelectedMeldTarget(null);
-    setSelectedIds((current) => current.includes(cardId)
-      ? current.filter((id) => id !== cardId)
-      : [...current, cardId]);
+    const playerIndex = game.viewerPlayerIndex ?? 0;
+    const player = game.players[playerIndex];
+    setSelectedIds((current) => toggleHandFootCardSelection(
+      activeCardsFor(game, playerIndex),
+      current,
+      cardId,
+      game.teams[player.teamId].melds,
+    ));
   }
 
   if (!isReady) {
@@ -345,6 +351,8 @@ export default function HandAndFootClient() {
   const human = game.players[viewerPlayerIndex];
   const activeCards = activeCardsFor(game, viewerPlayerIndex);
   const yourTurn = game.currentPlayerIndex === viewerPlayerIndex;
+  const drawPiles = game.drawPiles?.length ? game.drawPiles : [game.drawPile];
+  const cardsStillToDraw = 2 - (game.cardsDrawnThisTurn || 0);
   const humanTeam = game.teams[human.teamId];
   const goOutBlockReason = getHandFootGoOutBlockReason(game, viewerPlayerIndex);
   const selectedCards = activeCards.filter((card) => selectedIds.includes(card.id));
@@ -360,6 +368,24 @@ export default function HandAndFootClient() {
     && game.turnStage === "play"
     && (!requiresWildTarget || selectedMeldTarget !== null)
     && canPlayHandFootCards(game, viewerPlayerIndex, selectedIds, selectedMeldTarget);
+  const canDiscardSelected = yourTurn && game.turnStage === "play" && selectedIds.length === 1;
+
+  function drawFromPile(pileIndex) {
+    performAction(
+      "draw",
+      { pileIndex, cardCount: 1 },
+      (current) => drawHandFootCards(current, viewerPlayerIndex, pileIndex, 1),
+    );
+  }
+
+  function discardSelectedCard() {
+    if (!canDiscardSelected) return;
+    performAction(
+      "discard",
+      { cardId: selectedIds[0] },
+      (current) => discardHandFootCard(current, viewerPlayerIndex, selectedIds[0]),
+    );
+  }
 
   return (
     <main className="hf-app hf-game-shell">
@@ -395,11 +421,24 @@ export default function HandAndFootClient() {
 
         <div className="hf-table-center">
           <div className="hf-piles">
-            <div className="hf-draw-pile"><span>{game.drawPile.length}</span><small>draw pile</small></div>
-            <div className="hf-discard-pile">
-              {game.discardPile.length ? <MiniCard card={game.discardPile.at(-1)} /> : <span>Empty</span>}
-              <small>discard</small>
+            <div className="hf-draw-piles" aria-label="Draw piles">
+              {drawPiles.map((pile, pileIndex) => (
+                <button
+                  key={pileIndex}
+                  type="button"
+                  className="hf-draw-pile"
+                  disabled={!yourTurn || game.turnStage !== "draw" || pile.length === 0}
+                  onClick={() => drawFromPile(pileIndex)}
+                  aria-label={`Draw one card from pile ${pileIndex + 1}; ${pile.length} cards remain`}
+                >
+                  <span>{pile.length}</span><small>Pile {pileIndex + 1}</small>
+                </button>
+              ))}
             </div>
+            <button type="button" className="hf-discard-pile" disabled={!canDiscardSelected} onClick={discardSelectedCard} aria-label={canDiscardSelected ? "Discard selected card" : "Select one card to discard"}>
+              {game.discardPile.length ? <MiniCard card={game.discardPile.at(-1)} /> : <span>Empty</span>}
+              <small>{canDiscardSelected ? "click to discard" : "discard"}</small>
+            </button>
           </div>
           <div className="hf-message" role="status">{game.message}</div>
           <div className="hf-meld-board">
@@ -412,14 +451,14 @@ export default function HandAndFootClient() {
         <div className="hf-player-heading">
           <div>
             <span className={`hf-turn-dot ${yourTurn ? "on" : ""}`} />
-            <strong>{yourTurn ? (game.turnStage === "draw" ? "Your turn — draw two" : "Your turn — meld, then discard") : `Waiting for ${game.players[game.currentPlayerIndex].name}`}</strong>
+            <strong>{yourTurn ? (game.turnStage === "draw" ? `Your turn — draw ${cardsStillToDraw === 1 ? "one more" : "two"}` : "Your turn — meld, then discard") : `Waiting for ${game.players[game.currentPlayerIndex].name}`}</strong>
             <small>{human.usingFoot ? "Playing from your foot" : `Your foot is hidden (${human.footCount ?? human.foot.length} cards)`} · Team {humanTeam.opened ? "is open" : `needs ${game.roundRequirement} points`}</small>
           </div>
           <div className="hf-turn-actions">
-            {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>Draw 2</button>}
+            {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>Draw {cardsStillToDraw}</button>}
             {yourTurn && game.turnStage === "play" && <>
               <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds, targetRank: selectedMeldTarget }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds, selectedMeldTarget))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
-              <button type="button" className="hf-discard-button" disabled={selectedIds.length !== 1} onClick={() => performAction("discard", { cardId: selectedIds[0] }, (current) => discardHandFootCard(current, viewerPlayerIndex, selectedIds[0]))}>Discard selected</button>
+              <button type="button" className="hf-discard-button" disabled={!canDiscardSelected} onClick={discardSelectedCard}>Discard selected</button>
             </>}
           </div>
         </div>
@@ -589,11 +628,11 @@ function RulesDialog({ open, onClose }) {
         <span className="hf-kicker">How to play</span><h2 id="hf-rules-title">Hand &amp; Foot</h2>
         <div className="hf-rules-grid">
           <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
-          <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two. Meld three or more matching ranks, add to your team’s melds, then discard one card to finish your turn.</p></div></article>
+          <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two with the button, or click any draw pile to take one card at a time. Clicking a natural 4 through Ace selects every matching rank, except an unplayed pair selects one at a time. Twos, jokers, and threes also select individually.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
           <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></div></article>
-          <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. The draw pile is never reshuffled; if fewer than two cards remain for a draw, the round ends and is scored. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
+          <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. The draw pile is never reshuffled; if fewer than two cards remain for a draw, the round ends and is scored. Seven-card books score 500 clean, 300 dirty, or 2,500 wild; a clean book of sevens scores 3,000, but sevens with a wild score 300.</p></div></article>
         </div>
         <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
       </section>

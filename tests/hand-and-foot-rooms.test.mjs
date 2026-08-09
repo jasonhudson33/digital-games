@@ -39,9 +39,16 @@ test("room players choose teammates, start opposite, and only see their own hand
   assert.equal(guestView.state.players[0].hand.length, 0);
   assert.equal(guestView.state.players[2].hand.length, 13);
   assert.ok(guestView.state.drawPile.every((card) => card === null));
+  assert.ok(guestView.state.drawPiles.flat().every((card) => card === null));
 
-  const afterDraw = await drawHandFootRoomCards({ roomCode, token: created.token });
+  const afterFirstDraw = await drawHandFootRoomCards({ roomCode, token: created.token, pileIndex: 0, cardCount: 1 });
+  assert.equal(afterFirstDraw.state.players[0].handCount, 14);
+  assert.equal(afterFirstDraw.state.cardsDrawnThisTurn, 1);
+  assert.equal(afterFirstDraw.state.turnStage, "draw");
+  const afterDraw = await drawHandFootRoomCards({ roomCode, token: created.token, pileIndex: 1, cardCount: 1 });
   assert.equal(afterDraw.state.players[0].handCount, 15);
+  assert.equal(afterDraw.state.cardsDrawnThisTurn, 2);
+  assert.equal(afterDraw.state.turnStage, "play");
   const discardedId = afterDraw.state.players[0].hand[0].id;
   const afterDiscard = await discardHandFootRoomCard({ roomCode, token: created.token, cardId: discardedId });
   assert.equal(afterDiscard.state.currentPlayerIndex, 2);
