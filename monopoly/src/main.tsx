@@ -1187,6 +1187,7 @@ function BoardSpace({
         </div>
       )}
       {space.kind === 'jail' && <div className="jail-window" aria-hidden="true"><span /><span /><span /></div>}
+      {[0, 20, 30].includes(space.id) && <CornerSpaceArt spaceId={space.id} />}
       {(space.kind === 'chance' || space.kind === 'community') && <SpecialSpaceArt kind={space.kind} />}
       <span className="space-name">{space.name}</span>
       {space.price && <span className="space-price">${space.price}</span>}
@@ -1198,6 +1199,17 @@ function BoardSpace({
       </div>
     </div>
   );
+}
+
+function CornerSpaceArt({ spaceId }: { spaceId: number }) {
+  const artwork: Record<number, { src: string; className: string }> = {
+    0: { src: '/monopoly/go.svg', className: 'go' },
+    20: { src: '/monopoly/free-parking.svg', className: 'free-parking' },
+    30: { src: '/monopoly/go-to-jail.svg', className: 'go-to-jail' }
+  };
+  const image = artwork[spaceId];
+  if (!image) return null;
+  return <img className={`corner-art ${image.className}`} src={image.src} alt="" aria-hidden="true" />;
 }
 
 function PropertyOwnership({ owner }: { owner?: Player }) {

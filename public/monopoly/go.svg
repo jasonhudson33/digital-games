@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 86" role="img" aria-labelledby="title">
+  <title id="title">Go arrow</title>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff8df"/>
+      <stop offset="1" stop-color="#ead9b7"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ef4b3f"/>
+      <stop offset="1" stop-color="#a71827"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="116" height="82" rx="12" fill="url(#paper)" stroke="#202b25" stroke-width="4"/>
+  <path d="M13 46h61V26l34 26-34 26V59H13z" fill="url(#red)" stroke="#202b25" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="27" cy="23" r="10" fill="#f1bc32" stroke="#202b25" stroke-width="3"/>
+  <path d="M27 16v14M20 23h14" stroke="#202b25" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 52h39" stroke="#fff8df" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+</svg>

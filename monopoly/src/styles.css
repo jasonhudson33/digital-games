@@ -461,6 +461,30 @@
   place-items: center;
   text-align: center;
   background: #f2e7cf;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 7px 5px 5px;
+}
+
+.monopoly-page .corner-art{
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  width: min(82%, 86px);
+  max-height: 68px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 rgba(29, 37, 33, 0.16));
+}
+
+.monopoly-page .corner-art.go{
+  transform: rotate(-3deg);
+}
+
+.monopoly-page .corner-art.free-parking{
+  transform: rotate(2deg);
+}
+
+.monopoly-page .corner-art.go-to-jail{
+  transform: rotate(-2deg);
 }
 
 .monopoly-page .tax-space{
@@ -573,7 +597,8 @@
 
 .monopoly-page .corner .space-name{
   padding-top: 0;
-  font-size: clamp(0.65rem, 1.2vw, 0.95rem);
+  font-size: clamp(0.58rem, 1.08vw, 0.88rem);
+  line-height: 1;
 }
 
 .monopoly-page .space-price{
