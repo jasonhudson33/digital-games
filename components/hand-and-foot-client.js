@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Copy, DoorOpen, Footprints, Hand, Layers3, Play, Plus, RotateCcw, Sparkles, UserPlus, Users, X } from "lucide-react";
+import { BookOpen, Copy, DoorOpen, Footprints, Hand, Layers3, Play, Plus, Sparkles, UserPlus, Users, X } from "lucide-react";
 import {
   HAND_FOOT_SUIT_SYMBOLS,
   activeCardsFor,
@@ -34,6 +34,7 @@ export default function HandAndFootClient() {
   const [roomToken, setRoomToken] = useState("");
   const [game, setGame] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedMeldTarget, setSelectedMeldTarget] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,9 +46,10 @@ export default function HandAndFootClient() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("room")?.toUpperCase() || "";
+    const savedToken = code ? getStoredRoomToken(code) : "";
     setPlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
     setJoinCode(code);
-    setRoomToken(code ? sessionStorage.getItem(roomTokenKey(code)) || "" : "");
+    setRoomToken(savedToken);
     setIsReady(true);
   }, []);
 
@@ -60,9 +62,13 @@ export default function HandAndFootClient() {
     let cancelled = false;
     void HandFootRoomService.load(joinCode, roomToken).then((state) => {
       if (!cancelled) setGame(state);
-    }).catch(() => {
-      sessionStorage.removeItem(roomTokenKey(joinCode));
-      setRoomToken("");
+    }).catch((roomError) => {
+      if (isStaleRoomCredentialError(roomError)) {
+        removeStoredRoomToken(joinCode);
+        setRoomToken("");
+      } else if (!cancelled) {
+        setError(roomError instanceof Error ? roomError.message : `Could not reconnect to room ${joinCode}.`);
+      }
     });
     return () => { cancelled = true; };
   }, [game, isReady, joinCode, roomToken]);
@@ -116,12 +122,14 @@ export default function HandAndFootClient() {
 
   useEffect(() => {
     setSelectedIds([]);
+    setSelectedMeldTarget(null);
   }, [game?.currentPlayerIndex, game?.turnStage, game?.roundNumber]);
 
   function startGame() {
     const cleanName = usePlayerName();
     setGame(createHandFootMatch({ playerName: cleanName, playerCount, teammateName }));
     setSelectedIds([]);
+    setSelectedMeldTarget(null);
     setError("");
   }
 
@@ -133,7 +141,7 @@ export default function HandAndFootClient() {
   }
 
   function enterRoom(state, token) {
-    sessionStorage.setItem(roomTokenKey(state.roomCode), token);
+    storeRoomToken(state.roomCode, token);
     setRoomToken(token);
     setJoinCode(state.roomCode);
     setGame(state);
@@ -160,6 +168,17 @@ export default function HandAndFootClient() {
     setBusy(true);
     setError("");
     try {
+      const savedToken = getStoredRoomToken(code);
+      if (savedToken) {
+        try {
+          const state = await HandFootRoomService.load(code, savedToken);
+          enterRoom(state, savedToken);
+          return;
+        } catch (roomError) {
+          if (!isStaleRoomCredentialError(roomError)) throw roomError;
+          removeStoredRoomToken(code);
+        }
+      }
       const payload = await HandFootRoomService.join(code, usePlayerName());
       enterRoom(payload.state, payload.token);
     } catch (roomError) {
@@ -178,18 +197,19 @@ export default function HandAndFootClient() {
       setGame(next);
       latestGame.current = next;
       setSelectedIds([]);
+      setSelectedMeldTarget(null);
     } catch (roomError) {
       setError(roomError instanceof Error ? roomError.message : "The room could not be updated.");
     }
   }
 
-  function leaveRoom() {
-    if (game?.roomCode) sessionStorage.removeItem(roomTokenKey(game.roomCode));
+  function leaveGame() {
     setGame(null);
     latestGame.current = null;
     setRoomToken("");
     setJoinCode("");
     setSelectedIds([]);
+    setSelectedMeldTarget(null);
     setError("");
     window.history.replaceState(null, "", "/hand-and-foot");
   }
@@ -210,6 +230,7 @@ export default function HandAndFootClient() {
     try {
       setGame((current) => action(current));
       setSelectedIds([]);
+      setSelectedMeldTarget(null);
       setError("");
     } catch (actionError) {
       setError(actionError.message);
@@ -218,6 +239,7 @@ export default function HandAndFootClient() {
 
   function toggleCard(cardId) {
     setError("");
+    setSelectedMeldTarget(null);
     setSelectedIds((current) => current.includes(cardId)
       ? current.filter((id) => id !== cardId)
       : [...current, cardId]);
@@ -299,7 +321,7 @@ export default function HandAndFootClient() {
         copied={copied}
         error={error}
         onCopy={copyInvite}
-        onLeave={leaveRoom}
+        onLeave={leaveGame}
         onAction={roomAction}
         onRules={() => setRulesOpen(true)}
         rulesOpen={rulesOpen}
@@ -313,7 +335,7 @@ export default function HandAndFootClient() {
       <RoundResults
         game={game}
         onNext={() => game.roomCode ? roomAction("nextRound") : runAction((current) => startNextHandFootRound(current))}
-        onNew={game.roomCode ? leaveRoom : () => setGame(null)}
+        onLeave={leaveGame}
       />
     );
   }
@@ -323,9 +345,19 @@ export default function HandAndFootClient() {
   const activeCards = activeCardsFor(game, viewerPlayerIndex);
   const yourTurn = game.currentPlayerIndex === viewerPlayerIndex;
   const humanTeam = game.teams[human.teamId];
+  const selectedCards = activeCards.filter((card) => selectedIds.includes(card.id));
+  const wildOnlySelection = selectedCards.length > 0 && selectedCards.every(isWildCard);
+  const requiresWildTarget = wildOnlySelection && humanTeam.opened;
+  const wildTargetRanks = requiresWildTarget
+    ? [
+        ...Object.keys(humanTeam.melds),
+        ...(!humanTeam.melds.wild && selectedCards.length >= 3 ? ["wild"] : []),
+      ]
+    : [];
   const selectedCanPlay = yourTurn
     && game.turnStage === "play"
-    && canPlayHandFootCards(game, viewerPlayerIndex, selectedIds);
+    && (!requiresWildTarget || selectedMeldTarget !== null)
+    && canPlayHandFootCards(game, viewerPlayerIndex, selectedIds, selectedMeldTarget);
 
   return (
     <main className="hf-app hf-game-shell">
@@ -334,7 +366,7 @@ export default function HandAndFootClient() {
         <div className="hf-game-actions">
           {game.roomCode && <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button>}
           <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={game.roomCode ? leaveRoom : () => setGame(null)}>{game.roomCode ? <DoorOpen size={16} /> : <RotateCcw size={16} />} {game.roomCode ? "Leave" : "New game"}</button>
+          <button type="button" onClick={leaveGame}><DoorOpen size={16} /> Leave game</button>
         </div>
       </header>
 
@@ -384,11 +416,34 @@ export default function HandAndFootClient() {
           <div className="hf-turn-actions">
             {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>Draw 2</button>}
             {yourTurn && game.turnStage === "play" && <>
-              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
+              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds, targetRank: selectedMeldTarget }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds, selectedMeldTarget))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
               <button type="button" className="hf-discard-button" disabled={selectedIds.length !== 1} onClick={() => performAction("discard", { cardId: selectedIds[0] }, (current) => discardHandFootCard(current, viewerPlayerIndex, selectedIds[0]))}>Discard selected</button>
             </>}
           </div>
         </div>
+        {requiresWildTarget && (
+          <div className="hf-wild-target-picker" aria-label="Choose a pile for selected wild cards">
+            <span>Choose a pile for {selectedCards.length === 1 ? "the wild card" : "these wild cards"}</span>
+            <div>
+              {wildTargetRanks.map((rank) => {
+                const legal = canPlayHandFootCards(game, viewerPlayerIndex, selectedIds, rank);
+                return (
+                  <button
+                    key={rank}
+                    type="button"
+                    className={selectedMeldTarget === rank ? "selected" : ""}
+                    disabled={!legal}
+                    onClick={() => setSelectedMeldTarget(rank)}
+                  >
+                    {handFootRankLabel(rank === "wild" ? rank : Number(rank))}
+                    <small>{humanTeam.melds[rank]?.length || 0} cards</small>
+                  </button>
+                );
+              })}
+            </div>
+            {!wildTargetRanks.some((rank) => canPlayHandFootCards(game, viewerPlayerIndex, selectedIds, rank)) && <small>No pile can legally accept this selection.</small>}
+          </div>
+        )}
         {error && <div className="hf-error" role="alert">{error}</div>}
         <div className="hf-hand" aria-label={human.usingFoot ? "Your foot" : "Your hand"}>
           {activeCards.map((card) => <PlayingCard key={card.id} card={card} selected={selectedIds.includes(card.id)} disabled={!yourTurn || game.turnStage !== "play"} onClick={() => toggleCard(card.id)} />)}
@@ -451,7 +506,7 @@ function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules
         )}
         {!canStart && game.hostControls && <p className="hf-lobby-waiting">Add players until there is an even table of at least four.</p>}
         {error && <div className="hf-error" role="alert">{error}</div>}
-        <div className="hf-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave room</button></div>
+        <div className="hf-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave game</button></div>
       </section>
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
@@ -489,7 +544,7 @@ function TeamMelds({ team, players, isYours }) {
   );
 }
 
-function RoundResults({ game, onNext, onNew }) {
+function RoundResults({ game, onNext, onLeave }) {
   const winner = game.phase === "game-over" ? game.teams[game.winnerTeamId] : null;
   return (
     <main className="hf-app hf-results-shell">
@@ -510,7 +565,7 @@ function RoundResults({ game, onNext, onNew }) {
         <div className="hf-result-actions">
           {!winner && (!game.roomCode || game.hostControls) && <button type="button" className="hf-primary" onClick={onNext}>Start round {game.roundNumber + 1}</button>}
           {!winner && game.roomCode && !game.hostControls && <p className="hf-lobby-waiting">Waiting for the host to start round {game.roundNumber + 1}…</p>}
-          <button type="button" className="hf-secondary" onClick={onNew}>{game.roomCode ? "Leave room" : "New game"}</button>
+          <button type="button" className="hf-secondary" onClick={onLeave}><DoorOpen size={16} /> Leave game</button>
         </div>
       </section>
     </main>
@@ -528,8 +583,8 @@ function RulesDialog({ open, onClose }) {
           <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
           <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two. Meld three or more matching ranks, add to your team’s melds, then discard one card to finish your turn.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
-          <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. A regular meld may hold at most two wilds and never more wilds than natural cards. Wild-only melds are allowed.</p></div></article>
-          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal and play your foot. You may meld or discard your last foot card to go out, but not while your teammate holds a 3.</p></div></article>
+          <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
+          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. You may meld or discard its last card to go out only after your teammate has reached their foot and no longer holds a 3.</p></div></article>
           <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
         </div>
         <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
@@ -540,4 +595,31 @@ function RulesDialog({ open, onClose }) {
 
 function roomTokenKey(roomCode) {
   return `hand-foot-room-token:${String(roomCode || "").toUpperCase()}`;
+}
+
+function getStoredRoomToken(roomCode) {
+  const key = roomTokenKey(roomCode);
+  const token = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+  if (token) {
+    localStorage.setItem(key, token);
+    sessionStorage.removeItem(key);
+  }
+  return token;
+}
+
+function storeRoomToken(roomCode, token) {
+  const key = roomTokenKey(roomCode);
+  localStorage.setItem(key, token);
+  sessionStorage.removeItem(key);
+}
+
+function removeStoredRoomToken(roomCode) {
+  const key = roomTokenKey(roomCode);
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+}
+
+function isStaleRoomCredentialError(error) {
+  const message = error instanceof Error ? error.message : "";
+  return message === "Room not found." || message === "Join the room before taking actions.";
 }

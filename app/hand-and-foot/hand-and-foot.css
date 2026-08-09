@@ -107,6 +107,15 @@
 .hf-turn-dot { width: 9px; height: 9px; border-radius: 50%; background: #b7bdb5; }.hf-turn-dot.on { background: #4cae6f; box-shadow: 0 0 0 4px rgba(76,174,111,.14); }
 .hf-turn-actions { display: flex; gap: 8px; }.hf-turn-actions button { min-height: 42px; padding: 0 16px; font-size: .76rem; }
 .hf-error { margin: 10px 0 0; padding: 8px 11px; color: #862d1c; border-radius: 9px; background: #fbe5db; font-size: .72rem; }
+.hf-wild-target-picker { margin: 12px 0 0; padding: 11px 13px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(223,101,56,.24); border-radius: 13px; background: #fff5e7; }
+.hf-wild-target-picker > span { color: #77422e; font-size: .72rem; font-weight: 850; }
+.hf-wild-target-picker > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.hf-wild-target-picker button { min-width: 66px; padding: 6px 9px; color: #33463a; border: 1px solid rgba(31,90,69,.2); border-radius: 9px; background: #fffdf8; cursor: pointer; font-weight: 850; }
+.hf-wild-target-picker button small { display: block; margin-top: 2px; color: #7b817a; font-size: .54rem; font-weight: 650; }
+.hf-wild-target-picker button.selected { color: #fff; border-color: var(--hf-green); background: var(--hf-green); box-shadow: 0 0 0 3px rgba(31,90,69,.14); }
+.hf-wild-target-picker button.selected small { color: rgba(255,255,255,.72); }
+.hf-wild-target-picker button:disabled { opacity: .38; cursor: not-allowed; }
+.hf-wild-target-picker > small { color: #8a3f29; font-size: .65rem; }
 .hf-hand { min-height: 142px; margin-top: 12px; padding: 10px 14px 3px; display: flex; justify-content: center; align-items: flex-end; overflow-x: auto; overflow-y: hidden; }
 .hf-card { position: relative; width: 82px; min-width: 82px; height: 116px; margin-left: -18px; padding: 7px; display: grid; grid-template-rows: auto 1fr auto; color: #1d2520; text-align: left; border: 1px solid #d8d4c8; border-radius: 10px; background: #fffdf8; box-shadow: 0 6px 13px rgba(35,35,28,.16); cursor: pointer; transition: translate 130ms ease, rotate 130ms ease; }.hf-card:first-child { margin-left: 0; }.hf-card:hover:not(:disabled), .hf-card.selected { translate: 0 -11px; }.hf-card.selected { outline: 3px solid var(--hf-orange); }.hf-card.red { color: #c83d34; }.hf-card.wild { color: #9c472b; background: linear-gradient(145deg, #fffdf8, #f8e9c9); }.hf-card.three { background: linear-gradient(145deg, #fff8f4, #f2d7ce); }
 .hf-card > b { font: 700 1.12rem Georgia, serif; }.hf-card > span { font-size: 1.05rem; }.hf-card > i { place-self: center; font-size: 2rem; font-style: normal; }.hf-card > small { position: absolute; right: 6px; bottom: 5px; padding: 2px 4px; color: #fff; border-radius: 4px; background: #526359; font-size: .5rem; }.hf-card.three > small { background: #9d3025; }.hf-card .joker-word { font-size: .49rem; font-weight: 900; letter-spacing: .12em; }
@@ -132,4 +141,8 @@
 
 @media (max-width: 580px) {
   .hf-intro { width: min(100% - 28px, 1180px); }.hf-intro h1 { font-size: 4.4rem; }.hf-setup-grid { grid-template-columns: 1fr 1fr; }.hf-setup-grid label:first-child { grid-column: 1/-1; }.hf-setup-grid label:nth-child(3) { grid-column: 1/-1; }.hf-room-entry { grid-template-columns: 1fr; }.hf-hero-art { margin-left: -60px; margin-right: -60px; }.hf-gamebar { align-items: flex-start; }.hf-game-actions button { width: 40px; padding: 0; justify-content: center; font-size: 0; }.hf-scoreboard { grid-template-columns: repeat(2,1fr); }.hf-seats { grid-template-columns: 1fr; max-height: 195px; overflow-y: auto; }.hf-table-center { padding: 13px 9px; }.hf-meld-board { grid-template-columns: 1fr; }.hf-hand { justify-content: flex-start; }.hf-card { min-width: 74px; width: 74px; height: 105px; }.hf-results-card { padding: 25px 18px; }.hf-result-actions { flex-direction: column; }.hf-dialog { padding: 25px 18px; }.hf-dialog h2 { font-size: 2.4rem; }.hf-lobby-shell { padding: 24px 12px; }.hf-lobby-card { padding: 24px 16px; }.hf-lobby-players { grid-template-columns: 1fr; }.hf-team-choice { grid-template-columns: 1fr; }.hf-team-choice select { width: 100%; }
+}
+
+@media (max-width: 700px) {
+  .hf-wild-target-picker { align-items: flex-start; flex-direction: column; }
 }

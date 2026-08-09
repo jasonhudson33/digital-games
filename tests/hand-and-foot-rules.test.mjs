@@ -114,6 +114,43 @@ test("regular melds allow no more than two wilds and never more wilds than natur
   assert.throws(() => playHandFootCards(game, 0, selected.map((candidate) => candidate.id)), /more than two wild/i);
 });
 
+test("a player can choose which existing pile receives a selected wild card", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const wild = card("chosen-wild", "clubs", 2);
+  const eights = [card("8a", "clubs", 8), card("8b", "diamonds", 8), card("8c", "spades", 8)];
+  const nines = [card("9a", "clubs", 9), card("9b", "diamonds", 9), card("9c", "spades", 9), card("9d", "hearts", 9)];
+  game = {
+    ...game,
+    turnStage: "play",
+    teams: game.teams.map((team, index) => index === 0
+      ? { ...team, opened: true, melds: { 8: eights, 9: nines } }
+      : team),
+    players: game.players.map((player, index) => index === 0 ? { ...player, hand: [wild] } : player),
+  };
+
+  game = playHandFootCards(game, 0, [wild.id], "9");
+  assert.equal(game.teams[0].melds[8].length, 3);
+  assert.equal(game.teams[0].melds[9].length, 5);
+  assert.equal(game.teams[0].melds[9].filter((candidate) => candidate.rank === 2).length, 1);
+});
+
+test("a target pile must retain more natural cards than wild cards", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const nextWild = card("next-wild", null, "joker");
+  const existing = [card("8a", "clubs", 8), card("8b", "diamonds", 8), card("old-wild", "hearts", 2)];
+  game = {
+    ...game,
+    turnStage: "play",
+    teams: game.teams.map((team, index) => index === 0
+      ? { ...team, opened: true, melds: { 8: existing } }
+      : team),
+    players: game.players.map((player, index) => index === 0 ? { ...player, hand: [nextWild] } : player),
+  };
+
+  assert.equal(canPlayHandFootCards(game, 0, [nextWild.id], "8"), false);
+  assert.throws(() => playHandFootCards(game, 0, [nextWild.id], "8"), /more natural cards than wild cards/i);
+});
+
 test("threes cannot be melded and the last foot card may be discarded to go out", () => {
   let game = createHandFootMatch({ playerCount: 4 });
   const three = card("three", "clubs", 3);
@@ -125,7 +162,7 @@ test("threes cannot be melded and the last foot card may be discarded to go out"
   assert.throws(() => playHandFootCards(game, 0, [three.id]), /Threes cannot be melded/);
 
   game.players[0] = { ...game.players[0], usingFoot: true, hand: [], foot: [three] };
-  game.players[2] = { ...game.players[2], hand: [card("safe", "clubs", 4)] };
+  game.players[2] = { ...game.players[2], hand: [], foot: [card("safe", "clubs", 4)], usingFoot: true };
   game = discardHandFootCard(game, 0, three.id);
   assert.equal(game.phase, "round-over");
   assert.equal(game.players[0].foot.length, 0);
@@ -141,7 +178,7 @@ test("a last-foot discard cannot bypass the teammate-three restriction", () => {
     turnStage: "play",
     players: game.players.map((player, index) => {
       if (index === 0) return { ...player, hand: [], foot: [lastCard], usingFoot: true };
-      if (index === 2) return { ...player, hand: [card("blocker", "spades", 3)] };
+      if (index === 2) return { ...player, hand: [], foot: [card("blocker", "spades", 3)], usingFoot: true };
       return player;
     }),
   };
@@ -158,12 +195,57 @@ test("a player cannot go out while their teammate still holds a three", () => {
     teams: game.teams.map((team, index) => index === 0 ? { ...team, opened: true } : team),
     players: game.players.map((player, index) => {
       if (index === 0) return { ...player, hand: [], foot: sevens, usingFoot: true };
-      if (index === 2) return { ...player, hand: [card("blocker", "hearts", 3)] };
+      if (index === 2) return { ...player, hand: [], foot: [card("blocker", "hearts", 3)], usingFoot: true };
       return player;
     }),
   };
 
   assert.throws(() => playHandFootCards(game, 0, sevens.map((candidate) => candidate.id)), /teammate still holds a 3/i);
+});
+
+test("a player cannot go out before their teammate reaches their foot", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const lastCard = card("last-card", "clubs", 9);
+  game = {
+    ...game,
+    turnStage: "play",
+    players: game.players.map((player, index) => {
+      if (index === 0) return { ...player, hand: [], foot: [lastCard], usingFoot: true };
+      if (index === 2) return { ...player, hand: [card("safe", "clubs", 4)], usingFoot: false };
+      return player;
+    }),
+  };
+
+  assert.throws(() => discardHandFootCard(game, 0, lastCard.id), /teammate has reached their foot/i);
+  game.teams[0] = {
+    ...game.teams[0],
+    opened: true,
+    melds: { 9: [card("9a", "diamonds", 9), card("9b", "hearts", 9), card("9c", "spades", 9)] },
+  };
+  assert.throws(() => playHandFootCards(game, 0, [lastCard.id]), /teammate has reached their foot/i);
+});
+
+test("a player's foot is sorted when their hand becomes empty", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const discard = card("discard", "clubs", 5);
+  const unsortedFoot = [
+    card("king", "spades", 13),
+    card("four-hearts", "hearts", 4),
+    card("four-clubs", "clubs", 4),
+    card("ace", "diamonds", 14),
+    card("nine", "clubs", 9),
+  ];
+  game = {
+    ...game,
+    turnStage: "play",
+    players: game.players.map((player, index) => index === 0
+      ? { ...player, hand: [discard], foot: unsortedFoot, usingFoot: false }
+      : player),
+  };
+
+  game = discardHandFootCard(game, 0, discard.id);
+  assert.equal(game.players[0].usingFoot, true);
+  assert.deepEqual(game.players[0].foot.map((candidate) => candidate.id), ["four-clubs", "four-hearts", "nine", "king", "ace"]);
 });
 
 test("seven-card meld bonuses distinguish clean, dirty, wild, and seven books", () => {
