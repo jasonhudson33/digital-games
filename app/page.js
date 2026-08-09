@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Hand and Foot",
+    href: "/hand-and-foot",
+    status: "New · Partner play",
+    description:
+      "Build books with the partner across from you, unlock your hidden foot, and chase the biggest four-round score.",
+    tone: "hand-foot",
+  },
+  {
     name: "Scum",
     href: "/scum",
     status: "New · Any-size table",
