@@ -953,7 +953,7 @@ function runComputerTurn(previous) {
     advanceTurn(nextGame);
     return nextGame;
   }
-  const chosen = chooseComputerMove(legalMoves);
+  const chosen = chooseComputerMove(legalMoves, currentPlayer.hand);
   currentPlayer.hand = currentPlayer.hand.filter((candidate) => !sameCard(candidate, chosen));
   currentPlayer.passedLastTurn = false;
   applyCardToTableau(nextGame.tableau, chosen);

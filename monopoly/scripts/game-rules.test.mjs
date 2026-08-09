@@ -14,6 +14,7 @@ const vite = await createServer({
 const {
   acknowledgeCard,
   addLocalPlayer,
+  computerPropertyValue,
   makeInitialState,
   rollDice,
   startGame
@@ -86,6 +87,12 @@ test('older Monopoly rooms migrate to the current turn stage without losing play
   assert.equal(migrated.turnStageVersion, 2);
   assert.equal(migrated.turnStage, 'roll');
   assert.deepEqual(migrated.players.map((player) => player.id), ['host']);
+});
+
+test('a Monopoly computer values a property that completes its color group', () => {
+  const game = makeGameAt(0);
+  const player = { ...game.players[0], properties: [1] };
+  assert.ok(computerPropertyValue(game, player, 3) > computerPropertyValue(game, player, 6));
 });
 
 await vite.close();

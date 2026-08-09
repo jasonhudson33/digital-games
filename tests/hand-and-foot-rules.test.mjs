@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   canPlayHandFootCards,
+  chooseHandFootBotDiscard,
+  chooseHandFootBotPlay,
   createHandFootMatch,
   discardHandFootCard,
   drawHandFootCards,
@@ -53,6 +55,37 @@ test("a turn starts by drawing exactly two cards and ends with one discard", () 
   assert.equal(game.discardPile.at(-1).id, discarded.id);
   assert.equal(game.currentPlayerIndex, 1);
   assert.equal(game.turnStage, "draw");
+});
+
+test("a Hand and Foot computer completes a nearby book before starting another meld", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const nines = [card("nine-a", "clubs", 9), card("nine-b", "hearts", 9)];
+  const fours = [card("four-a", "clubs", 4), card("four-b", "hearts", 4), card("four-c", "spades", 4)];
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [...nines, ...fours] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId ? {
+      ...team,
+      opened: true,
+      melds: { 9: Array.from({ length: 5 }, (_, index) => card(`laid-nine-${index}`, "diamonds", 9)) },
+    } : team),
+  };
+  assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set(nines.map((candidate) => candidate.id)));
+});
+
+test("a Hand and Foot computer discards an isolated card instead of breaking a pair", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const game = {
+    ...base,
+    players: base.players.map((player, index) => index === 0 ? {
+      ...player,
+      hand: [card("eight-a", "clubs", 8), card("eight-b", "hearts", 8), card("four", "clubs", 4)],
+    } : player),
+  };
+  assert.equal(chooseHandFootBotDiscard(game, 0).id, "four");
 });
 
 test("draw piles can be clicked one card at a time and drawing stops after two", () => {

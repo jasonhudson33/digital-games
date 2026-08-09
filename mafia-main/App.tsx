@@ -26,9 +26,9 @@ import {
   PRESENCE_TIMEOUT_MS,
   playersFromJoinRequests,
   selectActingHostId,
-  selectDeterministicPlayer,
   shouldApplyRemoteState,
 } from './services/SessionCoordinator';
+import { chooseComputerDayTarget, chooseComputerNightTarget } from './services/ComputerStrategy';
 
 const getStoredValue = (key: string): string | null => {
   if (typeof window === 'undefined') return null;
@@ -409,15 +409,7 @@ const App: React.FC = () => {
           break;
         }
       }
-      const computerCandidates = state.players.filter((player) => {
-        if (!player.isAlive) return false;
-        if (roleNeeded === Role.ANGEL) return player.id !== state.lastAngelSavedId;
-        return !actors.includes(player.id);
-      });
-      const computerTarget = humanTarget || selectDeterministicPlayer(
-        computerCandidates,
-        `${state.roomCode}:${state.round}:${state.phase}`
-      )?.id;
+      const computerTarget = humanTarget || chooseComputerNightTarget(state, roleNeeded, actors, rm)?.id;
 
       // Host writes aggregated human and computer actions for UI progress.
       const aggregated: Record<string, string> = {};
@@ -491,16 +483,28 @@ const App: React.FC = () => {
       if (state.phase === GamePhase.DAY_DELIBERATION) {
         for (const computer of computerPlayers) {
           if (!nominations[computer.id]) {
-            const target = selectDeterministicPlayer(
-              state.players.filter((player) => player.isAlive && player.id !== computer.id),
-              `${state.roomCode}:${state.round}:nominate:${computer.id}`
+            const target = chooseComputerDayTarget(
+              state,
+              computer,
+              state.players.filter((player) => player.isAlive),
+              rolesMapRef.current,
+              'nominate',
             );
             if (target) nominations[computer.id] = target.id;
           }
         }
         const nominatedTargets = Array.from(new Set(Object.values(nominations)));
         for (const computer of computerPlayers) {
-          const targetId = nominatedTargets.find((target) => target !== computer.id && target !== nominations[computer.id]);
+          const target = chooseComputerDayTarget(
+            { ...state, nominations, seconds },
+            computer,
+            nominatedTargets.filter((targetId) => targetId !== nominations[computer.id])
+              .map((targetId) => state.players.find((player) => player.id === targetId))
+              .filter(Boolean) as Player[],
+            rolesMapRef.current,
+            'second',
+          );
+          const targetId = target?.id;
           if (!targetId) continue;
           seconds[targetId] = seconds[targetId] || [];
           if (!seconds[targetId].includes(computer.id)) seconds[targetId].push(computer.id);
@@ -512,11 +516,12 @@ const App: React.FC = () => {
           (targetId) => (seconds[targetId] || []).length > 0
         );
         for (const computer of computerPlayers) {
-          const target = selectDeterministicPlayer(
-            candidates.filter((targetId) => targetId !== computer.id).map((targetId) =>
-              state.players.find((player) => player.id === targetId)
-            ).filter(Boolean) as Player[],
-            `${state.roomCode}:${state.round}:vote:${computer.id}`
+          const target = chooseComputerDayTarget(
+            { ...state, nominations, seconds, dayVotes },
+            computer,
+            candidates.map((targetId) => state.players.find((player) => player.id === targetId)).filter(Boolean) as Player[],
+            rolesMapRef.current,
+            'vote',
           );
           if (target) dayVotes[computer.id] = target.id;
         }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  chooseBotHeartCard,
   collectHeartTrick,
   completeHeartsPass,
   createHeartsMatch,
@@ -97,6 +98,15 @@ test("hearts may lead after a heart has been played off-suit", () => {
     getLegalHeartCards(game, 0).map((candidate) => candidate.id),
     ["hearts-14-0", "clubs-4-0"]
   );
+});
+
+test("a Hearts computer leads its shortest safe suit to work toward a void", () => {
+  const game = createHeartsMatch({ variant: "killer", playerCount: 5 });
+  game.players[1].hand = [card("clubs", 3), card("clubs", 7), card("diamonds", 9)];
+  game.currentPlayerIndex = 1;
+  game.trick = [];
+  game.trickNumber = 2;
+  assert.equal(chooseBotHeartCard(game, 1).id, "diamonds-9-0");
 });
 
 test("a player who cannot follow suit may discard a heart", () => {

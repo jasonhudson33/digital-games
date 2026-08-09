@@ -24,6 +24,16 @@ import {
 import { CatanRoomService, isCatanOnlineSyncEnabled } from "./catan-room-service";
 import { catanRuntime } from "./catan-runtime";
 import {
+  chooseBestCatanEdge,
+  chooseBestCatanVertex,
+  chooseCatanDiscards,
+  chooseCatanPirateTile,
+  chooseCatanResource,
+  chooseCatanRobberTile,
+  computerAcceptsCatanTrade,
+  scoreCatanVertex,
+} from "./catan-computer-strategy";
+import {
   ALL_CARD_TYPES,
   advancePairedTurn,
   cardTypesFor,
@@ -2113,13 +2123,7 @@ function discardForComputer(game, playerId) {
   const player = game.players.find((candidate) => candidate.id === playerId);
   const required = pending?.discardCounts?.[playerId] ?? 0;
   if (!player || pending?.phase !== "discard" || pending.remainingDiscardPlayerIds[0] !== playerId) return game;
-  let remaining = required;
-  const resources = { ...player.resources };
-  cardTypesFor(game).forEach((resource) => {
-    const count = Math.min(resources[resource], remaining);
-    resources[resource] -= count;
-    remaining -= count;
-  });
+  const resources = chooseCatanDiscards(player, required, cardTypesFor(game));
   const remainingDiscardPlayerIds = pending.remainingDiscardPlayerIds.slice(1);
   const phase = remainingDiscardPlayerIds.length ? "discard" : pending.afterDiscardPhase;
   return {
@@ -2132,16 +2136,7 @@ function discardForComputer(game, playerId) {
 
 function bestComputerRobberTile(game) {
   const computerId = game.players[game.currentPlayerIndex].id;
-  return game.tiles
-    .filter((tile) => tile.id !== game.robberTileId && tile.resource !== "sea")
-    .map((tile) => ({
-      tile,
-      score: tile.vertexIds.reduce((score, vertexId) => {
-        const ownerId = game.settlements[vertexId]?.playerId;
-        return score + (ownerId && ownerId !== computerId ? 2 : ownerId === computerId ? -3 : 0);
-      }, 0),
-    }))
-    .sort((first, second) => second.score - first.score)[0]?.tile;
+  return chooseCatanRobberTile(game, computerId);
 }
 
 function takeComputerAction(game) {
@@ -2155,18 +2150,30 @@ function takeComputerAction(game) {
   }
   if (game.pendingGold) {
     const claimantId = game.pendingGold.claims[0]?.playerId;
-    return game.players.find((player) => player.id === claimantId)?.isComputer ? resolveGoldChoice(game, claimantId, RESOURCES[0]) : game;
+    const claimant = game.players.find((player) => player.id === claimantId);
+    return claimant?.isComputer ? resolveGoldChoice(game, claimantId, chooseCatanResource(claimant)) : game;
   }
   if (game.pendingTrade) {
     const responder = game.players.find((player) => player.isComputer
       && player.id !== game.pendingTrade.fromPlayerId
       && !game.pendingTrade.declinedPlayerIds?.includes(player.id)
       && (!game.pendingTrade.toPlayerId || game.pendingTrade.toPlayerId === player.id));
-    return responder ? resolveTradeResponse(game, canProvideTradeResources(responder, game.pendingTrade.request), responder.id) : game;
+    return responder ? resolveTradeResponse(
+      game,
+      canProvideTradeResources(responder, game.pendingTrade.request)
+        && computerAcceptsCatanTrade(responder, game.pendingTrade.offer, game.pendingTrade.request),
+      responder.id,
+    ) : game;
   }
   if (game.pendingCityLoss) {
     const loser = game.players.find((player) => player.id === game.pendingCityLoss.currentPlayerId);
-    return loser?.isComputer ? pillageChosenCity(game, loser.id, game.pendingCityLoss.eligibleVertexIds[0]) : game;
+    const cityId = [...game.pendingCityLoss.eligibleVertexIds]
+      .sort((left, right) => {
+        const leftVertex = board.vertices.find((vertex) => vertex.id === left);
+        const rightVertex = board.vertices.find((vertex) => vertex.id === right);
+        return scoreCatanVertex(game, leftVertex) - scoreCatanVertex(game, rightVertex);
+      })[0];
+    return loser?.isComputer ? pillageChosenCity(game, loser.id, cityId) : game;
   }
   if (game.pendingProgressDiscard) {
     const holder = game.players.find((player) => player.id === game.pendingProgressDiscard.currentPlayerId);
@@ -2180,15 +2187,16 @@ function takeComputerAction(game) {
   if (!activePlayer?.isComputer) return game;
 
   if (game.setup?.step === "settlement") {
-    const vertex = board.vertices.find((candidate) =>
+    const legalVertices = board.vertices.filter((candidate) =>
       isSettlementLegal(board, candidate.id, game.settlements, false, activePlayer.id, game.roads, game.ships)
       && (!hasSeafarers(game) || candidate.tileIds.some((tileId) => game.tiles[tileId]?.islandId === "main")));
+    const vertex = chooseBestCatanVertex(game, legalVertices);
     return vertex ? placeStartingSettlement(game, activePlayer.id, vertex.id) : game;
   }
   if (game.setup?.step === "road") {
     const touchingEdges = board.edges.filter((edge) => [edge.from, edge.to].includes(game.setup.settlementVertexId));
-    const road = touchingEdges.find((edge) => isTransportLegal(board, edge, activePlayer.id, game.roads, game.ships, game.settlements, "road", game.tiles, game.pirateTileId, game.citiesKnights?.knights));
-    const ship = hasSeafarers(game) && touchingEdges.find((edge) => isTransportLegal(board, edge, activePlayer.id, game.roads, game.ships, game.settlements, "ship", game.tiles, game.pirateTileId, game.citiesKnights?.knights));
+    const road = chooseBestCatanEdge(game, board, touchingEdges.filter((edge) => isTransportLegal(board, edge, activePlayer.id, game.roads, game.ships, game.settlements, "road", game.tiles, game.pirateTileId, game.citiesKnights?.knights)));
+    const ship = hasSeafarers(game) && chooseBestCatanEdge(game, board, touchingEdges.filter((edge) => isTransportLegal(board, edge, activePlayer.id, game.roads, game.ships, game.settlements, "ship", game.tiles, game.pirateTileId, game.citiesKnights?.knights)));
     return road ? placeStartingRoad(game, activePlayer.id, road.id, "road") : ship ? placeStartingRoad(game, activePlayer.id, ship.id, "ship") : game;
   }
 
@@ -2200,17 +2208,24 @@ function takeComputerAction(game) {
     return tile ? resolveRobberMove(game, tile.id) : game;
   }
   if (game.pendingSeven?.phase === "movePirate") {
-    const tile = game.tiles.find((candidate) => candidate.resource === "sea" && candidate.id !== game.pirateTileId);
+    const tile = chooseCatanPirateTile(game, activePlayer.id);
     return tile ? resolvePirateMove(game, tile.id) : game;
   }
-  if (game.pendingSeven?.phase === "chooseVictim") return selectRobberVictim(game, game.pendingSeven.eligibleVictimIds[0]);
+  if (game.pendingSeven?.phase === "chooseVictim") {
+    const victimId = [...game.pendingSeven.eligibleVictimIds].sort((left, right) => {
+      const leftPlayer = game.players.find((player) => player.id === left);
+      const rightPlayer = game.players.find((player) => player.id === right);
+      return totalResources(rightPlayer.resources) + rightPlayer.points * 2 - totalResources(leftPlayer.resources) - leftPlayer.points * 2;
+    })[0];
+    return selectRobberVictim(game, victimId);
+  }
   if (game.pendingSeven?.phase === "chooseCard") return resolveRobberSteal(game, 0);
 
   if (game.pendingDevelopment?.playerId === activePlayer.id) {
-    if (["yearOfPlenty", "monopoly"].includes(game.pendingDevelopment.type)) return resolveDevelopmentResourceChoice(game, activePlayer.id, RESOURCES[0]);
+    if (["yearOfPlenty", "monopoly"].includes(game.pendingDevelopment.type)) return resolveDevelopmentResourceChoice(game, activePlayer.id, chooseCatanResource(activePlayer));
     if (game.pendingDevelopment.type === "roadBuilding") {
       const kind = game.pendingDevelopment.fixedKind ?? "road";
-      const edge = board.edges.find((candidate) => isTransportLegal(board, candidate, activePlayer.id, game.roads, game.ships, game.settlements, kind, game.tiles, game.pirateTileId, game.citiesKnights?.knights));
+      const edge = chooseBestCatanEdge(game, board, board.edges.filter((candidate) => isTransportLegal(board, candidate, activePlayer.id, game.roads, game.ships, game.settlements, kind, game.tiles, game.pirateTileId, game.citiesKnights?.knights)));
       if (edge) return completeFreeTransport(game, activePlayer.id, edge.id, kind);
       return { ...game, pendingDevelopment: null, log: [`${activePlayer.name} had no legal place for another free ${kind}.`, ...game.log].slice(0, 24) };
     }
@@ -2231,15 +2246,55 @@ function takeComputerAction(game) {
     if (card) return playProgressCard(game, activePlayer.id, card.id, board);
   }
 
-  const cityVertexId = Object.entries(game.settlements).find(([, building]) => building.playerId === activePlayer.id && building.type === "settlement")?.[0];
+  const cityVertexId = Object.entries(game.settlements)
+    .filter(([, building]) => building.playerId === activePlayer.id && building.type === "settlement")
+    .sort(([left], [right]) => {
+      const leftVertex = board.vertices.find((vertex) => vertex.id === left);
+      const rightVertex = board.vertices.find((vertex) => vertex.id === right);
+      return scoreCatanVertex(game, rightVertex) - scoreCatanVertex(game, leftVertex);
+    })[0]?.[0];
   if (cityVertexId && canAfford(activePlayer, COSTS.city)) return completeBuild(game, activePlayer.id, "city", cityVertexId);
   if (canAfford(activePlayer, COSTS.settlement)) {
-    const vertex = board.vertices.find((candidate) => isSettlementLegal(board, candidate.id, game.settlements, true, activePlayer.id, game.roads, game.ships));
+    const vertex = chooseBestCatanVertex(game, board.vertices.filter((candidate) => isSettlementLegal(board, candidate.id, game.settlements, true, activePlayer.id, game.roads, game.ships)));
     if (vertex) return completeBuild(game, activePlayer.id, "settlement", vertex.id);
   }
+  if (hasCitiesKnights(game)) {
+    const inactiveKnightId = Object.entries(game.citiesKnights.knights)
+      .find(([, knight]) => knight.playerId === activePlayer.id && !knight.active)?.[0];
+    if (inactiveKnightId && (game.citiesKnights.barbarianDistance ?? 7) <= 4 && canAfford(activePlayer, COSTS.activateKnight)) return activateKnightAt(game, activePlayer.id, inactiveKnightId);
+
+    const tracks = ["science", "trade", "politics"].sort((left, right) => (
+      (game.citiesKnights.improvements[activePlayer.id]?.[right] ?? 0)
+      - (game.citiesKnights.improvements[activePlayer.id]?.[left] ?? 0)
+    ));
+    for (const track of tracks) {
+      const improved = improveCityTrack(game, activePlayer.id, track);
+      if (improved !== game) return improved;
+    }
+
+    if ((game.citiesKnights.barbarianDistance ?? 7) <= 3 && canAfford(activePlayer, COSTS.knight)) {
+      const knightVertex = board.vertices.find((vertex) => !game.settlements[vertex.id]
+        && !game.citiesKnights.knights[vertex.id]
+        && board.vertexEdges[vertex.id].some((edgeId) => game.roads[edgeId] === activePlayer.id || game.ships[edgeId] === activePlayer.id));
+      if (knightVertex) return buildKnight(game, activePlayer.id, knightVertex.id);
+    }
+
+    if (totalResources(activePlayer.resources) > handLimitFor(game, activePlayer.id) - 2 && canAfford(activePlayer, COSTS.cityWall)) {
+      const wallCityId = Object.entries(game.settlements).find(([vertexId, building]) => (
+        building.playerId === activePlayer.id
+        && building.type === "city"
+        && !game.citiesKnights.cityWalls[vertexId]
+      ))?.[0];
+      if (wallCityId) return buildCityWall(game, activePlayer.id, wallCityId);
+    }
+  }
   if (canAfford(activePlayer, COSTS.road)) {
-    const edge = board.edges.find((candidate) => isTransportLegal(board, candidate, activePlayer.id, game.roads, game.ships, game.settlements, "road", game.tiles, game.pirateTileId, game.citiesKnights?.knights));
+    const edge = chooseBestCatanEdge(game, board, board.edges.filter((candidate) => isTransportLegal(board, candidate, activePlayer.id, game.roads, game.ships, game.settlements, "road", game.tiles, game.pirateTileId, game.citiesKnights?.knights)));
     if (edge) return completeBuild(game, activePlayer.id, "road", edge.id);
+  }
+  if (hasSeafarers(game) && canAfford(activePlayer, COSTS.ship)) {
+    const edge = chooseBestCatanEdge(game, board, board.edges.filter((candidate) => isTransportLegal(board, candidate, activePlayer.id, game.roads, game.ships, game.settlements, "ship", game.tiles, game.pirateTileId, game.citiesKnights?.knights)));
+    if (edge) return completeBuild(game, activePlayer.id, "ship", edge.id);
   }
   if (usesDevelopmentCards(game) && game.developmentDeck.length && canAfford(activePlayer, COSTS.development)) return buyDevelopmentCardFor(game, activePlayer.id);
   return advanceGameTurn(game);

@@ -1051,7 +1051,10 @@ export const takeComputerAction = (state: GameState): GameState => {
     const space = board[auction.spaceId];
     if (!bidder?.isComputer || !space) return state;
     const nextBid = auction.currentBid + 10;
-    const maximumBid = Math.min(space.price ?? 0, Math.max(0, bidder.money - 200));
+    const maximumBid = Math.min(
+      computerPropertyValue(state, bidder, space.id),
+      Math.max(0, bidder.money - computerCashReserve(state, bidder))
+    );
     return auction.highBidderId !== bidder.id && nextBid <= maximumBid ? bidAuction(state) : passAuction(state);
   }
 
@@ -1059,8 +1062,14 @@ export const takeComputerAction = (state: GameState): GameState => {
   if (!computer?.isComputer) return state;
   if (state.pendingCard) return acknowledgeCard(state);
   if (state.pendingPurchase) {
-    const price = board[state.pendingPurchase.spaceId]?.price ?? 0;
-    return price > 0 && computer.money - price >= 200 ? buyPendingProperty(state) : declinePendingProperty(state);
+    const spaceId = state.pendingPurchase.spaceId;
+    const price = board[spaceId]?.price ?? 0;
+    const strategicValue = computerPropertyValue(state, computer, spaceId);
+    const remainingCash = computer.money - price;
+    const completesGroup = strategicValue >= price * 1.6;
+    return price > 0 && strategicValue >= price && (remainingCash >= computerCashReserve(state, computer) || (completesGroup && remainingCash >= 100))
+      ? buyPendingProperty(state)
+      : declinePendingProperty(state);
   }
   if (state.pendingTax) {
     return state.pendingTax.percentAmount < state.pendingTax.flatAmount ? payPercentIncomeTax(state) : payFlatIncomeTax(state);
@@ -1074,11 +1083,16 @@ export const takeComputerAction = (state: GameState): GameState => {
 
   if (state.turnStage === 'manage') {
     let managedState = state;
+    const mortgaged = computer.mortgagedProperties
+      .filter((spaceId) => computer.money - getUnmortgageCost(spaceId) >= computerCashReserve(state, computer))
+      .sort((left, right) => computerPropertyValue(state, computer, right) - computerPropertyValue(state, computer, left))[0];
+    if (mortgaged !== undefined) return unmortgageProperty(state, computer.id, mortgaged);
     for (let purchase = 0; purchase < 20; purchase += 1) {
       const managedComputer = managedState.players[managedState.currentPlayerIndex];
-      const buildableSpaceId = managedComputer.properties.find(
-        (spaceId) => canImproveProperty(managedState, managedComputer, spaceId) && managedComputer.money - getImprovementCost(spaceId) >= 300
-      );
+      const buildableSpaceId = managedComputer.properties
+        .filter((spaceId) => canImproveProperty(managedState, managedComputer, spaceId)
+          && managedComputer.money - getImprovementCost(spaceId) >= computerCashReserve(managedState, managedComputer))
+        .sort((left, right) => computerBuildingReturn(managedState, right) - computerBuildingReturn(managedState, left))[0];
       if (buildableSpaceId === undefined) return finishManagementStage(managedState, managedComputer.id);
       managedState = buyImprovement(managedState, managedComputer.id, buildableSpaceId);
     }
@@ -1845,26 +1859,79 @@ const computerAcceptsTrade = (state: GameState) => {
   const fromPlayer = findPlayer(state, trade.fromPlayerId);
   const toPlayer = findPlayer(state, trade.toPlayerId);
   if (!fromPlayer || !toPlayer?.isComputer) return false;
-  const sideValue = (propertyIds: number[], money: number, jailCards: number) =>
-    propertyIds.reduce((total, spaceId) => total + (board[spaceId]?.price ?? 0), 0) + money + jailCards * 50;
-  const computerReceives = sideValue(trade.offeredPropertyIds, trade.offeredMoney, trade.offeredJailCards);
-  const computerGives = sideValue(trade.requestedPropertyIds, trade.requestedMoney, trade.requestedJailCards);
-  return computerReceives >= computerGives;
+  const computerReceives = computerTradeSideValue(state, toPlayer, trade.offeredPropertyIds, trade.offeredMoney, trade.offeredJailCards);
+  const computerGives = computerTradeSideValue(state, toPlayer, trade.requestedPropertyIds, trade.requestedMoney, trade.requestedJailCards);
+  return computerReceives >= computerGives * 1.08;
 };
 
 const raiseComputerDebtMoney = (state: GameState, computer: Player): GameState => {
   const debt = state.pendingDebt;
   if (!debt || debt.playerId !== computer.id || computer.money >= debt.amountOwed) return finishDebtPayment(state);
 
-  const sellableSpaceId = computer.properties.find((spaceId) => canSellImprovement(state, computer, spaceId));
+  const sellableSpaceId = computer.properties
+    .filter((spaceId) => canSellImprovement(state, computer, spaceId))
+    .sort((left, right) => computerBuildingReturn(state, left) - computerBuildingReturn(state, right))[0];
   if (sellableSpaceId !== undefined) return sellImprovement(state, computer.id, sellableSpaceId);
 
-  for (const spaceId of computer.properties) {
+  const mortgageOrder = computer.properties
+    .filter((spaceId) => !computer.mortgagedProperties.includes(spaceId))
+    .sort((left, right) => computerPropertyValue(state, computer, left) - computerPropertyValue(state, computer, right));
+  for (const spaceId of mortgageOrder) {
     const next = mortgageProperty(state, computer.id, spaceId);
     if (next !== state) return next;
   }
   return finishDebtPayment(state);
 };
+
+export const computerPropertyValue = (state: GameState, player: Player, spaceId: number): number => {
+  const space = board[spaceId];
+  if (!space?.price) return 0;
+  let value = space.price;
+  if (space.kind === 'property' && space.color) {
+    const group = getColorGroup(space);
+    const owned = group.filter((candidate) => player.properties.includes(candidate.id)).length;
+    if (owned === group.length - 1 && !player.properties.includes(spaceId)) value += space.price * 0.8;
+    const opponentNearlyComplete = state.players.some((opponent) => opponent.id !== player.id
+      && group.filter((candidate) => opponent.properties.includes(candidate.id)).length === group.length - 1);
+    if (opponentNearlyComplete) value += space.price * 0.45;
+  } else if (space.kind === 'railroad') {
+    value += countRentBearingProperties(player, board, 'railroad') * 55;
+  } else if (space.kind === 'utility') {
+    value += countRentBearingProperties(player, board, 'utility') * 80;
+  }
+  return Math.floor(value);
+};
+
+const computerCashReserve = (state: GameState, player: Player): number => {
+  const opponentThreat = state.players
+    .filter((opponent) => opponent.id !== player.id && !opponent.bankrupt)
+    .reduce((highest, opponent) => Math.max(highest, ...opponent.properties.map((spaceId) => {
+      const space = board[spaceId];
+      if (!space?.rent || opponent.mortgagedProperties.includes(spaceId)) return 0;
+      return calculateImprovedRent(space.rent, state.improvements?.[spaceId] ?? 0);
+    })), 0);
+  return Math.min(500, Math.max(150, opponentThreat + 100));
+};
+
+const computerBuildingReturn = (state: GameState, spaceId: number): number => {
+  const space = board[spaceId];
+  if (!space?.rent) return 0;
+  const level = state.improvements?.[spaceId] ?? 0;
+  const currentRent = level ? calculateImprovedRent(space.rent, level) : space.rent * 2;
+  const nextRent = calculateImprovedRent(space.rent, level + 1);
+  return (nextRent - currentRent) / getImprovementCost(spaceId);
+};
+
+const computerTradeSideValue = (
+  state: GameState,
+  player: Player,
+  propertyIds: number[],
+  money: number,
+  jailCards: number
+) => propertyIds.reduce(
+  (total, spaceId) => total + computerPropertyValue(state, player, spaceId),
+  money + jailCards * 60
+);
 
 const markBankrupt = (player: Player, entries: LogEntry[]) => {
   if (player.money > 0 || player.bankrupt) return player;

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  chooseScumBotPlay,
   chooseScumCardSelection,
   completeScumTrades,
   createScumDeck,
@@ -107,6 +108,37 @@ test("Jokers cannot combine two different natural ranks", () => {
   };
 
   assert.equal(playScumCards(game, 0, cards.map((card) => card.id)), game);
+});
+
+test("a Scum computer finishes its hand instead of preserving a high control card", () => {
+  const base = createScumGame({ random: still });
+  const game = {
+    ...base,
+    currentPlayerIndex: 0,
+    pile: { rank: 13, count: 1, cards: [], playerIndex: 3 },
+    players: base.players.map((player, index) => index === 0 ? {
+      ...player,
+      hand: [{ id: "ace", rank: 14, suit: "clubs" }],
+    } : player),
+  };
+  assert.deepEqual(chooseScumBotPlay(game, 0).map((candidate) => candidate.id), ["ace"]);
+});
+
+test("a Scum computer leads a useful group while preserving its Joker", () => {
+  const base = createScumGame({ random: still });
+  const hand = [
+    { id: "four-c", rank: 4, suit: "clubs" },
+    { id: "four-h", rank: 4, suit: "hearts" },
+    { id: "five", rank: 5, suit: "clubs" },
+    { id: "joker", rank: 15, suit: "joker-black" },
+  ];
+  const game = {
+    ...base,
+    currentPlayerIndex: 0,
+    pile: null,
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand } : player),
+  };
+  assert.deepEqual(new Set(chooseScumBotPlay(game, 0).map((candidate) => candidate.id)), new Set(["four-c", "four-h"]));
 });
 
 test("selecting a short triple automatically uses a Joker", () => {
