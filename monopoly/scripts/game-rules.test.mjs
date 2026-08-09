@@ -18,6 +18,7 @@ const {
   rollDice,
   startGame
 } = await vite.ssrLoadModule('/src/game.ts');
+const { migrateMonopolyRoomState } = await vite.ssrLoadModule('/src/stateMigrations.ts');
 
 const makeGameAt = (position, ownedByOtherPlayer = []) => {
   const started = startGame(addLocalPlayer(makeInitialState('host', 'Host', 'TEST', 'car')));
@@ -74,6 +75,17 @@ test('going back three to an owned property charges rent without passing GO', ()
   assert.equal(result.players[1].money, 1516);
   assert.equal(result.pendingRent?.spaceId, 19);
   assert.equal(acknowledgeCard(result).pendingRent?.spaceId, 19);
+});
+
+test('older Monopoly rooms migrate to the current turn stage without losing players', () => {
+  const oldRoom = makeInitialState('host', 'Host', 'OLD01', 'car');
+  oldRoom.turnStage = 'manage';
+  oldRoom.turnStageVersion = 1;
+  const migrated = migrateMonopolyRoomState(oldRoom);
+  assert.equal(migrated.roomStateVersion, 1);
+  assert.equal(migrated.turnStageVersion, 2);
+  assert.equal(migrated.turnStage, 'roll');
+  assert.deepEqual(migrated.players.map((player) => player.id), ['host']);
 });
 
 await vite.close();

@@ -1,4 +1,4 @@
-import { handleApi } from "../../../../../lib/api";
+import { handleApi, handleRoomAction } from "../../../../../lib/api";
 import {
   addScumComputer,
   getScumRoom,
@@ -21,9 +21,7 @@ export async function GET(request, context) {
 
 export async function POST(request, context) {
   const { code } = await context.params;
-  const body = await request.json();
-  const action = body.action;
-  const handlers = {
+  return handleRoomAction(request, code, {
     join: joinScumRoom,
     addComputer: addScumComputer,
     removeComputer: removeScumComputer,
@@ -34,7 +32,5 @@ export async function POST(request, context) {
     moveOn: moveOnScumRoomPile,
     submitTrade: submitScumRoomTrade,
     nextRound: startNextScumRoomRound,
-  };
-  if (!handlers[action]) return Response.json({ error: "Unknown room action." }, { status: 400 });
-  return handleApi(async () => handlers[action]({ ...body, roomCode: code }));
+  });
 }

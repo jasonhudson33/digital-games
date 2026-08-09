@@ -1,41 +1,12 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { board } from './board';
-import { getUtilityRentMultiplier } from './rentRules';
-import { CardDeck, GameState, PlayerPiece } from './types';
+import { getConfiguredSupabaseClient, subscribeToRoomState } from '../../lib/supabase-room-sync';
+import { migrateMonopolyRoomState } from './stateMigrations';
+import { GameState } from './types';
 
 type Handler = (state: GameState) => void;
 type Updater = (state: GameState) => GameState;
 
 const channelName = 'monopoly-room-updates';
-const validPieces: PlayerPiece[] = [
-  'car',
-  'ship',
-  'hat',
-  'boot',
-  'dog',
-  'cat',
-  'train',
-  'plane',
-  'gem',
-  'house',
-  'rocket',
-  'castle',
-  'basketball',
-  'soccer',
-  'volleyball',
-  'tennis',
-  'baseball',
-  'baseballBat'
-];
-
-const getSupabase = (): SupabaseClient | null => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_VITE_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_VITE_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
-  return createClient(url, anonKey);
-};
-
-const supabase = getSupabase();
+const supabase = getConfiguredSupabaseClient();
 
 export const isOnlineSyncEnabled = Boolean(supabase);
 
@@ -59,13 +30,21 @@ export const RoomService = {
   async update(roomCode: string, updater: Updater): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
     if (!supabase) {
-      const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
-      if (!current) return null;
-      const next = updater(current);
-      if (next === current) return current;
-      await saveLocalRoom(next);
-      cacheRoom(next);
-      return next;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
+        if (!current) return null;
+        const updated = updater(current);
+        if (updated === current) return current;
+        const next = migrateMonopolyRoomState({
+          ...updated,
+          updatedAt: Math.max(Date.now(), current.updatedAt + 1)
+        });
+        if (await saveLocalRoom(next, current.updatedAt)) {
+          cacheRoom(next);
+          return next;
+        }
+      }
+      throw new Error('The room changed while this action was being saved. Please try again.');
     }
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -77,7 +56,7 @@ export const RoomService = {
       if (loadError) throw loadError;
       if (!loaded?.state) return null;
 
-      const current = normalizeState(loaded.state as GameState);
+      const current = migrateMonopolyRoomState(loaded.state as GameState);
       const next = updater(current);
       if (next === current) {
         cacheRoom(current);
@@ -93,7 +72,7 @@ export const RoomService = {
         .maybeSingle();
       if (saveError) throw saveError;
       if (saved?.state) {
-        const normalized = normalizeState(saved.state as GameState);
+        const normalized = migrateMonopolyRoomState(saved.state as GameState);
         cacheRoom(normalized);
         return normalized;
       }
@@ -107,7 +86,7 @@ export const RoomService = {
     if (supabase) {
       const { data, error } = await supabase.from('monopoly_rooms').select('state').eq('code', code).maybeSingle();
       if (error) throw error;
-      return data?.state ? normalizeState(data.state as GameState) : null;
+      return data?.state ? migrateMonopolyRoomState(data.state as GameState) : null;
     }
 
     const localRoom = await loadLocalRoom(code);
@@ -117,55 +96,22 @@ export const RoomService = {
   },
 
   subscribe(roomCode: string, handler: Handler) {
-    const code = roomCode.trim().toUpperCase();
-    const bc = 'BroadcastChannel' in window ? new BroadcastChannel(channelName) : null;
-    let lastSeen = 0;
-    const deliver = (remote: GameState) => {
-      const normalized = normalizeState(remote);
-      if (normalized.updatedAt <= lastSeen) return;
-      lastSeen = normalized.updatedAt;
-      handler(normalized);
-    };
-
-    bc?.addEventListener('message', (event: MessageEvent<GameState>) => {
-      if (event.data.roomCode === code) deliver(event.data);
+    return subscribeToRoomState({
+      supabase,
+      roomCode,
+      table: 'monopoly_rooms',
+      channelPrefix: 'monopoly',
+      broadcastName: channelName,
+      load: (code) => RoomService.load(code),
+      migrate: migrateMonopolyRoomState,
+      handler
     });
-
-    let pollId: number | null = null;
-
-    pollId = window.setInterval(() => {
-      void RoomService.load(code).then((remote) => {
-        if (remote) deliver(remote);
-      }).catch(() => undefined);
-    }, 1500);
-
-    const subscription = supabase
-      ?.channel(`monopoly:${code}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'monopoly_rooms', filter: `code=eq.${code}` },
-        (payload) => {
-          const next = payload.new as { state?: GameState };
-          if (next?.state) deliver(next.state);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      bc?.close();
-      if (pollId) {
-        window.clearInterval(pollId);
-      }
-      if (subscription && supabase) {
-        void supabase.removeChannel(subscription);
-      }
-    };
   }
 };
 
 const loadCachedRoom = (roomCode: string): GameState | null => {
   const cached = localStorage.getItem(`monopoly:${roomCode}`);
-  return cached ? normalizeState(JSON.parse(cached) as GameState) : null;
+  return cached ? migrateMonopolyRoomState(JSON.parse(cached) as GameState) : null;
 };
 
 const cacheRoom = (state: GameState) => {
@@ -173,16 +119,15 @@ const cacheRoom = (state: GameState) => {
   broadcast(state);
 };
 
-const saveLocalRoom = async (state: GameState) => {
-  try {
-    await fetch(`/api/monopoly/rooms/${state.roomCode}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state })
-    });
-  } catch {
-    // Static previews will not have the Vite dev-only room API.
-  }
+const saveLocalRoom = async (state: GameState, expectedUpdatedAt?: number): Promise<boolean> => {
+  const response = await fetch(`/api/monopoly/rooms/${state.roomCode}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state, expectedUpdatedAt })
+  });
+  if (response.status === 409) return false;
+  if (!response.ok) throw new Error('Could not save the Monopoly room.');
+  return true;
 };
 
 const loadLocalRoom = async (roomCode: string): Promise<GameState | null> => {
@@ -190,97 +135,10 @@ const loadLocalRoom = async (roomCode: string): Promise<GameState | null> => {
     const response = await fetch(`/api/monopoly/rooms/${roomCode}`);
     if (!response.ok) return null;
     const data = (await response.json()) as { state?: GameState | null };
-    return data.state ? normalizeState(data.state) : null;
+    return data.state ? migrateMonopolyRoomState(data.state) : null;
   } catch {
     return null;
   }
-};
-
-const normalizeState = (state: GameState): GameState => {
-  const players = normalizePlayers(state);
-  const activePlayers = players.filter((player) => !player.bankrupt);
-  const gameOver = activePlayers.length === 1 && players.length > 1;
-  const winnerIndex = gameOver ? players.findIndex((player) => player.id === activePlayers[0].id) : state.currentPlayerIndex;
-
-  return {
-    ...state,
-    players,
-    phase: gameOver ? 'gameOver' : state.phase,
-    turnStage: state.turnStageVersion === 2 ? state.turnStage ?? 'roll' : 'roll',
-    turnStageVersion: 2,
-    currentPlayerIndex: winnerIndex,
-    doubleRollCount: state.doubleRollCount ?? 0,
-    jailRollMode: state.jailRollMode ?? null,
-    pendingCard: gameOver ? null : state.pendingCard ?? null,
-    pendingCardQueue: gameOver ? [] : state.pendingCardQueue ?? [],
-    pendingPurchase: gameOver ? null : state.pendingPurchase ?? null,
-    pendingTax: gameOver ? null : state.pendingTax ?? null,
-    pendingRent: gameOver ? null : state.pendingRent ?? null,
-    pendingUtilityRent: gameOver ? null : normalizeUtilityRent(state, players),
-    pendingDebt: gameOver ? null : state.pendingDebt ?? null,
-    pendingAuction: gameOver ? null : state.pendingAuction ?? null,
-    pendingJailExit: gameOver ? null : state.pendingJailExit ?? null,
-    pendingTrade: gameOver
-      ? null
-      : state.pendingTrade
-        ? {
-            ...state.pendingTrade,
-            expiresAt: state.pendingTrade.expiresAt ?? state.updatedAt + 15_000,
-            offeredMoney: state.pendingTrade.offeredMoney ?? 0,
-            requestedMoney: state.pendingTrade.requestedMoney ?? 0,
-            offeredJailCards: state.pendingTrade.offeredJailCards ?? 0,
-            requestedJailCards: state.pendingTrade.requestedJailCards ?? 0
-          }
-        : null,
-    improvements: state.improvements ?? {}
-  };
-};
-
-const normalizePlayers = (state: GameState): GameState['players'] => {
-  const claimedDecks = new Set<CardDeck>();
-  const validDecks: CardDeck[] = ['chance', 'community'];
-
-  return state.players.map((player) => {
-    const decks: CardDeck[] = [];
-    for (const deck of player.getOutOfJailFreeCardDecks ?? []) {
-      if (validDecks.includes(deck) && !claimedDecks.has(deck)) {
-        decks.push(deck);
-        claimedDecks.add(deck);
-      }
-    }
-
-    const targetCount = Math.min(2, Math.max(player.getOutOfJailFreeCards ?? 0, decks.length));
-    for (const deck of validDecks) {
-      if (decks.length >= targetCount) break;
-      if (!claimedDecks.has(deck)) {
-        decks.push(deck);
-        claimedDecks.add(deck);
-      }
-    }
-
-    return {
-      ...player,
-      isComputer: player.isComputer ?? player.id.startsWith('computer-'),
-      mortgagedProperties: player.mortgagedProperties ?? [],
-      getOutOfJailFreeCards: decks.length,
-      getOutOfJailFreeCardDecks: decks,
-      jailTurnCount: player.jailTurnCount ?? 0,
-      piece: validPieces.includes(player.piece) ? player.piece : 'car'
-    };
-  });
-};
-
-const normalizeUtilityRent = (state: GameState, players: GameState['players']) => {
-  const pending = state.pendingUtilityRent;
-  if (!pending) return null;
-
-  const owner = players.find((player) => player.id === pending.ownerId);
-  const isChanceRate = pending.isChanceRate ?? state.pendingCard?.id.startsWith('chance-nearest-utility') ?? false;
-  return {
-    ...pending,
-    multiplier: owner ? getUtilityRentMultiplier(owner, board, isChanceRate) : 4,
-    isChanceRate
-  };
 };
 
 const broadcast = (state: GameState) => {

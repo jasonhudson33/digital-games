@@ -1,13 +1,18 @@
 {
-  "name": "seven-up",
+  "name": "digital-games",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "npm run test:root && npm run test:monopoly",
+    "test:root": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:monopoly": "node monopoly/scripts/game-rules.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run typecheck && npm run build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "npm run typecheck"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
@@ -24,5 +29,8 @@
     "redis": "4.7.0",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
   }
 }

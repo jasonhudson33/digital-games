@@ -151,6 +151,7 @@ export type JailRollMode = 'paid' | 'card' | 'stay' | null;
 export type TurnStage = 'manage' | 'roll';
 
 export type GameState = {
+  roomStateVersion?: number;
   roomCode: string;
   hostId: string;
   players: Player[];

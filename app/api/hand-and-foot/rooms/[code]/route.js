@@ -1,4 +1,4 @@
-import { handleApi } from "../../../../../lib/api";
+import { handleApi, handleRoomAction } from "../../../../../lib/api";
 import {
   addHandFootComputer,
   chooseHandFootTeammate,
@@ -20,8 +20,7 @@ export async function GET(request, context) {
 
 export async function POST(request, context) {
   const { code } = await context.params;
-  const body = await request.json();
-  const handlers = {
+  return handleRoomAction(request, code, {
     join: joinHandFootRoom,
     addComputer: addHandFootComputer,
     removeComputer: removeHandFootComputer,
@@ -31,7 +30,5 @@ export async function POST(request, context) {
     play: playHandFootRoomCards,
     discard: discardHandFootRoomCard,
     nextRound: startNextHandFootRoomRound,
-  };
-  if (!handlers[body.action]) return Response.json({ error: "Unknown room action." }, { status: 400 });
-  return handleApi(async () => handlers[body.action]({ ...body, roomCode: code }));
+  });
 }

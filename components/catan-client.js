@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { CatanRoomService, isCatanOnlineSyncEnabled } from "./catan-room-service";
+import { catanRuntime } from "./catan-runtime";
 import {
   ALL_CARD_TYPES,
   advancePairedTurn,
@@ -53,7 +54,6 @@ import {
   resolveBarbarianAttack,
   resolveProgressCardChoice,
   resolveTradeResponse,
-  rollEventDie,
   SEAFARERS_FOREIGN_TERRAIN_DECK,
   startingBuildingType,
   terrainDeckForPlayers,
@@ -859,10 +859,7 @@ export default function CatanClient() {
     setIsRolling(true);
     setBuildMode(null);
     window.setTimeout(() => {
-      const chosenDice = game.citiesKnights?.alchemyDice?.playerId === activePlayer.id ? game.citiesKnights.alchemyDice.dice : null;
-      const dieOne = chosenDice?.[0] ?? Math.floor(Math.random() * 6) + 1;
-      const dieTwo = chosenDice?.[1] ?? Math.floor(Math.random() * 6) + 1;
-      const eventDie = hasCitiesKnights(game) ? rollEventDie() : null;
+      const { dieOne, dieTwo, eventDie } = catanRuntime.rollDice(game);
       void updateGame((current) => resolveDiceRoll(current, dieOne, dieTwo, eventDie));
       setIsRolling(false);
     }, 950);
@@ -2221,10 +2218,8 @@ function takeComputerAction(game) {
 
   const isSecondary = game.pairedTurn?.stage === "secondary";
   if (!game.rolled && !isSecondary) {
-    const chosenDice = game.citiesKnights?.alchemyDice?.playerId === activePlayer.id ? game.citiesKnights.alchemyDice.dice : null;
-    const dieOne = chosenDice?.[0] ?? Math.floor(Math.random() * 6) + 1;
-    const dieTwo = chosenDice?.[1] ?? Math.floor(Math.random() * 6) + 1;
-    return resolveDiceRoll(game, dieOne, dieTwo, hasCitiesKnights(game) ? rollEventDie() : null);
+    const { dieOne, dieTwo, eventDie } = catanRuntime.rollDice(game);
+    return resolveDiceRoll(game, dieOne, dieTwo, eventDie);
   }
 
   if (!isSecondary && !game.developmentCardPlayedThisTurn) {

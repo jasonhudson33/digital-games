@@ -1,70 +1,37 @@
-# 7-up
+# Digital Games
 
-React + Next.js implementation of the 7-up card game with:
+A single Next.js application containing Seven Up, Scum, Hand and Foot, Hearts, Mafia, Monopoly, and Catan.
 
-- local hot-seat play
-- configurable computer players
-- shared online rooms for human players
-- Vercel-ready API routes for multiplayer actions
-
-## Stack
-
-- Next.js App Router
-- React
-- Route Handlers for room APIs
-- Redis-backed room storage in production on Vercel
-
-## Why Redis
-
-Shared room state cannot safely live in memory on Vercel because serverless functions do not share process memory across requests. For production room play, configure `REDIS_URL` in Vercel using a Redis integration from the Vercel Marketplace.
-
-Vercel’s own docs currently point Redis users to Marketplace integrations rather than the old Vercel KV product:
-
-- [Next.js on Vercel](https://vercel.com/docs/frameworks/nextjs)
-- [Storage on Vercel Marketplace](https://vercel.com/docs/marketplace-storage)
-- [Redis on Vercel](https://vercel.com/docs/redis)
-
-## Local development
-
-Install dependencies:
+## Development
 
 ```bash
 npm install
-```
-
-Start the app:
-
-```bash
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
-
-For local development only, room state falls back to in-memory storage so you can test multiplayer flows on one machine.
-
-## Room play
-
-1. Choose `Room game`
-2. Set each seat to `Human` or `Computer`
-3. Create the room
-4. Share the room link with other players
-5. Each human player opens the link and claims an open seat
-6. The host starts the room after every human seat is claimed
-
-## Deploy to Vercel
-
-1. Push this repo to GitHub
-2. Import the repo into Vercel
-3. Add a Redis integration in the Vercel Marketplace
-4. Confirm `REDIS_URL` is available in the project environment
-5. Deploy
-
-Without `REDIS_URL`, local play still works, but production room play is intentionally blocked.
-
-## Scripts
+Open [http://localhost:3000](http://localhost:3000). The root quality commands cover every game:
 
 ```bash
-npm run dev
+npm test
+npm run typecheck
 npm run build
-npm run start
 ```
+
+## Multiplayer storage
+
+Seven Up, Scum, and Hand and Foot use Redis room storage. Set `REDIS_URL` in Vercel; in-memory storage is available only during local development.
+
+Catan and Monopoly use Supabase when these variables are configured, with a Next.js in-memory room route for local development:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+Mafia always uses Supabase RPCs and Realtime. It uses persistent device credentials rather than Supabase Authentication, so Anonymous Sign-Ins should remain disabled. Apply the SQL files under `supabase/migrations` in filename order.
+
+## Architecture
+
+The game contexts and shared platform relationships are described in [CONTEXT-MAP.md](./CONTEXT-MAP.md). Architectural decisions are recorded under [docs/adr](./docs/adr).
+
+The deployed application is the repository root. Vercel should use the default blank root directory and run `npm run build`.

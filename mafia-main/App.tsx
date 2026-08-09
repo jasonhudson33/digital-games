@@ -20,40 +20,15 @@ import {
   createVotePhaseResult,
 } from './services/ResultRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
-
-const makeInitialState = (): GameState => ({
-  roomCode: '',
-  players: [],
-  phase: GamePhase.LANDING,
-  round: 1,
-  trialLimit: 2,
-  killerTargetId: null,
-  detectiveCheckId: null,
-  angelSaveId: null,
-  lastAngelSavedId: null,
-  nightResults: [],
-  phaseResult: null,
-  nightActions: {},
-  nightSelectionHistory: {},
-  nominations: {},
-  seconds: {},
-  dayVotes: {},
-  isRunoff: false,
-  winner: null,
-  lastUpdated: 0,
-});
-
-const sanitizeState = (state: GameState): GameState => ({
-  ...state,
-  nightResults: state.nightResults || [],
-  phaseResult: state.phaseResult || null,
-  nightActions: state.nightActions || {},
-  nightSelectionHistory: state.nightSelectionHistory || {},
-  nominations: state.nominations || {},
-  seconds: state.seconds || {},
-  dayVotes: state.dayVotes || {},
-  isRunoff: state.isRunoff || false,
-});
+import {
+  createInitialGameState,
+  migrateGameState,
+  PRESENCE_TIMEOUT_MS,
+  playersFromJoinRequests,
+  selectActingHostId,
+  selectDeterministicPlayer,
+  shouldApplyRemoteState,
+} from './services/SessionCoordinator';
 
 const getStoredValue = (key: string): string | null => {
   if (typeof window === 'undefined') return null;
@@ -61,7 +36,6 @@ const getStoredValue = (key: string): string | null => {
 };
 
 const LAST_ROOM_KEY = 'mafia_last_room';
-const PRESENCE_TIMEOUT_MS = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 15 * 1000;
 
 const rememberRoom = (roomCode: string) => {
@@ -75,12 +49,6 @@ const forgetRoom = () => {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(LAST_ROOM_KEY);
   window.history.replaceState(null, '', window.location.pathname);
-};
-
-const deterministicPlayer = (players: Player[], seed: string): Player | null => {
-  if (!players.length) return null;
-  const hash = Array.from(seed).reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
-  return players[hash % players.length];
 };
 
 const RoomLeaveButton: React.FC<{
@@ -101,7 +69,7 @@ const RoomLeaveButton: React.FC<{
 const App: React.FC = () => {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [cachedPlayerName, setCachedPlayerName] = useState<string>(() => getStoredValue('mafia_player_name') || '');
-  const [gameState, setGameState] = useState<GameState>(makeInitialState());
+  const [gameState, setGameState] = useState<GameState>(createInitialGameState());
   const [meta, setMeta] = useState<RoomMeta | null>(null);
   const [presence, setPresence] = useState<PresenceMap>({});
   const [presenceReady, setPresenceReady] = useState(false);
@@ -151,7 +119,7 @@ const App: React.FC = () => {
       if (!active) return;
       localStorage.setItem('mafia_player_name', returningPlayer.name);
       setCachedPlayerName(returningPlayer.name);
-      setGameState(sanitizeState(remote));
+      setGameState(migrateGameState(remote));
       rememberRoom(roomCode);
     };
 
@@ -164,17 +132,10 @@ const App: React.FC = () => {
   const myRole = useMemo(() => resolvePrivateRole(rolesMap, myPlayerId), [rolesMap, myPlayerId]);
 
   // Acting host: alive host if present, else first alive player
-  const actingHostId = useMemo(() => {
-    const alive = gameState.players.filter(p => p.isAlive && !p.hasLeft);
-    if (presenceReady) {
-      const cutoff = Date.now() - PRESENCE_TIMEOUT_MS;
-      const online = alive.filter((player) => (presence[player.id] || 0) > cutoff);
-      const onlineHost = online.find((player) => player.isHost);
-      return onlineHost?.id || online[0]?.id || null;
-    }
-    const hostAlive = alive.find((player) => player.isHost);
-    return hostAlive?.id || alive[0]?.id || null;
-  }, [gameState.players, presence, presenceReady]);
+  const actingHostId = useMemo(
+    () => selectActingHostId(gameState.players, presence, presenceReady),
+    [gameState.players, presence, presenceReady],
+  );
 
   const isActingHost = !!myPlayerId && actingHostId === myPlayerId;
   const computerPlayerKey = useMemo(
@@ -198,20 +159,13 @@ const App: React.FC = () => {
     };
   }, [isActingHost]);
 
-  const shouldUpdateState = useCallback((remote: GameState, local: GameState) => {
-    // Prefer newer updates, but allow equal if phase changed
-    if (remote.lastUpdated > local.lastUpdated) return true;
-    if (remote.lastUpdated === local.lastUpdated && remote.phase !== local.phase) return true;
-    return false;
-  }, []);
-
   // ---------- Subscriptions ----------
   useEffect(() => {
     if (!gameState.roomCode) return;
 
     const unsubState = RoomService.subscribeToState(gameState.roomCode, (remote) => {
-      const sanitized = sanitizeState(remote);
-      if (shouldUpdateState(sanitized, gameStateRef.current)) {
+      const sanitized = migrateGameState(remote);
+      if (shouldApplyRemoteState(sanitized, gameStateRef.current)) {
         setGameState(sanitized);
       }
     });
@@ -222,7 +176,7 @@ const App: React.FC = () => {
       unsubState();
       unsubMeta();
     };
-  }, [gameState.roomCode, shouldUpdateState]);
+  }, [gameState.roomCode]);
 
   useEffect(() => {
     const roomCode = gameState.roomCode;
@@ -279,7 +233,7 @@ const App: React.FC = () => {
   // ---------- Host-only canonical state updates ----------
   const hostUpdateState = useCallback(async (updates: Partial<GameState>) => {
     const current = gameStateRef.current;
-    const next = sanitizeState({ ...current, ...updates, lastUpdated: Date.now() });
+    const next = migrateGameState({ ...current, ...updates, lastUpdated: Date.now() });
 
     setGameState(next);
     if (next.roomCode) {
@@ -350,25 +304,10 @@ const App: React.FC = () => {
 
     const unsubJoin = RoomService.subscribeToJoinRequests(code, async (reqs) => {
       const state = gameStateRef.current;
-      const existing = new Set(state.players.map(p => p.id));
-      const additions: Player[] = [];
-
-      for (const [uid, req] of Object.entries(reqs)) {
-        if (!existing.has(uid)) {
-          additions.push({
-            id: uid,
-            name: req.name,
-            cardCode: '',
-            isAlive: true,
-            voteCount: 0,
-            isHost: false,
-            isReady: false,
-          });
-        }
-      }
+      const additions = playersFromJoinRequests(state.players, reqs);
 
       if (additions.length) {
-        const next = sanitizeState({ ...state, players: [...state.players, ...additions], lastUpdated: Date.now() });
+        const next = migrateGameState({ ...state, players: [...state.players, ...additions], lastUpdated: Date.now() });
         await RoomService.saveState(code, next);
         await Promise.all(additions.map(p => RoomService.clearJoinRequest(code, p.id)));
       }
@@ -403,7 +342,7 @@ const App: React.FC = () => {
       }
 
       if (changed) {
-        const next = sanitizeState({ ...state, players: updated, lastUpdated: Date.now() });
+        const next = migrateGameState({ ...state, players: updated, lastUpdated: Date.now() });
         await RoomService.saveState(code, next);
       }
       await Promise.all(Object.keys(reqs).map((uid) => RoomService.clearLeaveRequest(code, uid)));
@@ -423,7 +362,7 @@ const App: React.FC = () => {
       state.players.filter((player) => player.isComputer).forEach((player) => readySet.add(player.id));
       const updatedPlayers = state.players.map(p => ({ ...p, isReady: readySet.has(p.id) }));
 
-      const next = sanitizeState({ ...state, players: updatedPlayers, lastUpdated: Date.now() });
+      const next = migrateGameState({ ...state, players: updatedPlayers, lastUpdated: Date.now() });
       await RoomService.saveState(code, next);
 
       const allReady = updatedPlayers.length > 0 && updatedPlayers.every(p => p.isReady);
@@ -475,7 +414,7 @@ const App: React.FC = () => {
         if (roleNeeded === Role.ANGEL) return player.id !== state.lastAngelSavedId;
         return !actors.includes(player.id);
       });
-      const computerTarget = humanTarget || deterministicPlayer(
+      const computerTarget = humanTarget || selectDeterministicPlayer(
         computerCandidates,
         `${state.roomCode}:${state.round}:${state.phase}`
       )?.id;
@@ -489,7 +428,7 @@ const App: React.FC = () => {
         }
       }
       if (JSON.stringify(aggregated) !== JSON.stringify(state.nightActions || {})) {
-        await RoomService.saveState(code, sanitizeState({ ...state, nightActions: aggregated, lastUpdated: Date.now() }));
+        await RoomService.saveState(code, migrateGameState({ ...state, nightActions: aggregated, lastUpdated: Date.now() }));
       }
 
       // Check consensus
@@ -552,7 +491,7 @@ const App: React.FC = () => {
       if (state.phase === GamePhase.DAY_DELIBERATION) {
         for (const computer of computerPlayers) {
           if (!nominations[computer.id]) {
-            const target = deterministicPlayer(
+            const target = selectDeterministicPlayer(
               state.players.filter((player) => player.isAlive && player.id !== computer.id),
               `${state.roomCode}:${state.round}:nominate:${computer.id}`
             );
@@ -573,7 +512,7 @@ const App: React.FC = () => {
           (targetId) => (seconds[targetId] || []).length > 0
         );
         for (const computer of computerPlayers) {
-          const target = deterministicPlayer(
+          const target = selectDeterministicPlayer(
             candidates.filter((targetId) => targetId !== computer.id).map((targetId) =>
               state.players.find((player) => player.id === targetId)
             ).filter(Boolean) as Player[],
@@ -583,7 +522,7 @@ const App: React.FC = () => {
         }
       }
 
-        const next = sanitizeState({ ...state, nominations, seconds, dayVotes, lastUpdated: Date.now() });
+        const next = migrateGameState({ ...state, nominations, seconds, dayVotes, lastUpdated: Date.now() });
         await RoomService.saveState(code, next);
       }
     );
@@ -742,8 +681,8 @@ const App: React.FC = () => {
       isReady: false,
     };
 
-    const state: GameState = sanitizeState({
-      ...makeInitialState(),
+    const state: GameState = migrateGameState({
+      ...createInitialGameState(),
       roomCode: code,
       players: [hostPlayer],
       phase: GamePhase.LOBBY,
@@ -776,7 +715,7 @@ const App: React.FC = () => {
       else await RoomService.submitJoinRequest(code, uid, name);
       localStorage.setItem('mafia_player_name', name);
       setCachedPlayerName(name);
-      setGameState(sanitizeState(remote));
+      setGameState(migrateGameState(remote));
       rememberRoom(code);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown room error';
@@ -786,7 +725,7 @@ const App: React.FC = () => {
 
   const restartGame = useCallback(() => {
     forgetRoom();
-    setGameState(makeInitialState());
+    setGameState(createInitialGameState());
     setRolesMap({});
     setMeta(null);
     setPresence({});
