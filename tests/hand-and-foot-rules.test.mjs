@@ -114,7 +114,7 @@ test("regular melds allow no more than two wilds and never more wilds than natur
   assert.throws(() => playHandFootCards(game, 0, selected.map((candidate) => candidate.id)), /more than two wild/i);
 });
 
-test("threes cannot be melded and the last foot card cannot be discarded", () => {
+test("threes cannot be melded and the last foot card may be discarded to go out", () => {
   let game = createHandFootMatch({ playerCount: 4 });
   const three = card("three", "clubs", 3);
   game = {
@@ -125,7 +125,28 @@ test("threes cannot be melded and the last foot card cannot be discarded", () =>
   assert.throws(() => playHandFootCards(game, 0, [three.id]), /Threes cannot be melded/);
 
   game.players[0] = { ...game.players[0], usingFoot: true, hand: [], foot: [three] };
-  assert.throws(() => discardHandFootCard(game, 0, three.id), /last card in your foot/i);
+  game.players[2] = { ...game.players[2], hand: [card("safe", "clubs", 4)] };
+  game = discardHandFootCard(game, 0, three.id);
+  assert.equal(game.phase, "round-over");
+  assert.equal(game.players[0].foot.length, 0);
+  assert.equal(game.discardPile.at(-1).id, three.id);
+  assert.equal(game.roundSummary.wentOutPlayerId, 0);
+});
+
+test("a last-foot discard cannot bypass the teammate-three restriction", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const lastCard = card("last", "clubs", 9);
+  game = {
+    ...game,
+    turnStage: "play",
+    players: game.players.map((player, index) => {
+      if (index === 0) return { ...player, hand: [], foot: [lastCard], usingFoot: true };
+      if (index === 2) return { ...player, hand: [card("blocker", "spades", 3)] };
+      return player;
+    }),
+  };
+
+  assert.throws(() => discardHandFootCard(game, 0, lastCard.id), /teammate still holds a 3/i);
 });
 
 test("a player cannot go out while their teammate still holds a three", () => {

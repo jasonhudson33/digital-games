@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Footprints, Hand, Layers3, RotateCcw, Sparkles, Users, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, Copy, DoorOpen, Footprints, Hand, Layers3, Play, Plus, RotateCcw, Sparkles, UserPlus, Users, X } from "lucide-react";
 import {
   HAND_FOOT_SUIT_SYMBOLS,
   activeCardsFor,
@@ -20,19 +20,59 @@ import {
   playHandFootCards,
   startNextHandFootRound,
 } from "../lib/hand-and-foot";
+import { HandFootRoomService } from "./hand-and-foot-room-service";
 
 const BOT_NAMES = ["Marlow", "Vega", "Kit", "Rowan", "Jules", "Nova", "Ash"];
+const PLAYER_NAME_KEY = "hand-foot-player-name";
 
 export default function HandAndFootClient() {
   const [playerName, setPlayerName] = useState("");
   const [playerCount, setPlayerCount] = useState(4);
   const [teammateName, setTeammateName] = useState(BOT_NAMES[0]);
+  const [isReady, setIsReady] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [roomToken, setRoomToken] = useState("");
   const [game, setGame] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const latestGame = useRef(null);
 
-  const availableTeammates = BOT_NAMES.slice(0, playerCount - 1);
+  const availableTeammates = useMemo(() => BOT_NAMES.slice(0, playerCount - 1), [playerCount]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("room")?.toUpperCase() || "";
+    setPlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
+    setJoinCode(code);
+    setRoomToken(code ? sessionStorage.getItem(roomTokenKey(code)) || "" : "");
+    setIsReady(true);
+  }, []);
+
+  useEffect(() => {
+    latestGame.current = game;
+  }, [game]);
+
+  useEffect(() => {
+    if (!isReady || game || !joinCode || !roomToken) return;
+    let cancelled = false;
+    void HandFootRoomService.load(joinCode, roomToken).then((state) => {
+      if (!cancelled) setGame(state);
+    }).catch(() => {
+      sessionStorage.removeItem(roomTokenKey(joinCode));
+      setRoomToken("");
+    });
+    return () => { cancelled = true; };
+  }, [game, isReady, joinCode, roomToken]);
+
+  useEffect(() => {
+    if (!game?.roomCode || !roomToken) return undefined;
+    return HandFootRoomService.subscribe(game.roomCode, roomToken, (remote) => {
+      setGame((current) => !current || remote.updatedAt >= current.updatedAt ? remote : current);
+    });
+  }, [game?.roomCode, roomToken]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -43,7 +83,7 @@ export default function HandAndFootClient() {
   }, [playerCount, teammateName, availableTeammates]);
 
   useEffect(() => {
-    if (!game || game.phase !== "playing" || game.currentPlayerIndex === 0) return undefined;
+    if (!game || game.roomCode || game.phase !== "playing" || game.currentPlayerIndex === 0) return undefined;
     const timer = window.setTimeout(() => {
       setGame((current) => {
         if (!current || current.phase !== "playing" || current.currentPlayerIndex === 0) return current;
@@ -74,10 +114,96 @@ export default function HandAndFootClient() {
     return () => window.clearTimeout(timer);
   }, [game]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [game?.currentPlayerIndex, game?.turnStage, game?.roundNumber]);
+
   function startGame() {
-    setGame(createHandFootMatch({ playerName, playerCount, teammateName }));
+    const cleanName = usePlayerName();
+    setGame(createHandFootMatch({ playerName: cleanName, playerCount, teammateName }));
     setSelectedIds([]);
     setError("");
+  }
+
+  function usePlayerName() {
+    const cleanName = playerName.trim() || "Player";
+    localStorage.setItem(PLAYER_NAME_KEY, cleanName);
+    setPlayerName(cleanName);
+    return cleanName;
+  }
+
+  function enterRoom(state, token) {
+    sessionStorage.setItem(roomTokenKey(state.roomCode), token);
+    setRoomToken(token);
+    setJoinCode(state.roomCode);
+    setGame(state);
+    setError("");
+    window.history.replaceState(null, "", `/hand-and-foot?room=${state.roomCode}`);
+  }
+
+  async function createRoom() {
+    setBusy(true);
+    setError("");
+    try {
+      const payload = await HandFootRoomService.create(usePlayerName());
+      enterRoom(payload.state, payload.token);
+    } catch (roomError) {
+      setError(roomError instanceof Error ? roomError.message : "Could not create the room.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function joinRoom() {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return setError("Enter a room code first.");
+    setBusy(true);
+    setError("");
+    try {
+      const payload = await HandFootRoomService.join(code, usePlayerName());
+      enterRoom(payload.state, payload.token);
+    } catch (roomError) {
+      setError(roomError instanceof Error ? roomError.message : "Could not join the room.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function roomAction(action, values = {}) {
+    const current = latestGame.current;
+    if (!current?.roomCode || !roomToken) return;
+    setError("");
+    try {
+      const next = await HandFootRoomService.action(current.roomCode, roomToken, action, values);
+      setGame(next);
+      latestGame.current = next;
+      setSelectedIds([]);
+    } catch (roomError) {
+      setError(roomError instanceof Error ? roomError.message : "The room could not be updated.");
+    }
+  }
+
+  function leaveRoom() {
+    if (game?.roomCode) sessionStorage.removeItem(roomTokenKey(game.roomCode));
+    setGame(null);
+    latestGame.current = null;
+    setRoomToken("");
+    setJoinCode("");
+    setSelectedIds([]);
+    setError("");
+    window.history.replaceState(null, "", "/hand-and-foot");
+  }
+
+  function copyInvite() {
+    if (!game?.roomCode) return;
+    void navigator.clipboard.writeText(`${window.location.origin}/hand-and-foot?room=${game.roomCode}`);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  function performAction(roomActionName, roomValues, localAction) {
+    if (game?.roomCode) void roomAction(roomActionName, roomValues);
+    else runAction(localAction);
   }
 
   function runAction(action) {
@@ -95,6 +221,10 @@ export default function HandAndFootClient() {
     setSelectedIds((current) => current.includes(cardId)
       ? current.filter((id) => id !== cardId)
       : [...current, cardId]);
+  }
+
+  if (!isReady) {
+    return <main className="hf-app hf-intro-shell"><div className="hf-room-loading">Setting the table…</div></main>;
   }
 
   if (!game) {
@@ -126,9 +256,25 @@ export default function HandAndFootClient() {
                   {availableTeammates.map((name) => <option key={name} value={name}>{name}</option>)}
                 </select>
               </label>
-              <button type="button" className="hf-primary" onClick={startGame}>Deal the cards <span>→</span></button>
+              <button type="button" className="hf-primary" onClick={startGame}>Play with computers <span>→</span></button>
             </div>
             <p className="hf-seat-note"><Users size={16} /> Your chosen teammate will sit directly across from you in the turn order.</p>
+            <div className="hf-entry-divider"><span>or use a shared room</span></div>
+            <div className="hf-room-entry">
+              <button type="button" className="hf-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create room</button>
+              <div className="hf-join-row">
+                <input
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                  onKeyDown={(event) => event.key === "Enter" && joinRoom()}
+                  maxLength={5}
+                  placeholder="ROOM CODE"
+                  aria-label="Room code"
+                />
+                <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={16} /> Join</button>
+              </div>
+            </div>
+            {error && <div className="hf-error" role="alert">{error}</div>}
             <button type="button" className="hf-text-button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Read the rules</button>
           </div>
 
@@ -146,25 +292,49 @@ export default function HandAndFootClient() {
     );
   }
 
-  if (game.phase === "round-over" || game.phase === "game-over") {
-    return <RoundResults game={game} onNext={() => runAction((current) => startNextHandFootRound(current))} onNew={() => setGame(null)} />;
+  if (game.phase === "lobby") {
+    return (
+      <HandFootLobby
+        game={game}
+        copied={copied}
+        error={error}
+        onCopy={copyInvite}
+        onLeave={leaveRoom}
+        onAction={roomAction}
+        onRules={() => setRulesOpen(true)}
+        rulesOpen={rulesOpen}
+        onCloseRules={() => setRulesOpen(false)}
+      />
+    );
   }
 
-  const human = game.players[0];
-  const activeCards = activeCardsFor(game, 0);
-  const yourTurn = game.currentPlayerIndex === 0;
+  if (game.phase === "round-over" || game.phase === "game-over") {
+    return (
+      <RoundResults
+        game={game}
+        onNext={() => game.roomCode ? roomAction("nextRound") : runAction((current) => startNextHandFootRound(current))}
+        onNew={game.roomCode ? leaveRoom : () => setGame(null)}
+      />
+    );
+  }
+
+  const viewerPlayerIndex = game.viewerPlayerIndex ?? 0;
+  const human = game.players[viewerPlayerIndex];
+  const activeCards = activeCardsFor(game, viewerPlayerIndex);
+  const yourTurn = game.currentPlayerIndex === viewerPlayerIndex;
   const humanTeam = game.teams[human.teamId];
   const selectedCanPlay = yourTurn
     && game.turnStage === "play"
-    && canPlayHandFootCards(game, 0, selectedIds);
+    && canPlayHandFootCards(game, viewerPlayerIndex, selectedIds);
 
   return (
     <main className="hf-app hf-game-shell">
       <header className="hf-gamebar">
-        <div className="hf-game-title"><span><Layers3 size={19} /></span><div><strong>Hand &amp; Foot</strong><small>Round {game.roundNumber} of 4 · Open with {game.roundRequirement} points</small></div></div>
+        <div className="hf-game-title"><span><Layers3 size={19} /></span><div><strong>Hand &amp; Foot</strong><small>{game.roomCode ? `Room ${game.roomCode} · ` : ""}Round {game.roundNumber} of 4 · Open with {game.roundRequirement} points</small></div></div>
         <div className="hf-game-actions">
+          {game.roomCode && <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button>}
           <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={() => setGame(null)}><RotateCcw size={16} /> New game</button>
+          <button type="button" onClick={game.roomCode ? leaveRoom : () => setGame(null)}>{game.roomCode ? <DoorOpen size={16} /> : <RotateCcw size={16} />} {game.roomCode ? "Leave" : "New game"}</button>
         </div>
       </header>
 
@@ -183,7 +353,7 @@ export default function HandAndFootClient() {
           {game.players.map((player, index) => (
             <div key={player.id} className={`hf-seat ${game.currentPlayerIndex === index ? "active" : ""} ${player.teamId === human.teamId ? "teammate" : ""}`}>
               <span className="hf-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
-              <span><strong>{player.name}</strong><small>Team {player.teamId + 1} · {player.usingFoot ? `${player.foot.length} in foot` : `${player.hand.length} in hand · ${player.foot.length} hidden`}</small></span>
+              <span><strong>{player.name}{player.isViewer ? " · You" : ""}</strong><small>Team {player.teamId + 1} · {player.usingFoot ? `${player.footCount ?? player.foot.length} in foot` : `${player.handCount ?? player.hand.length} in hand · ${player.footCount ?? player.foot.length} hidden`}</small></span>
               {game.currentPlayerIndex === index && <b>{game.turnStage === "draw" ? "Drawing" : "Playing"}</b>}
             </div>
           ))}
@@ -209,13 +379,13 @@ export default function HandAndFootClient() {
           <div>
             <span className={`hf-turn-dot ${yourTurn ? "on" : ""}`} />
             <strong>{yourTurn ? (game.turnStage === "draw" ? "Your turn — draw two" : "Your turn — meld, then discard") : `Waiting for ${game.players[game.currentPlayerIndex].name}`}</strong>
-            <small>{human.usingFoot ? "Playing from your foot" : `Your foot is hidden (${human.foot.length} cards)`} · Team {humanTeam.opened ? "is open" : `needs ${game.roundRequirement} points`}</small>
+            <small>{human.usingFoot ? "Playing from your foot" : `Your foot is hidden (${human.footCount ?? human.foot.length} cards)`} · Team {humanTeam.opened ? "is open" : `needs ${game.roundRequirement} points`}</small>
           </div>
           <div className="hf-turn-actions">
-            {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => runAction((current) => drawHandFootCards(current, 0))}>Draw 2</button>}
+            {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>Draw 2</button>}
             {yourTurn && game.turnStage === "play" && <>
-              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => runAction((current) => playHandFootCards(current, 0, selectedIds))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
-              <button type="button" className="hf-discard-button" disabled={selectedIds.length !== 1} onClick={() => runAction((current) => discardHandFootCard(current, 0, selectedIds[0]))}>Discard selected</button>
+              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
+              <button type="button" className="hf-discard-button" disabled={selectedIds.length !== 1} onClick={() => performAction("discard", { cardId: selectedIds[0] }, (current) => discardHandFootCard(current, viewerPlayerIndex, selectedIds[0]))}>Discard selected</button>
             </>}
           </div>
         </div>
@@ -225,6 +395,65 @@ export default function HandAndFootClient() {
         </div>
       </section>
       <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
+    </main>
+  );
+}
+
+function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
+  const canStart = game.players.length >= 4 && game.players.length % 2 === 0;
+  const viewer = game.players.find((player) => player.isViewer);
+  const playerNameById = Object.fromEntries(game.players.map((player) => [player.playerId, player.name]));
+  return (
+    <main className="hf-app hf-intro-shell hf-lobby-shell">
+      <section className="hf-lobby-card">
+        <span className="hf-kicker"><Sparkles size={15} /> Gather your teams</span>
+        <h1>Hand <em>&amp;</em> Foot</h1>
+        <p>Invite an even table of four to eight. Everyone can name a preferred teammate; mutual choices are paired first and seated opposite.</p>
+
+        <div className="hf-room-code">
+          <span>Room code</span>
+          <strong>{game.roomCode}</strong>
+          <button type="button" onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
+        </div>
+
+        <div className="hf-lobby-players">
+          {game.players.map((player, index) => (
+            <div key={player.playerId}>
+              <span>{player.name.slice(0, 1).toUpperCase()}</span>
+              <strong>{player.name}{player.isViewer ? " · You" : ""}</strong>
+              <small>
+                {index === 0 ? "Host" : player.isComputer ? "Computer" : "Ready"}
+                {game.teammatePreferences[player.playerId] ? ` · prefers ${playerNameById[game.teammatePreferences[player.playerId]]}` : ""}
+              </small>
+              {player.isComputer && game.hostControls && <button type="button" onClick={() => onAction("removeComputer", { playerId: player.playerId })}><X size={14} /> Remove</button>}
+            </div>
+          ))}
+        </div>
+
+        {game.players.length < 8 && game.hostControls && (
+          <button type="button" className="hf-add-computer" onClick={() => onAction("addComputer")}><UserPlus size={17} /> Add computer</button>
+        )}
+
+        <label className="hf-team-choice">
+          <span>Your preferred teammate</span>
+          <select value={game.viewerTeammateId || ""} onChange={(event) => onAction("chooseTeammate", { teammateId: event.target.value })}>
+            <option value="" disabled>Choose a player</option>
+            {game.players.filter((player) => player.playerId !== viewer.playerId).map((player) => <option key={player.playerId} value={player.playerId}>{player.name}</option>)}
+          </select>
+          <small>Mutual choices take priority. Remaining players are paired in lobby order.</small>
+        </label>
+
+        <div className="hf-lobby-summary"><span>{game.players.length} players</span><span>{Math.floor(game.players.length / 2)} teams at start</span><span>13-card hand + foot</span></div>
+        {game.hostControls ? (
+          <button type="button" className="hf-primary hf-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start game</button>
+        ) : (
+          <p className="hf-lobby-waiting">Waiting for the host to start the game…</p>
+        )}
+        {!canStart && game.hostControls && <p className="hf-lobby-waiting">Add players until there is an even table of at least four.</p>}
+        {error && <div className="hf-error" role="alert">{error}</div>}
+        <div className="hf-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave room</button></div>
+      </section>
+      <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
   );
 }
@@ -278,7 +507,11 @@ function RoundResults({ game, onNext, onNew }) {
             </article>;
           })}
         </div>
-        <div className="hf-result-actions">{!winner && <button type="button" className="hf-primary" onClick={onNext}>Start round {game.roundNumber + 1}</button>}<button type="button" className="hf-secondary" onClick={onNew}>New game</button></div>
+        <div className="hf-result-actions">
+          {!winner && (!game.roomCode || game.hostControls) && <button type="button" className="hf-primary" onClick={onNext}>Start round {game.roundNumber + 1}</button>}
+          {!winner && game.roomCode && !game.hostControls && <p className="hf-lobby-waiting">Waiting for the host to start round {game.roundNumber + 1}…</p>}
+          <button type="button" className="hf-secondary" onClick={onNew}>{game.roomCode ? "Leave room" : "New game"}</button>
+        </div>
       </section>
     </main>
   );
@@ -296,11 +529,15 @@ function RulesDialog({ open, onClose }) {
           <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two. Meld three or more matching ranks, add to your team’s melds, then discard one card to finish your turn.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. A regular meld may hold at most two wilds and never more wilds than natural cards. Wild-only melds are allowed.</p></div></article>
-          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal and play your foot. Your last foot card must be melded, and you cannot go out while your teammate holds a 3.</p></div></article>
+          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal and play your foot. You may meld or discard your last foot card to go out, but not while your teammate holds a 3.</p></div></article>
           <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. Seven-card books score 500 clean, 300 dirty, 2,500 wild, or 3,000 for sevens.</p></div></article>
         </div>
         <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
       </section>
     </div>
   );
+}
+
+function roomTokenKey(roomCode) {
+  return `hand-foot-room-token:${String(roomCode || "").toUpperCase()}`;
 }
