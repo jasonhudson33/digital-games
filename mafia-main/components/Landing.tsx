@@ -33,7 +33,7 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin, c
           </div>
         ) : !connectionReady ? (
           <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-center text-sm text-slate-400">
-            Connecting to Supabase…
+            Connecting to the game server…
           </div>
         ) : null}
         <div>

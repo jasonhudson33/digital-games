@@ -28,6 +28,7 @@ import {
   Trophy,
   Users,
   Volleyball,
+  X,
   type LucideIcon
 } from 'lucide-react';
 import { board, cornerIds } from './board';
@@ -413,7 +414,7 @@ export default function App() {
             <div className="brand-mark">M</div>
             <div>
               <h1>Monopoly Online</h1>
-              <p>{isOnlineSyncEnabled ? 'Supabase sync is enabled.' : 'Local room sync until Supabase env vars are added.'}</p>
+              <p>Create a room or join one with a room code.</p>
             </div>
           </div>
 
@@ -455,7 +456,6 @@ export default function App() {
             {game.roomCode} <Copy size={15} />
           </button>
         </div>
-        <div className="sync-pill">{isOnlineSyncEnabled ? 'Supabase online' : 'Local sync'}</div>
       </header>
 
       <section className="layout">
@@ -1050,6 +1050,25 @@ function Board({
   onDeclineTrade: () => void;
   onRoll: () => void;
 }) {
+  const [selectedSpaceId, setSelectedSpaceId] = React.useState<number | null>(null);
+  const selectedSpace = selectedSpaceId === null ? undefined : board[selectedSpaceId];
+  const selectedOwner = selectedSpace
+    ? game.players.find((player) => player.properties.includes(selectedSpace.id))
+    : undefined;
+  const selectedImprovementLevel = selectedSpace ? game.improvements[selectedSpace.id] ?? 0 : 0;
+  const selectedTradeRole = canSelectTradeProperties && selectedImprovementLevel === 0
+    ? selectedOwner?.id === tradePlayerId
+      ? 'offer'
+      : selectedOwner?.id === tradeTargetId
+        ? 'request'
+        : undefined
+    : undefined;
+  const selectedForTrade = selectedSpace
+    ? selectedTradeRole === 'offer'
+      ? offeredPropertyIds.includes(selectedSpace.id)
+      : selectedTradeRole === 'request' && requestedPropertyIds.includes(selectedSpace.id)
+    : false;
+
   return (
     <section className="board" aria-label="Monopoly board">
       {board.map((space) => {
@@ -1072,6 +1091,7 @@ function Board({
             tradeRole={tradeSelectable ? tradeRole : undefined}
             tradeSelected={tradeSelected}
             onTradeToggle={tradeSelectable ? () => onTradePropertyToggle(space.id) : undefined}
+            onShowDetails={space.price ? () => setSelectedSpaceId(space.id) : undefined}
           />
         );
       })}
@@ -1160,6 +1180,17 @@ function Board({
           </>
         )}
       </div>
+      {selectedSpace?.price && (
+        <PropertyCardModal
+          space={selectedSpace}
+          owner={selectedOwner}
+          improvementLevel={selectedImprovementLevel}
+          tradeRole={selectedTradeRole}
+          tradeSelected={selectedForTrade}
+          onTradeToggle={selectedTradeRole ? () => onTradePropertyToggle(selectedSpace.id) : undefined}
+          onClose={() => setSelectedSpaceId(null)}
+        />
+      )}
     </section>
   );
 }
@@ -1170,7 +1201,8 @@ function BoardSpace({
   improvementLevel,
   tradeRole,
   tradeSelected = false,
-  onTradeToggle
+  onTradeToggle,
+  onShowDetails
 }: {
   space: Space;
   players: Player[];
@@ -1178,23 +1210,22 @@ function BoardSpace({
   tradeRole?: 'offer' | 'request';
   tradeSelected?: boolean;
   onTradeToggle?: () => void;
+  onShowDetails?: () => void;
 }) {
   const style = getGridPosition(space.id);
-  const tradeAction = tradeRole === 'offer' ? 'your offer' : 'your request';
   return (
     <div
-      className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
+      className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${onShowDetails ? 'deed-clickable' : ''} ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
       style={style}
-      role={onTradeToggle ? 'button' : undefined}
-      tabIndex={onTradeToggle ? 0 : undefined}
-      aria-pressed={onTradeToggle ? tradeSelected : undefined}
-      aria-label={onTradeToggle ? `${tradeSelected ? 'Remove' : 'Add'} ${space.name} ${tradeSelected ? 'from' : 'to'} ${tradeAction}` : undefined}
-      title={onTradeToggle ? `Click to ${tradeSelected ? 'remove from' : 'add to'} ${tradeAction}` : undefined}
-      onClick={onTradeToggle}
-      onKeyDown={onTradeToggle ? (event) => {
+      role={onShowDetails ? 'button' : undefined}
+      tabIndex={onShowDetails ? 0 : undefined}
+      aria-label={onShowDetails ? `View deed details for ${space.name}` : undefined}
+      title={onShowDetails ? `View ${space.name} deed` : undefined}
+      onClick={onShowDetails}
+      onKeyDown={onShowDetails ? (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onTradeToggle();
+          onShowDetails();
         }
       } : undefined}
     >
@@ -1216,6 +1247,111 @@ function BoardSpace({
       </div>
     </div>
   );
+}
+
+function PropertyCardModal({
+  space,
+  owner,
+  improvementLevel,
+  tradeRole,
+  tradeSelected,
+  onTradeToggle,
+  onClose
+}: {
+  space: Space;
+  owner?: Player;
+  improvementLevel: number;
+  tradeRole?: 'offer' | 'request';
+  tradeSelected: boolean;
+  onTradeToggle?: () => void;
+  onClose: () => void;
+}) {
+  const isMortgaged = Boolean(owner?.mortgagedProperties.includes(space.id));
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="property-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="property-card-modal" role="dialog" aria-modal="true" aria-labelledby="property-card-title">
+        <button className="property-modal-close" aria-label="Close property details" onClick={onClose} autoFocus>
+          <X size={22} />
+        </button>
+        <div className="property-card-heading" style={{ backgroundColor: space.color ?? '#26332d' }}>
+          <span>{space.kind === 'property' ? 'Title Deed' : space.kind === 'railroad' ? 'Railroad Deed' : 'Utility Deed'}</span>
+          <h2 id="property-card-title">{space.name}</h2>
+        </div>
+
+        <div className="property-card-status">
+          <span>{owner ? `Owned by ${owner.name}` : 'Available from the bank'}</span>
+          {isMortgaged && <strong>Mortgaged</strong>}
+          {!isMortgaged && improvementLevel > 0 && <strong>{improvementLabel(improvementLevel)}</strong>}
+        </div>
+
+        <div className="property-rent-table">
+          {space.kind === 'property' && <PropertyRentSchedule space={space} />}
+          {space.kind === 'railroad' && <RailroadRentSchedule />}
+          {space.kind === 'utility' && <UtilityRentSchedule />}
+        </div>
+
+        <div className="property-card-costs">
+          <div><span>Purchase price</span><strong>${space.price}</strong></div>
+          <div><span>Mortgage value</span><strong>${getMortgageValue(space.id)}</strong></div>
+          {space.kind === 'property' && (
+            <div><span>Each house / hotel</span><strong>${getImprovementCost(space.id)}</strong></div>
+          )}
+        </div>
+
+        <p className="property-card-note">
+          {space.kind === 'property'
+            ? 'Own the complete unmortgaged color group to double unimproved rent and build evenly.'
+            : space.kind === 'railroad'
+              ? 'Only unmortgaged railroads count toward the rent level.'
+              : 'Roll two dice when rent is due. Only unmortgaged utilities count.'}
+        </p>
+
+        {onTradeToggle && tradeRole && (
+          <button className="primary property-trade-button" onClick={() => { onTradeToggle(); onClose(); }}>
+            {tradeSelected ? 'Remove from' : 'Add to'} {tradeRole === 'offer' ? 'offer' : 'request'}
+          </button>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PropertyRentSchedule({ space }: { space: Space }) {
+  const baseRent = space.rent ?? 0;
+  const rows = [
+    ['Rent (property only)', baseRent],
+    ['Rent with color group', baseRent * 2],
+    ['Rent with 1 house', calculateImprovedRent(baseRent, 1)],
+    ['Rent with 2 houses', calculateImprovedRent(baseRent, 2)],
+    ['Rent with 3 houses', calculateImprovedRent(baseRent, 3)],
+    ['Rent with 4 houses', calculateImprovedRent(baseRent, 4)],
+    ['Rent with hotel', calculateImprovedRent(baseRent, 5)]
+  ] as const;
+  return <>{rows.map(([label, amount]) => <RentRow key={label} label={label} value={`$${amount}`} />)}</>;
+}
+
+function RailroadRentSchedule() {
+  return <>{[25, 50, 100, 200].map((rent, index) => <RentRow key={rent} label={`${index + 1} railroad${index ? 's' : ''} owned`} value={`$${rent}`} />)}</>;
+}
+
+function UtilityRentSchedule() {
+  return <>
+    <RentRow label="1 utility owned" value="4x dice" />
+    <RentRow label="2 utilities owned" value="10x dice" />
+  </>;
+}
+
+function RentRow({ label, value }: { label: string; value: string }) {
+  return <div className="property-rent-row"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function CornerSpaceArt({ spaceId }: { spaceId: number }) {

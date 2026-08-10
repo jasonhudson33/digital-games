@@ -290,19 +290,6 @@
   font-weight: 900;
 }
 
-.monopoly-page .sync-pill{
-  min-height: 34px;
-  display: grid;
-  place-items: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #1d2521;
-  color: #fffaf0;
-  font-size: 0.85rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
 .monopoly-page .layout{
   width: 100%;
   max-width: 1360px;
@@ -474,11 +461,159 @@
   overflow: hidden;
 }
 
+.monopoly-page .space.deed-clickable{
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.monopoly-page .space.deed-clickable:hover{
+  box-shadow: inset 0 0 0 3px rgba(29, 37, 33, 0.24);
+}
+
+.monopoly-page .space.deed-clickable:focus-visible{
+  z-index: 8;
+  outline: 3px solid #1f6c45;
+  outline-offset: -3px;
+}
+
 .monopoly-page .space.trade-selectable{
   --trade-accent: #3f6fb5;
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.monopoly-page .property-modal-backdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 22, 19, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.monopoly-page .property-card-modal{
+  position: relative;
+  width: min(470px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 4px solid #1d2521;
+  border-radius: 18px;
+  background: #fffaf0;
+  box-shadow: 10px 12px 0 rgba(10, 14, 11, 0.42);
+  animation: property-card-arrival 180ms ease-out both;
+}
+
+.monopoly-page .property-modal-close{
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+  width: 38px;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 999px;
+  background: #fffaf0;
+}
+
+.monopoly-page .property-card-heading{
+  min-height: 112px;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  padding: 22px 58px;
+  border: 3px solid #1d2521;
+  color: #151a17;
+  text-align: center;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.monopoly-page .property-card-heading span{
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.monopoly-page .property-card-heading h2{
+  font-size: clamp(1.35rem, 5vw, 2rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.monopoly-page .property-card-status{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 5px 8px;
+  color: #3f4d46;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.monopoly-page .property-card-status strong{
+  color: #a3262d;
+  text-transform: uppercase;
+}
+
+.monopoly-page .property-rent-table{
+  border-block: 2px solid #1d2521;
+  padding: 6px 0;
+}
+
+.monopoly-page .property-rent-row,
+.monopoly-page .property-card-costs > div{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+  padding: 6px 8px;
+}
+
+.monopoly-page .property-rent-row:nth-child(even){
+  background: #f0e8d7;
+}
+
+.monopoly-page .property-rent-row span,
+.monopoly-page .property-card-costs span{
+  color: #3f4d46;
+  font-weight: 750;
+}
+
+.monopoly-page .property-rent-row strong,
+.monopoly-page .property-card-costs strong{
+  color: #161c18;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.monopoly-page .property-card-costs{
+  display: grid;
+  padding: 7px 0;
+}
+
+.monopoly-page .property-card-note{
+  padding: 10px 8px;
+  color: #59675f;
+  font-size: 0.76rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.monopoly-page .property-trade-button{
+  width: 100%;
+  min-height: 44px;
+  font-weight: 950;
+}
+
+@keyframes property-card-arrival {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .monopoly-page .space.trade-selectable.trade-offer{

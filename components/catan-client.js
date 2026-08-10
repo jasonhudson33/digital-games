@@ -21,7 +21,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { CatanRoomService, isCatanOnlineSyncEnabled } from "./catan-room-service";
+import { CatanRoomService } from "./catan-room-service";
 import { catanRuntime } from "./catan-runtime";
 import {
   chooseBestCatanEdge,
@@ -1190,7 +1190,7 @@ export default function CatanClient() {
             <button onClick={joinRoom}><DoorOpen size={18} /> Join</button>
           </div>
           {error && <p className="catan-room-error">{error}</p>}
-          <p className="setup-note">2–6 players · Live room sync {isCatanOnlineSyncEnabled ? "enabled" : "uses this game server"}</p>
+          <p className="setup-note">2–6 players · Shared rooms update automatically</p>
         </section>
       </main>
     );
