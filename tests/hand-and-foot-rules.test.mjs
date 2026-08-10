@@ -76,6 +76,109 @@ test("a Hand and Foot computer completes a nearby book before starting another m
   assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set(nines.map((candidate) => candidate.id)));
 });
 
+test("a Hand and Foot computer never adds a wild to a completed clean seven book", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalSeven = card("hand-seven", "hearts", 7);
+  const wild = card("held-wild", "clubs", 2);
+  const cleanSevenBook = Array.from({ length: 7 }, (_, index) => card(`laid-seven-${index}`, "diamonds", 7, index));
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [naturalSeven, wild, card("discard", "clubs", 4)] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 7: cleanSevenBook } }
+      : team),
+  };
+
+  assert.deepEqual(chooseHandFootBotPlay(game, 0), [naturalSeven.id]);
+});
+
+test("a Hand and Foot computer saves a wild when it would not finish a book", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalNine = card("hand-nine", "hearts", 9);
+  const wild = card("held-wild", "clubs", 2);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [naturalNine, wild, card("discard", "clubs", 4)] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 9: Array.from({ length: 4 }, (_, index) => card(`laid-nine-${index}`, "diamonds", 9, index)) } }
+      : team),
+  };
+
+  assert.deepEqual(chooseHandFootBotPlay(game, 0), [naturalNine.id]);
+});
+
+test("a Hand and Foot computer uses a wild to finish a book when needed to reach its foot", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalNine = card("hand-nine", "hearts", 9);
+  const wild = card("held-wild", "clubs", 2);
+  const discard = card("last-discard", "diamonds", 3);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [naturalNine, wild, discard] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 9: Array.from({ length: 5 }, (_, index) => card(`laid-nine-${index}`, "diamonds", 9, index)) } }
+      : team),
+  };
+
+  assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set([naturalNine.id, wild.id]));
+});
+
+test("a Hand and Foot computer keeps a seven book clean when naturals can finish it", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalSevens = [card("hand-seven-a", "hearts", 7), card("hand-seven-b", "spades", 7)];
+  const wild = card("held-wild", "clubs", 2);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [...naturalSevens, wild] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 7: Array.from({ length: 5 }, (_, index) => card(`laid-seven-${index}`, "diamonds", 7, index)) } }
+      : team),
+  };
+
+  assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set(naturalSevens.map((candidate) => candidate.id)));
+});
+
+test("a Hand and Foot computer dirties sevens only when it completes the book to finish the round", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalSeven = card("foot-seven", "hearts", 7);
+  const wild = card("foot-wild", "clubs", 2);
+  const discard = card("foot-discard", "clubs", 4);
+  const teammateId = base.teams[base.players[0].teamId].memberIds.find((id) => id !== 0);
+  let game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => {
+      if (index === 0) return { ...player, hand: [], foot: [naturalSeven, wild, discard], usingFoot: true };
+      if (index === teammateId) return { ...player, hand: [], foot: [card("teammate-four", "diamonds", 4)], usingFoot: true };
+      return player;
+    }),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 7: Array.from({ length: 5 }, (_, index) => card(`laid-seven-${index}`, "diamonds", 7, index)) } }
+      : team),
+  };
+
+  const playIds = chooseHandFootBotPlay(game, 0);
+  assert.deepEqual(new Set(playIds), new Set([naturalSeven.id, wild.id]));
+  game = playHandFootCards(game, 0, playIds);
+  assert.equal(game.players[0].foot.length, 1);
+  game = discardHandFootCard(game, 0, discard.id);
+  assert.equal(game.phase, "round-over");
+});
+
 test("a Hand and Foot computer discards an isolated card instead of breaking a pair", () => {
   const base = createHandFootMatch({ playerCount: 4 });
   const game = {

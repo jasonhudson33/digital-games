@@ -103,8 +103,7 @@ export default function HandAndFootClient() {
           while (next.phase === "playing" && attempts < 12) {
             attempts += 1;
             const playIds = chooseHandFootBotPlay(next, botIndex);
-            const activeCount = activeCardsFor(next, botIndex).length;
-            if (!playIds.length || activeCount - playIds.length === 1) break;
+            if (!playIds.length) break;
             try {
               next = playHandFootCards(next, botIndex, playIds);
             } catch {
@@ -583,7 +582,9 @@ function TeamMelds({ team, players, isYours }) {
         {!melds.length && <span className="hf-empty-meld">No melds yet</span>}
         {melds.map(([rank, cards]) => {
           const bonus = handFootMeldBonus(rank, cards);
-          return <div className={`hf-meld ${cards.length >= 7 ? "book" : ""}`} key={rank}><strong>{handFootRankLabel(rank === "wild" ? rank : Number(rank))}</strong><span>{cards.length} cards</span>{bonus > 0 && <b>+{bonus.toLocaleString()}</b>}</div>;
+          const condition = cards.some(isWildCard) ? "dirty" : "clean";
+          const rankLabel = handFootRankLabel(rank === "wild" ? rank : Number(rank));
+          return <div className={`hf-meld ${condition} ${cards.length >= 7 ? "book" : ""}`} key={rank} aria-label={`${rankLabel} pile, ${condition}`}><strong>{rankLabel}</strong><span>{cards.length} cards</span>{bonus > 0 && <b>+{bonus.toLocaleString()}</b>}</div>;
         })}
       </div>
     </article>
