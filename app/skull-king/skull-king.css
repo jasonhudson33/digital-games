@@ -633,6 +633,13 @@
 .round-results em.negative { color: #e48678; }
 .round-results > div > b { color: var(--skull-gold); text-align: right; }
 .winner-mark { width: 82px; height: 82px; margin: 10px auto 18px; display: grid; place-items: center; color: #182720; border: 4px double #805d19; border-radius: 50%; background: var(--skull-gold); box-shadow: 0 0 45px rgba(228,184,75,.24); font-size: 2.8rem; }
+.final-standings { margin: 20px 0 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.final-standings li { padding: 9px 13px; display: grid; grid-template-columns: 24px 34px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid rgba(235,199,111,.1); border-radius: 12px; background: rgba(255,255,255,.035); text-align: left; }
+.final-standings li.winner { border-color: rgba(228,184,75,.48); background: rgba(228,184,75,.1); }
+.final-standings .final-place { color: #8fa5a0; text-align: center; font-size: .72rem; font-weight: 900; }
+.final-standings li.winner .final-place { color: var(--skull-gold); font-size: 1rem; }
+.final-standings strong { overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.final-standings b { color: var(--skull-gold); font-size: .76rem; text-align: right; }
 .dialog-actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
 
 @media (max-width: 980px) {

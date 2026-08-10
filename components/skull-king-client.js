@@ -630,6 +630,7 @@ function signed(value) {
 function GameOverDialog({ game, onRestart, onExit }) {
   const winners = game.roundSummary.winnerIndexes.map((index) => game.players[index]);
   const humanWon = winners.some((player) => player.id === 0);
+  const standings = [...game.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   return (
     <div className="skull-modal-backdrop">
       <section className="skull-round-dialog game-over" role="dialog" aria-modal="true" aria-labelledby="skull-game-over-title">
@@ -637,6 +638,20 @@ function GameOverDialog({ game, onRestart, onExit }) {
         <div className="winner-mark">☠</div>
         <h2 id="skull-game-over-title">{humanWon ? "You are the Skull King." : `${winners.map((player) => player.name).join(" & ")} takes the crown.`}</h2>
         <p>{humanWon ? "Your bids held fast through every storm." : "Another voyage could change the tide."}</p>
+        <ol className="final-standings" aria-label="Final scores">
+          {standings.map((player, index) => {
+            const place = standings.findIndex((candidate) => candidate.score === player.score) + 1;
+            const isWinner = winners.some((winner) => winner.id === player.id);
+            return (
+              <li key={player.id} className={isWinner ? "winner" : ""}>
+                <span className="final-place">{isWinner ? "♛" : place}</span>
+                <span className="skull-avatar">{player.name.slice(0, 1)}</span>
+                <strong>{player.name}</strong>
+                <b>{player.score} points</b>
+              </li>
+            );
+          })}
+        </ol>
         <div className="dialog-actions">
           <button type="button" className="skull-primary" onClick={onRestart}>Play again</button>
           <button type="button" className="skull-secondary" onClick={onExit}>Change crew</button>
