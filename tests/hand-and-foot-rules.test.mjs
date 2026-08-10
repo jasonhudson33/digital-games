@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  HAND_FOOT_DRAW_PILE_SIZE,
   canPlayHandFootCards,
   chooseHandFootBotDiscard,
   chooseHandFootBotPlay,
@@ -18,13 +19,13 @@ import {
 
 const card = (id, suit, rank, copy = 0) => ({ id, suit, rank, copy });
 
-test("deals a 13-card hand and hidden 13-card foot from one deck per player", () => {
+test("deals a 13-card hand and foot from one more deck than the player count", () => {
   for (const playerCount of [4, 6, 8, 16]) {
     const game = createHandFootMatch({ playerCount, random: () => 0.42 });
     assert.ok(game.players.every((player) => player.hand.length === 13));
     assert.ok(game.players.every((player) => player.foot.length === 13));
     assert.ok(game.players.every((player) => player.usingFoot === false));
-    assert.equal(game.drawPile.length, playerCount * 54 - playerCount * 26);
+    assert.equal(game.drawPile.length, (playerCount + 1) * 54 - playerCount * 26);
     assert.ok(game.drawPiles.every((pile) => pile.length <= 65));
     assert.equal(game.drawPiles.flat().length, game.drawPile.length);
   }
@@ -193,7 +194,7 @@ test("a Hand and Foot computer discards an isolated card instead of breaking a p
 
 test("draw piles can be clicked one card at a time and drawing stops after two", () => {
   let game = createHandFootMatch({ playerCount: 4 });
-  assert.equal(game.drawPiles.length, 2);
+  assert.equal(game.drawPiles.length, Math.ceil(game.drawPile.length / HAND_FOOT_DRAW_PILE_SIZE));
   const firstPileCount = game.drawPiles[0].length;
   const secondPileCount = game.drawPiles[1].length;
 

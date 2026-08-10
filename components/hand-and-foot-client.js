@@ -628,7 +628,7 @@ function RulesDialog({ open, onClose }) {
         <button type="button" className="hf-dialog-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
         <span className="hf-kicker">How to play</span><h2 id="hf-rules-title">Hand &amp; Foot</h2>
         <div className="hf-rules-grid">
-          <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
+          <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. The shoe uses one more deck than the number of players. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
           <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two with the button, or click any draw pile to take one card at a time. Clicking a natural 4 through Ace selects every matching rank, except an unplayed pair selects one at a time. Twos, jokers, and threes also select individually.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>

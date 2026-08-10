@@ -85,5 +85,5 @@ test("a Hand and Foot room supports sixteen players in eight opposite teams", as
   assert.equal(started.state.players.length, 16);
   assert.equal(started.state.teams.length, 8);
   assert.ok(started.state.teams.every((team) => team.memberIds.length === 2));
-  assert.equal(started.state.drawPile.length, 16 * 54 - 16 * 26);
+  assert.equal(started.state.drawPile.length, 17 * 54 - 16 * 26);
 });

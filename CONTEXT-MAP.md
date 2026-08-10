@@ -6,6 +6,7 @@
 - [Scum](./docs/contexts/scum.md) - ranked shedding rounds and class trades
 - [Hand and Foot](./docs/contexts/hand-and-foot.md) - partnership meld play across hands and feet
 - [Hearts](./docs/contexts/hearts.md) - classic and Killer Hearts trick-taking rules
+- [Skull King](./docs/contexts/skull-king.md) - bidding, custom cards, monster overrides, and exact-trick scoring
 - [Mafia](./docs/contexts/mafia.md) - hidden roles, host narration, night actions, and day voting
 - [Monopoly](./docs/contexts/monopoly.md) - property ownership, trading, building, rent, and bankruptcy
 - [Catan](./docs/contexts/catan.md) - board settlement, production, trading, and expansion rules

@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Skull King",
+    href: "/skull-king",
+    status: "New · Ten-round voyage",
+    description:
+      "Bid your tricks, command Pirates and monsters, and survive ten rounds to claim the captain's crown.",
+    tone: "skull-king",
+  },
+  {
     name: "Hand and Foot",
     href: "/hand-and-foot",
     status: "New · Partner play",

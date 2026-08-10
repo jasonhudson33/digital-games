@@ -219,6 +219,20 @@ input {
     linear-gradient(145deg, #1f5a45, #173c30 66%, #612d21);
 }
 
+.game-card.skull-king {
+  color: #f7ead3;
+  border-color: rgba(228, 184, 75, 0.25);
+  background:
+    radial-gradient(circle at 84% 15%, rgba(228, 184, 75, 0.42), transparent 22%),
+    radial-gradient(circle at 12% 92%, rgba(42, 135, 125, 0.44), transparent 30%),
+    linear-gradient(145deg, #153f40, #0c282f 66%, #351f20);
+}
+
+.game-card.skull-king .game-status {
+  color: #f5dfaa;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .game-card.hand-foot .game-status {
   color: #fff3d0;
   background: rgba(255, 255, 255, 0.11);
