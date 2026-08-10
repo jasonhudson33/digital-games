@@ -295,6 +295,35 @@ test("the complete first lay-down may contain several melds and must meet the ro
   assert.equal(game.players[0].usingFoot, true);
 });
 
+test("an opening lay can include a mixed twos-and-jokers wild meld", () => {
+  let game = createHandFootMatch({ playerCount: 4 });
+  const fours = [
+    card("4a", "clubs", 4),
+    card("4b", "diamonds", 4),
+    card("4c", "spades", 4),
+  ];
+  const wilds = [
+    card("two-clubs", "clubs", 2),
+    card("opening-joker", null, "joker"),
+    card("two-hearts", "hearts", 2),
+  ];
+  const selected = [...fours, ...wilds];
+  game = {
+    ...game,
+    turnStage: "play",
+    players: game.players.map((player, index) => index === 0
+      ? { ...player, hand: [...selected, card("discard", "clubs", 6)] }
+      : player),
+  };
+
+  assert.equal(canPlayHandFootCards(game, 0, selected.map((candidate) => candidate.id)), true);
+
+  game = playHandFootCards(game, 0, selected.map((candidate) => candidate.id));
+  assert.equal(game.teams[0].opened, true);
+  assert.deepEqual(new Set(game.teams[0].melds[4].map((candidate) => candidate.id)), new Set(fours.map((candidate) => candidate.id)));
+  assert.deepEqual(new Set(game.teams[0].melds.wild.map((candidate) => candidate.id)), new Set(wilds.map((candidate) => candidate.id)));
+});
+
 test("selected cards report whether they can legally be played", () => {
   let game = createHandFootMatch({ playerCount: 4 });
   const single = card("single-nine", "clubs", 9);
