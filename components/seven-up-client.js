@@ -547,7 +547,7 @@ export default function SevenUpClient() {
 
                 {mode === "room" ? (
                   <div className="room-mode-note">
-                    Room mode uses Vercel API routes for game actions. For production multiplayer, add Redis in Vercel so room state persists across serverless requests.
+                    Room mode uses Vercel API routes for game actions. For production multiplayer, configure the server-side Supabase room store so state persists across serverless requests.
                   </div>
                 ) : null}
 

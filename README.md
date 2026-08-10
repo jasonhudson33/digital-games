@@ -19,7 +19,14 @@ npm run build
 
 ## Multiplayer storage
 
-Seven Up, Scum, and Hand and Foot use Redis room storage. Set `REDIS_URL` in Vercel; in-memory storage is available only during local development.
+Seven Up, Scum, and Hand and Foot store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
+
+```bash
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Never expose `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable. In-memory storage is used only during local development when the server credentials are absent. Rooms expire after 24 hours and are cleaned up opportunistically.
 
 Catan and Monopoly use Supabase when these variables are configured, with a Next.js in-memory room route for local development:
 
@@ -28,7 +35,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Mafia always uses Supabase RPCs and Realtime. It uses persistent device credentials rather than Supabase Authentication, so Anonymous Sign-Ins should remain disabled. Apply the SQL files under `supabase/migrations` in filename order.
+Mafia always uses Supabase RPCs and Realtime. It uses persistent device credentials rather than Supabase Authentication, so Anonymous Sign-Ins should remain disabled.
 
 ## Architecture
 

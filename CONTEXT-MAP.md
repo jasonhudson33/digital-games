@@ -12,7 +12,7 @@
 
 ## Relationships
 
-- **Seven Up**, **Scum**, and **Hand and Foot** use the shared Redis room-store Module.
+- **Seven Up**, **Scum**, and **Hand and Foot** use a shared private, server-side Supabase room-store Module.
 - **Catan** and **Monopoly** use the shared Supabase room-sync Adapter and versioned state migrations.
 - **Mafia** uses a separate token-validated Supabase RPC model because roles and intents are private.
 - All contexts share the Next.js shell, site header, deployment, and root quality pipeline; game rules remain context-owned.
