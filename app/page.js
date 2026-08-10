@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Risk",
+    href: "/risk",
+    status: "New · Solo campaign",
+    description:
+      "Deploy armies, roll into battle, claim continent bonuses, and conquer the world against two computer commanders.",
+    tone: "risk",
+  },
+  {
     name: "Skull King",
     href: "/skull-king",
     status: "New · Ten-round voyage",

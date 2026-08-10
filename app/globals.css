@@ -228,6 +228,20 @@ input {
     linear-gradient(145deg, #153f40, #0c282f 66%, #351f20);
 }
 
+.game-card.risk {
+  color: #fff5d8;
+  border-color: rgba(239, 195, 86, 0.25);
+  background:
+    radial-gradient(circle at 84% 16%, rgba(239, 195, 86, 0.45), transparent 22%),
+    radial-gradient(circle at 12% 90%, rgba(73, 139, 126, 0.48), transparent 30%),
+    linear-gradient(145deg, #234d58, #102f3b 66%, #4d2c20);
+}
+
+.game-card.risk .game-status {
+  color: #fff0bf;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .game-card.skull-king .game-status {
   color: #f5dfaa;
   background: rgba(255, 255, 255, 0.1);
