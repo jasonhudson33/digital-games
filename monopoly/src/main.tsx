@@ -479,7 +479,10 @@ export default function App() {
             activeOfferedPropertyIds.length > 0 &&
             activeRequestedPropertyIds.length > 0
           )}
+          canRespondTrade={canRespondTrade}
           onProposeTrade={handleBoardTradeSubmit}
+          onAcceptTrade={() => updateGame(acceptTrade)}
+          onDeclineTrade={() => updateGame(declineTrade)}
           onRoll={handleRoll}
         />
 
@@ -508,7 +511,6 @@ export default function App() {
             {game.pendingDebt && <DebtPanel game={game} />}
             {game.pendingAuction && <AuctionPanel game={game} />}
             {game.pendingJailExit && <ForcedJailExitPanel game={game} />}
-            {game.pendingTrade && <TradeOfferPanel game={game} />}
             {needsJailChoice && <JailPanel player={activePlayer} />}
 
             {game.phase === 'lobby' ? (
@@ -568,14 +570,7 @@ export default function App() {
                 <Check size={18} /> Acknowledge rent
               </button>
             ) : game.pendingTrade ? (
-              <div className="decision-actions">
-                <button className="primary full" disabled={!canRespondTrade || game.phase === 'gameOver'} onClick={() => updateGame(acceptTrade)}>
-                  Accept trade
-                </button>
-                <button className="full" disabled={!canRespondTrade || game.phase === 'gameOver'} onClick={() => updateGame(declineTrade)}>
-                  Decline trade
-                </button>
-              </div>
+              <p className="board-action-note">Trade offer and response controls are shown in the center of the board.</p>
             ) : game.pendingAuction ? (
               <div className="decision-actions">
                 {game.pendingAuction.highBidderId === game.pendingAuction.activePlayerId && (
@@ -1030,7 +1025,10 @@ function Board({
   requestedPropertyIds,
   onTradePropertyToggle,
   showProposeTradeButton,
+  canRespondTrade,
   onProposeTrade,
+  onAcceptTrade,
+  onDeclineTrade,
   onRoll
 }: {
   game: GameState;
@@ -1046,7 +1044,10 @@ function Board({
   requestedPropertyIds: number[];
   onTradePropertyToggle: (spaceId: number) => void;
   showProposeTradeButton: boolean;
+  canRespondTrade: boolean;
   onProposeTrade: () => void;
+  onAcceptTrade: () => void;
+  onDeclineTrade: () => void;
   onRoll: () => void;
 }) {
   return (
@@ -1121,27 +1122,43 @@ function Board({
         );
       })}
       <div className="board-center">
-        <span className="board-title">Monopoly</span>
-        <div className={`board-dice-area ${showRollButton ? 'actionable' : ''}`}>
-          <DiceTray roll={game.lastRoll} rolling={isRolling} />
-          {showRollButton && (
-            <button className="primary board-roll-button" disabled={isRolling} onClick={onRoll}>
-              {isRolling ? <RefreshCcw size={18} /> : <Dice5 size={18} />} Roll dice
-            </button>
-          )}
-        </div>
-        {showProposeTradeButton && (
-          <div className="board-trade-action">
-            <button className="primary" onClick={onProposeTrade}>
-              <Check size={18} /> Propose trade
-            </button>
+        {game.pendingTrade ? (
+          <div className="board-trade-offer" aria-label="Pending trade offer">
+            <TradeOfferPanel game={game} />
+            <div className="decision-actions">
+              <button className="primary" disabled={!canRespondTrade || game.phase === 'gameOver'} onClick={onAcceptTrade}>
+                Accept trade
+              </button>
+              <button disabled={!canRespondTrade || game.phase === 'gameOver'} onClick={onDeclineTrade}>
+                Decline trade
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            <span className="board-title">Monopoly</span>
+            <div className={`board-dice-area ${showRollButton ? 'actionable' : ''}`}>
+              <DiceTray roll={game.lastRoll} rolling={isRolling} />
+              {showRollButton && (
+                <button className="primary board-roll-button" disabled={isRolling} onClick={onRoll}>
+                  {isRolling ? <RefreshCcw size={18} /> : <Dice5 size={18} />} Roll dice
+                </button>
+              )}
+            </div>
+            {showProposeTradeButton && (
+              <div className="board-trade-action">
+                <button className="primary" onClick={onProposeTrade}>
+                  <Check size={18} /> Propose trade
+                </button>
+              </div>
+            )}
+            <p>
+              {canSelectTradeProperties
+                ? 'Click deeds to trade, or use the house buttons to build on a monopoly.'
+                : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
+            </p>
+          </>
         )}
-        <p>
-          {canSelectTradeProperties
-            ? 'Click deeds to trade, or use the house buttons to build on a monopoly.'
-            : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
-        </p>
       </div>
     </section>
   );

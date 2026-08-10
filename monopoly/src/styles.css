@@ -355,6 +355,56 @@
   font-weight: 700;
 }
 
+.monopoly-page .board-trade-offer{
+  position: relative;
+  z-index: 5;
+  width: min(520px, 92%);
+  max-height: 92%;
+  display: grid;
+  gap: 10px;
+  overflow-y: auto;
+  text-align: left;
+  filter: drop-shadow(7px 8px 0 rgba(29, 37, 33, 0.18));
+}
+
+.monopoly-page .board-trade-offer .trade-panel{
+  gap: 8px;
+  padding: 16px;
+  border-width: 3px;
+  background: #fff8e8;
+}
+
+.monopoly-page .board-trade-offer .trade-panel h3{
+  font-size: clamp(1rem, 2.4vw, 1.4rem);
+}
+
+.monopoly-page .board-trade-offer .trade-panel p{
+  max-width: none;
+  font-size: 0.84rem;
+}
+
+.monopoly-page .board-trade-offer .decision-actions{
+  position: sticky;
+  bottom: 0;
+  padding: 8px;
+  border: 2px solid #1d2521;
+  border-radius: 8px;
+  background: #fff8e8;
+}
+
+.monopoly-page .board-trade-offer .decision-actions button{
+  min-height: 42px;
+  font-weight: 950;
+}
+
+.monopoly-page .board-action-note{
+  padding: 10px;
+  border-radius: 7px;
+  background: #fff2c8;
+  color: #3f4d46;
+  font-weight: 800;
+}
+
 .monopoly-page .board-trade-action{
   position: relative;
   z-index: 2;
@@ -1742,6 +1792,58 @@
 
   .monopoly-page .board-center p{
     font-size: 0.78rem;
+  }
+
+  .monopoly-page .board-trade-offer{
+    width: 96%;
+    max-height: 96%;
+    gap: 5px;
+    filter: drop-shadow(3px 4px 0 rgba(29, 37, 33, 0.18));
+  }
+
+  .monopoly-page .board-trade-offer .trade-panel{
+    gap: 4px;
+    padding: 7px;
+    border-width: 2px;
+  }
+
+  .monopoly-page .board-trade-offer .panel-label{
+    min-height: 18px;
+    padding: 0 6px;
+    font-size: 0.55rem;
+  }
+
+  .monopoly-page .board-trade-offer .trade-panel h3{
+    font-size: 0.8rem;
+  }
+
+  .monopoly-page .board-trade-offer .trade-panel p{
+    font-size: 0.62rem;
+    line-height: 1.15;
+  }
+
+  .monopoly-page .board-trade-offer .trade-summary-list{
+    gap: 1px;
+    padding: 4px;
+  }
+
+  .monopoly-page .board-trade-offer .trade-summary-list span{
+    font-size: 0.53rem;
+  }
+
+  .monopoly-page .board-trade-offer .trade-summary-list strong{
+    font-size: 0.6rem;
+  }
+
+  .monopoly-page .board-trade-offer .decision-actions{
+    gap: 5px;
+    padding: 4px;
+  }
+
+  .monopoly-page .board-trade-offer .decision-actions button{
+    min-height: 30px;
+    padding: 4px 6px;
+    font-size: 0.66rem;
   }
 
   .monopoly-page .board-dice-area{
