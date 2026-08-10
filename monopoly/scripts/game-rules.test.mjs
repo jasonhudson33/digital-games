@@ -17,6 +17,7 @@ const {
   computerPropertyValue,
   makeInitialState,
   rollDice,
+  setHouseRules,
   startGame
 } = await vite.ssrLoadModule('/src/game.ts');
 const { migrateMonopolyRoomState } = await vite.ssrLoadModule('/src/stateMigrations.ts');
@@ -83,9 +84,11 @@ test('older Monopoly rooms migrate to the current turn stage without losing play
   oldRoom.turnStage = 'manage';
   oldRoom.turnStageVersion = 1;
   const migrated = migrateMonopolyRoomState(oldRoom);
-  assert.equal(migrated.roomStateVersion, 1);
+  assert.equal(migrated.roomStateVersion, 2);
   assert.equal(migrated.turnStageVersion, 2);
   assert.equal(migrated.turnStage, 'roll');
+  assert.equal(migrated.houseRules, false);
+  assert.equal(migrated.freeParkingPot, 0);
   assert.deepEqual(migrated.players.map((player) => player.id), ['host']);
 });
 
@@ -93,6 +96,69 @@ test('a Monopoly computer values a property that completes its color group', () 
   const game = makeGameAt(0);
   const player = { ...game.players[0], properties: [1] };
   assert.ok(computerPropertyValue(game, player, 3) > computerPropertyValue(game, player, 6));
+});
+
+test('house rules send bank card payments to Free Parking', () => {
+  const game = startGame(addLocalPlayer(setHouseRules(makeInitialState('host', 'Host', 'HOUSE', 'car'), true)));
+  const originalRandom = Math.random;
+  const originalNow = Date.now;
+  const rolls = [0.34, 0.51];
+  Math.random = () => rolls.shift() ?? 0;
+  Date.now = () => 2;
+  try {
+    const result = rollDice(game);
+    assert.equal(result.players[0].position, 7);
+    assert.equal(result.players[0].money, 1485);
+    assert.equal(result.freeParkingPot, 15);
+  } finally {
+    Math.random = originalRandom;
+    Date.now = originalNow;
+  }
+});
+
+test('house rules send property repair card payments to Free Parking', () => {
+  const game = startGame(addLocalPlayer(setHouseRules(makeInitialState('host', 'Host', 'REPAIR', 'car'), true)));
+  const prepared = {
+    ...game,
+    improvements: { 1: 1 },
+    players: game.players.map((player, index) => ({
+      ...player,
+      properties: index === 0 ? [1] : player.properties
+    }))
+  };
+  const originalRandom = Math.random;
+  const originalNow = Date.now;
+  const rolls = [0.34, 0.51];
+  Math.random = () => rolls.shift() ?? 0;
+  Date.now = () => 7;
+  try {
+    const result = rollDice(prepared);
+    assert.equal(result.players[0].money, 1475);
+    assert.equal(result.freeParkingPot, 25);
+  } finally {
+    Math.random = originalRandom;
+    Date.now = originalNow;
+  }
+});
+
+test('landing on Free Parking collects and clears the house-rules jackpot', () => {
+  const game = startGame(addLocalPlayer(setHouseRules(makeInitialState('host', 'Host', 'PARK', 'car'), true)));
+  const prepared = {
+    ...game,
+    freeParkingPot: 165,
+    players: game.players.map((player, index) => ({ ...player, position: index === 0 ? 13 : player.position }))
+  };
+  const originalRandom = Math.random;
+  const rolls = [0.34, 0.51];
+  Math.random = () => rolls.shift() ?? 0;
+  try {
+    const result = rollDice(prepared);
+    assert.equal(result.players[0].position, 20);
+    assert.equal(result.players[0].money, 1665);
+    assert.equal(result.freeParkingPot, 0);
+  } finally {
+    Math.random = originalRandom;
+  }
 });
 
 await vite.close();

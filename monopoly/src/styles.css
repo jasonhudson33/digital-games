@@ -408,6 +408,12 @@
   box-shadow: 4px 5px 0 rgba(29, 37, 33, 0.22);
 }
 
+.monopoly-page .board-trade-action button.trade-cancel{
+  border-color: #8c2d32;
+  background: #fff0e8;
+  color: #8c2d32;
+}
+
 .monopoly-page .board-dice-area{
   width: min(360px, 86%);
   display: grid;
@@ -1164,8 +1170,66 @@
   gap: 10px;
 }
 
+.monopoly-page .house-rules-option{
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid #26332d;
+  border-radius: 10px;
+  background: #fff8e8;
+  cursor: pointer;
+}
+
+.monopoly-page .house-rules-option:has(input:checked){
+  border-color: #1e7045;
+  background: #e4f1e6;
+}
+
+.monopoly-page .house-rules-option input{
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: #1e7045;
+}
+
+.monopoly-page .house-rules-option span{
+  display: grid;
+  gap: 3px;
+}
+
+.monopoly-page .house-rules-option strong{
+  font-size: 0.9rem;
+}
+
+.monopoly-page .house-rules-option small{
+  color: #59675f;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .monopoly-page .lobby-actions .full{
   grid-column: 1 / -1;
+}
+
+.monopoly-page .free-parking-jackpot{
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 3;
+  min-width: 34px;
+  padding: 3px 5px;
+  border: 2px solid #1d2521;
+  border-radius: 999px;
+  background: #f4c542;
+  color: #1d2521;
+  font-size: clamp(0.52rem, 0.85vw, 0.7rem);
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 2px 2px 0 rgba(29, 37, 33, 0.22);
 }
 
 .monopoly-page .decision-actions{

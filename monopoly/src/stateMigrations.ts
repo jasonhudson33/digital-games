@@ -2,7 +2,7 @@ import { board } from './board';
 import { getUtilityRentMultiplier } from './rentRules';
 import { CardDeck, GameState, PlayerPiece } from './types';
 
-export const MONOPOLY_ROOM_STATE_VERSION = 1;
+export const MONOPOLY_ROOM_STATE_VERSION = 2;
 
 const validPieces: PlayerPiece[] = [
   'car', 'ship', 'hat', 'boot', 'dog', 'cat', 'train', 'plane', 'gem',
@@ -49,7 +49,9 @@ export const migrateMonopolyRoomState = (state: GameState): GameState => {
             requestedJailCards: state.pendingTrade.requestedJailCards ?? 0
           }
         : null,
-    improvements: state.improvements ?? {}
+    improvements: state.improvements ?? {},
+    houseRules: state.houseRules ?? false,
+    freeParkingPot: Math.max(0, state.freeParkingPot ?? 0)
   };
 };
 

@@ -118,6 +118,7 @@ export type PendingDebt = {
   creditorId: string | null;
   amountOwed: number;
   reason: string;
+  toFreeParking?: boolean;
 };
 
 export type PendingAuction = {
@@ -173,6 +174,8 @@ export type GameState = {
   pendingJailExit: PendingJailExit | null;
   pendingTrade: PendingTrade | null;
   improvements: Improvements;
+  houseRules: boolean;
+  freeParkingPot: number;
   log: LogEntry[];
   createdAt: number;
   updatedAt: number;

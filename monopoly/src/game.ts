@@ -305,6 +305,8 @@ export const makeInitialState = (hostId: string, hostName: string, roomCode = ma
   pendingJailExit: null,
   pendingTrade: null,
   improvements: {},
+  houseRules: false,
+  freeParkingPot: 0,
   log: [log(`${hostName} created room ${roomCode}.`)],
   createdAt: Date.now(),
   updatedAt: Date.now()
@@ -357,6 +359,16 @@ export const addComputerPlayer = (state: GameState): GameState => {
   });
 };
 
+export const setHouseRules = (state: GameState, enabled: boolean): GameState => {
+  if (state.phase !== 'lobby' || state.houseRules === enabled) return state;
+  return touch({
+    ...state,
+    houseRules: enabled,
+    freeParkingPot: 0,
+    log: [log(`House rules ${enabled ? 'enabled' : 'disabled'}.`), ...state.log].slice(0, 30)
+  });
+};
+
 export const startGame = (state: GameState): GameState =>
   touch({
     ...state,
@@ -374,6 +386,7 @@ export const startGame = (state: GameState): GameState =>
     pendingAuction: null,
     pendingJailExit: null,
     pendingTrade: null,
+    freeParkingPot: 0,
     log: [log('The game started. Roll to begin.'), ...state.log].slice(0, 30)
   });
 
@@ -623,10 +636,14 @@ export const finishDebtPayment = (state: GameState): GameState => {
       players[creditorIndex] = { ...players[creditorIndex], money: players[creditorIndex].money + debt.amountOwed };
     }
   }
+  const freeParkingPot = debt.toFreeParking && state.houseRules
+    ? state.freeParkingPot + debt.amountOwed
+    : state.freeParkingPot;
 
   return finishTurn({
     ...state,
     players,
+    freeParkingPot,
     pendingDebt: null,
     pendingRent: null,
     pendingTax: null,
@@ -1273,6 +1290,20 @@ const resolvePostMoveSpace = (
     active.inJail = true;
     active.jailTurnCount = 0;
     entries.push(log(`${active.name} went directly to Jail.`));
+  } else if (space.kind === 'free' && state.houseRules) {
+    const winnings = state.freeParkingPot;
+    active.money += winnings;
+    players[playerIndex] = active;
+    entries.push(log(winnings > 0
+      ? `${active.name} landed on Free Parking and collected $${winnings}.`
+      : `${active.name} landed on Free Parking, but the pot was empty.`));
+    const next = {
+      ...state,
+      players,
+      freeParkingPot: 0,
+      log: [...entries.reverse(), ...state.log].slice(0, 30)
+    };
+    return options.deferTurnEnd ? touch(next) : finishTurn(next);
   } else if (space.kind === 'tax') {
     const flatAmount = space.name === 'Income Tax' ? 200 : 75;
     const percentAmount = calculatePercentTax(active);
@@ -1299,9 +1330,14 @@ const resolvePostMoveSpace = (
       cardState = card.resolve({ ...state, players }, playerIndex, entries);
     } else {
       const cardResult = normalizeCashAfterCard(card.apply?.(active) ?? active, active, entries);
+      const bankPayment = Math.max(0, active.money - cardResult.money);
       Object.assign(active, cardResult);
       players[playerIndex] = markBankrupt(active, entries);
-      cardState = { ...state, players };
+      cardState = {
+        ...state,
+        players,
+        freeParkingPot: state.houseRules ? state.freeParkingPot + bankPayment : state.freeParkingPot
+      };
     }
     const cardPlayer = cardState.players[playerIndex];
     const cardLog = log(`${cardPlayer.name} drew ${card.title}: ${card.actionText}`);
@@ -1511,12 +1547,14 @@ const payForRepairs = (
   return {
     ...state,
     players,
+    freeParkingPot: state.houseRules ? state.freeParkingPot + payment.paid : state.freeParkingPot,
     pendingDebt: payment.amountOwed > 0
       ? {
           playerId: active.id,
           creditorId: null,
           amountOwed: payment.amountOwed,
-          reason: 'property repair card'
+          reason: 'property repair card',
+          toFreeParking: state.houseRules
         }
       : state.pendingDebt
   };

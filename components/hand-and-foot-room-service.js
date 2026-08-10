@@ -14,7 +14,7 @@ export const HandFootRoomService = {
       `/api/hand-and-foot/rooms/${normalizeCode(roomCode)}?token=${encodeURIComponent(token)}`,
       { cache: "no-store" }
     );
-    const payload = await response.json();
+    const payload = await readJsonResponse(response);
     if (!response.ok) throw new Error(payload.error || "Could not load the room.");
     return payload.state;
   },
@@ -57,9 +57,21 @@ async function postJson(url, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = await response.json();
+  const payload = await readJsonResponse(response);
   if (!response.ok) throw new Error(payload.error || "The room could not be updated.");
   return payload;
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`The room server returned an unexpected response (${response.status}). Please try again.`);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`The room server returned invalid data (${response.status}). Please try again.`);
+  }
 }
 
 function normalizeCode(code) {

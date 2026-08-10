@@ -24,12 +24,13 @@
     "incremental": true
   },
   "include": [
-    "next-env.d.ts",
     ".next/types/**/*.ts",
     "mafia-main/**/*.ts",
     "mafia-main/**/*.tsx",
     "monopoly/src/**/*.ts",
-    "monopoly/src/**/*.tsx"
+    "monopoly/src/**/*.tsx",
+    "next-env.d.ts",
+    ".next-dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

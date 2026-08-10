@@ -64,6 +64,7 @@ import {
   rollDice,
   rollUtilityRent,
   sellImprovement,
+  setHouseRules,
   stayInJailAndRoll,
   startGame,
   takeComputerAction,
@@ -104,6 +105,7 @@ export default function App() {
   const [activeTradeTargetId, setActiveTradeTargetId] = React.useState('');
   const [activeOfferedPropertyIds, setActiveOfferedPropertyIds] = React.useState<number[]>([]);
   const [activeRequestedPropertyIds, setActiveRequestedPropertyIds] = React.useState<number[]>([]);
+  const [isBoardTradeMode, setIsBoardTradeMode] = React.useState(false);
   const latestGame = React.useRef<GameState | null>(null);
   const activeTradeSubmit = React.useRef<(() => void) | null>(null);
 
@@ -286,20 +288,23 @@ export default function App() {
     Boolean(game?.pendingAuction?.activePlayerId === playerId) || Boolean(isHost && auctionActivePlayer?.id.startsWith('local-'));
   const canChooseJail = Boolean(activePlayer?.id === playerId) || Boolean(isHost && activePlayer?.id.startsWith('local-'));
   const needsJailChoice = Boolean(activePlayer?.inJail && !game?.jailRollMode);
-  const activeTradeTargets = game && activePlayer
-    ? game.players.filter((candidate) => candidate.id !== activePlayer.id && !candidate.bankrupt)
+  const boardTradePlayer = canControlTurn ? activePlayer : me && !me.bankrupt ? me : undefined;
+  const activeTradeTargets = game && activePlayer && boardTradePlayer
+    ? boardTradePlayer.id === activePlayer.id
+      ? game.players.filter((candidate) => candidate.id !== boardTradePlayer.id && !candidate.bankrupt)
+      : [activePlayer]
     : [];
   const selectedActiveTradeTarget =
     activeTradeTargets.find((candidate) => candidate.id === activeTradeTargetId) ?? activeTradeTargets[0];
-  const canSelectTradeProperties = Boolean(
+  const canStartBoardTrade = Boolean(
     game &&
-    activePlayer &&
-    canControlTurn &&
+    boardTradePlayer &&
     game.phase === 'playing' &&
     game.turnStage === 'manage' &&
     !game.pendingTrade &&
     activeTradeTargets.length > 0
   );
+  const canSelectTradeProperties = canStartBoardTrade && isBoardTradeMode;
   const showBoardRollButton = Boolean(
     game &&
     game.phase === 'playing' &&
@@ -333,6 +338,7 @@ export default function App() {
     setActiveTradeTargetId('');
     setActiveOfferedPropertyIds([]);
     setActiveRequestedPropertyIds([]);
+    setIsBoardTradeMode(false);
   }, [activePlayer?.id]);
 
   const handleRoll = () => {
@@ -357,11 +363,11 @@ export default function App() {
   };
 
   const handleBoardTradeProperty = (spaceId: number) => {
-    if (!game || !activePlayer || !canSelectTradeProperties || (game.improvements[spaceId] ?? 0) > 0) return;
+    if (!game || !boardTradePlayer || !canSelectTradeProperties || (game.improvements[spaceId] ?? 0) > 0) return;
     const owner = game.players.find((player) => player.properties.includes(spaceId));
     if (!owner) return;
 
-    if (owner.id === activePlayer.id) {
+    if (owner.id === boardTradePlayer.id) {
       setActiveOfferedPropertyIds((current) =>
         current.includes(spaceId) ? current.filter((id) => id !== spaceId) : [...current, spaceId]
       );
@@ -385,6 +391,17 @@ export default function App() {
 
   const handleBoardTradeSubmit = () => {
     activeTradeSubmit.current?.();
+    setIsBoardTradeMode(false);
+  };
+
+  const handleBoardTradeModeToggle = () => {
+    setIsBoardTradeMode((current) => {
+      if (current) {
+        setActiveOfferedPropertyIds([]);
+        setActiveRequestedPropertyIds([]);
+      }
+      return !current;
+    });
   };
 
   if (!isReady) {
@@ -469,17 +486,20 @@ export default function App() {
             if (activePlayer) void updateGame((state) => buyImprovement(state, activePlayer.id, spaceId));
           }}
           canSelectTradeProperties={canSelectTradeProperties}
-          tradePlayerId={activePlayer?.id}
+          tradePlayerId={boardTradePlayer?.id}
           tradeTargetId={selectedActiveTradeTarget?.id}
           offeredPropertyIds={activeOfferedPropertyIds}
           requestedPropertyIds={activeRequestedPropertyIds}
           onTradePropertyToggle={handleBoardTradeProperty}
+          showTradeButton={canStartBoardTrade}
+          isTradeMode={isBoardTradeMode}
           showProposeTradeButton={Boolean(
             canSelectTradeProperties &&
             activeOfferedPropertyIds.length > 0 &&
             activeRequestedPropertyIds.length > 0
           )}
           canRespondTrade={canRespondTrade}
+          onToggleTradeMode={handleBoardTradeModeToggle}
           onProposeTrade={handleBoardTradeSubmit}
           onAcceptTrade={() => updateGame(acceptTrade)}
           onDeclineTrade={() => updateGame(declineTrade)}
@@ -515,6 +535,21 @@ export default function App() {
 
             {game.phase === 'lobby' ? (
               <div className="lobby-actions">
+                <label className="house-rules-option">
+                  <input
+                    type="checkbox"
+                    checked={game.houseRules}
+                    disabled={!isHost}
+                    onChange={(event) => {
+                      const enabled = event.currentTarget.checked;
+                      void updateGame((state) => setHouseRules(state, enabled));
+                    }}
+                  />
+                  <span>
+                    <strong>Play with house rules</strong>
+                    <small>Bank fees from Chance and Community Chest build a Free Parking jackpot.</small>
+                  </span>
+                </label>
                 <button disabled={!isHost} onClick={() => updateGame(addLocalPlayer)}>
                   <Users size={18} /> Add player
                 </button>
@@ -680,7 +715,7 @@ export default function App() {
                 onUnmortgage={(spaceId) => updateGame((state) => unmortgageProperty(state, player.id, spaceId))}
                 onBuild={(spaceId) => updateGame((state) => buyImprovement(state, player.id, spaceId))}
                 onSellImprovement={(spaceId) => updateGame((state) => sellImprovement(state, player.id, spaceId))}
-                boardTradeDraft={player.id === activePlayer?.id ? {
+                boardTradeDraft={player.id === boardTradePlayer?.id ? {
                   targetId: activeTradeTargetId,
                   offeredPropertyIds: activeOfferedPropertyIds,
                   requestedPropertyIds: activeRequestedPropertyIds,
@@ -1024,8 +1059,11 @@ function Board({
   offeredPropertyIds,
   requestedPropertyIds,
   onTradePropertyToggle,
+  showTradeButton,
+  isTradeMode,
   showProposeTradeButton,
   canRespondTrade,
+  onToggleTradeMode,
   onProposeTrade,
   onAcceptTrade,
   onDeclineTrade,
@@ -1043,8 +1081,11 @@ function Board({
   offeredPropertyIds: number[];
   requestedPropertyIds: number[];
   onTradePropertyToggle: (spaceId: number) => void;
+  showTradeButton: boolean;
+  isTradeMode: boolean;
   showProposeTradeButton: boolean;
   canRespondTrade: boolean;
+  onToggleTradeMode: () => void;
   onProposeTrade: () => void;
   onAcceptTrade: () => void;
   onDeclineTrade: () => void;
@@ -1069,6 +1110,10 @@ function Board({
       : selectedTradeRole === 'request' && requestedPropertyIds.includes(selectedSpace.id)
     : false;
 
+  React.useEffect(() => {
+    if (isTradeMode) setSelectedSpaceId(null);
+  }, [isTradeMode]);
+
   return (
     <section className="board" aria-label="Monopoly board">
       {board.map((space) => {
@@ -1091,7 +1136,8 @@ function Board({
             tradeRole={tradeSelectable ? tradeRole : undefined}
             tradeSelected={tradeSelected}
             onTradeToggle={tradeSelectable ? () => onTradePropertyToggle(space.id) : undefined}
-            onShowDetails={space.price ? () => setSelectedSpaceId(space.id) : undefined}
+            onShowDetails={!isTradeMode && space.price ? () => setSelectedSpaceId(space.id) : undefined}
+            freeParkingPot={game.houseRules && space.kind === 'free' ? game.freeParkingPot : undefined}
           />
         );
       })}
@@ -1165,6 +1211,13 @@ function Board({
                 </button>
               )}
             </div>
+            {showTradeButton && (
+              <div className="board-trade-action">
+                <button className={isTradeMode ? 'trade-cancel' : ''} onClick={onToggleTradeMode}>
+                  {isTradeMode ? 'Cancel trade' : 'Trade'}
+                </button>
+              </div>
+            )}
             {showProposeTradeButton && (
               <div className="board-trade-action">
                 <button className="primary" onClick={onProposeTrade}>
@@ -1173,8 +1226,10 @@ function Board({
               </div>
             )}
             <p>
-              {canSelectTradeProperties
-                ? 'Click deeds to trade, or use the house buttons to build on a monopoly.'
+              {isTradeMode
+                ? 'Select at least one of your deeds and one deed from another player.'
+                : showTradeButton
+                  ? 'View a deed, start a trade, or use the house buttons to build on a monopoly.'
                 : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
             </p>
           </>
@@ -1202,7 +1257,8 @@ function BoardSpace({
   tradeRole,
   tradeSelected = false,
   onTradeToggle,
-  onShowDetails
+  onShowDetails,
+  freeParkingPot
 }: {
   space: Space;
   players: Player[];
@@ -1211,21 +1267,29 @@ function BoardSpace({
   tradeSelected?: boolean;
   onTradeToggle?: () => void;
   onShowDetails?: () => void;
+  freeParkingPot?: number;
 }) {
   const style = getGridPosition(space.id);
+  const action = onTradeToggle ?? onShowDetails;
+  const tradeAction = tradeRole === 'offer' ? 'offer' : 'request';
   return (
     <div
       className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${onShowDetails ? 'deed-clickable' : ''} ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
       style={style}
-      role={onShowDetails ? 'button' : undefined}
-      tabIndex={onShowDetails ? 0 : undefined}
-      aria-label={onShowDetails ? `View deed details for ${space.name}` : undefined}
-      title={onShowDetails ? `View ${space.name} deed` : undefined}
-      onClick={onShowDetails}
-      onKeyDown={onShowDetails ? (event) => {
+      role={action ? 'button' : undefined}
+      tabIndex={action ? 0 : undefined}
+      aria-pressed={onTradeToggle ? tradeSelected : undefined}
+      aria-label={onTradeToggle
+        ? `${tradeSelected ? 'Remove' : 'Add'} ${space.name} ${tradeSelected ? 'from' : 'to'} trade ${tradeAction}`
+        : onShowDetails ? `View deed details for ${space.name}` : undefined}
+      title={onTradeToggle
+        ? `${tradeSelected ? 'Remove from' : 'Add to'} trade ${tradeAction}`
+        : onShowDetails ? `View ${space.name} deed` : undefined}
+      onClick={action}
+      onKeyDown={action ? (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onShowDetails();
+          action();
         }
       } : undefined}
     >
@@ -1236,6 +1300,9 @@ function BoardSpace({
       )}
       {space.kind === 'jail' && <div className="jail-window" aria-hidden="true"><span /><span /><span /></div>}
       {[0, 20, 30].includes(space.id) && <CornerSpaceArt spaceId={space.id} />}
+      {freeParkingPot !== undefined && (
+        <span className="free-parking-jackpot" aria-label={`Free Parking jackpot $${freeParkingPot}`}>${freeParkingPot}</span>
+      )}
       {(space.kind === 'chance' || space.kind === 'community') && <SpecialSpaceArt kind={space.kind} />}
       <span className="space-name">{space.name}</span>
       {space.price && <span className="space-price">${space.price}</span>}
