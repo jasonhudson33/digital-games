@@ -240,35 +240,76 @@
   inset: 6px;
   border: 1px solid rgba(17, 32, 34, 0.16);
   border-radius: 6px;
+  z-index: 5;
   pointer-events: none;
 }
+
+.card-illustration {
+  position: absolute;
+  z-index: 0;
+  inset: 6px;
+  border-radius: 6px;
+  background-position: center;
+  background-size: cover;
+}
+
+.skull-playing-card.illustrated-character::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 6px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.suit-illustration { opacity: 1; filter: saturate(.92) contrast(.96); }
+.skull-playing-card.black .suit-illustration { opacity: 1; filter: saturate(.82) contrast(.96); }
+.character-illustration { opacity: .94; }
+.skull-playing-card.illustrated-character::before { background: linear-gradient(to bottom, rgba(13,16,18,.02) 18%, rgba(17,20,22,.15) 48%, rgba(20,18,18,.96) 82%); }
 
 .skull-card-corner {
   position: absolute;
   z-index: 2;
   top: 8px;
-  left: 9px;
+  left: 7px;
   display: grid;
+  justify-items: center;
   line-height: 1;
   font-size: 0.95rem;
 }
 
 .skull-card-corner b { font-size: 0.94rem; }
+.skull-playing-card.suit-card .skull-card-corner b {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  color: #172327;
+  border: 1px solid rgba(255,255,255,.75);
+  border-radius: 50%;
+  background: #fff5d9;
+  box-shadow: 0 2px 5px rgba(0,0,0,.38), inset 0 0 0 1px rgba(20,35,39,.12);
+  font-size: .84rem;
+  font-weight: 950;
+  text-shadow: none;
+}
+.skull-playing-card.green .skull-card-corner b { color: #f8f1d9; background: #1f684f; }
+.skull-playing-card.yellow .skull-card-corner b { color: #382707; background: #f1c84d; }
+.skull-playing-card.purple .skull-card-corner b { color: #fff3dc; background: #714779; }
+.skull-playing-card.black .skull-card-corner b { color: #f6dda0; background: #111b1f; }
+.skull-playing-card.choice .skull-card-corner b { font-size: .56rem; letter-spacing: -.04em; }
 .skull-card-corner i { margin-top: 3px; font-size: 0.72rem; font-style: normal; }
 .skull-playing-card > strong { position: relative; z-index: 2; font-family: Georgia, serif; font-size: 1.75rem; }
 .skull-playing-card > small { position: relative; z-index: 2; max-width: 80%; margin-top: 5px; text-align: center; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 
-.suit-watermark {
-  position: absolute;
-  font-size: 5.2rem;
-  opacity: 0.1;
-}
+.skull-playing-card.suit-card { justify-content: flex-end; padding-bottom: 10px; }
+.skull-playing-card.suit-card > small { max-width: 88%; padding: 3px 6px; color: #fff2d2; border-radius: 999px; background: #15272a; box-shadow: 0 1px 3px rgba(0,0,0,.45); text-shadow: none; }
 
 .skull-playing-card.green { color: #153f32; background: linear-gradient(145deg, #f4f0d8, #a8d5ad); }
 .skull-playing-card.yellow { color: #583d0b; background: linear-gradient(145deg, #fff4bd, #eac65e); }
 .skull-playing-card.purple { color: #392145; background: linear-gradient(145deg, #f2e7f1, #bf93bd); }
 .skull-playing-card.black { color: #f3dfad; border-color: #d6bd7b; background: linear-gradient(145deg, #344345, #111c20); }
-.skull-playing-card.choice { background-image: linear-gradient(150deg, rgba(255,255,255,.72), transparent 48%), repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,.11) 9px 10px); }
+.skull-playing-card.choice { background-image: none; }
 
 .bonus-ribbon {
   position: absolute;
@@ -300,8 +341,12 @@
 .skull-playing-card.escape { color: #243b42; background: linear-gradient(145deg, #fcfaf1, #cbdce0); }
 .skull-playing-card.doubloon { color: #50340a; border-color: #e2be5b; background: linear-gradient(145deg, #fff2ad, #c9972f); }
 .skull-playing-card.mermaid { color: #173f48; border-color: #9cd4cf; background: linear-gradient(145deg, #e4fbef, #78babd); }
-.skull-playing-card.pirate { color: #f0d58e; border-color: #cda856; background: linear-gradient(145deg, #632f29, #171d22 70%); }
-.skull-playing-card.pirate > strong { max-width: 78%; text-align: center; font-size: .68rem; line-height: 1.05; }
+.skull-playing-card.pirate { justify-content: flex-end; padding-bottom: 9px; color: #f0d58e; border-color: #cda856; background: linear-gradient(145deg, #632f29, #171d22 70%); }
+.skull-playing-card.illustrated-character { justify-content: flex-end; padding-bottom: 9px; }
+.skull-playing-card.illustrated-character > strong { max-width: 84%; margin-top: 0; color: #f4e4b6; text-align: center; font-size: .78rem; line-height: 1.05; text-shadow: 0 2px 3px #000; }
+.skull-playing-card.illustrated-character > small { max-width: 88%; margin-top: 3px; color: #f4dfad; text-shadow: 0 1px 3px #000; }
+.skull-playing-card.pirate > strong { max-width: 82%; margin-top: 0; text-align: center; font-size: .68rem; line-height: 1.05; text-shadow: 0 2px 3px #000; }
+.skull-playing-card.pirate > small { max-width: 88%; margin-top: 3px; color: #f4dfad; text-shadow: 0 1px 3px #000; }
 .skull-playing-card.tigress { color: #efe0bd; border-color: #d0a85b; background: linear-gradient(135deg, #eef2e8 0 49%, #542827 50% 100%); }
 .skull-playing-card.tigress.escape-role { color: #243b42; border-color: #d7e3df; background: linear-gradient(145deg, #fcfaf1, #cbdce0); }
 .skull-playing-card.tigress.pirate-role { color: #f0d58e; border-color: #cda856; background: linear-gradient(145deg, #632f29, #171d22 70%); }

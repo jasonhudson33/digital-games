@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const games = [
   { name: "All Games", href: "/" },
+  { name: "Pinochle", href: "/pinochle" },
   { name: "Risk", href: "/risk" },
   { name: "Skull King", href: "/skull-king" },
   { name: "Hand & Foot", href: "/hand-and-foot" },
@@ -20,18 +21,46 @@ const games = [
 export default function SiteHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuContainerRef = useRef(null);
+  const menuButtonRef = useRef(null);
 
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    function closeOnOutsideClick(event) {
+      if (!menuContainerRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
+
   return (
     <header className="site-header">
-      <div className="site-header-inner">
+      <div className="site-header-inner" ref={menuContainerRef}>
         <Link href="/" className="site-brand">
           Digital Games
         </Link>
         <button
+          ref={menuButtonRef}
           type="button"
           className="site-menu-toggle"
           aria-expanded={menuOpen}
@@ -49,7 +78,13 @@ export default function SiteHeader() {
           aria-label="Game navigation"
         >
           {games.map((game) => (
-            <Link key={game.href} href={game.href} className="site-nav-link">
+            <Link
+              key={game.href}
+              href={game.href}
+              className="site-nav-link"
+              aria-current={pathname === game.href ? "page" : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
               {game.name}
             </Link>
           ))}

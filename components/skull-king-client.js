@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Anchor, BookOpen, RotateCcw, X } from "lucide-react";
+import { getSkullKingCardArt } from "../lib/skull-king-art";
 import {
   SKULL_KING_SPECIALS,
   SKULL_KING_SUIT_DETAILS,
@@ -305,10 +306,13 @@ export default function SkullKingClient() {
 function SkullCard({ card, className = "" }) {
   if (card.type === "special") {
     const details = SKULL_KING_SPECIALS[card.kind];
+    const characterArt = getSkullKingCardArt(card);
     return (
-      <div className={`skull-playing-card special ${card.kind} ${card.declaredRole ? `${card.declaredRole}-role` : ""} ${className}`}>
+      <div className={`skull-playing-card special ${card.kind} ${characterArt ? "illustrated-character" : ""} ${card.declaredRole ? `${card.declaredRole}-role` : ""} ${className}`}>
         <span className="skull-card-corner">{details.symbol}</span>
-        <span className="special-art">{details.symbol}</span>
+        {characterArt
+          ? <span className="card-illustration character-illustration" style={{ backgroundImage: `url("${characterArt}")` }} aria-hidden="true" />
+          : <span className="special-art">{details.symbol}</span>}
         <strong>{card.kind === "pirate" && card.name ? card.name : details.label}</strong>
         <small>{card.kind === "pirate" && card.abilityShort ? card.abilityShort : card.kind === "tigress" && card.declaredRole ? `Playing as ${card.declaredRole}` : specialTagline(card.kind)}</small>
       </div>
@@ -316,11 +320,11 @@ function SkullCard({ card, className = "" }) {
   }
   if (card.type === "wild15") {
     const suit = card.declaredSuit ? SKULL_KING_SUIT_DETAILS[card.declaredSuit] : null;
+    const cardArt = getSkullKingCardArt(card);
     return (
       <div className={`skull-playing-card suit-card wild15 ${card.declaredSuit || ""} ${className}`}>
         <span className="skull-card-corner"><b>15</b><i>{suit?.symbol || "✶"}</i></span>
-        <span className="suit-watermark">✶</span>
-        <strong>15</strong>
+        <span className="card-illustration suit-illustration" style={{ backgroundImage: `url("${cardArt}")` }} aria-hidden="true" />
         <small>{suit ? suit.label : "Wild Monkey"}</small>
         <span className="expansion-mark">EXP</span>
       </div>
@@ -328,11 +332,11 @@ function SkullCard({ card, className = "" }) {
   }
   const details = SKULL_KING_SUIT_DETAILS[card.suit];
   const rank = card.type === "choice" ? (card.declaredValue ?? "0/14") : card.rank;
+  const cardArt = getSkullKingCardArt(card);
   return (
     <div className={`skull-playing-card suit-card ${card.suit} ${card.type === "choice" ? "choice" : ""} ${className}`}>
       <span className="skull-card-corner"><b>{rank}</b><i>{details.symbol}</i></span>
-      <span className="suit-watermark">{details.symbol}</span>
-      <strong>{rank}</strong>
+      <span className="card-illustration suit-illustration" style={{ backgroundImage: `url("${cardArt}")` }} aria-hidden="true" />
       <small>{card.type === "choice" ? "Choose high or low" : details.label}</small>
       {card.bonus !== 0 && <span className={`bonus-ribbon ${card.bonus < 0 ? "penalty" : ""}`}>{card.bonus > 0 ? "+" : ""}{card.bonus}</span>}
       {card.expansion && <span className="expansion-mark">EXP</span>}

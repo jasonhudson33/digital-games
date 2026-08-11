@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
+
+import { getSkullKingCardArt } from "../lib/skull-king-art.js";
 
 import {
   SKULL_KING_PIRATES,
@@ -45,6 +49,17 @@ test("the full expansion deck contains all 93 gameplay cards", () => {
     SKULL_KING_PIRATES.map((pirate) => pirate.name),
   );
   assert.ok(deck.filter((card) => card.kind === "pirate").every((card) => card.ability));
+});
+
+test("every card in the full deck resolves to an existing illustration", () => {
+  const deck = createSkullKingDeck();
+  const missingArt = deck.filter((card) => !getSkullKingCardArt(card)).map((card) => card.id);
+  assert.deepEqual(missingArt, []);
+
+  const artPaths = new Set(deck.map((card) => getSkullKingCardArt(card)));
+  for (const artPath of artPaths) {
+    assert.ok(existsSync(join(process.cwd(), "public", artPath.replace(/^\//, ""))), `${artPath} should exist`);
+  }
 });
 
 test("expansion 7s and 8s apply minus or plus five capture points", () => {

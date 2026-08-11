@@ -1,0 +1,184 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  PINOCHLE_SUITS,
+  calculatePinochleMeld,
+  choosePinochleBotBid,
+  choosePinochleBotCard,
+  choosePinochleBotDiscard,
+  choosePinochleBotPartnerPass,
+  choosePinochleBotPartnerReturn,
+  choosePinochleBotTrump,
+  choosePinochleTrump,
+  createPinochleDeck,
+  createPinochleGame,
+  discardPinochleKitty,
+  getLegalPinochleCards,
+  passPinochleBid,
+  passPinochlePartnerCards,
+  placePinochleBid,
+  playPinochleCard,
+  returnPinochlePartnerCards,
+} from "../lib/pinochle.js";
+
+function players(count) {
+  return Array.from({ length: count }, (_, index) => ({
+    playerId: `p${index}`,
+    name: `Player ${index + 1}`,
+    isComputer: false,
+  }));
+}
+
+test("Pinochle creates the right deck and seating for every supported room size", () => {
+  for (const count of [2, 3, 4, 5, 6]) {
+    const game = createPinochleGame({ playerSeeds: players(count) });
+    assert.equal(createPinochleDeck(count).length, count >= 5 ? 96 : 48);
+    assert.equal(game.players.length, count);
+    assert.ok(game.players.every((player) => player.hand.length === Math.floor(createPinochleDeck(count).length / count)));
+    assert.equal(game.kittySize, createPinochleDeck(count).length % count);
+  }
+  assert.deepEqual(createPinochleGame({ playerSeeds: players(4) }).players.map((player) => player.teamId), [0, 1, 0, 1]);
+  assert.deepEqual(createPinochleGame({ playerSeeds: players(6) }).players.map((player) => player.teamId), [0, 1, 0, 1, 0, 1]);
+  assert.deepEqual(createPinochleGame({ playerSeeds: players(5) }).players.map((player) => player.teamId), [0, 1, 2, 3, 4]);
+});
+
+test("meld scoring recognizes a run, pinochle, arounds, and dix", () => {
+  const cards = [
+    ...[14, 10, 13, 12, 11, 9].map((rank, copy) => ({ id: `h-${rank}`, copy, suit: "hearts", rank })),
+    { id: "ac", copy: 0, suit: "clubs", rank: 14 },
+    { id: "ad", copy: 0, suit: "diamonds", rank: 14 },
+    { id: "as", copy: 0, suit: "spades", rank: 14 },
+    { id: "qs", copy: 0, suit: "spades", rank: 12 },
+    { id: "jd", copy: 0, suit: "diamonds", rank: 11 },
+  ];
+  const meld = calculatePinochleMeld(cards, "hearts");
+  assert.equal(meld.total, 30);
+  assert.ok(meld.items.some((item) => item.name.startsWith("Run")));
+  assert.ok(meld.items.some((item) => item.name.startsWith("Pinochle")));
+  assert.ok(meld.items.some((item) => item.name.startsWith("As around")));
+  assert.ok(meld.items.some((item) => item.name.startsWith("Dix")));
+});
+
+test("bidding ends with the last active player and advances to trump", () => {
+  let game = createPinochleGame({ playerSeeds: players(3) });
+  assert.equal(game.currentPlayerIndex, 1);
+  game = placePinochleBid(game, 1, 20);
+  game = passPinochleBid(game, 2);
+  game = passPinochleBid(game, 0);
+  assert.equal(game.phase, "choosing-trump");
+  assert.equal(game.highBidderIndex, 1);
+  assert.equal(game.highBid, 20);
+});
+
+test("trick play requires following suit and heading when possible", () => {
+  let game = createPinochleGame({ playerSeeds: players(3) });
+  game = placePinochleBid(game, 1, 20);
+  game = passPinochleBid(game, 2);
+  game = passPinochleBid(game, 0);
+  game = choosePinochleTrump(game, 1, "hearts");
+
+  const leader = game.currentPlayerIndex;
+  const lead = game.players[leader].hand.find((card) => card.suit !== "hearts") || game.players[leader].hand[0];
+  game = playPinochleCard(game, leader, lead.id);
+  const follower = game.currentPlayerIndex;
+  const matching = game.players[follower].hand.filter((card) => card.suit === lead.suit);
+  const legal = getLegalPinochleCards(game, follower);
+  if (matching.length) {
+    assert.ok(legal.every((card) => card.suit === lead.suit));
+    const offSuit = game.players[follower].hand.find((card) => card.suit !== lead.suit);
+    if (offSuit) assert.throws(() => playPinochleCard(game, follower, offSuit.id), /follow suit/);
+  } else {
+    const trumps = game.players[follower].hand.filter((card) => card.suit === "hearts");
+    if (trumps.length) assert.ok(legal.every((card) => card.suit === "hearts"));
+  }
+});
+
+test("all standard suits are available as trump", () => {
+  assert.deepEqual(PINOCHLE_SUITS, ["clubs", "diamonds", "spades", "hearts"]);
+});
+
+test("four-player bidder exchanges four cards with their teammate", () => {
+  let game = createPinochleGame({ playerSeeds: players(4) });
+  game = placePinochleBid(game, 1, 20);
+  game = passPinochleBid(game, 2);
+  game = passPinochleBid(game, 3);
+  game = passPinochleBid(game, 0);
+  game = choosePinochleTrump(game, 1, "hearts");
+
+  assert.equal(game.phase, "partner-passing");
+  assert.equal(game.exchangeCount, 4);
+  assert.deepEqual(game.exchangePartnerIndexes, [3]);
+  const sentIds = game.players[3].hand.slice(0, 4).map((card) => card.id);
+  game = passPinochlePartnerCards(game, 3, sentIds);
+  assert.equal(game.phase, "bidder-returning");
+  assert.equal(game.players[1].hand.length, 16);
+  assert.equal(game.players[3].hand.length, 8);
+
+  const returnedIds = game.players[1].hand.slice(0, 4).map((card) => card.id);
+  game = returnPinochlePartnerCards(game, 1, returnedIds);
+  assert.equal(game.phase, "playing");
+  assert.ok(game.players.every((player) => player.hand.length === 12));
+});
+
+test("six-player bidder exchanges three cards with each teammate", () => {
+  let game = createPinochleGame({ playerSeeds: players(6) });
+  game = placePinochleBid(game, 1, 50);
+  for (const index of [2, 3, 4, 5, 0]) game = passPinochleBid(game, index);
+  game = choosePinochleTrump(game, 1, "spades");
+
+  assert.equal(game.phase, "partner-passing");
+  assert.equal(game.exchangeCount, 3);
+  assert.deepEqual(game.exchangePartnerIndexes, [3, 5]);
+  game = passPinochlePartnerCards(game, 3, game.players[3].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.currentPlayerIndex, 5);
+  game = passPinochlePartnerCards(game, 5, game.players[5].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "bidder-returning");
+  assert.equal(game.players[1].hand.length, 22);
+
+  game = returnPinochlePartnerCards(game, 1, game.players[1].hand.slice(0, 3).map((card) => card.id));
+  assert.deepEqual(game.exchangeReturnQueue, [5]);
+  game = returnPinochlePartnerCards(game, 1, game.players[1].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "playing");
+  assert.ok(game.players.every((player) => player.hand.length === 16));
+});
+
+test("cutthroat tables skip partner trading", () => {
+  for (const count of [2, 3]) {
+    let game = createPinochleGame({ playerSeeds: players(count) });
+    const bidder = game.currentPlayerIndex;
+    game = placePinochleBid(game, bidder, game.minimumBid);
+    while (game.phase === "bidding") game = passPinochleBid(game, game.currentPlayerIndex);
+    game = choosePinochleTrump(game, bidder, "clubs");
+    assert.equal(game.phase, "playing");
+  }
+});
+
+test("computer players can complete a full round at every table size", () => {
+  for (const count of [2, 3, 4, 5, 6]) {
+    let game = createPinochleGame({
+      playerSeeds: players(count).map((player) => ({ ...player, isComputer: true })),
+    });
+    let actions = 0;
+    while (!["round-over", "game-over"].includes(game.phase) && actions < 200) {
+      const playerIndex = game.currentPlayerIndex;
+      if (game.phase === "bidding") {
+        const bid = choosePinochleBotBid(game, playerIndex);
+        game = bid === null ? passPinochleBid(game, playerIndex) : placePinochleBid(game, playerIndex, bid);
+      } else if (game.phase === "choosing-trump") {
+        game = choosePinochleTrump(game, playerIndex, choosePinochleBotTrump(game, playerIndex));
+      } else if (game.phase === "discarding-kitty") {
+        game = discardPinochleKitty(game, playerIndex, choosePinochleBotDiscard(game, playerIndex));
+      } else if (game.phase === "partner-passing") {
+        game = passPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerPass(game, playerIndex));
+      } else if (game.phase === "bidder-returning") {
+        game = returnPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerReturn(game, playerIndex));
+      } else if (game.phase === "playing") {
+        game = playPinochleCard(game, playerIndex, choosePinochleBotCard(game, playerIndex).id);
+      }
+      actions += 1;
+    }
+    assert.ok(["round-over", "game-over"].includes(game.phase), `${count}-player round should finish`);
+    assert.equal(game.trickNumber, Math.floor(createPinochleDeck(count).length / count));
+    assert.ok(game.roundSummary);
+  }
+});

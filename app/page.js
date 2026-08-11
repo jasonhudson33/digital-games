@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Pinochle",
+    href: "/pinochle",
+    status: "New · Rooms for 2–6",
+    description:
+      "Win the auction, lay down your meld, call trump, and make the contract at a shared table.",
+    tone: "pinochle",
+  },
+  {
     name: "Risk",
     href: "/risk",
     status: "New · Solo campaign",

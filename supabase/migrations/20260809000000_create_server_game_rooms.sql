@@ -11,7 +11,7 @@ create index if not exists server_game_rooms_expires_at_idx
 on public.server_game_rooms (expires_at);
 
 comment on table public.server_game_rooms is
-  'Private server-authoritative room state for Seven Up, Scum, and Hand and Foot.';
+  'Private server-authoritative room state for Seven Up, Scum, Hand and Foot, and Pinochle.';
 
 alter table public.server_game_rooms enable row level security;
 alter table public.server_game_rooms force row level security;
