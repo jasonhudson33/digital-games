@@ -26,6 +26,7 @@ import {
   Sailboat,
   TrainFront,
   Trophy,
+  TriangleAlert,
   Users,
   Volleyball,
   X,
@@ -106,6 +107,7 @@ export default function App() {
   const [activeOfferedPropertyIds, setActiveOfferedPropertyIds] = React.useState<number[]>([]);
   const [activeRequestedPropertyIds, setActiveRequestedPropertyIds] = React.useState<number[]>([]);
   const [isBoardTradeMode, setIsBoardTradeMode] = React.useState(false);
+  const [mortgageConfirmation, setMortgageConfirmation] = React.useState<{ playerId: string; spaceId: number } | null>(null);
   const latestGame = React.useRef<GameState | null>(null);
   const activeTradeSubmit = React.useRef<(() => void) | null>(null);
 
@@ -404,6 +406,17 @@ export default function App() {
     });
   };
 
+  const requestMortgage = (mortgagePlayerId: string, spaceId: number) => {
+    setMortgageConfirmation({ playerId: mortgagePlayerId, spaceId });
+  };
+
+  const confirmMortgage = () => {
+    if (!mortgageConfirmation) return;
+    const { playerId: mortgagePlayerId, spaceId } = mortgageConfirmation;
+    setMortgageConfirmation(null);
+    void updateGame((state) => mortgageProperty(state, mortgagePlayerId, spaceId));
+  };
+
   if (!isReady) {
     return (
       <div className="monopoly-page">
@@ -465,6 +478,14 @@ export default function App() {
   return (
     <div className="monopoly-page">
     {winner && <WinnerOverlay winner={winner} isWinner={winner.id === playerId} />}
+    {mortgageConfirmation && (
+      <MortgageConfirmationDialog
+        space={board[mortgageConfirmation.spaceId]}
+        player={game.players.find((candidate) => candidate.id === mortgageConfirmation.playerId)}
+        onCancel={() => setMortgageConfirmation(null)}
+        onConfirm={confirmMortgage}
+      />
+    )}
     <main className="game-shell">
       <header className="topbar">
         <div>
@@ -484,6 +505,14 @@ export default function App() {
           buildingPlayerId={activePlayer?.id}
           onBuild={(spaceId) => {
             if (activePlayer) void updateGame((state) => buyImprovement(state, activePlayer.id, spaceId));
+          }}
+          canManageMortgages={Boolean(canControlTurn && game.phase === 'playing')}
+          mortgagePlayerId={activePlayer?.id}
+          onRequestMortgage={(spaceId) => {
+            if (activePlayer) requestMortgage(activePlayer.id, spaceId);
+          }}
+          onUnmortgage={(spaceId) => {
+            if (activePlayer) void updateGame((state) => unmortgageProperty(state, activePlayer.id, spaceId));
           }}
           canSelectTradeProperties={canSelectTradeProperties}
           tradePlayerId={boardTradePlayer?.id}
@@ -711,7 +740,7 @@ export default function App() {
                 me={player.id === me?.id}
                 canManage={player.id === playerId || Boolean(isHost && player.id.startsWith('local-'))}
                 game={game}
-                onMortgage={(spaceId) => updateGame((state) => mortgageProperty(state, player.id, spaceId))}
+                onMortgage={(spaceId) => requestMortgage(player.id, spaceId)}
                 onUnmortgage={(spaceId) => updateGame((state) => unmortgageProperty(state, player.id, spaceId))}
                 onBuild={(spaceId) => updateGame((state) => buyImprovement(state, player.id, spaceId))}
                 onSellImprovement={(spaceId) => updateGame((state) => sellImprovement(state, player.id, spaceId))}
@@ -1046,6 +1075,14 @@ function AuctionPanel({ game }: { game: GameState }) {
   );
 }
 
+type PropertyMortgageAction = {
+  kind: 'mortgage' | 'unmortgage';
+  amount: number;
+  disabled: boolean;
+  disabledReason?: string;
+  onSelect: () => void;
+};
+
 function Board({
   game,
   isRolling,
@@ -1053,6 +1090,10 @@ function Board({
   canManageBuildings,
   buildingPlayerId,
   onBuild,
+  canManageMortgages,
+  mortgagePlayerId,
+  onRequestMortgage,
+  onUnmortgage,
   canSelectTradeProperties,
   tradePlayerId,
   tradeTargetId,
@@ -1075,6 +1116,10 @@ function Board({
   canManageBuildings: boolean;
   buildingPlayerId?: string;
   onBuild: (spaceId: number) => void;
+  canManageMortgages: boolean;
+  mortgagePlayerId?: string;
+  onRequestMortgage: (spaceId: number) => void;
+  onUnmortgage: (spaceId: number) => void;
   canSelectTradeProperties: boolean;
   tradePlayerId?: string;
   tradeTargetId?: string;
@@ -1109,6 +1154,31 @@ function Board({
       ? offeredPropertyIds.includes(selectedSpace.id)
       : selectedTradeRole === 'request' && requestedPropertyIds.includes(selectedSpace.id)
     : false;
+  let selectedMortgageAction: PropertyMortgageAction | undefined;
+  if (selectedSpace?.price && selectedOwner && selectedOwner.id === mortgagePlayerId && canManageMortgages) {
+    const isMortgaged = selectedOwner.mortgagedProperties.includes(selectedSpace.id);
+    if (isMortgaged) {
+      const amount = getUnmortgageCost(selectedSpace.id);
+      const disabled = selectedOwner.money < amount;
+      selectedMortgageAction = {
+        kind: 'unmortgage',
+        amount,
+        disabled,
+        disabledReason: disabled ? `Need $${amount} to unmortgage this deed` : undefined,
+        onSelect: () => onUnmortgage(selectedSpace.id)
+      };
+    } else {
+      const colorGroup = selectedSpace.kind === 'property' ? getColorGroup(selectedSpace) : [selectedSpace];
+      const hasBuildings = colorGroup.some((candidate) => (game.improvements[candidate.id] ?? 0) > 0);
+      selectedMortgageAction = {
+        kind: 'mortgage',
+        amount: getMortgageValue(selectedSpace.id),
+        disabled: hasBuildings,
+        disabledReason: hasBuildings ? 'Sell every building in this color group before mortgaging' : undefined,
+        onSelect: () => onRequestMortgage(selectedSpace.id)
+      };
+    }
+  }
 
   React.useEffect(() => {
     if (isTradeMode) setSelectedSpaceId(null);
@@ -1229,7 +1299,7 @@ function Board({
               {isTradeMode
                 ? 'Select at least one of your deeds and one deed from another player.'
                 : showTradeButton
-                  ? 'View a deed, start a trade, or use the house buttons to build on a monopoly.'
+                  ? 'View a deed to mortgage it, start a trade, or use the house buttons to build on a monopoly.'
                 : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
             </p>
           </>
@@ -1243,6 +1313,7 @@ function Board({
           tradeRole={selectedTradeRole}
           tradeSelected={selectedForTrade}
           onTradeToggle={selectedTradeRole ? () => onTradePropertyToggle(selectedSpace.id) : undefined}
+          mortgageAction={selectedMortgageAction}
           onClose={() => setSelectedSpaceId(null)}
         />
       )}
@@ -1323,6 +1394,7 @@ function PropertyCardModal({
   tradeRole,
   tradeSelected,
   onTradeToggle,
+  mortgageAction,
   onClose
 }: {
   space: Space;
@@ -1331,6 +1403,7 @@ function PropertyCardModal({
   tradeRole?: 'offer' | 'request';
   tradeSelected: boolean;
   onTradeToggle?: () => void;
+  mortgageAction?: PropertyMortgageAction;
   onClose: () => void;
 }) {
   const isMortgaged = Boolean(owner?.mortgagedProperties.includes(space.id));
@@ -1382,11 +1455,76 @@ function PropertyCardModal({
               : 'Roll two dice when rent is due. Only unmortgaged utilities count.'}
         </p>
 
-        {onTradeToggle && tradeRole && (
-          <button className="primary property-trade-button" onClick={() => { onTradeToggle(); onClose(); }}>
-            {tradeSelected ? 'Remove from' : 'Add to'} {tradeRole === 'offer' ? 'offer' : 'request'}
-          </button>
+        {(mortgageAction || (onTradeToggle && tradeRole)) && (
+          <div className="property-card-actions">
+            {mortgageAction && (
+              <>
+                <button
+                  className={mortgageAction.kind === 'unmortgage' ? 'primary' : 'mortgage-action-button'}
+                  disabled={mortgageAction.disabled}
+                  title={mortgageAction.disabledReason}
+                  onClick={() => { mortgageAction.onSelect(); onClose(); }}
+                >
+                  {mortgageAction.kind === 'mortgage' ? 'Mortgage for' : 'Unmortgage for'} ${mortgageAction.amount}
+                </button>
+                {mortgageAction.disabledReason && <small>{mortgageAction.disabledReason}</small>}
+              </>
+            )}
+            {onTradeToggle && tradeRole && (
+              <button className="primary property-trade-button" onClick={() => { onTradeToggle(); onClose(); }}>
+                {tradeSelected ? 'Remove from' : 'Add to'} {tradeRole === 'offer' ? 'offer' : 'request'}
+              </button>
+            )}
+          </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function MortgageConfirmationDialog({
+  space,
+  player,
+  onCancel,
+  onConfirm
+}: {
+  space: Space;
+  player?: Player;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const mortgageValue = getMortgageValue(space.id);
+  const mortgageConsequence = space.kind === 'property'
+    ? 'will not collect rent or allow building in its color group'
+    : space.kind === 'railroad'
+      ? 'will not collect rent or count toward railroad rent levels'
+      : 'will not collect rent or count toward utility rent levels';
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div className="mortgage-confirmation-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
+      <section className="mortgage-confirmation" role="dialog" aria-modal="true" aria-labelledby="mortgage-confirmation-title">
+        <div className="mortgage-warning-icon" aria-hidden="true">
+          <TriangleAlert size={28} />
+        </div>
+        <div>
+          <span className="eyebrow">Mortgage warning</span>
+          <h2 id="mortgage-confirmation-title">Mortgage {space.name}?</h2>
+        </div>
+        <p>
+          {player?.name ?? 'The player'} will receive <strong>${mortgageValue}</strong>, but this deed {mortgageConsequence} until it is unmortgaged.
+        </p>
+        <div className="mortgage-confirmation-actions">
+          <button onClick={onCancel} autoFocus>Cancel</button>
+          <button className="mortgage-confirm-button" onClick={onConfirm}>Mortgage property</button>
+        </div>
       </section>
     </div>
   );
