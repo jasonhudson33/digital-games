@@ -19,10 +19,15 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 ## Relationships
 
 - The **Auction** produces one **Contract** and its bidder chooses trump.
+- The winning bidder leads the first **Trick**; each later trick is led by the previous trick's winner.
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
 - **Cutthroat** games do not have a **Partner Exchange**.
 - A team's **Meld** and captured trick counters combine toward its **Contract**.
+- Every player's scored **Meld** and its cards remain public on the table.
+- Computers participate in the **Auction** and may raise when their cards support a stronger contract.
+- A partnership **Auction** ends immediately when every remaining bidder is on the same team, preventing partners from raising against each other after all opponents pass.
+- A completed **Trick** remains face-up until a human clears it; only then does its winner lead the following trick.
 - A bidding team that misses its **Contract** loses the value of the bid.
 - Players must follow suit, head the trick when able, and trump or overtrump when void.
 

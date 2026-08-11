@@ -547,7 +547,8 @@
 .turn-beacon { width: 8px; height: 8px; border-radius: 50%; background: #566865; }
 .turn-beacon.on { background: var(--skull-gold); box-shadow: 0 0 0 5px rgba(228,184,75,.1), 0 0 14px rgba(228,184,75,.75); }
 
-.skull-hand { min-height: 163px; overflow-x: auto; display: flex; align-items: flex-start; justify-content: center; gap: 6px; padding: 10px 7px 15px; scrollbar-color: #6b5e49 transparent; }
+.skull-hand { min-height: 190px; overflow-x: auto; display: flex; align-items: flex-start; justify-content: center; gap: 6px; padding: 10px 7px 15px; scrollbar-color: #6b5e49 transparent; }
+.skull-hand-item { min-width: 88px; flex: 0 0 auto; display: grid; justify-items: center; align-content: start; }
 .skull-hand-card { flex: 0 0 auto; padding: 0; border: 0; border-radius: 11px; background: transparent; transform: translateY(15px); transition: transform 150ms ease, filter 150ms ease; }
 .skull-hand-card:disabled { opacity: .54; filter: saturate(.66) brightness(.82); }
 .skull-hand-card.playable { cursor: pointer; transform: translateY(5px); }
@@ -555,6 +556,8 @@
 .skull-hand-card.forced { filter: drop-shadow(0 0 10px rgba(228,184,75,.9)); }
 .skull-hand-card.forced::after { content: "FORCED"; position: absolute; z-index: 8; top: -7px; left: 50%; padding: 3px 7px; color: #17261e; border-radius: 999px; background: var(--skull-gold); transform: translateX(-50%); font-size: .48rem; font-weight: 900; }
 .skull-hand-card .skull-playing-card { width: 88px; }
+.skull-card-help-link { max-width: 88px; margin-top: 19px; padding: 2px 1px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: .57rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
+.skull-card-help-link:hover, .skull-card-help-link:focus-visible { color: #ffe4a0; text-decoration-color: currentColor; }
 
 /* Dialogs */
 .skull-modal-backdrop {
@@ -572,7 +575,8 @@
 .choice-dialog,
 .skull-rules-dialog,
 .skull-round-dialog,
-.pirate-ability-dialog {
+.pirate-ability-dialog,
+.card-ability-dialog {
   position: relative;
   width: min(760px, 100%);
   padding: 34px;
@@ -589,13 +593,23 @@
 .choice-dialog h2,
 .skull-rules-dialog h2,
 .skull-round-dialog h2,
-.pirate-ability-dialog h2 { margin: 10px 0 10px; font-family: Georgia, serif; font-size: clamp(1.65rem, 4vw, 2.35rem); font-weight: 500; }
+.pirate-ability-dialog h2,
+.card-ability-dialog h2 { margin: 10px 0 10px; font-family: Georgia, serif; font-size: clamp(1.65rem, 4vw, 2.35rem); font-weight: 500; }
 .choice-dialog > p,
 .skull-rules-dialog > p,
 .skull-round-dialog > p,
-.pirate-ability-dialog > p { color: #aca08e; line-height: 1.55; }
+.pirate-ability-dialog > p,
+.card-ability-dialog > p { color: #aca08e; line-height: 1.55; }
 
 .skull-modal-close { position: absolute; top: 15px; right: 15px; width: 36px; height: 36px; display: grid; place-items: center; color: #bdae96; border: 1px solid rgba(235,199,111,.14); border-radius: 50%; background: rgba(255,255,255,.04); cursor: pointer; }
+
+.card-ability-dialog { width: min(610px, 100%); }
+.card-ability-content { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 25px; margin: 16px 0 25px; }
+.card-ability-content .ability-preview-card { width: 120px; }
+.card-ability-content h2 { margin-top: 0; }
+.card-ability-content p { margin: 0 0 13px; color: #d1c4af; font-size: .86rem; line-height: 1.55; }
+.card-ability-content ul { margin: 0; padding-left: 19px; color: #a99e8d; font-size: .74rem; line-height: 1.55; }
+.card-ability-content li + li { margin-top: 7px; }
 
 .choice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
 .choice-actions button { padding: 20px; display: grid; gap: 4px; color: var(--skull-ink); border: 1px solid rgba(228,184,75,.24); border-radius: 16px; background: rgba(255,255,255,.05); cursor: pointer; }
@@ -730,7 +744,11 @@
   .skull-your-seat { width: calc(100% - 16px); }
   .skull-hand-card .skull-playing-card { width: 76px; }
   .skull-modal-backdrop { padding: 12px; }
-  .choice-dialog, .skull-rules-dialog, .skull-round-dialog, .pirate-ability-dialog { padding: 28px 20px 22px; border-radius: 19px; }
+  .choice-dialog, .skull-rules-dialog, .skull-round-dialog, .pirate-ability-dialog, .card-ability-dialog { padding: 28px 20px 22px; border-radius: 19px; }
+  .skull-hand-item { min-width: 76px; }
+  .skull-card-help-link { max-width: 76px; font-size: .54rem; }
+  .card-ability-content { grid-template-columns: 88px minmax(0, 1fr); gap: 16px; }
+  .card-ability-content .ability-preview-card { width: 88px; }
   .rules-grid { grid-template-columns: 1fr; }
   .round-results > div { grid-template-columns: 32px 1fr auto auto; }
   .round-results small { grid-column: 2 / 3; grid-row: 2; }

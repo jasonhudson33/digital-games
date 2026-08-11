@@ -3,6 +3,7 @@ import {
   addPinochleComputer,
   bidPinochleRoom,
   choosePinochleRoomTrump,
+  clearPinochleRoomTrick,
   discardPinochleRoomKitty,
   getPinochleRoom,
   joinPinochleRoom,
@@ -35,6 +36,7 @@ export async function POST(request, context) {
     passPartnerCards: passPinochleRoomPartnerCards,
     returnPartnerCards: returnPinochleRoomPartnerCards,
     playCard: playPinochleRoomCard,
+    clearTrick: clearPinochleRoomTrick,
     nextRound: startNextPinochleRoomRound,
   });
 }

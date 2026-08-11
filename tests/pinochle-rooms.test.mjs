@@ -1,14 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getLegalPinochleCards } from "../lib/pinochle.js";
 import {
   addPinochleComputer,
   bidPinochleRoom,
   choosePinochleRoomTrump,
+  clearPinochleRoomTrick,
   createPinochleRoom,
   getPinochleRoom,
   joinPinochleRoom,
   passPinochleRoom,
   passPinochleRoomPartnerCards,
+  playPinochleRoomCard,
   startPinochleRoom,
 } from "../lib/pinochle-rooms.js";
 
@@ -80,4 +83,28 @@ test("partnership exchange cards remain private in room views", async () => {
   const bidderView = await getPinochleRoom({ roomCode, token: bidder.token });
   assert.equal(bidderView.state.players[1].hand.length, 16);
   assert.equal(bidderView.state.players[3].hand.length, 0);
+});
+
+test("any human can clear a completed room trick after reviewing it", async () => {
+  const host = await createPinochleRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
+  await startPinochleRoom({ roomCode, token: host.token });
+  await bidPinochleRoom({ roomCode, token: guest.token, amount: 20 });
+  await passPinochleRoom({ roomCode, token: host.token });
+  let state = (await choosePinochleRoomTrump({ roomCode, token: guest.token, trump: "spades" })).state;
+  const tokens = [host.token, guest.token];
+  while (state.phase === "playing") {
+    const playerIndex = state.currentPlayerIndex;
+    const view = (await getPinochleRoom({ roomCode, token: tokens[playerIndex] })).state;
+    const card = getLegalPinochleCards(view, playerIndex)[0];
+    state = (await playPinochleRoomCard({ roomCode, token: tokens[playerIndex], cardId: card.id })).state;
+  }
+  assert.equal(state.phase, "trick-complete");
+  assert.equal(state.trick.length, 2);
+  const winnerIndex = state.lastTrick.winnerPlayerIndex;
+  const cleared = await clearPinochleRoomTrick({ roomCode, token: tokens[(winnerIndex + 1) % 2] });
+  assert.equal(cleared.state.phase, "playing");
+  assert.equal(cleared.state.currentPlayerIndex, winnerIndex);
+  assert.equal(cleared.state.trick.length, 0);
 });

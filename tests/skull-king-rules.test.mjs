@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { getSkullKingCardArt } from "../lib/skull-king-art.js";
+import { getSkullKingCardHelp } from "../lib/skull-king-card-help.js";
 
 import {
   SKULL_KING_PIRATES,
@@ -60,6 +61,25 @@ test("every card in the full deck resolves to an existing illustration", () => {
   for (const artPath of artPaths) {
     assert.ok(existsSync(join(process.cwd(), "public", artPath.replace(/^\//, ""))), `${artPath} should exist`);
   }
+});
+
+test("every nonstandard dealt card exposes player-facing ability help", () => {
+  const deck = createSkullKingDeck();
+  const nonstandardCards = deck.filter((card) => (
+    card.type === "special"
+    || card.type === "choice"
+    || card.type === "wild15"
+    || (card.expansion && [7, 8].includes(card.rank))
+  ));
+
+  assert.ok(nonstandardCards.length > 0);
+  for (const card of nonstandardCards) {
+    const help = getSkullKingCardHelp(card);
+    assert.ok(help?.title, `${card.id} should have a help title`);
+    assert.ok(help?.summary, `${card.id} should have a help summary`);
+    assert.ok(help?.details.length, `${card.id} should have ability details`);
+  }
+  assert.equal(getSkullKingCardHelp(number("green", 3)), null);
 });
 
 test("expansion 7s and 8s apply minus or plus five capture points", () => {

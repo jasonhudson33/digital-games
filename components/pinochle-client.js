@@ -269,6 +269,8 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   ), [game, viewerIndex, yourTurn]);
   const viewer = game.players[viewerIndex];
   const showResults = game.phase === "round-over" || game.phase === "game-over";
+  const visibleTrick = game.trick;
+  const showingCompletedTrick = game.phase === "trick-complete";
 
   function toggleDiscard(cardId) {
     const selectionLimit = game.phase === "discarding-kitty" ? game.kittySize : game.exchangeCount;
@@ -307,12 +309,23 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
           <div className="pn-round-meta">
             <span>Bid <strong>{game.highBid ?? "—"}</strong></span>
             <span>Trump <strong className={game.trump === "hearts" || game.trump === "diamonds" ? "red" : ""}>{game.trump ? PINOCHLE_SUIT_SYMBOLS[game.trump] : "—"}</strong></span>
-            <span>Trick <strong>{game.trickNumber + 1}</strong></span>
+            <span>Trick <strong>{showingCompletedTrick ? game.trickNumber : game.trickNumber + 1}</strong></span>
           </div>
+          {game.bidHistory?.length > 0 && (
+            <div className="pn-bid-history" aria-label="Bid history">
+              <span>Auction</span>
+              {game.bidHistory.map((bid, index) => (
+                <span className={bid.amount === null ? "pass" : "bid"} key={`${bid.playerIndex}-${index}`}>
+                  {game.players[bid.playerIndex].name}: {bid.amount ?? "pass"}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="pn-message" role="status">{game.message}</p>
+          {showingCompletedTrick && <span className="pn-trick-label">Completed trick · {game.players[game.lastTrick.winnerPlayerIndex].name} won</span>}
           <div className="pn-trick-area">
-            {game.trick.length ? game.trick.map((play) => (
-              <div className="pn-played-card" key={`${play.playerIndex}-${play.card.id}`}>
+            {visibleTrick.length ? visibleTrick.map((play) => (
+              <div className={`pn-played-card ${showingCompletedTrick && play.playerIndex === game.lastTrick.winnerPlayerIndex ? "winner" : ""}`} key={`${play.playerIndex}-${play.card.id}`}>
                 <PinochleCard card={play.card} /><small>{game.players[play.playerIndex].name}</small>
               </div>
             )) : <div className="pn-empty-trick"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></div>}
@@ -322,14 +335,21 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 
         {game.melds?.length > 0 && (
           <aside className="pn-meld-panel">
-            <span className="pn-panel-label">Meld on the table</span>
+            <span className="pn-panel-label">Public meld on the table</span>
             {game.players.map((player, index) => (
-              <details key={player.playerId} open={index === viewerIndex}>
-                <summary><span>{player.name}</span><strong>{game.melds[index].total}</strong></summary>
+              <section className={`pn-meld-player ${index === viewerIndex ? "viewer" : ""}`} key={player.playerId}>
+                <header><span>{player.name}</span><strong>{game.melds[index].total}</strong></header>
                 {game.melds[index].items.length
-                  ? game.melds[index].items.map((item) => <div key={item.name}><span>{item.name}</span><b>{item.points}</b></div>)
+                  ? game.melds[index].items.map((item) => (
+                      <div className="pn-meld-item" key={item.name}>
+                        <div><span>{item.name}</span><b>{item.points}</b></div>
+                        <div className="pn-meld-cards">
+                          {item.cards.map((card) => <span className={card.suit === "hearts" || card.suit === "diamonds" ? "red" : ""} key={`${item.name}-${card.id}`}>{formatPinochleCard(card)}</span>)}
+                        </div>
+                      </div>
+                    ))
                   : <small>No meld</small>}
-              </details>
+              </section>
             ))}
           </aside>
         )}
@@ -367,6 +387,9 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 }
 
 function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmount, selectedIds, onAction }) {
+  if (game.phase === "trick-complete") {
+    return <div className="pn-turn-controls pn-clear-trick"><span>Everyone’s cards stay face-up until you are ready.</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("clearTrick")}>Clear trick</button></div>;
+  }
   if (!yourTurn) return <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name}…</div>;
   if (game.phase === "bidding") {
     return (

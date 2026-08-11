@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Anchor, BookOpen, RotateCcw, X } from "lucide-react";
 import { getSkullKingCardArt } from "../lib/skull-king-art";
+import { getSkullKingCardHelp } from "../lib/skull-king-card-help";
 import {
   SKULL_KING_SPECIALS,
   SKULL_KING_SUIT_DETAILS,
@@ -30,6 +31,7 @@ export default function SkullKingClient() {
   const [choiceCardId, setChoiceCardId] = useState(null);
   const [tigressCardId, setTigressCardId] = useState(null);
   const [wildCardId, setWildCardId] = useState(null);
+  const [abilityCard, setAbilityCard] = useState(null);
 
   useEffect(() => {
     if (!game || !["playing", "lastVolley"].includes(game.phase) || game.currentPlayerIndex === 0) return undefined;
@@ -81,6 +83,7 @@ export default function SkullKingClient() {
     setChoiceCardId(null);
     setTigressCardId(null);
     setWildCardId(null);
+    setAbilityCard(null);
   }
 
   function playHumanCard(card) {
@@ -267,18 +270,29 @@ export default function SkullKingClient() {
         <div className="skull-hand" aria-label="Your hand">
           {game.players[0].hand.map((card, index) => {
             const playable = legalIds.has(card.id);
+            const cardHelp = getSkullKingCardHelp(card);
             return (
-              <button
-                key={card.id}
-                type="button"
-                className={`skull-hand-card ${playable ? "playable" : ""} ${game.forcedPlay?.playerIndex === 0 && game.forcedPlay.cardId === card.id ? "forced" : ""}`}
-                style={{ "--card-index": index }}
-                disabled={!playable}
-                onClick={() => playHumanCard(card)}
-                aria-label={`${formatSkullKingCard(card)}${playable ? ", playable" : ""}`}
-              >
-                <SkullCard card={card} />
-              </button>
+              <div key={card.id} className="skull-hand-item" style={{ "--card-index": index }}>
+                <button
+                  type="button"
+                  className={`skull-hand-card ${playable ? "playable" : ""} ${game.forcedPlay?.playerIndex === 0 && game.forcedPlay.cardId === card.id ? "forced" : ""}`}
+                  disabled={!playable}
+                  onClick={() => playHumanCard(card)}
+                  aria-label={`${formatSkullKingCard(card)}${playable ? ", playable" : ""}`}
+                >
+                  <SkullCard card={card} />
+                </button>
+                {cardHelp && (
+                  <button
+                    type="button"
+                    className="skull-card-help-link"
+                    onClick={() => setAbilityCard(card)}
+                    aria-label={`Explain ${formatSkullKingCard(card)}`}
+                  >
+                    What does this do?
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -298,6 +312,7 @@ export default function SkullKingClient() {
       )}
       {game.phase === "roundComplete" && <RoundDialog game={game} onContinue={() => setGame((current) => startNextSkullKingRound(current))} />}
       {game.phase === "gameOver" && <GameOverDialog game={game} onRestart={startGame} onExit={() => setGame(null)} />}
+      {abilityCard && <CardAbilityDialog card={abilityCard} onClose={() => setAbilityCard(null)} />}
       <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
     </main>
   );
@@ -543,6 +558,31 @@ function ChoiceDialog({ card, onChoose, onClose }) {
           <button type="button" onClick={() => onChoose(0)}><b>0</b><span>Play low</span></button>
           <button type="button" onClick={() => onChoose(14)}><b>14</b><span>Play high</span></button>
         </div>
+      </section>
+    </div>
+  );
+}
+
+function CardAbilityDialog({ card, onClose }) {
+  const help = getSkullKingCardHelp(card);
+  if (!help) return null;
+
+  return (
+    <div className="skull-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="card-ability-dialog" role="dialog" aria-modal="true" aria-labelledby="card-ability-title">
+        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close card ability"><X size={20} /></button>
+        <span className="panel-kicker">Card ability</span>
+        <div className="card-ability-content">
+          <SkullCard card={card} className="ability-preview-card" />
+          <div>
+            <h2 id="card-ability-title">{help.title}</h2>
+            <p>{help.summary}</p>
+            <ul>
+              {help.details.map((detail) => <li key={detail}>{detail}</li>)}
+            </ul>
+          </div>
+        </div>
+        <button type="button" className="skull-primary full" onClick={onClose}>Got it</button>
       </section>
     </div>
   );
