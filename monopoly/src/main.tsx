@@ -323,6 +323,25 @@ export default function App() {
     !game.pendingJailExit &&
     !game.pendingTrade
   );
+  const showBoardFinishTurnButton = Boolean(
+    game &&
+    game.phase === 'playing' &&
+    game.turnStage === 'manage' &&
+    !game.pendingCard &&
+    !game.pendingPurchase &&
+    !game.pendingTax &&
+    !game.pendingRent &&
+    !game.pendingUtilityRent &&
+    !game.pendingDebt &&
+    !game.pendingAuction &&
+    !game.pendingJailExit &&
+    !game.pendingTrade
+  );
+  const finishTurnLabel = activePlayer?.isComputer
+    ? 'Computer is trading & building'
+    : activePlayer && !activePlayer.inJail && game?.lastRoll?.isDouble && game.doubleRollCount > 0
+      ? 'Finish & roll again'
+      : 'Finish trading & building';
   const pendingJailExitPlayer = game?.players.find((player) => player.id === game.pendingJailExit?.playerId);
   const canResolveJailExit =
     Boolean(game?.pendingJailExit?.playerId === playerId) || Boolean(isHost && pendingJailExitPlayer?.id.startsWith('local-'));
@@ -501,6 +520,27 @@ export default function App() {
           game={game}
           isRolling={isRolling}
           showRollButton={showBoardRollButton}
+          canAcknowledgeCard={canAcknowledgeCard}
+          canAnswerPurchase={canAnswerPurchase}
+          canAcknowledgeRent={canAcknowledgeRent}
+          onAcknowledgeCard={() => void updateGame(acknowledgeCard)}
+          onBuyProperty={() => void updateGame(buyPendingProperty)}
+          onAuctionProperty={() => void updateGame(declinePendingProperty)}
+          onAcknowledgeRent={() => void updateGame(acknowledgeRent)}
+          showFinishTurnButton={showBoardFinishTurnButton}
+          canFinishTurn={Boolean(canControlTurn && game.phase !== 'gameOver')}
+          finishTurnLabel={finishTurnLabel}
+          onFinishTurn={() => {
+            if (activePlayer) void updateGame((state) => finishManagementStage(state, activePlayer.id));
+          }}
+          needsJailChoice={needsJailChoice}
+          canChooseJail={canChooseJail}
+          onPayToLeaveJail={() => void updateGame(payToLeaveJail)}
+          onUseGetOutOfJailFree={() => void updateGame(useGetOutOfJailFree)}
+          onStayInJailAndRoll={() => void updateGame(stayInJailAndRoll)}
+          canResolveJailExit={canResolveJailExit}
+          onPayForcedJailExit={() => void updateGame(payForcedJailExit)}
+          onUseCardForForcedJailExit={() => void updateGame(useCardForForcedJailExit)}
           canManageBuildings={Boolean(canControlTurn && game.phase === 'playing' && game.turnStage === 'manage')}
           buildingPlayerId={activePlayer?.id}
           onBuild={(spaceId) => {
@@ -552,15 +592,10 @@ export default function App() {
               </div>
             )}
 
-            {game.pendingCard && <DrawnCardPanel game={game} />}
-            {game.pendingPurchase && <PurchasePanel game={game} />}
             {game.pendingTax && <TaxPanel game={game} />}
             {game.pendingUtilityRent && <UtilityRentPanel game={game} />}
-            {game.pendingRent && <RentPanel game={game} />}
             {game.pendingDebt && <DebtPanel game={game} />}
             {game.pendingAuction && <AuctionPanel game={game} />}
-            {game.pendingJailExit && <ForcedJailExitPanel game={game} />}
-            {needsJailChoice && <JailPanel player={activePlayer} />}
 
             {game.phase === 'lobby' ? (
               <div className="lobby-actions">
@@ -590,18 +625,9 @@ export default function App() {
                 </button>
               </div>
             ) : game.pendingCard ? (
-              <button className="primary full" disabled={!canAcknowledgeCard || game.phase === 'gameOver'} onClick={() => updateGame(acknowledgeCard)}>
-                <Check size={18} /> Acknowledge card
-              </button>
+              <p className="board-action-note">Acknowledge the card from the center of the board.</p>
             ) : game.pendingPurchase ? (
-              <div className="decision-actions">
-                <button className="primary full" disabled={!canAnswerPurchase || game.phase === 'gameOver'} onClick={() => updateGame(buyPendingProperty)}>
-                  Buy
-                </button>
-                <button className="full" disabled={!canAnswerPurchase || game.phase === 'gameOver'} onClick={() => updateGame(declinePendingProperty)}>
-                  Auction
-                </button>
-              </div>
+              <p className="board-action-note">Choose Buy or Auction from the center of the board.</p>
             ) : game.pendingTax ? (
               game.pendingTax.flatAmount === 75 ? (
                 <button className="primary full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => updateGame(payFlatIncomeTax)}>
@@ -630,9 +656,7 @@ export default function App() {
                 {pendingDebtIsInsolvent ? 'Transfer assets and leave game' : 'Finish payment'}
               </button>
             ) : game.pendingRent ? (
-              <button className="primary full" disabled={!canAcknowledgeRent || game.phase === 'gameOver'} onClick={() => updateGame(acknowledgeRent)}>
-                <Check size={18} /> Acknowledge rent
-              </button>
+              <p className="board-action-note">Acknowledge the rent from the center of the board.</p>
             ) : game.pendingTrade ? (
               <p className="board-action-note">Trade offer and response controls are shown in the center of the board.</p>
             ) : game.pendingAuction ? (
@@ -650,46 +674,11 @@ export default function App() {
                 </button>
               </div>
             ) : game.pendingJailExit ? (
-              <div className="decision-actions">
-                <button className="primary full" disabled={!canResolveJailExit || game.phase === 'gameOver'} onClick={() => updateGame(payForcedJailExit)}>
-                  Pay $50
-                </button>
-                <button
-                  className="full"
-                  disabled={!canResolveJailExit || !pendingJailExitPlayer || pendingJailExitPlayer.getOutOfJailFreeCards <= 0}
-                  onClick={() => updateGame(useCardForForcedJailExit)}
-                >
-                  Use Card
-                </button>
-              </div>
+              <p className="board-action-note">Choose how to leave Jail from the center of the board.</p>
             ) : game.turnStage === 'manage' ? (
-              <button
-                className="primary full"
-                disabled={!canControlTurn || game.phase === 'gameOver'}
-                onClick={() => activePlayer && updateGame((state) => finishManagementStage(state, activePlayer.id))}
-              >
-                {activePlayer?.isComputer
-                  ? 'Computer is trading & building'
-                  : activePlayer && !activePlayer.inJail && game.lastRoll?.isDouble && game.doubleRollCount > 0
-                    ? 'Finish & roll again'
-                    : 'Finish trading & building'}
-              </button>
+              <p className="board-action-note">Finish trading and building from the center of the board.</p>
             ) : needsJailChoice ? (
-              <div className="jail-actions">
-                <button className="primary full" disabled={!canChooseJail || !activePlayer || activePlayer.money < 50} onClick={() => updateGame(payToLeaveJail)}>
-                  Pay $50
-                </button>
-                <button
-                  className="full"
-                  disabled={!canChooseJail || !activePlayer || activePlayer.getOutOfJailFreeCards <= 0}
-                  onClick={() => updateGame(useGetOutOfJailFree)}
-                >
-                  Use Card
-                </button>
-                <button className="full" disabled={!canChooseJail} onClick={() => updateGame(stayInJailAndRoll)}>
-                  Stay & Roll
-                </button>
-              </div>
+              <p className="board-action-note">Choose how to handle Jail from the center of the board.</p>
             ) : null}
 
             <p className="hint">
@@ -1087,6 +1076,25 @@ function Board({
   game,
   isRolling,
   showRollButton,
+  canAcknowledgeCard,
+  canAnswerPurchase,
+  canAcknowledgeRent,
+  onAcknowledgeCard,
+  onBuyProperty,
+  onAuctionProperty,
+  onAcknowledgeRent,
+  showFinishTurnButton,
+  canFinishTurn,
+  finishTurnLabel,
+  onFinishTurn,
+  needsJailChoice,
+  canChooseJail,
+  onPayToLeaveJail,
+  onUseGetOutOfJailFree,
+  onStayInJailAndRoll,
+  canResolveJailExit,
+  onPayForcedJailExit,
+  onUseCardForForcedJailExit,
   canManageBuildings,
   buildingPlayerId,
   onBuild,
@@ -1113,6 +1121,25 @@ function Board({
   game: GameState;
   isRolling: boolean;
   showRollButton: boolean;
+  canAcknowledgeCard: boolean;
+  canAnswerPurchase: boolean;
+  canAcknowledgeRent: boolean;
+  onAcknowledgeCard: () => void;
+  onBuyProperty: () => void;
+  onAuctionProperty: () => void;
+  onAcknowledgeRent: () => void;
+  showFinishTurnButton: boolean;
+  canFinishTurn: boolean;
+  finishTurnLabel: string;
+  onFinishTurn: () => void;
+  needsJailChoice: boolean;
+  canChooseJail: boolean;
+  onPayToLeaveJail: () => void;
+  onUseGetOutOfJailFree: () => void;
+  onStayInJailAndRoll: () => void;
+  canResolveJailExit: boolean;
+  onPayForcedJailExit: () => void;
+  onUseCardForForcedJailExit: () => void;
   canManageBuildings: boolean;
   buildingPlayerId?: string;
   onBuild: (spaceId: number) => void;
@@ -1179,6 +1206,9 @@ function Board({
       };
     }
   }
+  const hasBoardPendingAction = Boolean(
+    game.pendingCard || game.pendingPurchase || game.pendingRent || game.pendingJailExit || needsJailChoice
+  );
 
   React.useEffect(() => {
     if (isTradeMode) setSelectedSpaceId(null);
@@ -1188,6 +1218,7 @@ function Board({
     <section className="board" aria-label="Monopoly board">
       {board.map((space) => {
         const owner = game.players.find((player) => player.properties.includes(space.id));
+        const isMortgaged = Boolean(owner?.mortgagedProperties.includes(space.id));
         const improvementLevel = game.improvements[space.id] ?? 0;
         const tradeRole = owner?.id === tradePlayerId ? 'offer' : owner ? 'request' : undefined;
         const tradeSelected = tradeRole === 'offer'
@@ -1203,6 +1234,7 @@ function Board({
             space={space}
             players={game.players.filter((player) => player.position === space.id && !player.bankrupt)}
             improvementLevel={improvementLevel}
+            isMortgaged={isMortgaged}
             tradeRole={tradeSelectable ? tradeRole : undefined}
             tradeSelected={tradeSelected}
             onTradeToggle={tradeSelectable ? () => onTradePropertyToggle(space.id) : undefined}
@@ -1213,6 +1245,7 @@ function Board({
       })}
       {board.filter((space) => space.price).map((space) => {
         const owner = game.players.find((player) => player.properties.includes(space.id));
+        const isMortgaged = Boolean(owner?.mortgagedProperties.includes(space.id));
         const improvementLevel = game.improvements[space.id] ?? 0;
         const improvementCost = getImprovementCost(space.id);
         const showBuildButton = Boolean(
@@ -1238,7 +1271,7 @@ function Board({
             className={`board-status-marker ${getBoardSide(space.id)}`}
             style={getGridPosition(space.id)}
           >
-            <PropertyOwnership owner={owner} />
+            <PropertyOwnership owner={owner} mortgaged={isMortgaged} />
             {showBuildButton && (
               <button
                 className="board-build-button"
@@ -1257,7 +1290,7 @@ function Board({
           </div>
         );
       })}
-      <div className="board-center">
+      <div className={`board-center ${hasBoardPendingAction ? 'has-pending-action' : ''}`}>
         {game.pendingTrade ? (
           <div className="board-trade-offer" aria-label="Pending trade offer">
             <TradeOfferPanel game={game} />
@@ -1281,6 +1314,24 @@ function Board({
                 </button>
               )}
             </div>
+            <BoardPendingActionControls
+              game={game}
+              canAcknowledgeCard={canAcknowledgeCard}
+              canAnswerPurchase={canAnswerPurchase}
+              canAcknowledgeRent={canAcknowledgeRent}
+              onAcknowledgeCard={onAcknowledgeCard}
+              onBuyProperty={onBuyProperty}
+              onAuctionProperty={onAuctionProperty}
+              onAcknowledgeRent={onAcknowledgeRent}
+              needsJailChoice={needsJailChoice}
+              canChooseJail={canChooseJail}
+              onPayToLeaveJail={onPayToLeaveJail}
+              onUseGetOutOfJailFree={onUseGetOutOfJailFree}
+              onStayInJailAndRoll={onStayInJailAndRoll}
+              canResolveJailExit={canResolveJailExit}
+              onPayForcedJailExit={onPayForcedJailExit}
+              onUseCardForForcedJailExit={onUseCardForForcedJailExit}
+            />
             {showTradeButton && (
               <div className="board-trade-action">
                 <button className={isTradeMode ? 'trade-cancel' : ''} onClick={onToggleTradeMode}>
@@ -1295,13 +1346,22 @@ function Board({
                 </button>
               </div>
             )}
-            <p>
-              {isTradeMode
-                ? 'Select at least one of your deeds and one deed from another player.'
-                : showTradeButton
-                  ? 'View a deed to mortgage it, start a trade, or use the house buttons to build on a monopoly.'
-                : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
-            </p>
+            {showFinishTurnButton && (
+              <div className="board-trade-action board-finish-action">
+                <button className="primary" disabled={!canFinishTurn} onClick={onFinishTurn}>
+                  <Check size={18} /> {finishTurnLabel}
+                </button>
+              </div>
+            )}
+            {!hasBoardPendingAction && (
+              <p>
+                {isTradeMode
+                  ? 'Select at least one of your deeds and one deed from another player.'
+                  : showTradeButton
+                    ? 'View a deed to mortgage it, start a trade, or use the house buttons to build on a monopoly.'
+                    : 'Buy deeds, start auctions, collect rent, dodge taxes, and keep rolling.'}
+              </p>
+            )}
           </>
         )}
       </div>
@@ -1321,10 +1381,132 @@ function Board({
   );
 }
 
+function BoardPendingActionControls({
+  game,
+  canAcknowledgeCard,
+  canAnswerPurchase,
+  canAcknowledgeRent,
+  onAcknowledgeCard,
+  onBuyProperty,
+  onAuctionProperty,
+  onAcknowledgeRent,
+  needsJailChoice,
+  canChooseJail,
+  onPayToLeaveJail,
+  onUseGetOutOfJailFree,
+  onStayInJailAndRoll,
+  canResolveJailExit,
+  onPayForcedJailExit,
+  onUseCardForForcedJailExit
+}: {
+  game: GameState;
+  canAcknowledgeCard: boolean;
+  canAnswerPurchase: boolean;
+  canAcknowledgeRent: boolean;
+  onAcknowledgeCard: () => void;
+  onBuyProperty: () => void;
+  onAuctionProperty: () => void;
+  onAcknowledgeRent: () => void;
+  needsJailChoice: boolean;
+  canChooseJail: boolean;
+  onPayToLeaveJail: () => void;
+  onUseGetOutOfJailFree: () => void;
+  onStayInJailAndRoll: () => void;
+  canResolveJailExit: boolean;
+  onPayForcedJailExit: () => void;
+  onUseCardForForcedJailExit: () => void;
+}) {
+  if (game.pendingCard) {
+    return (
+      <section className="board-pending-action" aria-live="polite">
+        <DrawnCardPanel game={game} />
+        <div className="decision-actions">
+          <button className="primary" disabled={!canAcknowledgeCard || game.phase === 'gameOver'} onClick={onAcknowledgeCard}>
+            <Check size={18} /> Acknowledge card
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (game.pendingPurchase) {
+    const space = board[game.pendingPurchase.spaceId];
+    return (
+      <section className="board-pending-action" aria-live="polite">
+        <PurchasePanel game={game} />
+        <div className="decision-actions">
+          <button className="primary" disabled={!canAnswerPurchase || game.phase === 'gameOver'} onClick={onBuyProperty}>
+            Buy for ${space.price}
+          </button>
+          <button disabled={!canAnswerPurchase || game.phase === 'gameOver'} onClick={onAuctionProperty}>
+            Auction
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (game.pendingRent) {
+    return (
+      <section className="board-pending-action" aria-live="polite">
+        <RentPanel game={game} />
+        <div className="decision-actions">
+          <button className="primary" disabled={!canAcknowledgeRent || game.phase === 'gameOver'} onClick={onAcknowledgeRent}>
+            <Check size={18} /> Acknowledge rent
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (game.pendingJailExit) {
+    const player = game.players.find((candidate) => candidate.id === game.pendingJailExit?.playerId);
+    return (
+      <section className="board-pending-action" aria-live="polite">
+        <ForcedJailExitPanel game={game} />
+        <div className="decision-actions">
+          <button className="primary" disabled={!canResolveJailExit || game.phase === 'gameOver'} onClick={onPayForcedJailExit}>
+            Pay $50
+          </button>
+          <button
+            disabled={!canResolveJailExit || !player || player.getOutOfJailFreeCards <= 0}
+            onClick={onUseCardForForcedJailExit}
+          >
+            Use Card
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (needsJailChoice) {
+    const player = game.players[game.currentPlayerIndex];
+    return (
+      <section className="board-pending-action" aria-live="polite">
+        <JailPanel player={player} />
+        <div className="jail-actions">
+          <button className="primary" disabled={!canChooseJail || !player || player.money < 50} onClick={onPayToLeaveJail}>
+            Pay $50
+          </button>
+          <button disabled={!canChooseJail || !player || player.getOutOfJailFreeCards <= 0} onClick={onUseGetOutOfJailFree}>
+            Use Card
+          </button>
+          <button disabled={!canChooseJail} onClick={onStayInJailAndRoll}>
+            Stay & Roll
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return null;
+}
+
 function BoardSpace({
   space,
   players,
   improvementLevel,
+  isMortgaged,
   tradeRole,
   tradeSelected = false,
   onTradeToggle,
@@ -1334,6 +1516,7 @@ function BoardSpace({
   space: Space;
   players: Player[];
   improvementLevel: number;
+  isMortgaged: boolean;
   tradeRole?: 'offer' | 'request';
   tradeSelected?: boolean;
   onTradeToggle?: () => void;
@@ -1345,14 +1528,14 @@ function BoardSpace({
   const tradeAction = tradeRole === 'offer' ? 'offer' : 'request';
   return (
     <div
-      className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${onShowDetails ? 'deed-clickable' : ''} ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
+      className={`space ${cornerIds.has(space.id) ? 'corner' : ''} ${getBoardSide(space.id)} ${space.kind}-space ${isMortgaged ? 'mortgaged-space' : ''} ${onShowDetails ? 'deed-clickable' : ''} ${onTradeToggle ? `trade-selectable trade-${tradeRole}` : ''} ${tradeSelected ? 'trade-selected' : ''}`}
       style={style}
       role={action ? 'button' : undefined}
       tabIndex={action ? 0 : undefined}
       aria-pressed={onTradeToggle ? tradeSelected : undefined}
       aria-label={onTradeToggle
         ? `${tradeSelected ? 'Remove' : 'Add'} ${space.name} ${tradeSelected ? 'from' : 'to'} trade ${tradeAction}`
-        : onShowDetails ? `View deed details for ${space.name}` : undefined}
+        : onShowDetails ? `View deed details for ${space.name}${isMortgaged ? ', mortgaged' : ''}` : undefined}
       title={onTradeToggle
         ? `${tradeSelected ? 'Remove from' : 'Add to'} trade ${tradeAction}`
         : onShowDetails ? `View ${space.name} deed` : undefined}
@@ -1376,7 +1559,9 @@ function BoardSpace({
       )}
       {(space.kind === 'chance' || space.kind === 'community') && <SpecialSpaceArt kind={space.kind} />}
       <span className="space-name">{space.name}</span>
-      {space.price && <span className="space-price">${space.price}</span>}
+      {space.price && (isMortgaged ? (
+        <span className="space-price mortgage-space-label" aria-label="Mortgaged" title="Mortgaged">M</span>
+      ) : <span className="space-price">${space.price}</span>)}
       {space.kind === 'tax' && <span className="space-price">{getTaxText(space)}</span>}
       <div className={`tokens ${players.length > 1 ? 'stacked' : ''}`}>
         {players.map((player) => (
@@ -1570,7 +1755,7 @@ function CornerSpaceArt({ spaceId }: { spaceId: number }) {
   return <img className={`corner-art ${image.className}`} src={image.src} alt="" aria-hidden="true" />;
 }
 
-function PropertyOwnership({ owner }: { owner?: Player }) {
+function PropertyOwnership({ owner, mortgaged = false }: { owner?: Player; mortgaged?: boolean }) {
   if (!owner) {
     return (
       <span className="property-ownership available" aria-label="Available from the bank" title="Available from the bank">
@@ -1584,9 +1769,9 @@ function PropertyOwnership({ owner }: { owner?: Player }) {
   const Icon = pieceIcons[piece];
   return (
     <span
-      className={`property-ownership owned ${owner.color}`}
-      aria-label={`Owned by ${owner.name}`}
-      title={`Owned by ${owner.name}`}
+      className={`property-ownership owned ${owner.color} ${mortgaged ? 'mortgaged' : ''}`}
+      aria-label={`Owned by ${owner.name}${mortgaged ? ', mortgaged' : ''}`}
+      title={`Owned by ${owner.name}${mortgaged ? ' — Mortgaged' : ''}`}
     >
       <Icon className="ownership-icon" size={10} strokeWidth={3} aria-hidden="true" />
     </span>

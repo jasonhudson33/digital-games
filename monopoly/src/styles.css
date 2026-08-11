@@ -336,6 +336,10 @@
   transform: rotate(-12deg);
 }
 
+.monopoly-page .board-center.has-pending-action .board-title{
+  font-size: clamp(1.8rem, 5vw, 3.8rem);
+}
+
 .monopoly-page .board-center p{
   max-width: 430px;
   color: #44524b;
@@ -414,6 +418,12 @@
   color: #8c2d32;
 }
 
+.monopoly-page .board-finish-action button{
+  border-color: #1e7045;
+  background: #256f45;
+  color: #fffaf0;
+}
+
 .monopoly-page .board-dice-area{
   width: min(360px, 86%);
   display: grid;
@@ -454,6 +464,39 @@
   font-weight: 950;
 }
 
+.monopoly-page .board-pending-action{
+  position: relative;
+  z-index: 4;
+  width: min(420px, 90%);
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 2px solid #26332d;
+  border-radius: 10px;
+  background: #fff8e8;
+  text-align: left;
+  box-shadow: 5px 6px 0 rgba(29, 37, 33, 0.2);
+}
+
+.monopoly-page .board-pending-action .draw-card,
+.monopoly-page .board-pending-action .decision-panel{
+  min-height: 0;
+  gap: 7px;
+  padding: 11px;
+  box-shadow: none;
+}
+
+.monopoly-page .board-pending-action .decision-actions button,
+.monopoly-page .board-pending-action .jail-actions button{
+  min-height: 42px;
+  padding: 8px 12px;
+  font-weight: 950;
+}
+
+.monopoly-page .board-pending-action .decision-actions button:only-child{
+  grid-column: 1 / -1;
+}
+
 .monopoly-page .space{
   position: relative;
   min-width: 0;
@@ -480,6 +523,41 @@
   z-index: 8;
   outline: 3px solid #1f6c45;
   outline-offset: -3px;
+}
+
+.monopoly-page .space.mortgaged-space{
+  background-color: #fff0ed;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(163, 38, 45, 0.13) 0,
+    rgba(163, 38, 45, 0.13) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  box-shadow: inset 0 0 0 3px #a3262d;
+}
+
+.monopoly-page .space.mortgaged-space .space-name{
+  color: #741f26;
+}
+
+.monopoly-page .space-price.mortgage-space-label{
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #741f26;
+  border-radius: 50%;
+  background: #a3262d;
+  font-size: 0.43rem;
+  font-weight: 950;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .monopoly-page .space.trade-selectable{
@@ -884,6 +962,10 @@
   color: #5f6b63;
 }
 
+.monopoly-page .space-price.mortgage-space-label{
+  color: #fff;
+}
+
 .monopoly-page .tax-space .space-price{
   color: #b3222a;
   font-weight: 950;
@@ -930,6 +1012,13 @@
 .monopoly-page .property-ownership.owned{
   width: 15px;
   padding: 1px;
+}
+
+.monopoly-page .property-ownership.owned.mortgaged{
+  border: 2px solid #a3262d;
+  box-shadow:
+    0 0 0 2px rgba(255, 250, 240, 0.9),
+    0 2px 0 rgba(29, 37, 33, 0.2);
 }
 
 .monopoly-page .board-status-marker{
@@ -2018,6 +2107,15 @@
     display: none;
   }
 
+  .monopoly-page .space-price.mortgage-space-label{
+    width: 11px;
+    height: 11px;
+    min-height: 0;
+    display: inline-grid;
+    padding: 0;
+    font-size: 0.36rem;
+  }
+
   .monopoly-page .property-ownership{
     min-width: 13px;
     min-height: 13px;
@@ -2072,6 +2170,10 @@
 
   .monopoly-page .board-center .board-title{
     font-size: clamp(1.5rem, 10vw, 3.4rem);
+  }
+
+  .monopoly-page .board-center.has-pending-action .board-title{
+    font-size: clamp(1.2rem, 7vw, 2rem);
   }
 
   .monopoly-page .board-center p{
@@ -2174,5 +2276,65 @@
 
   .monopoly-page .board-roll-button{
     min-height: 40px;
+  }
+
+  .monopoly-page .board-pending-action{
+    width: min(270px, 96%);
+    gap: 4px;
+    padding: 6px;
+    border-radius: 7px;
+    box-shadow: 3px 4px 0 rgba(29, 37, 33, 0.2);
+  }
+
+  .monopoly-page .board-pending-action .draw-card,
+  .monopoly-page .board-pending-action .decision-panel{
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .monopoly-page .board-pending-action .draw-card::before{
+    inset: 4px;
+  }
+
+  .monopoly-page .board-pending-action .draw-card-header span,
+  .monopoly-page .board-pending-action .panel-label{
+    min-height: 17px;
+    padding: 0 5px;
+    font-size: 0.5rem;
+  }
+
+  .monopoly-page .board-pending-action .draw-card-header strong,
+  .monopoly-page .board-pending-action .tax-note{
+    font-size: 0.52rem;
+  }
+
+  .monopoly-page .board-pending-action .draw-card h3,
+  .monopoly-page .board-pending-action .decision-panel h3{
+    font-size: 0.72rem;
+  }
+
+  .monopoly-page .board-pending-action .draw-card p,
+  .monopoly-page .board-pending-action .decision-panel p{
+    font-size: 0.56rem;
+    line-height: 1.15;
+  }
+
+  .monopoly-page .board-pending-action .card-action,
+  .monopoly-page .board-pending-action .deed-summary{
+    min-height: 23px;
+    padding: 4px 5px;
+    font-size: 0.56rem;
+  }
+
+  .monopoly-page .board-pending-action .decision-actions,
+  .monopoly-page .board-pending-action .jail-actions{
+    gap: 5px;
+  }
+
+  .monopoly-page .board-pending-action .decision-actions button,
+  .monopoly-page .board-pending-action .jail-actions button{
+    min-height: 31px;
+    padding: 4px 6px;
+    font-size: 0.65rem;
   }
 }
