@@ -13,6 +13,7 @@ import {
   passPinochleRoom,
   passPinochleRoomPartnerCards,
   playPinochleRoomCard,
+  skipTwoPlayerPinochleRoomMeld,
   startPinochleRoom,
 } from "../lib/pinochle-rooms.js";
 import { loadPinochleRoom, savePinochleRoom } from "../lib/pinochle-room-store.js";
@@ -29,6 +30,9 @@ test("Pinochle rooms support human players and keep hands private", async () => 
   assert.equal(started.state.players[1].hand.length, 0);
   assert.ok(started.state.players[1].handCount > 0);
   assert.deepEqual(started.state.kitty, []);
+  assert.deepEqual(started.state.stock, []);
+  assert.equal(started.state.stockCount, 24);
+  assert.ok(started.state.stockTrumpCard);
 
   const guest = await getPinochleRoom({ roomCode, token: joined.token });
   assert.equal(guest.state.viewerPlayerIndex, 1);
@@ -153,10 +157,7 @@ test("any human can clear a completed room trick after reviewing it", async () =
   const host = await createPinochleRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
-  await startPinochleRoom({ roomCode, token: host.token });
-  await bidPinochleRoom({ roomCode, token: guest.token, amount: 200 });
-  await passPinochleRoom({ roomCode, token: host.token });
-  let state = (await choosePinochleRoomTrump({ roomCode, token: guest.token, trump: "spades" })).state;
+  let state = (await startPinochleRoom({ roomCode, token: host.token })).state;
   const tokens = [host.token, guest.token];
   while (state.phase === "playing") {
     const playerIndex = state.currentPlayerIndex;
@@ -168,7 +169,11 @@ test("any human can clear a completed room trick after reviewing it", async () =
   assert.equal(state.trick.length, 2);
   const winnerIndex = state.lastTrick.winnerPlayerIndex;
   const cleared = await clearPinochleRoomTrick({ roomCode, token: tokens[(winnerIndex + 1) % 2] });
-  assert.equal(cleared.state.phase, "playing");
+  assert.equal(cleared.state.phase, "two-player-melding");
   assert.equal(cleared.state.currentPlayerIndex, winnerIndex);
   assert.equal(cleared.state.trick.length, 0);
+  const afterDraw = await skipTwoPlayerPinochleRoomMeld({ roomCode, token: tokens[winnerIndex] });
+  assert.equal(afterDraw.state.phase, "playing");
+  assert.equal(afterDraw.state.currentPlayerIndex, winnerIndex);
+  assert.equal(afterDraw.state.stockCount, 22);
 });

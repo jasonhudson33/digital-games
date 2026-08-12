@@ -10,7 +10,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 
 **Meld**: Scoring card combinations shown after trump is chosen, including runs, arounds, marriages, pinochles, and dix.
 
-**Cutthroat**: Individual scoring used at two and three players.
+**Cutthroat**: Individual auction scoring used at three players. Two-player Draw Pinochle also scores individually but has no auction.
 
 **Partnership**: Two alternating teams used at four and six players.
 
@@ -18,10 +18,13 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 
 **Calling Partner**: A temporary five-player teammate who holds a jack of the declared trump suit.
 
+**Draw Pinochle**: The two-player variant with 12-card hands, a center stock, face-up trump card, and one optional meld by each trick winner before drawing.
+
 ## Relationships
 
 - The **Auction** produces one **Contract** and its bidder chooses trump.
 - The winning bidder leads the first **Trick**; each later trick is led by the previous trick's winner.
+- Two-player **Draw Pinochle** has no auction: the player left of the dealer leads, the turned stock card sets trump, and each trick winner may declare at most one previously undeclared meld before drawing first.
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
 - **Cutthroat** games do not have a **Partner Exchange**.
@@ -38,6 +41,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 ## Player-count variants
 
 - Two to five players use a 48-card deck containing two copies of each 9 through Ace in every suit.
+- Two-player deals give each player 12 cards; the remaining 24 form the center stock, with one card face up to establish trump.
 - Five-player deals give each player nine cards and leave a three-card center kitty that the bidder takes and replaces; bidding begins at 150.
 - All Pinochle scoring uses trailing-zero values: meld and trick counters are ten times their traditional shorthand values, and bids advance in increments of ten.
 - Six players use a 96-card deck containing four copies of each card.

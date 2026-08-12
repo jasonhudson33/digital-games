@@ -36,6 +36,7 @@ import {
   findTradeSet,
   fortifyTerritory,
   hasOwnedPath,
+  mustTradeCards,
   placeReinforcement,
   PLAYER_STYLES,
   resolveConquestMove,
@@ -44,6 +45,7 @@ import {
   tradeCards,
   territoriesForPlayer,
 } from "../lib/risk";
+import { RISK_BORDER_REGIONS, buildRiskTerritoryBorderSegments } from "../lib/risk-map-borders";
 import { RiskRoomService } from "./risk-room-service";
 
 const playerIdStorageKey = "risk-player-id";
@@ -122,6 +124,28 @@ function MapConnection({ fromId, toId, game }) {
   );
 }
 
+function RiskTerritoryBorders({ className }) {
+  const segments = RISK_BORDER_REGIONS.flatMap((region) =>
+    buildRiskTerritoryBorderSegments(region).map((segment, index) => ({
+      ...segment,
+      id: `${region.id}-${index}`,
+    })),
+  );
+  return (
+    <g className={className} aria-hidden="true">
+      {segments.map((segment) => (
+        <line
+          key={segment.id}
+          x1={segment.from.x}
+          y1={segment.from.y}
+          x2={segment.to.x}
+          y2={segment.to.y}
+        />
+      ))}
+    </g>
+  );
+}
+
 function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory, onTerritoryWheel }) {
   const playerId = viewerPlayerId;
   return (
@@ -131,6 +155,16 @@ function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory,
           <pattern id="ocean-lines" width="44" height="44" patternUnits="userSpaceOnUse">
             <path d="M0 22 Q11 15 22 22 T44 22" fill="none" stroke="rgba(255,255,255,.055)" strokeWidth="2" />
           </pattern>
+          <mask id="risk-land-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="650" style={{ maskType: "alpha" }}>
+            <image
+              href="https://upload.wikimedia.org/wikipedia/commons/c/c0/Equirectangular_projection_world_map_without_borders.svg"
+              x="0"
+              y="12"
+              width="1000"
+              height="580"
+              preserveAspectRatio="none"
+            />
+          </mask>
         </defs>
         <rect width="1000" height="650" fill="url(#ocean-lines)" />
         <image
@@ -142,6 +176,10 @@ function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory,
           height="580"
           preserveAspectRatio="none"
         />
+        <g mask="url(#risk-land-mask)">
+          <RiskTerritoryBorders className="risk-territory-border-halo" />
+          <RiskTerritoryBorders className="risk-territory-boundaries" />
+        </g>
         <g className="risk-routes">
           {MAP_CONNECTIONS.map(([fromId, toId]) => (
             <MapConnection key={`${fromId}-${toId}`} fromId={fromId} toId={toId} game={game} />
@@ -373,7 +411,7 @@ function RulesModal({ onClose }) {
           <li><strong>Occupy.</strong> After a conquest, choose how many armies move in. You must move at least as many as the dice used in the final attack.</li>
           <li><strong>Fortify.</strong> Once per turn, move armies between any two of your territories connected by your own land.</li>
           <li><strong>Earn cards.</strong> If you capture one or more territories, you receive one card when your turn ends. Eliminate a commander to take every card in their hand immediately.</li>
-          <li><strong>Trade sets.</strong> Trade three matching symbols or one of each. Normal rooms use fixed symbol values; Progressive rooms increase the reward after every set.</li>
+          <li><strong>Trade sets.</strong> Trade three matching symbols or one of each. At five or more cards, trading is required before any other move. Normal rooms use fixed symbol values; Progressive rooms increase the reward after every set.</li>
           <li><strong>Conquer.</strong> Capture all 42 territories to win the campaign.</li>
         </ol>
         <div className="continent-bonus-list">
@@ -493,6 +531,7 @@ export default function RiskClient() {
   const maxFortify = Math.max(1, (selectedSource?.armies ?? 1) - 1);
   const viewerPlayer = game?.players.find((player) => player.id === playerId);
   const availableTrade = findTradeSet(viewerPlayer?.cards);
+  const mandatoryTrade = Boolean(game && isMyTurn && !game.pendingConquest && mustTradeCards(game));
   const nextTradeBonus = tradeBonusFor(game?.tradesCompleted ?? 0, game?.cardTradeMode, availableTrade ?? []);
 
   const instruction = useMemo(() => {
@@ -501,6 +540,7 @@ export default function RiskClient() {
     if (!isMyTurn) return `${currentPlayer.name} is planning a move…`;
     if (actionNotice) return actionNotice;
     if (game.pendingConquest) return `Choose how many armies move into ${TERRITORIES[game.pendingConquest.toId].name}.`;
+    if (mandatoryTrade) return `You have ${viewerPlayer.cards.length} cards. Trade a set before making another move.`;
     if (game.phase === "reinforce") {
       return game.reinforcements === 0 ? "Deployment complete. Begin your attack." : `${game.reinforcements} armies remain. Select your territory, then scroll or use the controls.`;
     }
@@ -508,7 +548,7 @@ export default function RiskClient() {
     if (game.phase === "attack" && selectedFrom) return `Choose an adjacent rival from ${TERRITORIES[selectedFrom].name}.`;
     if (game.phase === "fortify" && selectedFrom && selectedTo) return `Move armies to ${TERRITORIES[selectedTo].name}, then end your turn.`;
     return phase.copy;
-  }, [game, isMyTurn, currentPlayer, phase, selectedFrom, selectedTo, actionNotice]);
+  }, [game, isMyTurn, currentPlayer, phase, selectedFrom, selectedTo, actionNotice, mandatoryTrade, viewerPlayer]);
 
   useEffect(() => {
     setActionNotice("");
@@ -674,6 +714,10 @@ export default function RiskClient() {
 
   const chooseTerritory = (territoryId) => {
     if (!isMyTurn || game.winnerId || game.pendingConquest) return;
+    if (mandatoryTrade) {
+      setActionNotice("You must trade cards before making another move.");
+      return;
+    }
     const territory = game.territories[territoryId];
     const owned = territory.ownerId === currentPlayer.id;
     if (game.phase === "reinforce") {
@@ -851,7 +895,7 @@ export default function RiskClient() {
             {Object.entries(CONTINENTS).map(([id, continent]) => (
               <span key={id}><i style={{ background: continent.color }} />{continent.name}<b>+{continent.bonus}</b></span>
             ))}
-            <a href="https://commons.wikimedia.org/wiki/File:Equirectangular_projection_world_map_without_borders.svg" target="_blank" rel="noreferrer">Map: Ebrahim / CC BY-SA 4.0</a>
+            <a href="https://commons.wikimedia.org/wiki/File:Equirectangular_projection_world_map_without_borders.svg" target="_blank" rel="noreferrer">Land: Ebrahim / CC BY-SA</a>
           </div>
         </div>
 
@@ -860,13 +904,20 @@ export default function RiskClient() {
             <p className="risk-kicker">Your command</p>
             <div className="command-heading"><PhaseIcon size={22} /><div><h2>{phase.label}</h2><span>Step {game.phase === "reinforce" ? 1 : game.phase === "attack" ? 2 : 3} of 3</span></div></div>
 
+            {isMyTurn && availableTrade && (game.phase === "reinforce" || mandatoryTrade) && (
+              <button type="button" className={`risk-trade-button ${mandatoryTrade ? "mandatory" : ""}`} onClick={() => void updateGame(tradeCards)}>
+                <span>{availableTrade.map((card) => CARD_TYPES[card.type].symbol).join(" ")}</span>
+                {mandatoryTrade ? "Trade required" : "Trade card set"} <b>+{nextTradeBonus}</b>
+              </button>
+            )}
+
             {game.phase === "reinforce" && (
               <>
                 <div className="reinforcement-counter">
                   <strong>{game.reinforcements}</strong>
                   <span>armies<br />to deploy</span>
                 </div>
-                {isMyTurn && selectedFrom && game.reinforcements > 0 && (
+                {isMyTurn && !mandatoryTrade && selectedFrom && game.reinforcements > 0 && (
                   <div className="risk-deploy-picker">
                     <div className="risk-picker-heading"><span>Deploy to</span><strong>{TERRITORIES[selectedFrom].name}</strong></div>
                     <div className="army-stepper">
@@ -879,16 +930,10 @@ export default function RiskClient() {
                     <button type="button" className="risk-primary" onClick={confirmReinforcement}>Deploy {reinforceCount}</button>
                   </div>
                 )}
-                {isMyTurn && availableTrade && (
-                  <button type="button" className="risk-trade-button" onClick={() => void updateGame(tradeCards)}>
-                    <span>{availableTrade.map((card) => CARD_TYPES[card.type].symbol).join(" ")}</span>
-                    Trade card set <b>+{nextTradeBonus}</b>
-                  </button>
-                )}
               </>
             )}
 
-            {game.phase === "attack" && (
+            {game.phase === "attack" && !mandatoryTrade && (
               <>
                 <div className="selection-summary">
                   <div className={selectedFrom ? "filled" : ""}><Target size={16} /><span>From</span><strong>{selectedFrom ? TERRITORIES[selectedFrom].name : "Select territory"}</strong></div>
@@ -909,7 +954,7 @@ export default function RiskClient() {
               </>
             )}
 
-            {game.phase === "fortify" && (
+            {game.phase === "fortify" && !mandatoryTrade && (
               <>
                 <div className="selection-summary fortify">
                   <div className={selectedFrom ? "filled" : ""}><Flag size={16} /><span>Move from</span><strong>{selectedFrom ? TERRITORIES[selectedFrom].name : "Select source"}</strong></div>
@@ -946,12 +991,12 @@ export default function RiskClient() {
               </div>
             )}
 
-            {game.phase === "attack" && selectedFrom && selectedTo && !game.pendingConquest && (
+            {game.phase === "attack" && !mandatoryTrade && selectedFrom && selectedTo && !game.pendingConquest && (
               <button type="button" className="risk-primary attack-button" onClick={rollAttack} disabled={isBattleRolling}>
                 <Dice5 size={19} /> {isBattleRolling ? "Rolling…" : `Roll ${attackDiceCount} attack ${attackDiceCount === 1 ? "die" : "dice"}`}
               </button>
             )}
-            {game.phase === "fortify" && selectedFrom && selectedTo && (
+            {game.phase === "fortify" && !mandatoryTrade && selectedFrom && selectedTo && (
               <button type="button" className="risk-primary" onClick={() => setConfirmAction("fortify")}>
                 <Flag size={18} /> Move & end turn
               </button>
@@ -960,7 +1005,7 @@ export default function RiskClient() {
               type="button"
               className="risk-secondary"
               onClick={requestPhaseChange}
-              disabled={!isMyTurn || isBattleRolling || Boolean(game.pendingConquest) || (game.phase === "reinforce" && game.reinforcements > 0)}
+              disabled={!isMyTurn || mandatoryTrade || isBattleRolling || Boolean(game.pendingConquest) || (game.phase === "reinforce" && game.reinforcements > 0)}
             >
               {game.phase === "reinforce" ? "Begin attack" : game.phase === "attack" ? "End attacks" : "Skip & end turn"}
               <ChevronRight size={17} />

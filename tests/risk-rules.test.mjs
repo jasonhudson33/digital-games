@@ -12,6 +12,7 @@ import {
   findTradeSet,
   fortifyTerritory,
   hasOwnedPath,
+  mustTradeCards,
   placeReinforcement,
   resolveBattle,
   resolveConquestMove,
@@ -256,6 +257,46 @@ test("trading cards adds the progressive army bonus", () => {
   assert.equal(next.players[0].cards.length, 0);
   assert.equal(next.reinforcements, game.reinforcements + 4);
   assert.equal(next.tradesCompleted, 1);
+});
+
+test("five or more cards force a trade before reinforcement or phase changes", () => {
+  const base = createRiskGame("Avery", () => 0.25);
+  const cards = [
+    { id: "1", type: "infantry" }, { id: "2", type: "infantry" }, { id: "3", type: "infantry" },
+    { id: "4", type: "cavalry" }, { id: "5", type: "artillery" },
+  ];
+  const game = { ...base, players: base.players.map((player, index) => index === 0 ? { ...player, cards } : player) };
+  const owned = Object.keys(game.territories).find((id) => game.territories[id].ownerId === "human");
+  assert.equal(mustTradeCards(game), true);
+  assert.equal(placeReinforcement(game, owned, 1), game);
+  const readyToAdvance = { ...game, reinforcements: 0 };
+  assert.equal(advancePhase(readyToAdvance), readyToAdvance);
+  const traded = tradeCards(game);
+  assert.equal(traded.players[0].cards.length, 2);
+  assert.equal(mustTradeCards(traded), false);
+  assert.notEqual(placeReinforcement(traded, owned, 1), traded);
+});
+
+test("a forced trade during an attack pauses for deployment and then resumes attacking", () => {
+  const base = createRiskGame("Avery", () => 0.25);
+  const cards = [
+    { id: "1", type: "infantry" }, { id: "2", type: "infantry" }, { id: "3", type: "infantry" },
+    { id: "4", type: "cavalry" }, { id: "5", type: "artillery" },
+  ];
+  const game = {
+    ...base,
+    phase: "attack",
+    reinforcements: 0,
+    players: base.players.map((player, index) => index === 0 ? { ...player, cards } : player),
+  };
+  const traded = tradeCards(game);
+  assert.equal(traded.phase, "reinforce");
+  assert.equal(traded.resumePhaseAfterTrade, "attack");
+  const owned = Object.keys(traded.territories).find((id) => traded.territories[id].ownerId === "human");
+  const deployed = placeReinforcement(traded, owned, traded.reinforcements);
+  const resumed = advancePhase(deployed);
+  assert.equal(resumed.phase, "attack");
+  assert.equal(resumed.resumePhaseAfterTrade, null);
 });
 
 test("normal card trades use fixed values based on the traded symbols", () => {

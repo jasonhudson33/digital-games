@@ -4,6 +4,7 @@ import {
   bidPinochleRoom,
   choosePinochleRoomTrump,
   clearPinochleRoomTrick,
+  declareTwoPlayerPinochleRoomMeld,
   discardPinochleRoomKitty,
   getPinochleRoom,
   joinPinochleRoom,
@@ -13,6 +14,7 @@ import {
   removePinochleComputer,
   startNextPinochleRoomRound,
   startPinochleRoom,
+  skipTwoPlayerPinochleRoomMeld,
   returnPinochleRoomPartnerCards,
 } from "../../../../../lib/pinochle-rooms";
 
@@ -37,6 +39,8 @@ export async function POST(request, context) {
     returnPartnerCards: returnPinochleRoomPartnerCards,
     playCard: playPinochleRoomCard,
     clearTrick: clearPinochleRoomTrick,
+    declareMeld: declareTwoPlayerPinochleRoomMeld,
+    skipMeld: skipTwoPlayerPinochleRoomMeld,
     nextRound: startNextPinochleRoomRound,
   });
 }

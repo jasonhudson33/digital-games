@@ -13,7 +13,9 @@ import {
   clearPinochleTrick,
   createPinochleDeck,
   createPinochleGame,
+  declareTwoPlayerPinochleMeld,
   discardPinochleKitty,
+  getAvailableTwoPlayerMelds,
   getLegalPinochleCards,
   migratePinochleScoring,
   passPinochleBid,
@@ -21,6 +23,7 @@ import {
   placePinochleBid,
   playPinochleCard,
   returnPinochlePartnerCards,
+  skipTwoPlayerPinochleMeld,
 } from "../lib/pinochle.js";
 
 function players(count) {
@@ -36,12 +39,95 @@ test("Pinochle creates the right deck and seating for every supported room size"
     const game = createPinochleGame({ playerSeeds: players(count) });
     assert.equal(createPinochleDeck(count).length, count === 6 ? 96 : 48);
     assert.equal(game.players.length, count);
-    assert.ok(game.players.every((player) => player.hand.length === Math.floor(createPinochleDeck(count).length / count)));
+    const expectedHandSize = count === 2 ? 12 : Math.floor(createPinochleDeck(count).length / count);
+    assert.ok(game.players.every((player) => player.hand.length === expectedHandSize));
     assert.equal(game.kittySize, createPinochleDeck(count).length % count);
   }
   assert.deepEqual(createPinochleGame({ playerSeeds: players(4) }).players.map((player) => player.teamId), [0, 1, 0, 1]);
   assert.deepEqual(createPinochleGame({ playerSeeds: players(6) }).players.map((player) => player.teamId), [0, 1, 0, 1, 0, 1]);
   assert.deepEqual(createPinochleGame({ playerSeeds: players(5) }).players.map((player) => player.teamId), [0, 1, 2, 3, 4]);
+});
+
+test("two-player Pinochle deals twelve each and turns a stock card up for trump", () => {
+  const game = createPinochleGame({ playerSeeds: players(2) });
+  assert.equal(game.phase, "playing");
+  assert.ok(game.players.every((player) => player.hand.length === 12));
+  assert.equal(game.stock.length, 23);
+  assert.ok(game.stockTrumpCard);
+  assert.equal(game.trump, game.stockTrumpCard.suit);
+  assert.equal(game.highBidderIndex, null);
+  assert.equal(game.currentPlayerIndex, 1);
+});
+
+test("an open two-player stock allows any response, then closed-stock trick rules apply", () => {
+  const base = createPinochleGame({ playerSeeds: players(2) });
+  const followerHand = [
+    { id: "follow-club", copy: 0, suit: "clubs", rank: 9 },
+    { id: "off-suit", copy: 0, suit: "hearts", rank: 14 },
+  ];
+  const state = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 1,
+    trump: "spades",
+    trick: [{ playerIndex: 0, card: { id: "lead-club", copy: 1, suit: "clubs", rank: 11 } }],
+    players: base.players.map((player, index) => index === 1 ? { ...player, hand: followerHand } : player),
+    stock: [{ id: "stock", copy: 1, suit: "diamonds", rank: 9 }],
+    stockTrumpCard: { id: "turned", copy: 1, suit: "spades", rank: 9 },
+  };
+  assert.deepEqual(getLegalPinochleCards(state, 1).map((card) => card.id), ["follow-club", "off-suit"]);
+  assert.deepEqual(getLegalPinochleCards({ ...state, stock: [], stockTrumpCard: null }, 1).map((card) => card.id), ["follow-club"]);
+});
+
+test("a two-player trick winner may declare only one new meld before drawing", () => {
+  const base = createPinochleGame({ playerSeeds: players(2) });
+  const winnerHand = [
+    { id: "kh", copy: 0, suit: "hearts", rank: 13 },
+    { id: "qh", copy: 0, suit: "hearts", rank: 12 },
+    { id: "qs", copy: 0, suit: "spades", rank: 12 },
+    { id: "jd", copy: 0, suit: "diamonds", rank: 11 },
+  ];
+  let game = {
+    ...base,
+    phase: "two-player-melding",
+    currentPlayerIndex: 0,
+    leadPlayerIndex: 0,
+    trump: "hearts",
+    players: base.players.map((player, index) => ({ ...player, hand: index === 0 ? winnerHand : [] })),
+    melds: base.players.map(() => ({ total: 0, items: [] })),
+    teamMeldPoints: [0, 0],
+    twoPlayerDeclaredMeldPoints: [{}, {}],
+    stock: [{ id: "winner-draw", copy: 1, suit: "clubs", rank: 9 }],
+    stockTrumpCard: { id: "loser-draw", copy: 1, suit: "hearts", rank: 9 },
+  };
+  const available = getAvailableTwoPlayerMelds(game, 0);
+  assert.ok(available.some((meld) => meld.key.startsWith("Royal marriage")));
+  assert.ok(available.some((meld) => meld.key === "Pinochle"));
+  const marriage = available.find((meld) => meld.key.startsWith("Royal marriage"));
+  game = declareTwoPlayerPinochleMeld(game, 0, marriage.key);
+  assert.equal(game.phase, "playing");
+  assert.equal(game.melds[0].items.length, 1);
+  assert.equal(game.melds[0].total, 40);
+  assert.equal(game.players[0].hand.length, 5);
+  assert.equal(game.players[1].hand.length, 1);
+  assert.equal(game.stock.length, 0);
+  assert.equal(game.stockTrumpCard, null);
+
+  const nextOpportunity = { ...game, phase: "two-player-melding", currentPlayerIndex: 0 };
+  assert.ok(!getAvailableTwoPlayerMelds(nextOpportunity, 0).some((meld) => meld.key === marriage.key));
+  assert.ok(getAvailableTwoPlayerMelds(nextOpportunity, 0).some((meld) => meld.key === "Pinochle"));
+  const improvedOpportunity = {
+    ...nextOpportunity,
+    players: nextOpportunity.players.map((player, index) => index === 0 ? {
+      ...player,
+      hand: [
+        ...player.hand,
+        { id: "kh-2", copy: 1, suit: "hearts", rank: 13 },
+        { id: "qh-2", copy: 1, suit: "hearts", rank: 12 },
+      ],
+    } : player),
+  };
+  assert.equal(getAvailableTwoPlayerMelds(improvedOpportunity, 0).find((meld) => meld.key === marriage.key).points, 40);
 });
 
 test("five-player Pinochle uses one deck, a three-card kitty, and a minimum bid of 150", () => {
@@ -244,8 +330,8 @@ test("six-player bidder exchanges three cards with each teammate", () => {
   assert.ok(game.players.every((player) => player.hand.length === 16));
 });
 
-test("cutthroat tables skip partner trading", () => {
-  for (const count of [2, 3]) {
+test("three-player cutthroat tables skip partner trading", () => {
+  for (const count of [3]) {
     let game = createPinochleGame({ playerSeeds: players(count) });
     const bidder = game.currentPlayerIndex;
     game = placePinochleBid(game, bidder, game.minimumBid);
@@ -411,6 +497,9 @@ test("computer players can complete a full round at every table size", () => {
         game = passPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerPass(game, playerIndex));
       } else if (game.phase === "bidder-returning") {
         game = returnPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerReturn(game, playerIndex));
+      } else if (game.phase === "two-player-melding") {
+        const meld = getAvailableTwoPlayerMelds(game, playerIndex)[0];
+        game = meld ? declareTwoPlayerPinochleMeld(game, playerIndex, meld.key) : skipTwoPlayerPinochleMeld(game, playerIndex);
       } else if (game.phase === "trick-complete") {
         game = clearPinochleTrick(game);
       } else if (game.phase === "playing") {

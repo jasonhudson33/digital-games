@@ -6,6 +6,7 @@ import {
   PINOCHLE_SUITS,
   PINOCHLE_SUIT_SYMBOLS,
   formatPinochleCard,
+  getAvailableTwoPlayerMelds,
   getLegalPinochleCards,
   pinochleRankLabel,
   pinochleTeamName,
@@ -267,6 +268,9 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   const legalIds = useMemo(() => new Set(
     game.phase === "playing" && yourTurn ? getLegalPinochleCards(game, viewerIndex).map((card) => card.id) : [],
   ), [game, viewerIndex, yourTurn]);
+  const availableMelds = useMemo(() => yourTurn
+    ? getAvailableTwoPlayerMelds(game, viewerIndex)
+    : [], [game, viewerIndex, yourTurn]);
   const viewer = game.players[viewerIndex];
   const showResults = game.phase === "round-over" || game.phase === "game-over";
   const visibleTrick = game.trick;
@@ -282,7 +286,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   return (
     <main className="pn-app pn-game-shell">
       <header className="pn-gamebar">
-        <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
+        <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.playerCount === 2 ? "Draw Pinochle" : game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
         <div className="pn-header-actions"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave</button></div>
       </header>
 
@@ -308,7 +312,9 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 
         <div className="pn-table-center">
           <div className="pn-round-meta">
-            <span>Bid <strong>{game.highBid ?? "—"}</strong></span>
+            {game.playerCount === 2
+              ? <span>Stock <strong>{game.stockCount}</strong></span>
+              : <span>Bid <strong>{game.highBid ?? "—"}</strong></span>}
             <span>Trump <strong className={game.trump === "hearts" || game.trump === "diamonds" ? "red" : ""}>{game.trump ? PINOCHLE_SUIT_SYMBOLS[game.trump] : "—"}</strong></span>
             <span>Trick <strong>{showingCompletedTrick ? game.trickNumber : game.trickNumber + 1}</strong></span>
           </div>
@@ -324,6 +330,13 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
           )}
           <p className="pn-message" role="status">{game.message}</p>
           {showingCompletedTrick && <span className="pn-trick-label">Completed trick · {game.players[game.lastTrick.winnerPlayerIndex].name} won</span>}
+          {game.playerCount === 2 && game.stockCount > 0 && game.stockTrumpCard && (
+            <div className="pn-stock" aria-label={`${game.stockCount} cards remain in the draw stock; ${formatPinochleCard(game.stockTrumpCard)} is face up`}>
+              <div className="pn-card-back"><span>P</span></div>
+              <PinochleCard card={game.stockTrumpCard} />
+              <small>{game.stockCount} cards · trump card</small>
+            </div>
+          )}
           <div className="pn-trick-area">
             {visibleTrick.length ? visibleTrick.map((play) => (
               <div className={`pn-played-card ${showingCompletedTrick && play.playerIndex === game.lastTrick.winnerPlayerIndex ? "winner" : ""}`} key={`${play.playerIndex}-${play.card.id}`}>
@@ -331,7 +344,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
               </div>
             )) : <div className="pn-empty-trick"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></div>}
           </div>
-          <TurnControls game={game} busy={busy} yourTurn={yourTurn} minimumBid={minimumBid} bidAmount={bidAmount} setBidAmount={setBidAmount} selectedIds={selectedIds} onAction={onAction} />
+          <TurnControls game={game} busy={busy} yourTurn={yourTurn} minimumBid={minimumBid} bidAmount={bidAmount} setBidAmount={setBidAmount} selectedIds={selectedIds} availableMelds={availableMelds} onAction={onAction} />
         </div>
 
         {game.melds?.length > 0 && (
@@ -387,11 +400,20 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   );
 }
 
-function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmount, selectedIds, onAction }) {
+function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmount, selectedIds, availableMelds, onAction }) {
   if (game.phase === "trick-complete") {
-    return <div className="pn-turn-controls pn-clear-trick"><span>Everyone’s cards stay face-up until you are ready.</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("clearTrick")}>Clear trick</button></div>;
+    return <div className="pn-turn-controls pn-clear-trick"><span>{game.playerCount === 2 && game.stockCount > 0 ? "Keep the trick face-up, then let its winner choose one meld." : "Everyone’s cards stay face-up until you are ready."}</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("clearTrick")}>Clear trick</button></div>;
   }
   if (!yourTurn) return <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name}…</div>;
+  if (game.phase === "two-player-melding") {
+    return (
+      <div className="pn-turn-controls pn-meld-controls">
+        <span>Lay down one meld, or draw without melding.</span>
+        {availableMelds.map((meld) => <button type="button" className="pn-primary" disabled={busy} key={meld.key} onClick={() => onAction("declareMeld", { meldKey: meld.key })}>{meld.name} · {meld.points}</button>)}
+        <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("skipMeld")}>{availableMelds.length ? "Skip meld & draw" : "Draw cards"}</button>
+      </div>
+    );
+  }
   if (game.phase === "bidding") {
     return (
       <div className="pn-turn-controls pn-bid-controls">
@@ -425,7 +447,7 @@ function ResultsDialog({ game, busy, onAction, onLeave }) {
       <section className="pn-results" role="dialog" aria-modal="true" aria-label="Round results">
         <span className="pn-results-icon">{game.phase === "game-over" ? <Trophy size={28} /> : <Crown size={28} />}</span>
         <span className="pn-kicker">{game.phase === "game-over" ? "Game complete" : `Round ${game.roundNumber} complete`}</span>
-        <h2>{game.phase === "game-over" ? `${game.winnerTeamIds.map((id) => pinochleTeamName(game, id)).join(" & ")} wins!` : summary.madeContract ? "Contract made" : "Bidder set"}</h2>
+        <h2>{game.phase === "game-over" ? `${game.winnerTeamIds.map((id) => pinochleTeamName(game, id)).join(" & ")} wins!` : game.playerCount === 2 ? "Round scored" : summary.madeContract ? "Contract made" : "Bidder set"}</h2>
         <p>{game.message}</p>
         <div className="pn-result-table">
           <div><span>Team</span><span>Meld</span><span>Tricks</span><span>Round</span><span>Total</span></div>
@@ -457,9 +479,10 @@ function RulesDialog({ open, onClose }) {
       <section className="pn-rules" role="dialog" aria-modal="true" aria-labelledby="pn-rules-title">
         <button type="button" className="pn-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
         <span className="pn-kicker">How to play</span><h2 id="pn-rules-title">Room Pinochle</h2>
-        <p>Every round has three parts: win the auction, show meld, then take tricks. The bidder must earn at least the bid through meld and trick points or the bidding team is set back by the bid.</p>
+        <p>Three- through six-player rounds use an auction, public meld, and trick play; the bidder must earn the bid or be set back. Two-player Draw Pinochle skips the auction and lets each trick winner lay down one meld before drawing.</p>
         <div className="pn-rule-grid">
-          <div><strong>2 or 3 players</strong><p>Cutthroat scoring: every player is their own team.</p></div>
+          <div><strong>2 players</strong><p>Deal 12 cards each. Turn one center-stock card face up to set trump. The trick winner may lay down exactly one meld, then draws first while the other player draws second.</p></div>
+          <div><strong>3 players</strong><p>Cutthroat auction scoring: every player is their own team.</p></div>
           <div><strong>4 or 6 players</strong><p>Two fixed teams, seated alternately. Teammates combine meld and tricks, and exchange cards with the winning bidder.</p></div>
           <div><strong>5 players</strong><p>Deal nine cards each from one 48-card deck and place three cards in the center. Bidding starts at 150. Trump-jack holders join the bidder’s temporary team for scoring, with no card exchange.</p></div>
           <div><strong>The decks</strong><p>Two copies of every 9 through Ace for 2–5 players. Six-player games use four copies of every card.</p></div>
