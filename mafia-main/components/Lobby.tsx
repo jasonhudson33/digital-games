@@ -2,15 +2,25 @@
 import React from 'react';
 import { Player } from '../types';
 import Button from './Button';
+import { MAX_MAFIA_PLAYERS } from '../services/LobbyRules';
 
 interface LobbyProps {
   roomCode: string;
   players: Player[];
   isHost: boolean;
   onStart: () => void;
+  onAddComputer: () => void;
+  onRemoveComputer: (playerId: string) => void;
 }
 
-const Lobby: React.FC<LobbyProps> = ({ roomCode, players, isHost, onStart }) => {
+const Lobby: React.FC<LobbyProps> = ({
+  roomCode,
+  players,
+  isHost,
+  onStart,
+  onAddComputer,
+  onRemoveComputer,
+}) => {
   return (
     <div className="bg-slate-900/40 p-8 rounded-3xl border border-slate-800 backdrop-blur-md shadow-2xl animate-in fade-in zoom-in duration-500">
       <div className="text-center mb-8">
@@ -39,15 +49,41 @@ const Lobby: React.FC<LobbyProps> = ({ roomCode, players, isHost, onStart }) => 
                 </div>
                 <span className="font-medium text-slate-100">{p.name}</span>
               </div>
-              {p.isHost && (
-                <span className="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded border border-indigo-400/30">HOST</span>
-              )}
-              {p.isComputer && (
-                <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">COMPUTER</span>
-              )}
+              <div className="flex items-center gap-2">
+                {p.isHost && (
+                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded border border-indigo-400/30">HOST</span>
+                )}
+                {p.isComputer && (
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">COMPUTER</span>
+                )}
+                {isHost && p.isBot && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveComputer(p.id)}
+                    className="rounded-lg border border-red-500/30 px-2 py-1 text-[10px] font-bold text-red-400 transition-colors hover:bg-red-500/10"
+                    aria-label={`Remove ${p.name}`}
+                  >
+                    REMOVE
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
+        {isHost && (
+          <div className="mt-4 text-center">
+            <Button
+              variant="secondary"
+              onClick={onAddComputer}
+              disabled={players.length >= MAX_MAFIA_PLAYERS}
+            >
+              Add Computer
+            </Button>
+            {players.length >= MAX_MAFIA_PLAYERS && (
+              <p className="mt-2 text-xs text-slate-500">Maximum {MAX_MAFIA_PLAYERS} players.</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="text-center">

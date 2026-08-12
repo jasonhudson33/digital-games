@@ -29,6 +29,8 @@ export interface Player {
   isHost?: boolean;
   isReady?: boolean;
   isComputer?: boolean;
+  /** True for a computer seat deliberately added by the host. */
+  isBot?: boolean;
   computerSince?: number;
   hasLeft?: boolean;
 }

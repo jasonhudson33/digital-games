@@ -20,6 +20,7 @@ import {
   createVotePhaseResult,
 } from './services/ResultRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
+import { addComputerPlayer, removeComputerPlayer } from './services/LobbyRules';
 import {
   createInitialGameState,
   migrateGameState,
@@ -246,6 +247,11 @@ const App: React.FC = () => {
     const now = Date.now();
     let changed = false;
     const players = gameState.players.map((player) => {
+      if (player.isBot) {
+        if (player.isComputer) return player;
+        changed = true;
+        return { ...player, isComputer: true, computerSince: undefined };
+      }
       if (player.hasLeft) return player;
       const lastSeen = presence[player.id] || 0;
       const shouldBeComputer = lastSeen > 0 && now - lastSeen >= PRESENCE_TIMEOUT_MS;
@@ -761,6 +767,23 @@ const App: React.FC = () => {
     await hostUpdateState({ phase: GamePhase.SETUP });
   }, [isActingHost, hostUpdateState]);
 
+  const handleAddComputer = useCallback(async () => {
+    const state = gameStateRef.current;
+    if (!isActingHost || state.phase !== GamePhase.LOBBY) return;
+    const id = `computer-${crypto.randomUUID()}`;
+    const players = addComputerPlayer(state.players, id);
+    if (players === state.players) return;
+    await hostUpdateState({ players });
+  }, [hostUpdateState, isActingHost]);
+
+  const handleRemoveComputer = useCallback(async (playerId: string) => {
+    const state = gameStateRef.current;
+    if (!isActingHost || state.phase !== GamePhase.LOBBY) return;
+    const players = removeComputerPlayer(state.players, playerId);
+    if (players === state.players) return;
+    await hostUpdateState({ players });
+  }, [hostUpdateState, isActingHost]);
+
   const handleStartGame = useCallback(async (players: Player[], roles: RoleMap, trialLimit: number) => {
     if (!isActingHost) return;
     const code = gameStateRef.current.roomCode;
@@ -888,6 +911,8 @@ const App: React.FC = () => {
           players={gameState.players}
           isHost={isActingHost}
           onStart={handleLobbyStart}
+          onAddComputer={handleAddComputer}
+          onRemoveComputer={handleRemoveComputer}
         />
         {leaveButton}
       </>
