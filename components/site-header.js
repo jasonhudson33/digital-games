@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 const games = [
   { name: "All Games", href: "/" },
+  { name: "Ticket to Ride", href: "/ticket-to-ride" },
   { name: "Pinochle", href: "/pinochle" },
   { name: "Risk", href: "/risk" },
   { name: "Skull King", href: "/skull-king" },

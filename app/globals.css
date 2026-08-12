@@ -229,6 +229,15 @@ input {
     linear-gradient(145deg, #b92f34, #7f2228 62%, #183f4e);
 }
 
+.game-card.ticket-to-ride {
+  color: #fff5d9;
+  border-color: rgba(238, 202, 113, 0.24);
+  background:
+    radial-gradient(circle at 84% 16%, rgba(225, 170, 65, 0.55), transparent 22%),
+    repeating-linear-gradient(168deg, transparent 0 31px, rgba(211, 174, 91, 0.1) 31px 35px),
+    linear-gradient(145deg, #286073, #173b4c 64%, #922f2c);
+}
+
 .game-card.hearts {
   color: #fff8ef;
   border-color: rgba(255, 255, 255, 0.1);

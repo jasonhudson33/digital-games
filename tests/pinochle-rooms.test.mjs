@@ -7,6 +7,7 @@ import {
   choosePinochleRoomTrump,
   clearPinochleRoomTrick,
   createPinochleRoom,
+  discardPinochleRoomKitty,
   getPinochleRoom,
   joinPinochleRoom,
   passPinochleRoom,
@@ -14,6 +15,7 @@ import {
   playPinochleRoomCard,
   startPinochleRoom,
 } from "../lib/pinochle-rooms.js";
+import { loadPinochleRoom, savePinochleRoom } from "../lib/pinochle-room-store.js";
 
 test("Pinochle rooms support human players and keep hands private", async () => {
   const created = await createPinochleRoom({ name: "Host" });
@@ -51,6 +53,68 @@ test("a host can fill a Pinochle room with computers up to six seats", async () 
   assert.deepEqual(started.state.players.map((player) => player.teamId), [0, 1, 0, 1, 0, 1]);
 });
 
+test("a five-player room deals nine private cards and a hidden three-card kitty", async () => {
+  const created = await createPinochleRoom({ name: "Host" });
+  for (let index = 0; index < 4; index += 1) {
+    await addPinochleComputer({ roomCode: created.state.roomCode, token: created.token });
+  }
+  const started = await startPinochleRoom({ roomCode: created.state.roomCode, token: created.token });
+  assert.equal(started.state.playerCount, 5);
+  assert.equal(started.state.minimumBid, 150);
+  assert.equal(started.state.kittySize, 3);
+  assert.deepEqual(started.state.kitty, []);
+  assert.equal(started.state.players[0].hand.length, 9);
+  assert.ok(started.state.players.slice(1).every((player) => player.hand.length === 0 && player.handCount === 9));
+});
+
+test("five-player trump-jack teammates stay private until each jack is played", async () => {
+  const host = await createPinochleRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  const seats = [host];
+  for (const name of ["Bidder", "Jack One", "Observer", "Jack Two"]) {
+    seats.push(await joinPinochleRoom({ roomCode, name }));
+  }
+  await startPinochleRoom({ roomCode, token: host.token });
+
+  const room = await loadPinochleRoom(roomCode);
+  room.game.players = room.game.players.map((player, playerIndex) => ({
+    ...player,
+    hand: player.hand.map((card, cardIndex) => {
+      if (card.suit === "hearts" && card.rank === 11) return { ...card, rank: 9 };
+      if ((playerIndex === 2 || playerIndex === 4) && cardIndex === 0) return { ...card, suit: "hearts", rank: 11 };
+      return card;
+    }),
+  }));
+  room.game.kitty = room.game.kitty.map((card) => card.suit === "hearts" && card.rank === 11 ? { ...card, rank: 9 } : card);
+  await savePinochleRoom(room);
+
+  await bidPinochleRoom({ roomCode, token: seats[1].token, amount: 150 });
+  for (const playerIndex of [2, 3, 4, 0]) {
+    await passPinochleRoom({ roomCode, token: seats[playerIndex].token });
+  }
+  await choosePinochleRoomTrump({ roomCode, token: seats[1].token, trump: "hearts" });
+  const bidderView = await getPinochleRoom({ roomCode, token: seats[1].token });
+  const discards = bidderView.state.players[1].hand
+    .filter((card) => card.suit !== "hearts" || card.rank !== 11)
+    .slice(0, 3)
+    .map((card) => card.id);
+  await discardPinochleRoomKitty({ roomCode, token: seats[1].token, cardIds: discards });
+
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[1].token })).state.contractPlayerIndexes, [1]);
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[2].token })).state.contractPlayerIndexes, [1, 2]);
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[3].token })).state.contractPlayerIndexes, [1]);
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[4].token })).state.contractPlayerIndexes, [1, 4]);
+
+  const playingRoom = await loadPinochleRoom(roomCode);
+  const firstJack = playingRoom.game.players[2].hand.find((card) => card.suit === "hearts" && card.rank === 11);
+  playingRoom.game = { ...playingRoom.game, currentPlayerIndex: 2, leadPlayerIndex: 2, trick: [] };
+  await savePinochleRoom(playingRoom);
+  await playPinochleRoomCard({ roomCode, token: seats[2].token, cardId: firstJack.id });
+
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[3].token })).state.contractPlayerIndexes, [1, 2]);
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: seats[4].token })).state.contractPlayerIndexes, [1, 2, 4]);
+});
+
 test("only the host can manage Pinochle computer seats", async () => {
   const created = await createPinochleRoom({ name: "Host" });
   const joined = await joinPinochleRoom({ roomCode: created.state.roomCode, name: "Guest" });
@@ -67,7 +131,7 @@ test("partnership exchange cards remain private in room views", async () => {
   const opponent = await joinPinochleRoom({ roomCode, name: "Opponent" });
   const partner = await joinPinochleRoom({ roomCode, name: "Partner" });
   await startPinochleRoom({ roomCode, token: host.token });
-  await bidPinochleRoom({ roomCode, token: bidder.token, amount: 20 });
+  await bidPinochleRoom({ roomCode, token: bidder.token, amount: 200 });
   await passPinochleRoom({ roomCode, token: opponent.token });
   await passPinochleRoom({ roomCode, token: partner.token });
   await passPinochleRoom({ roomCode, token: host.token });
@@ -90,7 +154,7 @@ test("any human can clear a completed room trick after reviewing it", async () =
   const roomCode = host.state.roomCode;
   const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
   await startPinochleRoom({ roomCode, token: host.token });
-  await bidPinochleRoom({ roomCode, token: guest.token, amount: 20 });
+  await bidPinochleRoom({ roomCode, token: guest.token, amount: 200 });
   await passPinochleRoom({ roomCode, token: host.token });
   let state = (await choosePinochleRoomTrump({ roomCode, token: guest.token, trump: "spades" })).state;
   const tokens = [host.token, guest.token];

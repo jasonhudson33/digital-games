@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Ticket to Ride",
+    href: "/ticket-to-ride",
+    status: "New · Rooms for 2–5",
+    description:
+      "Collect colorful train cards, claim routes across the map, and complete secret destination tickets.",
+    tone: "ticket-to-ride",
+  },
+  {
     name: "Pinochle",
     href: "/pinochle",
     status: "New · Rooms for 2–6",

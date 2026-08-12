@@ -106,6 +106,7 @@
 .pn-scoreboard { width: min(1180px, 100%); margin: 0 auto 10px; display: flex; overflow-x: auto; gap: 8px; }
 .pn-score { min-width: 145px; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; color: #52625a; background: rgba(255,255,255,.66); }
 .pn-score.viewer-team { box-shadow: inset 0 0 0 1px #d6a637; background: #fff9e7; }
+.pn-score.contract-team { box-shadow: inset 0 0 0 1px #d6a637; background: #fff5cf; }
 .pn-score span { overflow: hidden; font-size: .79rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .pn-score strong { color: var(--pn-green); font-family: Georgia, serif; font-size: 1.3rem; }
 
@@ -125,6 +126,8 @@
 .pn-player-chip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pn-player-chip small { margin-top: 2px; color: #9eb8aa; font-size: .68rem; }
 .pn-bid-crown { margin-left: auto; color: #efc253; }
+.pn-contract-badge { margin-left: auto; padding: 3px 5px; border-radius: 5px; color: #173d30; background: #e5bd55; font-size: .55rem; font-style: normal; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.pn-bid-crown + .pn-contract-badge { margin-left: 0; }
 .pn-table-center { display: flex; flex-direction: column; align-items: center; min-width: 0; color: #f4ead4; }
 .pn-round-meta { display: flex; gap: 9px; }
 .pn-round-meta > span { padding: 6px 10px; border-radius: 999px; color: #b9cec2; background: rgba(4,31,24,.4); font-size: .72rem; }

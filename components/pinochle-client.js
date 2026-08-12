@@ -24,7 +24,7 @@ export default function PinochleClient() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [bidAmount, setBidAmount] = useState(20);
+  const [bidAmount, setBidAmount] = useState(200);
   const [selectedIds, setSelectedIds] = useState([]);
   const latestGame = useRef(null);
 
@@ -67,7 +67,7 @@ export default function PinochleClient() {
   useEffect(() => {
     if (!game) return;
     setSelectedIds([]);
-    const minimum = game.highBid === null ? game.minimumBid : game.highBid + 1;
+    const minimum = game.highBid === null ? game.minimumBid : game.highBid + 10;
     if (minimum) setBidAmount(minimum);
   }, [game?.phase, game?.currentPlayerIndex, game?.highBid, game?.roundNumber]);
 
@@ -230,7 +230,7 @@ export default function PinochleClient() {
             })}
           </div>
           <div className="pn-lobby-footer">
-            <p><Users size={17} /> {game.players.length < 2 ? "Waiting for at least one more player." : game.players.length === 4 || game.players.length === 6 ? "Partnership Pinochle table ready." : "Cutthroat Pinochle table ready."}</p>
+            <p><Users size={17} /> {game.players.length < 2 ? "Waiting for at least one more player." : game.players.length === 4 || game.players.length === 6 ? "Partnership Pinochle table ready." : game.players.length === 5 ? "Five-player calling-partner table ready." : "Cutthroat Pinochle table ready."}</p>
             {game.hostControls
               ? <button type="button" className="pn-primary" disabled={busy || game.players.length < 2} onClick={() => roomAction("start")}><Crown size={18} /> Start game</button>
               : <span className="pn-waiting">Waiting for the host to deal…</span>}
@@ -263,7 +263,7 @@ export default function PinochleClient() {
 function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, setSelectedIds, onAction, onLeave, onRules, rulesOpen, onCloseRules }) {
   const viewerIndex = game.viewerPlayerIndex;
   const yourTurn = game.currentPlayerIndex === viewerIndex;
-  const minimumBid = game.highBid === null ? game.minimumBid : game.highBid + 1;
+  const minimumBid = game.highBid === null ? game.minimumBid : game.highBid + 10;
   const legalIds = useMemo(() => new Set(
     game.phase === "playing" && yourTurn ? getLegalPinochleCards(game, viewerIndex).map((card) => card.id) : [],
   ), [game, viewerIndex, yourTurn]);
@@ -282,13 +282,13 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   return (
     <main className="pn-app pn-game-shell">
       <header className="pn-gamebar">
-        <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
+        <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
         <div className="pn-header-actions"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave</button></div>
       </header>
 
       <section className="pn-scoreboard" aria-label="Scoreboard">
         {game.teams.map((team) => (
-          <div className={`pn-score ${team.id === viewer.teamId ? "viewer-team" : ""}`} key={team.id}>
+          <div className={`pn-score ${team.id === viewer.teamId ? "viewer-team" : ""} ${game.contractPlayerIndexes?.includes(team.id) ? "contract-team" : ""}`} key={team.id}>
             <span>{pinochleTeamName(game, team.id)}</span><strong>{team.score}</strong>
           </div>
         ))}
@@ -301,6 +301,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
               <span>{player.isComputer ? <Bot size={15} /> : player.name[0].toUpperCase()}</span>
               <div><strong>{player.name}</strong><small>{player.handCount} cards · {player.tricksWon || 0} tricks</small></div>
               {index === game.highBidderIndex && <Crown size={15} className="pn-bid-crown" />}
+              {game.playerCount === 5 && game.contractPlayerIndexes?.includes(index) && <em className="pn-contract-badge">Bid team</em>}
             </div>
           ))}
         </div>
@@ -394,7 +395,7 @@ function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmoun
   if (game.phase === "bidding") {
     return (
       <div className="pn-turn-controls pn-bid-controls">
-        <label><span>Your bid</span><input type="number" min={minimumBid} step="1" value={bidAmount} onChange={(event) => setBidAmount(Number(event.target.value))} /></label>
+        <label><span>Your bid</span><input type="number" min={minimumBid} step="10" value={bidAmount} onChange={(event) => setBidAmount(Number(event.target.value))} /></label>
         <button type="button" className="pn-primary" disabled={busy || bidAmount < minimumBid} onClick={() => onAction("bid", { amount: bidAmount })}>Bid {bidAmount}</button>
         <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("pass")}>Pass</button>
       </div>
@@ -458,16 +459,19 @@ function RulesDialog({ open, onClose }) {
         <span className="pn-kicker">How to play</span><h2 id="pn-rules-title">Room Pinochle</h2>
         <p>Every round has three parts: win the auction, show meld, then take tricks. The bidder must earn at least the bid through meld and trick points or the bidding team is set back by the bid.</p>
         <div className="pn-rule-grid">
-          <div><strong>2, 3, or 5 players</strong><p>Cutthroat scoring: every player is their own team.</p></div>
+          <div><strong>2 or 3 players</strong><p>Cutthroat scoring: every player is their own team.</p></div>
           <div><strong>4 or 6 players</strong><p>Two fixed teams, seated alternately. Teammates combine meld and tricks, and exchange cards with the winning bidder.</p></div>
-          <div><strong>The decks</strong><p>Two copies of every 9 through Ace for 2–4 players; four copies for 5–6. Five-player games have a one-card kitty for the bidder.</p></div>
+          <div><strong>5 players</strong><p>Deal nine cards each from one 48-card deck and place three cards in the center. Bidding starts at 150. Trump-jack holders join the bidder’s temporary team for scoring, with no card exchange.</p></div>
+          <div><strong>The decks</strong><p>Two copies of every 9 through Ace for 2–5 players. Six-player games use four copies of every card.</p></div>
           <div><strong>Trick rules</strong><p>Follow suit when possible. You must head the current winner when able. If void, trump—and overtrump—when able.</p></div>
         </div>
         <h3>Partner exchange</h3>
         <p>After trump is called in a four-player game, the bidder’s teammate sends four cards to the bidder, who returns four cards. In a six-player game, each of the bidder’s two teammates sends three cards, and the bidder returns three cards to each teammate. There is no exchange in two-, three-, or five-player games.</p>
+        <h3>Five-player contract team</h3>
+        <p>The bidder takes the three center cards, returns three cards, and names trump. Every player still holding a jack of trump joins the bidder for that round. A jack holder privately knows they are with the bidder, but other players do not see that teammate revealed until the trump jack is played. Their meld and trick points combine toward the contract. If they make it, every temporary teammate receives the combined score; if they are set, each loses the full bid.</p>
         <h3>Core meld values</h3>
-        <div className="pn-meld-guide"><span>Run in trump <b>15</b></span><span>Aces around <b>10</b></span><span>Kings around <b>8</b></span><span>Queens around <b>6</b></span><span>Jacks around <b>4</b></span><span>Q♠ + J♦ <b>4</b></span><span>Trump marriage <b>4</b></span><span>Other marriage <b>2</b></span><span>Trump nine (dix) <b>1</b></span></div>
-        <p className="pn-rule-note">Aces, tens, and kings captured in tricks are worth one point each; the final trick is worth one. A team must take a trick for its meld to score.</p>
+        <div className="pn-meld-guide"><span>Run in trump <b>150</b></span><span>Aces around <b>100</b></span><span>Kings around <b>80</b></span><span>Queens around <b>60</b></span><span>Jacks around <b>40</b></span><span>Q♠ + J♦ <b>40</b></span><span>Trump marriage <b>40</b></span><span>Other marriage <b>20</b></span><span>Trump nine (dix) <b>10</b></span></div>
+        <p className="pn-rule-note">Aces, tens, and kings captured in tricks are worth ten points each; the final trick is worth ten. A team must take a trick for its meld to score.</p>
       </section>
     </div>
   );

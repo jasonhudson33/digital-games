@@ -15,6 +15,7 @@ import {
   createPinochleGame,
   discardPinochleKitty,
   getLegalPinochleCards,
+  migratePinochleScoring,
   passPinochleBid,
   passPinochlePartnerCards,
   placePinochleBid,
@@ -33,7 +34,7 @@ function players(count) {
 test("Pinochle creates the right deck and seating for every supported room size", () => {
   for (const count of [2, 3, 4, 5, 6]) {
     const game = createPinochleGame({ playerSeeds: players(count) });
-    assert.equal(createPinochleDeck(count).length, count >= 5 ? 96 : 48);
+    assert.equal(createPinochleDeck(count).length, count === 6 ? 96 : 48);
     assert.equal(game.players.length, count);
     assert.ok(game.players.every((player) => player.hand.length === Math.floor(createPinochleDeck(count).length / count)));
     assert.equal(game.kittySize, createPinochleDeck(count).length % count);
@@ -41,6 +42,44 @@ test("Pinochle creates the right deck and seating for every supported room size"
   assert.deepEqual(createPinochleGame({ playerSeeds: players(4) }).players.map((player) => player.teamId), [0, 1, 0, 1]);
   assert.deepEqual(createPinochleGame({ playerSeeds: players(6) }).players.map((player) => player.teamId), [0, 1, 0, 1, 0, 1]);
   assert.deepEqual(createPinochleGame({ playerSeeds: players(5) }).players.map((player) => player.teamId), [0, 1, 2, 3, 4]);
+});
+
+test("five-player Pinochle uses one deck, a three-card kitty, and a minimum bid of 150", () => {
+  const game = createPinochleGame({ playerSeeds: players(5) });
+  assert.equal(createPinochleDeck(5).length, 48);
+  assert.equal(game.minimumBid, 150);
+  assert.equal(game.kittySize, 3);
+  assert.equal(game.kitty.length, 3);
+  assert.ok(game.players.every((player) => player.hand.length === 9));
+  assert.equal(game.targetScore, 1500);
+});
+
+test("older Pinochle games upgrade every stored score to trailing-zero values", () => {
+  const current = createPinochleGame({ playerSeeds: players(3) });
+  const older = {
+    ...current,
+    scoringScale: undefined,
+    targetScore: 150,
+    minimumBid: 20,
+    highBid: 21,
+    bidHistory: [{ playerIndex: 1, amount: 21 }, { playerIndex: 2, amount: null }],
+    teams: current.teams.map((team, index) => ({ ...team, score: index === 0 ? 12 : 0 })),
+    players: current.players.map((player, index) => ({ ...player, roundTrickPoints: index === 0 ? 3 : 0 })),
+    melds: [{ total: 4, items: [{ name: "Pinochle", points: 4, cards: [] }] }],
+    teamMeldPoints: [4, 0, 0],
+    lastTrick: { cards: [], winnerPlayerIndex: 0, points: 2 },
+  };
+  const upgraded = migratePinochleScoring(older);
+  assert.equal(upgraded.targetScore, 1500);
+  assert.equal(upgraded.minimumBid, 200);
+  assert.equal(upgraded.highBid, 210);
+  assert.deepEqual(upgraded.bidHistory.map((bid) => bid.amount), [210, null]);
+  assert.equal(upgraded.teams[0].score, 120);
+  assert.equal(upgraded.players[0].roundTrickPoints, 30);
+  assert.equal(upgraded.melds[0].total, 40);
+  assert.equal(upgraded.melds[0].items[0].points, 40);
+  assert.equal(upgraded.lastTrick.points, 20);
+  assert.strictEqual(migratePinochleScoring(upgraded), upgraded);
 });
 
 test("meld scoring recognizes a run, pinochle, arounds, and dix", () => {
@@ -53,7 +92,7 @@ test("meld scoring recognizes a run, pinochle, arounds, and dix", () => {
     { id: "jd", copy: 0, suit: "diamonds", rank: 11 },
   ];
   const meld = calculatePinochleMeld(cards, "hearts");
-  assert.equal(meld.total, 30);
+  assert.equal(meld.total, 300);
   assert.ok(meld.items.some((item) => item.name.startsWith("Run")));
   assert.ok(meld.items.some((item) => item.name.startsWith("Pinochle")));
   assert.ok(meld.items.some((item) => item.name.startsWith("As around")));
@@ -68,12 +107,12 @@ test("meld scoring recognizes a run, pinochle, arounds, and dix", () => {
 test("bidding ends with the last active player and advances to trump", () => {
   let game = createPinochleGame({ playerSeeds: players(3) });
   assert.equal(game.currentPlayerIndex, 1);
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
   game = passPinochleBid(game, 0);
   assert.equal(game.phase, "choosing-trump");
   assert.equal(game.highBidderIndex, 1);
-  assert.equal(game.highBid, 20);
+  assert.equal(game.highBid, 200);
 });
 
 test("a computer raises the bid when its hand supports the contract", () => {
@@ -84,19 +123,19 @@ test("a computer raises the bid when its hand supports the contract", () => {
   ];
   const withStrongComputer = {
     ...game,
-    highBid: 20,
+    highBid: 200,
     players: game.players.map((player, index) => index === 1 ? { ...player, hand: strongHand } : player),
   };
-  assert.equal(choosePinochleBotBid(withStrongComputer, 1), 21);
+  assert.equal(choosePinochleBotBid(withStrongComputer, 1), 210);
 });
 
 test("partnership bidding stops when only members of the same team remain", () => {
   let game = createPinochleGame({
     playerSeeds: players(4).map((player, index) => ({ ...player, isComputer: index === 3 })),
   });
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
-  game = placePinochleBid(game, 3, 21);
+  game = placePinochleBid(game, 3, 210);
   game = passPinochleBid(game, 0);
 
   assert.equal(game.phase, "choosing-trump");
@@ -111,7 +150,7 @@ test("a computer never raises against a teammate when no opposing bidder remains
   });
   const sameTeamAuction = {
     ...game,
-    highBid: 20,
+    highBid: 200,
     highBidderIndex: 1,
     currentPlayerIndex: 3,
     passedPlayerIndexes: [0, 2],
@@ -121,7 +160,7 @@ test("a computer never raises against a teammate when no opposing bidder remains
 
 test("the winning bidder leads the first trick", () => {
   let game = createPinochleGame({ playerSeeds: players(3) });
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
   game = passPinochleBid(game, 0);
   game = choosePinochleTrump(game, 1, "clubs");
@@ -133,7 +172,7 @@ test("the winning bidder leads the first trick", () => {
 
 test("trick play requires following suit and heading when possible", () => {
   let game = createPinochleGame({ playerSeeds: players(3) });
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
   game = passPinochleBid(game, 0);
   game = choosePinochleTrump(game, 1, "hearts");
@@ -160,7 +199,7 @@ test("all standard suits are available as trump", () => {
 
 test("four-player bidder exchanges four cards with their teammate", () => {
   let game = createPinochleGame({ playerSeeds: players(4) });
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
   game = passPinochleBid(game, 3);
   game = passPinochleBid(game, 0);
@@ -184,7 +223,7 @@ test("four-player bidder exchanges four cards with their teammate", () => {
 
 test("six-player bidder exchanges three cards with each teammate", () => {
   let game = createPinochleGame({ playerSeeds: players(6) });
-  game = placePinochleBid(game, 1, 50);
+  game = placePinochleBid(game, 1, 500);
   for (const index of [2, 3, 4, 5, 0]) game = passPinochleBid(game, index);
   game = choosePinochleTrump(game, 1, "spades");
 
@@ -216,9 +255,94 @@ test("cutthroat tables skip partner trading", () => {
   }
 });
 
+test("five-player trump-jack holders join the bidder and share the set penalty", () => {
+  let game = createPinochleGame({
+    playerSeeds: players(5).map((player) => ({ ...player, isComputer: true })),
+  });
+  game.players[2].hand[0] = { ...game.players[2].hand[0], suit: "hearts", rank: 11 };
+  game = placePinochleBid(game, 1, 9990);
+  for (const index of [2, 3, 4, 0]) game = passPinochleBid(game, index);
+  assert.equal(game.phase, "choosing-trump");
+  assert.equal(game.players[1].hand.length, 12);
+  game = choosePinochleTrump(game, 1, "hearts");
+  assert.equal(game.phase, "discarding-kitty");
+  assert.equal(game.players[1].hand.length, 12);
+  const discards = game.players[1].hand.filter((card) => card.suit !== "hearts" || card.rank !== 11).slice(0, 3);
+  assert.equal(discards.length, 3);
+  game = discardPinochleKitty(game, 1, discards.map((card) => card.id));
+  assert.equal(game.phase, "playing");
+  assert.ok(game.contractPlayerIndexes.includes(1));
+  assert.ok(game.contractPlayerIndexes.includes(2));
+  assert.deepEqual(game.revealedContractPlayerIndexes, []);
+  assert.ok(game.players.every((player) => player.hand.length === 9));
+
+  const hiddenPlay = game.players[2].hand.find((card) => card.suit !== "hearts" || card.rank !== 11);
+  const afterHiddenPlay = playPinochleCard({ ...game, currentPlayerIndex: 2, leadPlayerIndex: 2, trick: [] }, 2, hiddenPlay.id);
+  assert.deepEqual(afterHiddenPlay.revealedContractPlayerIndexes, []);
+
+  const trumpJack = game.players[2].hand.find((card) => card.suit === "hearts" && card.rank === 11);
+  const afterTrumpJack = playPinochleCard({ ...game, currentPlayerIndex: 2, leadPlayerIndex: 2, trick: [] }, 2, trumpJack.id);
+  assert.deepEqual(afterTrumpJack.revealedContractPlayerIndexes, [2]);
+
+  let actions = 0;
+  while (!['round-over', 'game-over'].includes(game.phase) && actions < 100) {
+    const playerIndex = game.currentPlayerIndex;
+    if (game.phase === "playing") {
+      game = playPinochleCard(game, playerIndex, choosePinochleBotCard(game, playerIndex).id);
+    } else if (game.phase === "trick-complete") {
+      game = clearPinochleTrick(game);
+    }
+    actions += 1;
+  }
+  assert.equal(game.roundSummary.madeContract, false);
+  for (const index of game.contractPlayerIndexes) assert.equal(game.roundSummary.roundDeltas[index], -9990);
+  for (const index of game.players.map((_, index) => index).filter((index) => !game.contractPlayerIndexes.includes(index))) {
+    assert.notEqual(game.roundSummary.roundDeltas[index], -9990);
+  }
+});
+
+test("a successful five-player contract gives every temporary teammate the combined score", () => {
+  const finalCards = [
+    { id: "final-j", copy: 0, suit: "clubs", rank: 11 },
+    { id: "final-a", copy: 0, suit: "clubs", rank: 14 },
+    { id: "final-10", copy: 0, suit: "clubs", rank: 10 },
+    { id: "final-k", copy: 0, suit: "clubs", rank: 13 },
+    { id: "final-q", copy: 0, suit: "clubs", rank: 12 },
+  ];
+  let game = createPinochleGame({ playerSeeds: players(5) });
+  game = {
+    ...game,
+    phase: "playing",
+    trump: "clubs",
+    highBid: 150,
+    highBidderIndex: 1,
+    currentPlayerIndex: 1,
+    leadPlayerIndex: 1,
+    contractPlayerIndexes: [1, 2],
+    trick: [],
+    trickNumber: 8,
+    melds: [0, 20, 30, 0, 0].map((total) => ({ total, items: [] })),
+    teamMeldPoints: [0, 20, 30, 0, 0],
+    players: game.players.map((player, index) => ({
+      ...player,
+      hand: [finalCards[index]],
+      roundTrickPoints: index === 1 ? 40 : index === 2 ? 50 : 0,
+      tricksWon: index === 1 || index === 2 ? 1 : 0,
+    })),
+  };
+  for (const playerIndex of [1, 2, 3, 4, 0]) {
+    game = playPinochleCard(game, playerIndex, finalCards[playerIndex].id);
+  }
+  game = clearPinochleTrick(game);
+  assert.equal(game.roundSummary.madeContract, true);
+  assert.equal(game.roundSummary.contractPoints, 180);
+  assert.equal(game.roundSummary.roundDeltas[1], 180);
+  assert.equal(game.roundSummary.roundDeltas[2], 180);
+});
+
 test("a completed trick stays face-up until it is cleared", () => {
   let game = createPinochleGame({ playerSeeds: players(3) });
-  game = placePinochleBid(game, 1, 20);
+  game = placePinochleBid(game, 1, 200);
   game = passPinochleBid(game, 2);
   game = passPinochleBid(game, 0);
   game = choosePinochleTrump(game, 1, "diamonds");

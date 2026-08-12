@@ -14,6 +14,10 @@ import {
   createSkullKingDeck,
   createSkullKingMatch,
   getLegalSkullKingCards,
+  getSkullKingActingPlayerIndex,
+  getSkullKingGhostControllerIndex,
+  getSkullKingGhostDeclaration,
+  getSkullKingGhostIndex,
   playSkullKingCard,
   resolveSkullKingTrick,
   resolveSkullKingPirateAbility,
@@ -248,6 +252,118 @@ test("round one deals one card and starts with the player left of the dealer aft
   assert.equal(game.currentPlayerIndex, 0);
   assert.equal(game.players[0].bid, 1);
   assert.ok(game.players.slice(1).every((player) => player.bid !== null));
+});
+
+test("room players bid independently before the first player leads", () => {
+  let game = createSkullKingMatch({
+    playerSeeds: [
+      { playerId: "host", name: "Host", isComputer: false },
+      { playerId: "guest-1", name: "Guest 1", isComputer: false },
+      { playerId: "guest-2", name: "Guest 2", isComputer: false },
+    ],
+    random: () => 0.5,
+  });
+
+  game = submitSkullKingBid(game, 1, 0);
+  assert.equal(game.phase, "bidding");
+  assert.deepEqual(game.players.map((player) => player.bid), [null, 0, null]);
+  game = submitSkullKingBid(game, 0, 1);
+  assert.equal(game.phase, "bidding");
+  game = submitSkullKingBid(game, 2, 0);
+  assert.equal(game.phase, "playing");
+  assert.equal(game.currentPlayerIndex, 0);
+});
+
+test("two-player games deal Graybeard a face-down hand from the official reduced deck", () => {
+  let game = createSkullKingMatch({
+    playerSeeds: [
+      { playerId: "captain-a", name: "Captain A", isComputer: false },
+      { playerId: "captain-b", name: "Captain B", isComputer: false },
+    ],
+    random: () => 0.5,
+  });
+
+  const ghostIndex = getSkullKingGhostIndex(game);
+  assert.equal(game.captainCount, 2);
+  assert.equal(game.playerCount, 3);
+  assert.equal(ghostIndex, 2);
+  assert.equal(game.players[ghostIndex].hand.length, 1);
+  assert.equal(game.players[ghostIndex].bid, 0);
+  assert.ok([...game.players.flatMap((player) => player.hand), ...game.drawPile].every((card) => (
+    card.type !== "choice"
+    && card.type !== "wild15"
+    && card.kind !== "walkThePlank"
+    && card.kind !== "doubloon"
+  )));
+
+  game = submitSkullKingBid(game, 0, 0);
+  game = submitSkullKingBid(game, 1, 0);
+  assert.equal(game.phase, "playing");
+  assert.equal(game.currentPlayerIndex, 0);
+  assert.equal(getSkullKingGhostControllerIndex(game), 0);
+
+  const leadCard = game.players[0].hand[0];
+  const leadDeclaration = leadCard.type === "choice" ? 0 : leadCard.kind === "tigress" ? "escape" : leadCard.type === "wild15" ? "green" : null;
+  game = playSkullKingCard(game, 0, leadCard.id, leadDeclaration);
+  assert.equal(game.currentPlayerIndex, ghostIndex);
+  assert.equal(getSkullKingActingPlayerIndex(game), 0);
+  const ghostCard = game.players[ghostIndex].hand[0];
+  const declaration = ghostCard.type === "choice" ? 0 : ghostCard.kind === "tigress" ? "escape" : ghostCard.type === "wild15" ? "green" : null;
+  game = playSkullKingCard(game, ghostIndex, ghostCard.id, declaration);
+  assert.equal(game.trick[1].playerIndex, ghostIndex);
+  assert.equal(game.currentPlayerIndex, 1);
+});
+
+test("Graybeard ignores suit, leads after winning, and otherwise follows the winning human", () => {
+  let game = createSkullKingMatch({
+    playerSeeds: [
+      { playerId: "captain-a", name: "Captain A", isComputer: false },
+      { playerId: "captain-b", name: "Captain B", isComputer: false },
+    ],
+    random: () => 0.5,
+  });
+  const ghostIndex = getSkullKingGhostIndex(game);
+  game = {
+    ...game,
+    roundNumber: 3,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    trickOrder: [0, ghostIndex, 1],
+    players: game.players.map((player, index) => ({
+      ...player,
+      bid: 0,
+      hand: index === 0
+        ? [number("green", 10), number("yellow", 2), number("purple", 2)]
+        : index === ghostIndex
+          ? [number("black", 1), special("escape"), number("green", 1)]
+          : [number("green", 9), number("yellow", 3), number("purple", 3)],
+    })),
+  };
+
+  game = playSkullKingCard(game, 0, "green-10");
+  assert.equal(game.currentPlayerIndex, ghostIndex);
+  assert.deepEqual(getLegalSkullKingCards(game, ghostIndex).map((card) => card.id), ["black-1", "escape-0", "green-1"]);
+  game = playSkullKingCard(game, ghostIndex, "black-1");
+  assert.equal(game.currentPlayerIndex, 1);
+  game = playSkullKingCard(game, 1, "green-9");
+  assert.equal(game.lastTrick.winnerIndex, ghostIndex);
+  game = collectSkullKingTrick(game);
+  assert.equal(game.trickNumber, 2);
+  assert.equal(game.currentPlayerIndex, ghostIndex);
+  assert.equal(getSkullKingGhostControllerIndex(game), 0);
+
+  game = playSkullKingCard(game, ghostIndex, "escape-0");
+  assert.equal(game.currentPlayerIndex, 0);
+  game = playSkullKingCard(game, 0, "yellow-2");
+  assert.equal(game.currentPlayerIndex, 1);
+  game = playSkullKingCard(game, 1, "yellow-3");
+  assert.equal(game.lastTrick.winnerIndex, 1);
+  game = collectSkullKingTrick(game);
+  assert.equal(game.trickNumber, 3);
+  assert.equal(game.currentPlayerIndex, 1);
+  assert.deepEqual(game.trickOrder, [1, ghostIndex, 0]);
+  assert.equal(getSkullKingGhostControllerIndex(game), 1);
+  assert.equal(getSkullKingGhostDeclaration(special("tigress")), "escape");
 });
 
 test("players must follow suit when possible but may always play a special card", () => {
