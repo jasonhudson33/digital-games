@@ -301,7 +301,7 @@ test("five-player trump-jack holders join the bidder and share the set penalty",
   }
 });
 
-test("a successful five-player contract gives every temporary teammate the combined score", () => {
+test("a five-player contract uses only the bidder's meld plus every contract teammate's tricks", () => {
   const finalCards = [
     { id: "final-j", copy: 0, suit: "clubs", rank: 11 },
     { id: "final-a", copy: 0, suit: "clubs", rank: 14 },
@@ -335,9 +335,36 @@ test("a successful five-player contract gives every temporary teammate the combi
   }
   game = clearPinochleTrick(game);
   assert.equal(game.roundSummary.madeContract, true);
-  assert.equal(game.roundSummary.contractPoints, 180);
-  assert.equal(game.roundSummary.roundDeltas[1], 180);
-  assert.equal(game.roundSummary.roundDeltas[2], 180);
+  assert.equal(game.roundSummary.bidderMeldPoints, 20);
+  assert.equal(game.roundSummary.contractTrickPoints, 130);
+  assert.equal(game.roundSummary.contractPoints, 150);
+  assert.equal(game.roundSummary.roundDeltas[1], 150);
+  assert.equal(game.roundSummary.roundDeltas[2], 150);
+});
+
+test("a trump-jack partner's meld cannot make a five-player contract", () => {
+  const game = {
+    ...createPinochleGame({ playerSeeds: players(5) }),
+    highBid: 160,
+    highBidderIndex: 1,
+    contractPlayerIndexes: [1, 2],
+    melds: [0, 20, 100, 0, 0].map((total) => ({ total, items: [] })),
+    teamMeldPoints: [0, 20, 100, 0, 0],
+    players: createPinochleGame({ playerSeeds: players(5) }).players.map((player, index) => ({
+      ...player,
+      hand: [],
+      roundTrickPoints: index === 1 ? 70 : index === 2 ? 60 : 0,
+      tricksWon: index === 1 || index === 2 ? 1 : 0,
+    })),
+    phase: "trick-complete",
+    pendingRoundEnd: true,
+    trick: [],
+  };
+  const finished = clearPinochleTrick(game);
+  assert.equal(finished.roundSummary.contractPoints, 150);
+  assert.equal(finished.roundSummary.madeContract, false);
+  assert.equal(finished.roundSummary.roundDeltas[1], -160);
+  assert.equal(finished.roundSummary.roundDeltas[2], -160);
 });
 
 test("a completed trick stays face-up until it is cleared", () => {

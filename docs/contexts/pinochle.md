@@ -25,7 +25,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
 - **Cutthroat** games do not have a **Partner Exchange**.
-- In five-player play, every **Calling Partner** combines meld and tricks with the bidder for the round; all temporary teammates gain the combined score on a made contract or each lose the bid when set.
+- In five-player play, a contract counts only the bidder's **Meld**, plus captured trick points from the bidder and every **Calling Partner**. Calling Partners' own meld does not count toward the contract. All temporary teammates gain that contract score when made or each lose the bid when set.
 - A **Calling Partner** privately knows they are with the bidder, but remains hidden from other players until they play their jack of trump.
 - A team's **Meld** and captured trick counters combine toward its **Contract**.
 - Every player's scored **Meld** and its cards remain public on the table.

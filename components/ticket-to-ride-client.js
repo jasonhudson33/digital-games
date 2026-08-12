@@ -241,7 +241,7 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute }) {
       <filter id="ttr-shadow"><feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity=".26" /></filter>
     </defs>
     <rect width="1000" height="610" rx="26" fill="url(#ttr-paper)" />
-    <svg className="ttr-real-geography" x="0" y="0" width="1000" height="610" viewBox="850 700 1439 1044" preserveAspectRatio="none">
+    <svg className="ttr-real-geography" x="0" y="0" width="1000" height="610" viewBox="900 700 1340 1044" preserveAspectRatio="none">
       <image className="ttr-real-map-image" x="0" y="0" width="2289" height="1744" href="https://upload.wikimedia.org/wikipedia/commons/d/d4/BlankMap-USA-states-Canada-provinces.svg" />
     </svg>
     <rect className="ttr-map-wash" x="0" y="0" width="1000" height="610" rx="26" />
