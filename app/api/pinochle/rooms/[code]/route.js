@@ -15,6 +15,7 @@ import {
   startNextPinochleRoomRound,
   startPinochleRoom,
   skipTwoPlayerPinochleRoomMeld,
+  takeRestOfPinochleRoomTricks,
   returnPinochleRoomPartnerCards,
 } from "../../../../../lib/pinochle-rooms";
 
@@ -38,6 +39,7 @@ export async function POST(request, context) {
     passPartnerCards: passPinochleRoomPartnerCards,
     returnPartnerCards: returnPinochleRoomPartnerCards,
     playCard: playPinochleRoomCard,
+    takeRest: takeRestOfPinochleRoomTricks,
     clearTrick: clearPinochleRoomTrick,
     declareMeld: declareTwoPlayerPinochleRoomMeld,
     skipMeld: skipTwoPlayerPinochleRoomMeld,

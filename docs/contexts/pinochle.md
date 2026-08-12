@@ -38,6 +38,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - A completed **Trick** remains face-up until a human clears it; only then does its winner lead the following trick.
 - A bidding team that misses its **Contract** loses the value of the bid.
 - Players must follow suit, head the trick when able, and trump or overtrump when void.
+- A player leading a fresh trick may **Take the rest** when the stock is empty, every card they hold is trump or an ace, no opponent holds trump, and all hands are the same size. The claim credits that player with every remaining trick, counter, and the last-trick bonus.
 
 ## Player-count variants
 

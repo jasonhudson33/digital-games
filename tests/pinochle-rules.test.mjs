@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PINOCHLE_SUITS,
+  canTakeRestOfPinochleTricks,
   calculatePinochleMeld,
   choosePinochleBotBid,
   choosePinochleBotCard,
@@ -24,6 +25,7 @@ import {
   playPinochleCard,
   returnPinochlePartnerCards,
   skipTwoPlayerPinochleMeld,
+  takeRestOfPinochleTricks,
 } from "../lib/pinochle.js";
 
 function players(count) {
@@ -150,6 +152,70 @@ test("a two-player trick winner may declare only one new meld before drawing", (
     } : player),
   };
   assert.equal(getAvailableTwoPlayerMelds(improvedOpportunity, 0).find((meld) => meld.key === marriage.key).points, 40);
+});
+
+test("take the rest requires a fresh lead, an empty stock, only trump or aces, and no opposing trump", () => {
+  const base = createPinochleGame({ playerSeeds: players(2) });
+  const eligible = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    leadPlayerIndex: 0,
+    trump: "hearts",
+    trick: [],
+    stock: [],
+    stockTrumpCard: null,
+    players: base.players.map((player, index) => ({
+      ...player,
+      hand: index === 0
+        ? [{ id: "trump-nine", copy: 0, suit: "hearts", rank: 9 }, { id: "club-ace", copy: 0, suit: "clubs", rank: 14 }]
+        : [{ id: "club-king", copy: 0, suit: "clubs", rank: 13 }, { id: "diamond-ten", copy: 0, suit: "diamonds", rank: 10 }],
+    })),
+  };
+  assert.equal(canTakeRestOfPinochleTricks(eligible, 0), true);
+  assert.equal(canTakeRestOfPinochleTricks({ ...eligible, stock: [{ id: "stock", copy: 1, suit: "clubs", rank: 9 }] }, 0), false);
+  assert.equal(canTakeRestOfPinochleTricks({ ...eligible, trick: [{ playerIndex: 0, card: eligible.players[0].hand[0] }] }, 0), false);
+  assert.equal(canTakeRestOfPinochleTricks({
+    ...eligible,
+    players: eligible.players.map((player, index) => index === 0
+      ? { ...player, hand: [{ ...player.hand[0], suit: "clubs", rank: 13 }, player.hand[1]] }
+      : player),
+  }, 0), false);
+  assert.equal(canTakeRestOfPinochleTricks({
+    ...eligible,
+    players: eligible.players.map((player, index) => index === 1
+      ? { ...player, hand: [{ ...player.hand[0], suit: "hearts" }, player.hand[1]] }
+      : player),
+  }, 0), false);
+});
+
+test("take the rest awards every remaining counter, trick, and the last-trick bonus", () => {
+  const base = createPinochleGame({ playerSeeds: players(2) });
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    leadPlayerIndex: 0,
+    trump: "hearts",
+    trick: [],
+    stock: [],
+    stockTrumpCard: null,
+    players: base.players.map((player, index) => ({
+      ...player,
+      hand: index === 0
+        ? [{ id: "trump-nine", copy: 0, suit: "hearts", rank: 9 }, { id: "club-ace", copy: 0, suit: "clubs", rank: 14 }]
+        : [{ id: "club-king", copy: 0, suit: "clubs", rank: 13 }, { id: "diamond-ten", copy: 0, suit: "diamonds", rank: 10 }],
+    })),
+  };
+  const finished = takeRestOfPinochleTricks(game, 0);
+  assert.equal(finished.phase, "round-over");
+  assert.equal(finished.tookRestTrickCount, 2);
+  assert.equal(finished.tookRestPoints, 40);
+  assert.equal(finished.players[0].tricksWon, 2);
+  assert.equal(finished.players[0].roundTrickPoints, 40);
+  assert.ok(finished.players.every((player) => player.hand.length === 0));
+  assert.equal(finished.roundSummary.roundDeltas[0], 40);
+  assert.equal(finished.teams[0].score, 40);
 });
 
 test("five-player Pinochle uses one deck, a three-card kitty, and a minimum bid of 150", () => {

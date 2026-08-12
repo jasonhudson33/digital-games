@@ -15,6 +15,7 @@ import {
   playPinochleRoomCard,
   skipTwoPlayerPinochleRoomMeld,
   startPinochleRoom,
+  takeRestOfPinochleRoomTricks,
 } from "../lib/pinochle-rooms.js";
 import { loadPinochleRoom, savePinochleRoom } from "../lib/pinochle-room-store.js";
 
@@ -176,4 +177,37 @@ test("any human can clear a completed room trick after reviewing it", async () =
   assert.equal(afterDraw.state.phase, "playing");
   assert.equal(afterDraw.state.currentPlayerIndex, winnerIndex);
   assert.equal(afterDraw.state.stockCount, 22);
+});
+
+test("only an eligible room viewer sees and can use take the rest", async () => {
+  const host = await createPinochleRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
+  await startPinochleRoom({ roomCode, token: host.token });
+  const room = await loadPinochleRoom(roomCode);
+  room.game = {
+    ...room.game,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    leadPlayerIndex: 0,
+    trump: "hearts",
+    trick: [],
+    stock: [],
+    stockTrumpCard: null,
+    players: room.game.players.map((player, index) => ({
+      ...player,
+      hand: index === 0
+        ? [{ id: "trump-nine", copy: 0, suit: "hearts", rank: 9 }, { id: "club-ace", copy: 0, suit: "clubs", rank: 14 }]
+        : [{ id: "club-king", copy: 0, suit: "clubs", rank: 13 }, { id: "diamond-ten", copy: 0, suit: "diamonds", rank: 10 }],
+    })),
+  };
+  await savePinochleRoom(room);
+
+  assert.equal((await getPinochleRoom({ roomCode, token: host.token })).state.canTakeRest, true);
+  assert.equal((await getPinochleRoom({ roomCode, token: guest.token })).state.canTakeRest, false);
+  await assert.rejects(takeRestOfPinochleRoomTricks({ roomCode, token: guest.token }), /not guaranteed/);
+  const finished = await takeRestOfPinochleRoomTricks({ roomCode, token: host.token });
+  assert.equal(finished.state.phase, "round-over");
+  assert.equal(finished.state.tookRestTrickCount, 2);
+  assert.equal(finished.state.teams[0].score, 40);
 });

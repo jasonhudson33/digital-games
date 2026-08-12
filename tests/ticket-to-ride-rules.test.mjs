@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   DESTINATIONS,
   ROUTES,
+  addComputerPlayer,
   addPlayer,
   chooseOpeningDestinations,
   claimRoute,
@@ -13,6 +14,8 @@ import {
   hasConnection,
   isRouteAvailable,
   longestRouteLength,
+  removeComputerPlayer,
+  runComputerTurn,
   startGame,
   validPaymentColors,
 } from "../lib/ticket-to-ride.js";
@@ -36,6 +39,29 @@ test("a room supports five travelers but no sixth", () => {
   for (let index = 2; index <= 5; index += 1) lobby = addPlayer(lobby, player(`p${index}`, `Player ${index}`));
   assert.equal(lobby.players.length, 5);
   assert.equal(addPlayer(lobby, player("p6", "Six")), lobby);
+});
+
+test("the host can add and remove computer players in the lobby", () => {
+  const lobby = createLobby(player("p1", "One"), "BOTS", 1);
+  const withComputer = addComputerPlayer(lobby, { id: "bot-1", name: "Computer Casey" });
+  assert.equal(withComputer.players.length, 2);
+  assert.equal(withComputer.players[1].isComputer, true);
+  assert.equal(withComputer.players[1].name, "Computer Casey");
+  assert.notEqual(withComputer.players[0].color, withComputer.players[1].color);
+
+  const withoutComputer = removeComputerPlayer(withComputer, "bot-1");
+  assert.equal(withoutComputer.players.length, 1);
+  assert.equal(removeComputerPlayer(withComputer, "p1"), withComputer);
+});
+
+test("computer players choose two opening destinations automatically", () => {
+  const lobby = addComputerPlayer(createLobby(player("p1", "Avery"), "BOTTY", 1), { id: "bot-1" });
+  const game = startGame(lobby, () => 0.37);
+  const afterComputer = runComputerTurn(game, () => 0.2);
+  const computer = afterComputer.players.find((item) => item.id === "bot-1");
+  assert.equal(computer.pendingDestinations.length, 0);
+  assert.equal(computer.destinations.length, 2);
+  assert.equal(afterComputer.phase, "choosing-destinations");
 });
 
 test("every player starts with four train cards and three destination choices", () => {
@@ -120,6 +146,25 @@ test("Portland–San Francisco has two lanes but only one can be used with three
   assert.equal(isRouteAvailable(threePlayer, "p3", purpleLane.id), false);
 });
 
+test("the board uses the classic central and southeastern junction cities", () => {
+  const routeIds = new Set(ROUTES.map((item) => item.id));
+  for (const id of [
+    "kansas-city-saint-louis",
+    "oklahoma-little-rock",
+    "little-rock-new-orleans",
+    "washington-raleigh",
+    "raleigh-charleston",
+    "charleston-miami",
+  ]) assert.equal(routeIds.has(id), true, `${id} should be on the board`);
+
+  for (const retiredId of [
+    "kansas-city-nashville",
+    "oklahoma-nashville",
+    "atlanta-washington",
+    "washington-miami",
+  ]) assert.equal(routeIds.has(retiredId), false, `${retiredId} should not cut across the board`);
+});
+
 test("drawing two cards ends the turn", () => {
   const base = startedGame();
   const game = { ...base, phase: "playing" };
@@ -130,6 +175,51 @@ test("drawing two cards ends the turn", () => {
   assert.equal(twice.currentPlayerIndex, 1);
   assert.equal(twice.drawsThisTurn, 0);
   assert.equal(twice.players[0].cards.length, 6);
+});
+
+test("a computer takes legal card draws and finishes its turn", () => {
+  const lobby = addComputerPlayer(createLobby(player("p1", "Avery"), "BOTTY", 1), { id: "bot-1" });
+  const base = startGame(lobby, () => 0.37);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 1,
+    faceUp: [
+      { id: "face-red", color: "red" },
+      { id: "face-blue", color: "blue" },
+      { id: "face-green", color: "green" },
+      { id: "face-yellow", color: "yellow" },
+      { id: "face-black", color: "black" },
+    ],
+    players: base.players.map((item) => item.id === "bot-1" ? { ...item, cards: [], pendingDestinations: [] } : item),
+  };
+  const once = runComputerTurn(game, () => 0.2);
+  assert.equal(once.currentPlayerIndex, 1);
+  assert.equal(once.drawsThisTurn, 1);
+  const twice = runComputerTurn(once, () => 0.2);
+  assert.equal(twice.currentPlayerIndex, 0);
+  assert.equal(twice.drawsThisTurn, 0);
+  assert.equal(twice.players[1].cards.length, 2);
+});
+
+test("a computer claims an available route when it can pay", () => {
+  const lobby = addComputerPlayer(createLobby(player("p1", "Avery"), "BOTTY", 1), { id: "bot-1" });
+  const base = startGame(lobby, () => 0.37);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 1,
+    players: base.players.map((item) => item.id === "bot-1" ? {
+      ...item,
+      cards: [{ id: "r1", color: "red" }, { id: "r2", color: "red" }, { id: "r3", color: "red" }],
+      pendingDestinations: [],
+    } : item),
+  };
+  const next = runComputerTurn(game, () => 0.2);
+  const claimed = Object.entries(next.claimedRoutes).filter(([, owner]) => owner === "bot-1");
+  assert.equal(claimed.length, 1);
+  assert.equal(next.currentPlayerIndex, 0);
+  assert.ok(next.players[1].cards.length < 3);
 });
 
 test("a blind draw recycles the discard pile when the train deck is empty", () => {

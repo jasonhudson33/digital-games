@@ -436,7 +436,9 @@ function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmoun
     const partner = game.players[game.exchangeReturnQueue[0]];
     return <div className="pn-turn-controls"><button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.exchangeCount} onClick={() => onAction("returnPartnerCards", { cardIds: selectedIds })}>Return {game.exchangeCount} cards to {partner.name}</button></div>;
   }
-  if (game.phase === "playing") return <div className="pn-turn-controls waiting">Play a highlighted card from your hand.</div>;
+  if (game.phase === "playing") return game.canTakeRest
+    ? <div className="pn-turn-controls"><span>Every remaining trick is guaranteed.</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("takeRest")}>Take the rest</button></div>
+    : <div className="pn-turn-controls waiting">Play a highlighted card from your hand.</div>;
   return null;
 }
 
@@ -490,6 +492,8 @@ function RulesDialog({ open, onClose }) {
         </div>
         <h3>Partner exchange</h3>
         <p>After trump is called in a four-player game, the bidder’s teammate sends four cards to the bidder, who returns four cards. In a six-player game, each of the bidder’s two teammates sends three cards, and the bidder returns three cards to each teammate. There is no exchange in two-, three-, or five-player games.</p>
+        <h3>Take the rest</h3>
+        <p>When you lead a fresh trick, a Take the rest button appears if the stock is empty, all your remaining cards are trump or aces, and no other player holds trump. The claim awards you every remaining trick, all remaining counters, and the final-trick bonus.</p>
         <h3>Five-player contract team</h3>
         <p>The bidder takes the three center cards, returns three cards, and names trump. Every player still holding a jack of trump joins the bidder for that round. A jack holder privately knows they are with the bidder, but other players do not see that teammate revealed until the trump jack is played. Only the bidder’s meld counts toward the contract; captured trick points from the bidder and all trump-jack partners are combined with it. A partner’s own meld does not count. If they make it, every temporary teammate receives the combined contract score; if they are set, each loses the full bid.</p>
         <h3>Core meld values</h3>
