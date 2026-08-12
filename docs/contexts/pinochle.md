@@ -25,6 +25,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - The **Auction** produces one **Contract** and its bidder chooses trump.
 - The winning bidder leads the first **Trick**; each later trick is led by the previous trick's winner.
 - Two-player **Draw Pinochle** has no auction: the player left of the dealer leads, the turned stock card sets trump, and each trick winner may declare at most one previously undeclared meld before drawing first.
+- In two-player **Draw Pinochle**, a computer must follow the led suit whenever it holds that suit and cannot substitute a trump card.
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
 - **Cutthroat** games do not have a **Partner Exchange**.

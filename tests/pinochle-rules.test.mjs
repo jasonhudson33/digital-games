@@ -79,6 +79,28 @@ test("an open two-player stock allows any response, then closed-stock trick rule
   assert.deepEqual(getLegalPinochleCards({ ...state, stock: [], stockTrumpCard: null }, 1).map((card) => card.id), ["follow-club"]);
 });
 
+test("a two-player computer follows the led suit instead of playing trump", () => {
+  const base = createPinochleGame({ playerSeeds: players(2) });
+  const state = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 1,
+    trump: "spades",
+    trick: [{ playerIndex: 0, card: { id: "lead-club", copy: 1, suit: "clubs", rank: 11 } }],
+    players: base.players.map((player, index) => index === 1 ? {
+      ...player,
+      isComputer: true,
+      hand: [
+        { id: "follow-club", copy: 0, suit: "clubs", rank: 9 },
+        { id: "trump-ace", copy: 0, suit: "spades", rank: 14 },
+      ],
+    } : player),
+    stock: [{ id: "stock", copy: 1, suit: "diamonds", rank: 9 }],
+    stockTrumpCard: { id: "turned", copy: 1, suit: "spades", rank: 9 },
+  };
+  assert.equal(choosePinochleBotCard(state, 1).id, "follow-club");
+});
+
 test("a two-player trick winner may declare only one new meld before drawing", () => {
   const base = createPinochleGame({ playerSeeds: players(2) });
   const winnerHand = [
