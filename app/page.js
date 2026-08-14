@@ -161,7 +161,7 @@ const games = [
       "Create a room, assign hidden roles, and play through shared night and day phases.",
     tone: "night",
   },
-];
+].sort((left, right) => left.name.localeCompare(right.name, "en", { numeric: true }));
 
 export default function Page() {
   return (
