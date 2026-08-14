@@ -109,6 +109,11 @@
 .pn-score.contract-team { box-shadow: inset 0 0 0 1px #d6a637; background: #fff5cf; }
 .pn-score span { overflow: hidden; font-size: .79rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .pn-score strong { color: var(--pn-green); font-family: Georgia, serif; font-size: 1.3rem; }
+.pn-wash-notice { width: min(1180px, 100%); margin: 0 auto 10px; padding: 10px 13px; border: 1px solid #d2a43a; border-radius: 12px; color: #624714; background: #fff4cf; }
+.pn-wash-notice > strong { font-family: Georgia, serif; }
+.pn-wash-notice p { margin: 3px 0 7px; font-size: .75rem; }
+.pn-wash-notice div { display: flex; flex-wrap: wrap; gap: 5px; }
+.pn-wash-notice div span { padding: 3px 6px; border-radius: 5px; background: rgba(255,255,255,.58); font-size: .66rem; }
 
 .pn-table { width: min(1180px, 100%); min-height: 480px; margin: auto; display: grid; grid-template-columns: 220px minmax(340px, 1fr) 240px; gap: 12px; padding: 12px; border: 7px solid #663f24; border-radius: 30px; background:
   radial-gradient(circle at center, rgba(255,255,255,.05), transparent 40%),

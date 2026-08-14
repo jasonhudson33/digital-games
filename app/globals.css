@@ -226,6 +226,20 @@ input {
   color: #d8deeb;
 }
 
+.game-card.no-thanks {
+  color: #fffaf0;
+  border-color: rgba(255, 216, 103, 0.3);
+  background:
+    radial-gradient(circle at 84% 18%, rgba(255, 216, 103, 0.76), transparent 16%),
+    radial-gradient(circle at 8% 94%, rgba(116, 216, 189, 0.45), transparent 33%),
+    linear-gradient(145deg, #6a50bd 0%, #493796 62%, #2b2547 100%);
+}
+
+.game-card.no-thanks .game-status,
+.game-card.no-thanks p {
+  color: #e8e1f7;
+}
+
 .game-card.bang {
   color: #fff2d5;
   border-color: rgba(226, 175, 89, 0.28);
@@ -315,6 +329,18 @@ input {
 .game-card.splendor p {
   color: rgba(255, 247, 223, 0.72);
 }
+
+.game-card.qwirkle {
+  color: #fff;
+  background:
+    radial-gradient(circle at 83% 20%, rgba(244, 197, 66, .42) 0 7px, transparent 8px),
+    radial-gradient(circle at 72% 30%, rgba(58, 134, 255, .44) 0 9px, transparent 10px),
+    radial-gradient(circle at 88% 39%, rgba(239, 71, 111, .4) 0 8px, transparent 9px),
+    linear-gradient(145deg, #20232d, #101219);
+}
+
+.game-card.qwirkle .game-status,
+.game-card.qwirkle p { color: rgba(255,255,255,.7); }
 
 .game-card.spyrium {
   color: #f2ead7;

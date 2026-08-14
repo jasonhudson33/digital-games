@@ -2,6 +2,38 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "UNO",
+    href: "/uno",
+    status: "New · Rooms for 2–10",
+    description:
+      "Play Classic UNO or flip every hand between light and dark sides in UNO Flip with friends or computer rivals.",
+    tone: "uno",
+  },
+  {
+    name: "DOS",
+    href: "/dos",
+    status: "New · Rooms for 2–4",
+    description:
+      "Match the center row with single cards or two-card sums and turn color matches into bonuses.",
+    tone: "dos",
+  },
+  {
+    name: "No Thanks!",
+    href: "/no-thanks",
+    status: "New · Rooms for 3–7",
+    description:
+      "Take the card or pay to pass, build low-scoring runs, and outlast friends or computer players.",
+    tone: "no-thanks",
+  },
+  {
+    name: "Qwirkle",
+    href: "/qwirkle",
+    status: "New · Rooms for 2–4",
+    description:
+      "Match colors and shapes, cross the grid for bigger scores, and complete six-tile Qwirkles with friends or computers.",
+    tone: "qwirkle",
+  },
+  {
     name: "Spyrium",
     href: "/spyrium",
     status: "New · Rooms for 2–5",

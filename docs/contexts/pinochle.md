@@ -29,7 +29,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
 - **Cutthroat** games do not have a **Partner Exchange**.
-- In five-player play, a contract counts only the bidder's **Meld**, plus captured trick points from the bidder and every **Calling Partner**. Calling Partners' own meld does not count toward the contract. All temporary teammates gain that contract score when made or each lose the bid when set.
+- In five-player play, a contract counts only the bidder's **Meld**, plus captured trick points from the bidder and every **Calling Partner**. Calling Partners' own meld does not help satisfy the contract. When the contract is made, each temporary teammate scores only their own meld and captured trick points; when set, each receives only the negative bid.
 - A **Calling Partner** privately knows they are with the bidder, but remains hidden from other players until they play their jack of trump.
 - A team's **Meld** and captured trick counters combine toward its **Contract**.
 - Every player's scored **Meld** and its cards remain public on the table.
@@ -37,6 +37,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - A partnership **Auction** ends immediately when every remaining bidder is on the same team, preventing partners from raising against each other after all opponents pass.
 - A completed **Trick** remains face-up until a human clears it; only then does its winner lead the following trick.
 - A bidding team that misses its **Contract** loses the value of the bid.
+- After final hands and meld are known, a contract is washed when its eligible meld plus every available trick counter and the last-trick bonus cannot reach the bid. The bidder team loses the bid, every opposing player or team banks meld only, and the next hand is dealt immediately.
 - Players must follow suit, head the trick when able, and trump or overtrump when void.
 - A player leading a fresh trick may **Take the rest** when the stock is empty, every card they hold is trump or an ace, no opponent holds trump, and all hands are the same size. The claim credits that player with every remaining trick, counter, and the last-trick bonus.
 

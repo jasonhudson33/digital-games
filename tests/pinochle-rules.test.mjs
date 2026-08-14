@@ -436,12 +436,94 @@ test("three-player cutthroat tables skip partner trading", () => {
   }
 });
 
+test("an impossible three-player contract is set, scores opposing meld, and redeals", () => {
+  let game = createPinochleGame({ playerSeeds: players(3) });
+  const bidder = game.currentPlayerIndex;
+  const trump = "hearts";
+  const melds = game.players.map((player) => calculatePinochleMeld(player.hand, trump));
+  game = placePinochleBid(game, bidder, 9990);
+  while (game.phase === "bidding") game = passPinochleBid(game, game.currentPlayerIndex);
+  game = choosePinochleTrump(game, bidder, trump);
+
+  assert.equal(game.roundNumber, 2);
+  assert.equal(game.phase, "bidding");
+  assert.equal(game.lastWashSummary.washed, true);
+  assert.equal(game.lastWashSummary.maximumTrickPoints, 250);
+  assert.equal(game.lastWashSummary.maximumContractPoints, melds[bidder].total + 250);
+  assert.equal(game.teams[bidder].score, -9990);
+  for (const index of [0, 1, 2].filter((index) => index !== bidder)) {
+    assert.equal(game.teams[index].score, melds[index].total);
+  }
+  assert.ok(game.players.every((player) => player.hand.length === 16));
+});
+
+test("a contract that can exactly reach its bid is played instead of washed", () => {
+  let game = createPinochleGame({ playerSeeds: players(3) });
+  const bidder = game.currentPlayerIndex;
+  const trump = "diamonds";
+  const maximumContractPoints = calculatePinochleMeld(game.players[bidder].hand, trump).total + 250;
+  game = placePinochleBid(game, bidder, maximumContractPoints);
+  while (game.phase === "bidding") game = passPinochleBid(game, game.currentPlayerIndex);
+  game = choosePinochleTrump(game, bidder, trump);
+
+  assert.equal(game.roundNumber, 1);
+  assert.equal(game.phase, "playing");
+  assert.equal(game.lastWashSummary, null);
+});
+
+test("an impossible partnership contract sets the bidding team and banks the opponents' meld", () => {
+  let game = createPinochleGame({ playerSeeds: players(4) });
+  const bidder = game.currentPlayerIndex;
+  game = placePinochleBid(game, bidder, 9990);
+  while (game.phase === "bidding") game = passPinochleBid(game, game.currentPlayerIndex);
+  game = choosePinochleTrump(game, bidder, "spades");
+  const partner = game.currentPlayerIndex;
+  game = passPinochlePartnerCards(game, partner, game.players[partner].hand.slice(0, 4).map((card) => card.id));
+  game = returnPinochlePartnerCards(game, bidder, game.players[bidder].hand.slice(0, 4).map((card) => card.id));
+
+  const biddingTeamId = game.lastWashSummary.biddingTeamId;
+  const opposingTeamId = biddingTeamId === 0 ? 1 : 0;
+  assert.equal(game.roundNumber, 2);
+  assert.equal(game.phase, "bidding");
+  assert.equal(game.teams[biddingTeamId].score, -9990);
+  assert.equal(game.teams[opposingTeamId].score, game.lastWashSummary.teamMeldPoints[opposingTeamId]);
+  assert.equal(game.lastWashSummary.roundDeltas[opposingTeamId], game.lastWashSummary.teamMeldPoints[opposingTeamId]);
+});
+
+test("an impossible five-player contract sets every trump-jack partner and banks each opponent's meld", () => {
+  let game = createPinochleGame({ playerSeeds: players(5) });
+  game.players[2].hand[0] = { ...game.players[2].hand[0], suit: "hearts", rank: 11 };
+  const bidder = game.currentPlayerIndex;
+  game = placePinochleBid(game, bidder, 9990);
+  while (game.phase === "bidding") game = passPinochleBid(game, game.currentPlayerIndex);
+  game = choosePinochleTrump(game, bidder, "hearts");
+  const discards = game.players[bidder].hand.filter((card) => card.suit !== "hearts" || card.rank !== 11).slice(0, 3);
+  const discardIds = discards.map((card) => card.id);
+  const finalHands = game.players.map((player, index) => index === bidder
+    ? player.hand.filter((card) => !discardIds.includes(card.id))
+    : player.hand);
+  const melds = finalHands.map((hand) => calculatePinochleMeld(hand, "hearts"));
+  const contractPlayerIndexes = finalHands.flatMap((hand, index) => index === bidder
+    || hand.some((card) => card.suit === "hearts" && card.rank === 11)
+    ? [index]
+    : []);
+  game = discardPinochleKitty(game, bidder, discardIds);
+
+  assert.equal(game.roundNumber, 2);
+  assert.equal(game.phase, "bidding");
+  assert.ok(contractPlayerIndexes.includes(2));
+  assert.deepEqual(game.lastWashSummary.contractPlayerIndexes, contractPlayerIndexes);
+  for (const index of game.players.map((_, index) => index)) {
+    assert.equal(game.teams[index].score, contractPlayerIndexes.includes(index) ? -9990 : melds[index].total);
+  }
+});
+
 test("five-player trump-jack holders join the bidder and share the set penalty", () => {
   let game = createPinochleGame({
     playerSeeds: players(5).map((player) => ({ ...player, isComputer: true })),
   });
   game.players[2].hand[0] = { ...game.players[2].hand[0], suit: "hearts", rank: 11 };
-  game = placePinochleBid(game, 1, 9990);
+  game = placePinochleBid(game, 1, 150);
   for (const index of [2, 3, 4, 0]) game = passPinochleBid(game, index);
   assert.equal(game.phase, "choosing-trump");
   assert.equal(game.players[1].hand.length, 12);
@@ -452,6 +534,7 @@ test("five-player trump-jack holders join the bidder and share the set penalty",
   assert.equal(discards.length, 3);
   game = discardPinochleKitty(game, 1, discards.map((card) => card.id));
   assert.equal(game.phase, "playing");
+  game = { ...game, highBid: 9990 };
   assert.ok(game.contractPlayerIndexes.includes(1));
   assert.ok(game.contractPlayerIndexes.includes(2));
   assert.deepEqual(game.revealedContractPlayerIndexes, []);
@@ -482,7 +565,7 @@ test("five-player trump-jack holders join the bidder and share the set penalty",
   }
 });
 
-test("a five-player contract uses only the bidder's meld plus every contract teammate's tricks", () => {
+test("a made five-player contract pays each bidder-team player only their own meld and tricks", () => {
   const finalCards = [
     { id: "final-j", copy: 0, suit: "clubs", rank: 11 },
     { id: "final-a", copy: 0, suit: "clubs", rank: 14 },
@@ -519,8 +602,10 @@ test("a five-player contract uses only the bidder's meld plus every contract tea
   assert.equal(game.roundSummary.bidderMeldPoints, 20);
   assert.equal(game.roundSummary.contractTrickPoints, 130);
   assert.equal(game.roundSummary.contractPoints, 150);
-  assert.equal(game.roundSummary.roundDeltas[1], 150);
-  assert.equal(game.roundSummary.roundDeltas[2], 150);
+  assert.equal(game.roundSummary.scoringPoints[1], 100);
+  assert.equal(game.roundSummary.scoringPoints[2], 80);
+  assert.equal(game.roundSummary.roundDeltas[1], 100);
+  assert.equal(game.roundSummary.roundDeltas[2], 80);
 });
 
 test("a trump-jack partner's meld cannot make a five-player contract", () => {

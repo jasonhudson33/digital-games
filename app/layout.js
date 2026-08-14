@@ -1,6 +1,7 @@
 import Script from "next/script";
 import SiteHeader from "../components/site-header";
 import "./globals.css";
+import "./color-games.css";
 
 export const metadata = {
   title: "Digital Games",

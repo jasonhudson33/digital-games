@@ -298,6 +298,24 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
         ))}
       </section>
 
+      {game.lastWashSummary && (
+        <section className="pn-wash-notice" aria-label="Previous hand washed">
+          <strong>Hand {game.lastWashSummary.roundNumber} washed</strong>
+          <p>{game.lastWashSummary.message}</p>
+          <div>
+            {(game.partnershipGame ? game.teams : game.players).map((entry, index) => {
+              const scoreIndex = game.partnershipGame ? entry.id : entry.teamId;
+              const meld = game.partnershipGame
+                ? game.lastWashSummary.teamMeldPoints[entry.id]
+                : game.lastWashSummary.melds[index]?.total || 0;
+              const name = game.partnershipGame ? pinochleTeamName(game, entry.id) : entry.name;
+              const delta = game.lastWashSummary.roundDeltas[scoreIndex];
+              return <span key={game.partnershipGame ? entry.id : entry.playerId}>{name}: meld {meld}, round {delta >= 0 ? "+" : ""}{delta}</span>;
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="pn-table">
         <div className="pn-player-rail">
           {game.players.map((player, index) => (
@@ -492,10 +510,12 @@ function RulesDialog({ open, onClose }) {
         </div>
         <h3>Partner exchange</h3>
         <p>After trump is called in a four-player game, the bidder’s teammate sends four cards to the bidder, who returns four cards. In a six-player game, each of the bidder’s two teammates sends three cards, and the bidder returns three cards to each teammate. There is no exchange in two-, three-, or five-player games.</p>
+        <h3>Washed contracts</h3>
+        <p>After the final hands and meld are known, the table checks the most the contract could earn using its eligible meld, every remaining counter, and the final-trick bonus. If that total cannot cover the bid, the bidder team loses the bid, opponents score their meld only, and the next hand is dealt immediately.</p>
         <h3>Take the rest</h3>
         <p>When you lead a fresh trick, a Take the rest button appears if the stock is empty, all your remaining cards are trump or aces, and no other player holds trump. The claim awards you every remaining trick, all remaining counters, and the final-trick bonus.</p>
         <h3>Five-player contract team</h3>
-        <p>The bidder takes the three center cards, returns three cards, and names trump. Every player still holding a jack of trump joins the bidder for that round. A jack holder privately knows they are with the bidder, but other players do not see that teammate revealed until the trump jack is played. Only the bidder’s meld counts toward the contract; captured trick points from the bidder and all trump-jack partners are combined with it. A partner’s own meld does not count. If they make it, every temporary teammate receives the combined contract score; if they are set, each loses the full bid.</p>
+        <p>The bidder takes the three center cards, returns three cards, and names trump. Every player still holding a jack of trump joins the bidder for that round. A jack holder privately knows they are with the bidder, but other players do not see that teammate revealed until the trump jack is played. Only the bidder’s meld counts toward making the contract; captured trick points from the bidder and all trump-jack partners are combined with it. A partner’s own meld does not help satisfy the bid. If the contract is made, each temporary teammate scores only their own meld and captured trick points. If they are set, each receives only the negative bid.</p>
         <h3>Core meld values</h3>
         <div className="pn-meld-guide"><span>Run in trump <b>150</b></span><span>Aces around <b>100</b></span><span>Kings around <b>80</b></span><span>Queens around <b>60</b></span><span>Jacks around <b>40</b></span><span>Q♠ + J♦ <b>40</b></span><span>Trump marriage <b>40</b></span><span>Other marriage <b>20</b></span><span>Trump nine (dix) <b>10</b></span></div>
         <p className="pn-rule-note">Aces, tens, and kings captured in tricks are worth ten points each; the final trick is worth ten. A team must take a trick for its meld to score.</p>

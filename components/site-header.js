@@ -10,6 +10,7 @@ const games = [
   { name: "7-Up", href: "/seven-up" },
   { name: "Catan", href: "/catan" },
   { name: "Cover Your Assets", href: "/cover-your-assets" },
+  { name: "DOS", href: "/dos" },
   { name: "Flip 7", href: "/flip-7" },
   { name: "Hand & Foot", href: "/hand-and-foot" },
   { name: "Hearts", href: "/hearts" },
@@ -17,7 +18,9 @@ const games = [
   { name: "Life", href: "/life" },
   { name: "Mafia", href: "/mafia" },
   { name: "Monopoly", href: "/monopoly" },
+  { name: "No Thanks!", href: "/no-thanks" },
   { name: "Pinochle", href: "/pinochle" },
+  { name: "Qwirkle", href: "/qwirkle" },
   { name: "Risk", href: "/risk" },
   { name: "Scum", href: "/scum" },
   { name: "Secret Hitler", href: "/secret-hitler" },
@@ -26,6 +29,7 @@ const games = [
   { name: "Splendor", href: "/splendor" },
   { name: "Spyrium", href: "/spyrium" },
   { name: "Ticket to Ride", href: "/ticket-to-ride" },
+  { name: "UNO", href: "/uno" },
 ];
 
 export default function SiteHeader() {

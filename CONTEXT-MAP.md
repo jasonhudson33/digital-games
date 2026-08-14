@@ -2,6 +2,10 @@
 
 ## Contexts
 
+- [UNO](./docs/contexts/uno.md) - Classic and Flip rulesets, double-sided cards, action challenges, call penalties, and computer rivals
+- [DOS](./docs/contexts/dos.md) - center-row number sums, color bonuses, call penalties, and computer rivals
+- [Qwirkle](./docs/contexts/qwirkle.md) - room-based tile placement, expandable grids, multi-line scoring, and computer rivals
+- [No Thanks!](./docs/contexts/no-thanks.md) - room-based card avoidance, hidden chip supplies, sequential-run scoring, and computer rivals
 - [Spyrium](./docs/contexts/spyrium.md) - shared-market worker placement, congestion pricing, industrial neighborhoods, and computer rivals
 - [Cover Your Assets](./docs/contexts/cover-your-assets.md) - private rooms, asset challenges, computer rivals, and millionaire scoring
 - [Splendor](./docs/contexts/splendor.md) - room-based gem drafting, development engines, nobles, and computer merchants
@@ -17,7 +21,7 @@
 
 ## Relationships
 
-- **Seven Up**, **Scum**, **Hand and Foot**, **Sequence**, **Cover Your Assets**, **Splendor**, and **Spyrium** use the shared private, server-side Supabase room-store Module.
+- **UNO**, **DOS**, **Qwirkle**, **No Thanks!**, **Seven Up**, **Scum**, **Hand and Foot**, **Sequence**, **Cover Your Assets**, **Splendor**, and **Spyrium** use the shared private, server-side Supabase room-store Module.
 - **Catan** and **Monopoly** use the shared Supabase room-sync Adapter and versioned state migrations.
 - **Mafia** uses a separate token-validated Supabase RPC model because roles and intents are private.
 - All contexts share the Next.js shell, site header, deployment, and root quality pipeline; game rules remain context-owned.
