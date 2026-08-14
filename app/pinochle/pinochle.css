@@ -213,7 +213,8 @@
 
 .pn-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow-y: auto; padding: 20px; background: rgba(6,25,20,.76); backdrop-filter: blur(5px); }
 .pn-rules,
-.pn-results { position: relative; width: min(790px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: clamp(24px, 5vw, 44px); border: 1px solid rgba(216,167,49,.28); border-radius: 22px; background: #fffaf0; box-shadow: 0 28px 70px rgba(0,0,0,.34); }
+.pn-results,
+.pn-exchange-receipt { position: relative; width: min(790px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: clamp(24px, 5vw, 44px); border: 1px solid rgba(216,167,49,.28); border-radius: 22px; background: #fffaf0; box-shadow: 0 28px 70px rgba(0,0,0,.34); }
 .pn-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #52635a; background: #eee7d9; cursor: pointer; }
 .pn-rules h2,
 .pn-results h2 { margin: 7px 0 12px; color: var(--pn-green-dark); font-family: Georgia, serif; font-size: 2.5rem; }
@@ -235,6 +236,10 @@
 .pn-result-table > div:first-child { color: #8a7c64; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 .pn-result-table .negative { color: #b3332e; }
 .pn-results-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; }
+.pn-exchange-receipt { width: min(560px, 100%); text-align: center; }
+.pn-exchange-receipt h2 { margin: 7px 0 10px; color: var(--pn-green-dark); font-family: Georgia, serif; font-size: 2rem; }
+.pn-exchange-receipt > p { margin: 0; color: #67736d; line-height: 1.5; }
+.pn-received-cards { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin: 24px 0; }
 
 @media (max-width: 900px) {
   .pn-hero { grid-template-columns: 1fr; }
@@ -265,5 +270,6 @@
   .pn-rule-grid,
   .pn-meld-guide { grid-template-columns: 1fr; }
   .pn-rules,
-  .pn-results { padding: 26px 18px; }
+  .pn-results,
+  .pn-exchange-receipt { padding: 26px 18px; }
 }

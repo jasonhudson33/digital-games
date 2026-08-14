@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getLegalPinochleCards } from "../lib/pinochle.js";
 import {
+  acknowledgePinochleRoomExchange,
   addPinochleComputer,
   bidPinochleRoom,
   choosePinochleRoomTrump,
@@ -13,6 +14,7 @@ import {
   passPinochleRoom,
   passPinochleRoomPartnerCards,
   playPinochleRoomCard,
+  returnPinochleRoomPartnerCards,
   skipTwoPlayerPinochleRoomMeld,
   startPinochleRoom,
   takeRestOfPinochleRoomTricks,
@@ -147,13 +149,29 @@ test("partnership exchange cards remain private in room views", async () => {
   const partnerView = await getPinochleRoom({ roomCode, token: partner.token });
   const cardIds = partnerView.state.players[3].hand.slice(0, 4).map((card) => card.id);
   const afterPass = await passPinochleRoomPartnerCards({ roomCode, token: partner.token, cardIds });
-  assert.equal(afterPass.state.phase, "bidder-returning");
+  assert.equal(afterPass.state.phase, "acknowledging-exchange");
   assert.equal(afterPass.state.players[3].hand.length, 8);
   assert.deepEqual(afterPass.state.partnerPasses, { 3: true });
+  assert.deepEqual(afterPass.state.exchangeAcknowledgment.cards, []);
+  assert.equal(afterPass.state.exchangeAcknowledgment.cardCount, 4);
 
-  const bidderView = await getPinochleRoom({ roomCode, token: bidder.token });
+  let bidderView = await getPinochleRoom({ roomCode, token: bidder.token });
   assert.equal(bidderView.state.players[1].hand.length, 16);
   assert.equal(bidderView.state.players[3].hand.length, 0);
+  assert.deepEqual(bidderView.state.exchangeAcknowledgment.cards.map((card) => card.id), cardIds);
+  assert.deepEqual((await getPinochleRoom({ roomCode, token: opponent.token })).state.exchangeAcknowledgment.cards, []);
+
+  const acknowledged = await acknowledgePinochleRoomExchange({ roomCode, token: bidder.token });
+  assert.equal(acknowledged.state.phase, "bidder-returning");
+  bidderView = await getPinochleRoom({ roomCode, token: bidder.token });
+  const returnedIds = bidderView.state.players[1].hand.slice(0, 4).map((card) => card.id);
+  const afterReturn = await returnPinochleRoomPartnerCards({ roomCode, token: bidder.token, cardIds: returnedIds });
+  assert.equal(afterReturn.state.phase, "acknowledging-exchange");
+  assert.deepEqual(afterReturn.state.exchangeAcknowledgment.cards, []);
+  const returnedPartnerView = await getPinochleRoom({ roomCode, token: partner.token });
+  assert.deepEqual(returnedPartnerView.state.exchangeAcknowledgment.cards.map((card) => card.id), returnedIds);
+  const playing = await acknowledgePinochleRoomExchange({ roomCode, token: partner.token });
+  assert.equal(playing.state.phase, "playing");
 });
 
 test("any human can clear a completed room trick after reviewing it", async () => {

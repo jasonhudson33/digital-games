@@ -1,5 +1,6 @@
 import { handleApi, handleRoomAction } from "../../../../../lib/api";
 import {
+  acknowledgePinochleRoomExchange,
   addPinochleComputer,
   bidPinochleRoom,
   choosePinochleRoomTrump,
@@ -38,6 +39,7 @@ export async function POST(request, context) {
     discardKitty: discardPinochleRoomKitty,
     passPartnerCards: passPinochleRoomPartnerCards,
     returnPartnerCards: returnPinochleRoomPartnerCards,
+    acknowledgeExchange: acknowledgePinochleRoomExchange,
     playCard: playPinochleRoomCard,
     takeRest: takeRestOfPinochleRoomTricks,
     clearTrick: clearPinochleRoomTrick,

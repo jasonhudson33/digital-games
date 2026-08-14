@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PINOCHLE_SUITS,
+  acknowledgePinochleExchange,
   canTakeRestOfPinochleTricks,
   calculatePinochleMeld,
   choosePinochleBotBid,
@@ -391,12 +392,20 @@ test("four-player bidder exchanges four cards with their teammate", () => {
   assert.deepEqual(game.exchangePartnerIndexes, [3]);
   const sentIds = game.players[3].hand.slice(0, 4).map((card) => card.id);
   game = passPinochlePartnerCards(game, 3, sentIds);
+  assert.equal(game.phase, "acknowledging-exchange");
+  assert.equal(game.currentPlayerIndex, 1);
+  assert.deepEqual(game.exchangeAcknowledgment.cards.map((card) => card.id), sentIds);
+  game = acknowledgePinochleExchange(game, 1);
   assert.equal(game.phase, "bidder-returning");
   assert.equal(game.players[1].hand.length, 16);
   assert.equal(game.players[3].hand.length, 8);
 
   const returnedIds = game.players[1].hand.slice(0, 4).map((card) => card.id);
   game = returnPinochlePartnerCards(game, 1, returnedIds);
+  assert.equal(game.phase, "acknowledging-exchange");
+  assert.equal(game.currentPlayerIndex, 3);
+  assert.deepEqual(game.exchangeAcknowledgment.cards.map((card) => card.id), returnedIds);
+  game = acknowledgePinochleExchange(game, 3);
   assert.equal(game.phase, "playing");
   assert.equal(game.currentPlayerIndex, 1);
   assert.ok(game.players.every((player) => player.hand.length === 12));
@@ -412,14 +421,23 @@ test("six-player bidder exchanges three cards with each teammate", () => {
   assert.equal(game.exchangeCount, 3);
   assert.deepEqual(game.exchangePartnerIndexes, [3, 5]);
   game = passPinochlePartnerCards(game, 3, game.players[3].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "acknowledging-exchange");
+  assert.equal(game.currentPlayerIndex, 1);
+  game = acknowledgePinochleExchange(game, 1);
   assert.equal(game.currentPlayerIndex, 5);
   game = passPinochlePartnerCards(game, 5, game.players[5].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "acknowledging-exchange");
+  game = acknowledgePinochleExchange(game, 1);
   assert.equal(game.phase, "bidder-returning");
   assert.equal(game.players[1].hand.length, 22);
 
   game = returnPinochlePartnerCards(game, 1, game.players[1].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "acknowledging-exchange");
   assert.deepEqual(game.exchangeReturnQueue, [5]);
+  game = acknowledgePinochleExchange(game, 3);
   game = returnPinochlePartnerCards(game, 1, game.players[1].hand.slice(0, 3).map((card) => card.id));
+  assert.equal(game.phase, "acknowledging-exchange");
+  game = acknowledgePinochleExchange(game, 5);
   assert.equal(game.phase, "playing");
   assert.equal(game.currentPlayerIndex, 1);
   assert.ok(game.players.every((player) => player.hand.length === 16));
@@ -479,7 +497,9 @@ test("an impossible partnership contract sets the bidding team and banks the opp
   game = choosePinochleTrump(game, bidder, "spades");
   const partner = game.currentPlayerIndex;
   game = passPinochlePartnerCards(game, partner, game.players[partner].hand.slice(0, 4).map((card) => card.id));
+  game = acknowledgePinochleExchange(game, bidder);
   game = returnPinochlePartnerCards(game, bidder, game.players[bidder].hand.slice(0, 4).map((card) => card.id));
+  game = acknowledgePinochleExchange(game, partner);
 
   const biddingTeamId = game.lastWashSummary.biddingTeamId;
   const opposingTeamId = biddingTeamId === 0 ? 1 : 0;
@@ -677,6 +697,8 @@ test("computer players can complete a full round at every table size", () => {
         game = passPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerPass(game, playerIndex));
       } else if (game.phase === "bidder-returning") {
         game = returnPinochlePartnerCards(game, playerIndex, choosePinochleBotPartnerReturn(game, playerIndex));
+      } else if (game.phase === "acknowledging-exchange") {
+        game = acknowledgePinochleExchange(game, playerIndex);
       } else if (game.phase === "two-player-melding") {
         const meld = getAvailableTwoPlayerMelds(game, playerIndex)[0];
         game = meld ? declareTwoPlayerPinochleMeld(game, playerIndex, meld.key) : skipTwoPlayerPinochleMeld(game, playerIndex);

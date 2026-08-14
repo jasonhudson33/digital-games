@@ -412,6 +412,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
       </section>
 
       {error && <p className="pn-error pn-game-error" role="alert">{error}</p>}
+      {game.phase === "acknowledging-exchange" && yourTurn && <ExchangeReceiptDialog game={game} busy={busy} onAction={onAction} />}
       {showResults && <ResultsDialog game={game} busy={busy} onAction={onAction} onLeave={onLeave} />}
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
@@ -421,6 +422,11 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmount, selectedIds, availableMelds, onAction }) {
   if (game.phase === "trick-complete") {
     return <div className="pn-turn-controls pn-clear-trick"><span>{game.playerCount === 2 && game.stockCount > 0 ? "Keep the trick face-up, then let its winner choose one meld." : "Everyone’s cards stay face-up until you are ready."}</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("clearTrick")}>Clear trick</button></div>;
+  }
+  if (game.phase === "acknowledging-exchange") {
+    return yourTurn
+      ? <div className="pn-turn-controls waiting">Review and acknowledge the cards you received.</div>
+      : <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name} to acknowledge received cards…</div>;
   }
   if (!yourTurn) return <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name}…</div>;
   if (game.phase === "two-player-melding") {
@@ -458,6 +464,24 @@ function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmoun
     ? <div className="pn-turn-controls"><span>Every remaining trick is guaranteed.</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("takeRest")}>Take the rest</button></div>
     : <div className="pn-turn-controls waiting">Play a highlighted card from your hand.</div>;
   return null;
+}
+
+function ExchangeReceiptDialog({ game, busy, onAction }) {
+  const receipt = game.exchangeAcknowledgment;
+  const sender = game.players[receipt.senderIndex];
+  return (
+    <div className="pn-modal-backdrop">
+      <section className="pn-exchange-receipt" role="dialog" aria-modal="true" aria-label={`Cards received from ${sender.name}`}>
+        <span className="pn-kicker">Partnership exchange</span>
+        <h2>Cards from {sender.name}</h2>
+        <p>These cards have been added to your hand. Review them before the exchange continues.</p>
+        <div className="pn-received-cards">
+          {receipt.cards.map((card) => <PinochleCard card={card} key={card.id} />)}
+        </div>
+        <button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("acknowledgeExchange")}>Acknowledge cards</button>
+      </section>
+    </div>
+  );
 }
 
 function ResultsDialog({ game, busy, onAction, onLeave }) {
@@ -509,7 +533,7 @@ function RulesDialog({ open, onClose }) {
           <div><strong>Trick rules</strong><p>Follow suit when possible. You must head the current winner when able. If void, trump—and overtrump—when able.</p></div>
         </div>
         <h3>Partner exchange</h3>
-        <p>After trump is called in a four-player game, the bidder’s teammate sends four cards to the bidder, who returns four cards. In a six-player game, each of the bidder’s two teammates sends three cards, and the bidder returns three cards to each teammate. There is no exchange in two-, three-, or five-player games.</p>
+        <p>After trump is called in a four-player game, the bidder’s teammate sends four cards to the bidder, who returns four cards. In a six-player game, each of the bidder’s two teammates sends three cards, and the bidder returns three cards to each teammate. Every recipient privately reviews and acknowledges each set of received cards before the exchange continues. There is no exchange in two-, three-, or five-player games.</p>
         <h3>Washed contracts</h3>
         <p>After the final hands and meld are known, the table checks the most the contract could earn using its eligible meld, every remaining counter, and the final-trick bonus. If that total cannot cover the bid, the bidder team loses the bid, opponents score their meld only, and the next hand is dealt immediately.</p>
         <h3>Take the rest</h3>
@@ -529,6 +553,7 @@ function handInstruction(game, yourTurn) {
   if (game.phase === "discarding-kitty") return `Choose ${game.kittySize} card to return to the kitty`;
   if (game.phase === "partner-passing") return `Choose ${game.exchangeCount} cards to send to the bidder`;
   if (game.phase === "bidder-returning") return `Choose ${game.exchangeCount} cards to return to ${game.players[game.exchangeReturnQueue[0]].name}`;
+  if (game.phase === "acknowledging-exchange") return yourTurn ? "Review the cards you received" : "Your hand";
   return "";
 }
 

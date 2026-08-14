@@ -28,6 +28,7 @@ Pinochle owns room-based auction play, meld scoring, trump selection, and trick-
 - In two-player **Draw Pinochle**, a computer must follow the led suit whenever it holds that suit and cannot substitute a trump card.
 - In four-player **Partnership**, the bidder exchanges four cards with their teammate.
 - In six-player **Partnership**, the bidder exchanges three cards with each of their two teammates.
+- Every partnership exchange pauses after each transfer so only the recipient can review and acknowledge the cards they received before play continues.
 - **Cutthroat** games do not have a **Partner Exchange**.
 - In five-player play, a contract counts only the bidder's **Meld**, plus captured trick points from the bidder and every **Calling Partner**. Calling Partners' own meld does not help satisfy the contract. When the contract is made, each temporary teammate scores only their own meld and captured trick points; when set, each receives only the negative bid.
 - A **Calling Partner** privately knows they are with the bidder, but remains hidden from other players until they play their jack of trump.
