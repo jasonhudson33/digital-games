@@ -1,0 +1,226 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  activationCost,
+  activateMarketCard,
+  addComputerPlayer,
+  addPlayer,
+  adjacentCardIndexes,
+  beginActivation,
+  chooseBonus,
+  createLobby,
+  createPeriodDecks,
+  currentPlayer,
+  gainMoney,
+  marketSlots,
+  pass,
+  placeWorker,
+  playerMarketWorkers,
+  projectedFinalScore,
+  runComputerTurn,
+  startGame,
+  useBuilding,
+} from "../lib/spyrium.js";
+
+const person = (id, name) => ({ id, name });
+
+function lobbyWith(count = 2) {
+  let game = createLobby(person("p1", "Ada"), "STEAM", 1);
+  for (let index = 2; index <= count; index += 1) game = addPlayer(game, person(`p${index}`, `Player ${index}`));
+  return game;
+}
+
+function gameWith(count = 2) { return startGame(lobbyWith(count), () => 0.42); }
+
+function activationState() {
+  const game = gameWith(2);
+  const slot = marketSlots()[0];
+  const placed = placeWorker(game, currentPlayer(game).id, slot.id);
+  const ownerId = game.players[game.firstPlayerIndex].id;
+  const ownerIndex = game.players.findIndex((player) => player.id === ownerId);
+  return {
+    game: {
+      ...placed,
+      currentPlayerIndex: ownerIndex,
+      players: placed.players.map((player) => player.id === ownerId ? { ...player, phase: "activation", money: 30 } : player),
+    },
+    ownerId,
+    slot,
+  };
+}
+
+test("period decks contain the tabletop card distribution", () => {
+  const decks = createPeriodDecks(() => 0.2);
+  assert.deepEqual(Object.fromEntries(Object.entries(decks).map(([period, cards]) => [period, cards.length])), { A: 30, B: 20, C: 9 });
+  const cards = Object.values(decks).flat();
+  assert.equal(cards.filter((card) => card.type === "building").length, 35);
+  assert.equal(cards.filter((card) => card.type === "character").length, 17);
+  assert.equal(cards.filter((card) => card.type === "technique").length, 7);
+});
+
+test("rooms support two to five human or computer industrialists", () => {
+  const full = lobbyWith(5);
+  assert.equal(full.players.length, 5);
+  assert.equal(addPlayer(full, person("p6", "Six")), full);
+  const solo = createLobby(person("solo", "Solo"), "SOLO");
+  assert.equal(startGame(solo), solo);
+  const withBot = addComputerPlayer(lobbyWith(1), { id: "bot-1", name: "Brunel" });
+  assert.equal(withBot.players[1].isComputer, true);
+  assert.equal(startGame(withBot, () => 0.1).phase, "playing");
+});
+
+test("setup creates the 3x3 market, six-round event queue, and starting resources", () => {
+  const game = gameWith(3);
+  assert.equal(game.market.length, 9);
+  assert.ok(game.market.every(Boolean));
+  assert.equal(game.events.length, 7);
+  assert.equal(game.currentEvent.id, game.events[0].id);
+  assert.equal(game.futureEvent.id, game.events[1].id);
+  assert.ok(game.players.every((player) => player.money === 10 && player.spyrium === 2 && player.totalWorkers === 3));
+  assert.equal(Object.keys(game.workerSlots).length, 12);
+});
+
+test("workers are placed only between live adjacent market cards", () => {
+  const game = gameWith(2);
+  const player = currentPlayer(game);
+  const slot = marketSlots()[0];
+  const next = placeWorker(game, player.id, slot.id);
+  assert.equal(playerMarketWorkers(next, player.id), 1);
+  assert.equal(next.players.find((item) => item.id === player.id).activeWorkers, 2);
+  assert.ok(adjacentCardIndexes(slot.id).every((index) => [0, 1].includes(index)));
+
+  const emptyMarket = { ...game, market: Array(9).fill(null) };
+  assert.equal(placeWorker(emptyMarket, player.id, slot.id), emptyMarket);
+});
+
+test("every player may place all of their workers in the same market gap", () => {
+  let game = gameWith(2);
+  const slotId = marketSlots()[0].id;
+  for (let placement = 0; placement < 6; placement += 1) {
+    game = placeWorker(game, currentPlayer(game).id, slotId);
+  }
+  assert.equal(game.workerSlots[slotId].length, 6);
+  for (const player of game.players) {
+    assert.equal(game.workerSlots[slotId].filter((worker) => worker.playerId === player.id).length, 3);
+    assert.equal(player.activeWorkers, 0);
+  }
+});
+
+test("activation cost includes all other adjacent workers", () => {
+  const { game, ownerId, slot } = activationState();
+  const worker = game.workerSlots[slot.id][0];
+  const cardIndex = slot.cards[0];
+  const crowded = {
+    ...game,
+    workerSlots: {
+      ...game.workerSlots,
+      [slot.id]: [...game.workerSlots[slot.id], { id: "rival-1", playerId: "p2" }],
+      [marketSlots().find((item) => item.id !== slot.id && item.cards.includes(cardIndex)).id]: [{ id: "rival-2", playerId: "p2" }],
+    },
+  };
+  const cost = activationCost(crowded, ownerId, worker.id, cardIndex);
+  assert.equal(cost.congestion, 2);
+  assert.equal(cost.total, crowded.market[cardIndex].price + 2 + (crowded.market[cardIndex].type === "building" ? 0 : 0));
+});
+
+test("withdrawing earns congestion money and removes the worker", () => {
+  const { game, ownerId, slot } = activationState();
+  const worker = game.workerSlots[slot.id][0];
+  const cardIndex = slot.cards[0];
+  const crowded = { ...game, workerSlots: { ...game.workerSlots, [slot.id]: [...game.workerSlots[slot.id], { id: "other", playerId: "p2" }] } };
+  const before = crowded.players.find((player) => player.id === ownerId).money;
+  const next = gainMoney(crowded, ownerId, worker.id, cardIndex);
+  assert.equal(next.players.find((player) => player.id === ownerId).money, before + 1);
+  assert.equal(playerMarketWorkers(next, ownerId), 0);
+});
+
+test("activating a character pays printed price and resolves its effect", () => {
+  const { game, ownerId, slot } = activationState();
+  const worker = game.workerSlots[slot.id][0];
+  const cardIndex = slot.cards[0];
+  const character = { id: "test-adviser", period: "A", slug: "adviser", name: "Adviser", type: "character", price: 2, description: "Gain 3 VP.", token: false, tokens: [] };
+  const prepared = { ...game, market: game.market.map((card, index) => index === cardIndex ? character : card) };
+  const before = prepared.players.find((player) => player.id === ownerId);
+  const next = activateMarketCard(prepared, ownerId, worker.id, cardIndex);
+  const after = next.players.find((player) => player.id === ownerId);
+  assert.equal(after.money, before.money - 2);
+  assert.equal(after.score, 3);
+  assert.equal(next.market[cardIndex].id, character.id);
+});
+
+test("buildings enter the neighborhood and can later consume workers and Spyrium", () => {
+  const { game, ownerId, slot } = activationState();
+  const worker = game.workerSlots[slot.id][0];
+  const cardIndex = slot.cards[0];
+  const workshop = { id: "test-workshop", period: "A", slug: "workshop", name: "Workshop", type: "building", price: 0, symbols: ["factory"], points: 2, actions: [{ workers: 1, spyrium: 1, gainScore: 3 }], tokens: [] };
+  const prepared = { ...game, market: game.market.map((card, index) => index === cardIndex ? workshop : card) };
+  let next = activateMarketCard(prepared, ownerId, worker.id, cardIndex);
+  assert.equal(next.players.find((player) => player.id === ownerId).buildings[0].id, workshop.id);
+  next = { ...next, currentPlayerIndex: next.players.findIndex((player) => player.id === ownerId) };
+  const before = next.players.find((player) => player.id === ownerId);
+  const used = useBuilding(next, ownerId, workshop.id, 0);
+  const after = used.players.find((player) => player.id === ownerId);
+  assert.equal(after.activeWorkers, before.activeWorkers - 1);
+  assert.equal(after.spyrium, before.spyrium - 1);
+  assert.equal(after.score, 3);
+  assert.equal(after.buildings[0].used, true);
+});
+
+test("passing the last active player advances the round and rotates first player", () => {
+  const base = gameWith(2);
+  const first = base.firstPlayerIndex;
+  const last = (first + 1) % 2;
+  const prepared = {
+    ...base,
+    currentPlayerIndex: last,
+    players: base.players.map((player, index) => ({ ...player, phase: "activation", passed: index === first })),
+  };
+  const next = pass(prepared, prepared.players[last].id);
+  assert.equal(next.round, 2);
+  assert.equal(next.firstPlayerIndex, last);
+  assert.equal(currentPlayer(next).id, next.players[last].id);
+  assert.ok(next.players.every((player) => player.phase === "placement" && !player.passed));
+  assert.ok(next.players.every((player) => player.money === 12));
+});
+
+test("crossing eight points pauses for the selected milestone bonus", () => {
+  const { game, ownerId, slot } = activationState();
+  const worker = game.workerSlots[slot.id][0];
+  const cardIndex = slot.cards[0];
+  const adviser = { id: "big-adviser", period: "A", slug: "adviser", name: "Adviser", type: "character", price: 0, description: "Gain 3 VP.", token: false, tokens: [] };
+  const prepared = {
+    ...game,
+    market: game.market.map((card, index) => index === cardIndex ? adviser : card),
+    players: game.players.map((player) => player.id === ownerId ? { ...player, score: 6 } : player),
+  };
+  const scored = activateMarketCard(prepared, ownerId, worker.id, cardIndex);
+  assert.equal(scored.pendingBonus.playerId, ownerId);
+  const rewarded = chooseBonus(scored, ownerId, "worker");
+  const player = rewarded.players.find((item) => item.id === ownerId);
+  assert.equal(player.totalWorkers, 4);
+  assert.equal(rewarded.pendingBonus, null);
+});
+
+test("final projection includes buildings and capped technique scoring", () => {
+  const player = {
+    score: 10,
+    money: 20,
+    spyrium: 9,
+    totalWorkers: 5,
+    residence: 2,
+    keptTokens: 0,
+    buildings: [{ points: 6, symbols: ["residence"] }],
+    techniques: [{ slug: "automation" }, { slug: "capitalization" }],
+  };
+  assert.equal(projectedFinalScore(player), 30);
+});
+
+test("a computer industrialist always performs a legal action", () => {
+  const lobby = addComputerPlayer(lobbyWith(1), { id: "bot-1", name: "Brunel" });
+  const base = startGame(lobby, () => 0.2);
+  const botIndex = base.players.findIndex((player) => player.id === "bot-1");
+  const game = { ...base, currentPlayerIndex: botIndex };
+  const next = runComputerTurn(game, () => 0.8);
+  assert.notEqual(next, game);
+  assert.ok(playerMarketWorkers(next, "bot-1") > 0 || next.players[botIndex].phase === "activation");
+});

@@ -36,7 +36,6 @@ const initialRoom = {
 export default function SevenUpClient() {
   const [mode, setMode] = useState("local");
   const [playerCount, setPlayerCount] = useState(4);
-  const [dealerIndex, setDealerIndex] = useState(0);
   const [playerConfigs, setPlayerConfigs] = useState(() => buildPlayerConfigs(4));
   const [localGame, setLocalGame] = useState(null);
   const [overlayState, setOverlayState] = useState({ visible: false, playerName: "", message: "" });
@@ -155,7 +154,6 @@ export default function SevenUpClient() {
   function handlePlayerCountChange(event) {
     const nextCount = Number(event.target.value);
     setPlayerCount(nextCount);
-    setDealerIndex((previous) => Math.min(previous, nextCount - 1));
     setPlayerConfigs((previous) => resizePlayerConfigs(previous, nextCount));
   }
 
@@ -182,6 +180,7 @@ export default function SevenUpClient() {
   }
 
   function startLocalGame() {
+    const dealerIndex = Math.floor(Math.random() * playerConfigs.length);
     const game = createLocalGame(playerConfigs, dealerIndex);
     const firstPlayer = game.players[game.currentPlayerIndex];
     game.log.unshift(`${firstPlayer.name} goes first because play starts to the dealer's left.`);
@@ -207,7 +206,6 @@ export default function SevenUpClient() {
     }
     try {
       const payload = await postJson("/api/create-room", {
-        dealerIndex,
         players: playerConfigs,
         name: createName,
       });
@@ -497,19 +495,6 @@ export default function SevenUpClient() {
                   {Array.from({ length: 5 }, (_, index) => index + 3).map((count) => (
                     <option key={count} value={count}>
                       {count}
-                    </option>
-                  ))}
-                </select>
-
-                <label htmlFor="dealer-index">Dealer</label>
-                <select
-                  id="dealer-index"
-                  value={dealerIndex}
-                  onChange={(event) => setDealerIndex(Number(event.target.value))}
-                >
-                  {playerConfigs.map((player, index) => (
-                    <option key={player.name + index} value={index}>
-                      {player.name || `Player ${index + 1}`}
                     </option>
                   ))}
                 </select>

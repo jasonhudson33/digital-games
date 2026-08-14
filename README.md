@@ -1,6 +1,7 @@
 # Digital Games
 
-A single Next.js application containing Seven Up, Scum, Hand and Foot, Hearts, Mafia, Monopoly, and Catan.
+A single Next.js application containing Spyrium, Cover Your Assets, Splendor, Killer Bunnies, Secret Hitler, Sequence, Ticket to Ride,
+Pinochle, Risk, Skull King, Hand and Foot, Scum, Seven Up, Hearts, Mafia, Monopoly, and Catan.
 
 ## Development
 

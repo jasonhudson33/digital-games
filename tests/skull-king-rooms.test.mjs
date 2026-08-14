@@ -27,7 +27,7 @@ test("Skull King rooms support human players and keep hands private", async () =
   const roomCode = host.state.roomCode;
   const guestOne = await joinSkullKingRoom({ roomCode, name: "Guest One" });
   await joinSkullKingRoom({ roomCode, name: "Guest Two" });
-  const started = await startSkullKingRoom({ roomCode, token: host.token });
+  const started = await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 });
 
   assert.equal(started.state.players.length, 3);
   assert.equal(started.state.viewerPlayerIndex, 0);
@@ -46,7 +46,7 @@ test("a two-player room hides Graybeard's hand and flips only its top card", asy
   const host = await createSkullKingRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   const guest = await joinSkullKingRoom({ roomCode, name: "Guest" });
-  let hostState = (await startSkullKingRoom({ roomCode, token: host.token })).state;
+  let hostState = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
   const ghostIndex = hostState.players.findIndex((player) => player.isGhost);
 
   assert.equal(hostState.captainCount, 2);
@@ -81,7 +81,7 @@ test("human bids stay private until every room player has bid", async () => {
   const roomCode = host.state.roomCode;
   const guestOne = await joinSkullKingRoom({ roomCode, name: "Guest One" });
   const guestTwo = await joinSkullKingRoom({ roomCode, name: "Guest Two" });
-  await startSkullKingRoom({ roomCode, token: host.token });
+  await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 });
 
   const afterHostBid = await bidSkullKingRoom({ roomCode, token: host.token, bid: 1 });
   assert.equal(afterHostBid.state.phase, "bidding");
@@ -101,7 +101,7 @@ test("only the current room player can play a card", async () => {
   const roomCode = host.state.roomCode;
   const guestOne = await joinSkullKingRoom({ roomCode, name: "Guest One" });
   const guestTwo = await joinSkullKingRoom({ roomCode, name: "Guest Two" });
-  await startSkullKingRoom({ roomCode, token: host.token });
+  await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 });
   await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 });
   await bidSkullKingRoom({ roomCode, token: guestOne.token, bid: 0 });
   await bidSkullKingRoom({ roomCode, token: guestTwo.token, bid: 0 });
@@ -123,7 +123,7 @@ test("the host can add computers while human players remain room participants", 
   const host = await createSkullKingRoom({ name: "Host" });
   await addSkullKingComputer({ roomCode: host.state.roomCode, token: host.token });
   await addSkullKingComputer({ roomCode: host.state.roomCode, token: host.token });
-  const started = await startSkullKingRoom({ roomCode: host.state.roomCode, token: host.token });
+  const started = await startSkullKingRoom({ roomCode: host.state.roomCode, token: host.token, random: () => 0 });
   assert.equal(started.state.players.length, 3);
   assert.equal(started.state.players.filter((player) => player.isComputer).length, 2);
   assert.equal(started.state.players[0].hand.length, 1);
@@ -134,7 +134,7 @@ test("a room voyage can complete all ten rounds without expansion-card deadlocks
   const roomCode = host.state.roomCode;
   await addSkullKingComputer({ roomCode, token: host.token });
   await addSkullKingComputer({ roomCode, token: host.token });
-  let state = (await startSkullKingRoom({ roomCode, token: host.token })).state;
+  let state = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
 
   for (let steps = 0; state.phase !== "gameOver" && steps < 5000; steps += 1) {
     if (state.phase === "bidding") {
@@ -183,7 +183,7 @@ test("a two-captain voyage follows Graybeard turn order through all ten rounds",
   const host = await createSkullKingRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   await addSkullKingComputer({ roomCode, token: host.token });
-  let state = (await startSkullKingRoom({ roomCode, token: host.token })).state;
+  let state = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
   const ghostIndex = state.players.findIndex((player) => player.isGhost);
   assert.equal(ghostIndex, 2);
 

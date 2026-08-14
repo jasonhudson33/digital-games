@@ -15,7 +15,7 @@ test("players can join a Scum room and only see their own hand", async () => {
   const roomCode = created.state.roomCode;
   const joined = await joinScumRoom({ roomCode, name: "Guest" });
   await addScumComputer({ roomCode, token: created.token });
-  const started = await startScumRoom({ roomCode, token: created.token });
+  const started = await startScumRoom({ roomCode, token: created.token, random: () => 0 });
 
   assert.equal(started.state.phase, "playing");
   assert.equal(started.state.players.length, 3);

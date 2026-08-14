@@ -144,7 +144,11 @@ export default function SkullKingClient() {
 
   function startGame() {
     const cleanName = usePlayerName();
-    setGame(createSkullKingMatch({ playerName: cleanName, playerCount }));
+    setGame(createSkullKingMatch({
+      playerName: cleanName,
+      playerCount,
+      startingPlayerIndex: Math.floor(Math.random() * playerCount),
+    }));
     setBid(0);
     setChoiceCardId(null);
     setTigressCardId(null);

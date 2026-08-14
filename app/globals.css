@@ -212,12 +212,76 @@ input {
     rgba(255, 252, 246, 0.94);
 }
 
+.game-card.flip-7 {
+  color: #ffffff;
+  border-color: rgba(255, 211, 78, 0.28);
+  background:
+    radial-gradient(circle at 84% 20%, rgba(255, 211, 78, 0.84), transparent 15%),
+    radial-gradient(circle at 7% 95%, rgba(38, 115, 232, 0.62), transparent 35%),
+    linear-gradient(145deg, #2b3855 0%, #151d31 66%, #ef4e3d 150%);
+}
+
+.game-card.flip-7 .game-status,
+.game-card.flip-7 p {
+  color: #d8deeb;
+}
+
+.game-card.bang {
+  color: #fff2d5;
+  border-color: rgba(226, 175, 89, 0.28);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(230, 170, 69, 0.82), transparent 14%),
+    linear-gradient(155deg, #245540 0%, #143e32 54%, #8a3021 125%);
+}
+
+.game-card.bang .game-status,
+.game-card.bang p {
+  color: #ead9b9;
+}
+
+.game-card.killer-bunnies {
+  color: #fff8df;
+  border-color: rgba(255, 232, 157, 0.24);
+  background:
+    radial-gradient(circle at 83% 18%, rgba(245, 185, 71, 0.64), transparent 23%),
+    radial-gradient(circle at 10% 94%, rgba(93, 151, 86, 0.66), transparent 30%),
+    linear-gradient(145deg, #2f7a5a, #194b3b 68%, #783d2b);
+}
+
+.game-card.cover-your-assets {
+  color: #fff5d8;
+  border-color: rgba(239, 201, 97, 0.26);
+  background:
+    radial-gradient(circle at 84% 17%, rgba(232, 181, 68, 0.58), transparent 23%),
+    radial-gradient(circle at 12% 92%, rgba(57, 132, 100, 0.54), transparent 30%),
+    repeating-linear-gradient(145deg, transparent 0 28px, rgba(255, 255, 255, 0.025) 28px 30px),
+    linear-gradient(145deg, #1b6049, #0d3b2f 67%, #8b3228);
+}
+
+.game-card.cover-your-assets .game-status {
+  color: #fff0bd;
+  background: rgba(255, 255, 255, 0.11);
+}
+
 .game-card.night {
   color: #f7f1eb;
   border-color: rgba(255, 255, 255, 0.08);
   background:
     radial-gradient(circle at top left, rgba(226, 186, 96, 0.18), transparent 24%),
     linear-gradient(180deg, rgba(29, 36, 57, 0.98), rgba(16, 19, 31, 0.98));
+}
+
+.game-card.secret-hitler {
+  color: #f8edda;
+  border-color: rgba(216, 181, 112, 0.24);
+  background:
+    radial-gradient(circle at 85% 15%, rgba(209, 163, 82, 0.2), transparent 25%),
+    linear-gradient(145deg, #17362f 0%, #14231f 48%, #601c1a 130%);
+}
+
+.game-card.secret-hitler .game-status,
+.game-card.secret-hitler p {
+  color: #cbbfae;
 }
 
 .game-card.catan {
@@ -236,6 +300,58 @@ input {
     radial-gradient(circle at 84% 16%, rgba(225, 170, 65, 0.55), transparent 22%),
     repeating-linear-gradient(168deg, transparent 0 31px, rgba(211, 174, 91, 0.1) 31px 35px),
     linear-gradient(145deg, #286073, #173b4c 64%, #922f2c);
+}
+
+.game-card.splendor {
+  color: #fff7df;
+  border-color: rgba(229, 194, 112, 0.24);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(233, 195, 103, 0.46), transparent 19%),
+    repeating-linear-gradient(135deg, transparent 0 37px, rgba(255, 255, 255, 0.045) 38px 39px),
+    linear-gradient(145deg, #215e55, #153d38 70%, #6b4a26);
+}
+
+.game-card.splendor .game-status,
+.game-card.splendor p {
+  color: rgba(255, 247, 223, 0.72);
+}
+
+.game-card.spyrium {
+  color: #f2ead7;
+  border-color: rgba(209, 166, 82, 0.27);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(66, 224, 143, 0.48), transparent 17%),
+    repeating-radial-gradient(circle at 82% 18%, transparent 0 25px, rgba(204, 158, 76, 0.12) 26px 28px),
+    linear-gradient(145deg, #244a3d, #102b24 68%, #5e3c23);
+}
+
+.game-card.spyrium .game-status,
+.game-card.spyrium p {
+  color: rgba(240, 230, 207, 0.74);
+}
+
+.game-card.sequence {
+  color: #fff8df;
+  border-color: rgba(242, 202, 101, 0.25);
+  background:
+    radial-gradient(circle at 82% 16%, rgba(239, 183, 62, 0.55), transparent 23%),
+    radial-gradient(circle at 14% 88%, rgba(50, 111, 167, 0.55), transparent 28%),
+    linear-gradient(145deg, #1c684f, #0d4033 67%, #672d28);
+}
+
+.game-card.life {
+  color: #fffbed;
+  border-color: rgba(255, 241, 177, 0.28);
+  background:
+    radial-gradient(circle at 83% 18%, rgba(246, 201, 83, 0.78), transparent 21%),
+    radial-gradient(circle at 12% 92%, rgba(238, 108, 93, 0.58), transparent 30%),
+    repeating-linear-gradient(155deg, transparent 0 32px, rgba(255, 255, 255, 0.04) 32px 34px),
+    linear-gradient(145deg, #0d7868, #07564d 67%, #0c3c38);
+}
+
+.game-card.life .game-status,
+.game-card.life p {
+  color: rgba(255, 251, 237, 0.82);
 }
 
 .game-card.hearts {

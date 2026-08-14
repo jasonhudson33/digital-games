@@ -19,11 +19,13 @@ import {
 } from "../lib/pinochle-rooms.js";
 import { loadPinochleRoom, savePinochleRoom } from "../lib/pinochle-room-store.js";
 
+const startWithSeatOne = (values) => startPinochleRoom({ ...values, random: (playerCount) => 1.1 / playerCount });
+
 test("Pinochle rooms support human players and keep hands private", async () => {
   const created = await createPinochleRoom({ name: "Host" });
   const roomCode = created.state.roomCode;
   const joined = await joinPinochleRoom({ roomCode, name: "Guest" });
-  const started = await startPinochleRoom({ roomCode, token: created.token });
+  const started = await startWithSeatOne({ roomCode, token: created.token });
 
   assert.equal(started.state.players.length, 2);
   assert.equal(started.state.viewerPlayerIndex, 0);
@@ -52,7 +54,7 @@ test("a host can fill a Pinochle room with computers up to six seats", async () 
     addPinochleComputer({ roomCode: created.state.roomCode, token: created.token }),
     /at most six/,
   );
-  const started = await startPinochleRoom({ roomCode: created.state.roomCode, token: created.token });
+  const started = await startWithSeatOne({ roomCode: created.state.roomCode, token: created.token });
   assert.equal(started.state.players.length, 6);
   assert.equal(started.state.partnershipGame, true);
   assert.deepEqual(started.state.players.map((player) => player.teamId), [0, 1, 0, 1, 0, 1]);
@@ -63,7 +65,7 @@ test("a five-player room deals nine private cards and a hidden three-card kitty"
   for (let index = 0; index < 4; index += 1) {
     await addPinochleComputer({ roomCode: created.state.roomCode, token: created.token });
   }
-  const started = await startPinochleRoom({ roomCode: created.state.roomCode, token: created.token });
+  const started = await startWithSeatOne({ roomCode: created.state.roomCode, token: created.token });
   assert.equal(started.state.playerCount, 5);
   assert.equal(started.state.minimumBid, 150);
   assert.equal(started.state.kittySize, 3);
@@ -79,7 +81,7 @@ test("five-player trump-jack teammates stay private until each jack is played", 
   for (const name of ["Bidder", "Jack One", "Observer", "Jack Two"]) {
     seats.push(await joinPinochleRoom({ roomCode, name }));
   }
-  await startPinochleRoom({ roomCode, token: host.token });
+  await startWithSeatOne({ roomCode, token: host.token });
 
   const room = await loadPinochleRoom(roomCode);
   room.game.players = room.game.players.map((player, playerIndex) => ({
@@ -135,7 +137,7 @@ test("partnership exchange cards remain private in room views", async () => {
   const bidder = await joinPinochleRoom({ roomCode, name: "Bidder" });
   const opponent = await joinPinochleRoom({ roomCode, name: "Opponent" });
   const partner = await joinPinochleRoom({ roomCode, name: "Partner" });
-  await startPinochleRoom({ roomCode, token: host.token });
+  await startWithSeatOne({ roomCode, token: host.token });
   await bidPinochleRoom({ roomCode, token: bidder.token, amount: 200 });
   await passPinochleRoom({ roomCode, token: opponent.token });
   await passPinochleRoom({ roomCode, token: partner.token });
@@ -158,7 +160,7 @@ test("any human can clear a completed room trick after reviewing it", async () =
   const host = await createPinochleRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
-  let state = (await startPinochleRoom({ roomCode, token: host.token })).state;
+  let state = (await startWithSeatOne({ roomCode, token: host.token })).state;
   const tokens = [host.token, guest.token];
   while (state.phase === "playing") {
     const playerIndex = state.currentPlayerIndex;
@@ -183,7 +185,7 @@ test("only an eligible room viewer sees and can use take the rest", async () => 
   const host = await createPinochleRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   const guest = await joinPinochleRoom({ roomCode, name: "Guest" });
-  await startPinochleRoom({ roomCode, token: host.token });
+  await startWithSeatOne({ roomCode, token: host.token });
   const room = await loadPinochleRoom(roomCode);
   room.game = {
     ...room.game,

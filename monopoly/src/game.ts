@@ -369,9 +369,11 @@ export const setHouseRules = (state: GameState, enabled: boolean): GameState => 
   });
 };
 
-export const startGame = (state: GameState): GameState =>
-  touch({
+export const startGame = (state: GameState, rng: () => number = Math.random): GameState => {
+  const startingPlayerIndex = Math.floor(rng() * state.players.length);
+  return touch({
     ...state,
+    currentPlayerIndex: startingPlayerIndex,
     phase: 'playing',
     turnStage: 'roll',
     turnStageVersion: 2,
@@ -387,8 +389,9 @@ export const startGame = (state: GameState): GameState =>
     pendingJailExit: null,
     pendingTrade: null,
     freeParkingPot: 0,
-    log: [log('The game started. Roll to begin.'), ...state.log].slice(0, 30)
+    log: [log(`${state.players[startingPlayerIndex]?.name ?? 'The first player'} starts. Roll to begin.`), ...state.log].slice(0, 30)
   });
+};
 
 export const rollDice = (state: GameState): GameState => {
   if (
@@ -912,7 +915,7 @@ export const proposeTrade = (
     ...state,
     pendingTrade: {
       id: makeId(),
-      expiresAt: Date.now() + 15_000,
+      expiresAt: Date.now() + 30_000,
       fromPlayerId,
       toPlayerId,
       offeredPropertyIds: offered,

@@ -72,6 +72,12 @@ test("every player starts with four train cards and three destination choices", 
   assert.equal(game.faceUp.length, 5);
 });
 
+test("the opening traveler is selected randomly", () => {
+  const lobby = addPlayer(createLobby(player("p1", "Avery"), "FIRST", 1), player("p2", "Blake"));
+  const game = startGame(lobby, () => 0.8);
+  assert.equal(game.currentPlayerIndex, 1);
+});
+
 test("players must keep at least two opening destinations", () => {
   const game = startedGame();
   const first = game.players[0];

@@ -394,9 +394,14 @@ function createGame(lobby) {
   const desert = tiles.find((tile) => tile.resource === "desert");
   const startingPirateTile = tiles.find((tile) => tile.resource === "sea" && tile.axial?.q === 0 && tile.axial?.r === -4)
     ?? tiles.find((tile) => tile.resource === "sea");
+  const startingPlayerIndex = Math.floor(Math.random() * players.length);
+  const tableOrder = Array.from(
+    { length: players.length },
+    (_, offset) => players[(startingPlayerIndex + offset) % players.length],
+  );
   const setupOrder = [
-    ...players.map((player) => player.id),
-    ...[...players].reverse().map((player) => player.id),
+    ...tableOrder.map((player) => player.id),
+    ...[...tableOrder].reverse().map((player) => player.id),
   ];
   const citiesKnightsState = citiesKnightsMode
     ? {
@@ -422,7 +427,8 @@ function createGame(lobby) {
     settlements: {},
     roads: {},
     ships: {},
-    currentPlayerIndex: 0,
+    startingPlayerIndex,
+    currentPlayerIndex: startingPlayerIndex,
     turn: 1,
     rolled: false,
     dice: [1, 1],
@@ -454,7 +460,7 @@ function createGame(lobby) {
     },
     log: [
       `${CATAN_RULESETS[ruleset].label} begins. First to ${victoryTargetFor(ruleset)} victory points wins.`,
-      `${players[0].name} chooses the first ${citiesKnightsMode ? "settlement (the second placement will be a city)" : "settlement"}.`,
+      `${players[startingPlayerIndex].name} chooses the first ${citiesKnightsMode ? "settlement (the second placement will be a city)" : "settlement"}.`,
       `Starting placement begins. Choose a building, then place ${seafarers ? "a road or coastal ship" : "a road"} beside it.`,
     ],
   };
@@ -1577,9 +1583,9 @@ function placeStartingRoad(game, playerId, edgeId, kind = "road") {
       roads,
       ships,
       setup: null,
-      currentPlayerIndex: 0,
+      currentPlayerIndex: game.startingPlayerIndex ?? 0,
       log: [
-        `${player.name} placed the final starting ${kind}. ${game.players[0].name} takes the first turn.`,
+        `${player.name} placed the final starting ${kind}. ${game.players[game.startingPlayerIndex ?? 0].name} takes the first turn.`,
         ...game.log,
       ].slice(0, 24),
     };

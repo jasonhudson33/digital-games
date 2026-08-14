@@ -2,6 +2,78 @@ import Link from "next/link";
 
 const games = [
   {
+    name: "Spyrium",
+    href: "/spyrium",
+    status: "New · Rooms for 2–5",
+    description:
+      "Place workers in a shifting Victorian market, mine miraculous crystals, and build an industrial empire.",
+    tone: "spyrium",
+  },
+  {
+    name: "Flip 7",
+    href: "/flip-7",
+    status: "New · Rooms for 2–10",
+    description:
+      "Flip unique numbers, dodge duplicates, and press your luck against friends or computer players.",
+    tone: "flip-7",
+  },
+  {
+    name: "Life",
+    href: "/life",
+    status: "New · Rooms for 2–6",
+    description:
+      "Spin through careers, homes, family milestones, and retirement with friends or computer players.",
+    tone: "life",
+  },
+  {
+    name: "Cover Your Assets",
+    href: "/cover-your-assets",
+    status: "New · Rooms for 2–6",
+    description:
+      "Pair a fortune, cover your stack, and challenge exposed assets with friends or computer rivals.",
+    tone: "cover-your-assets",
+  },
+  {
+    name: "Splendor",
+    href: "/splendor",
+    status: "New · Rooms for 2–4",
+    description:
+      "Gather precious gems, build a permanent engine of bonuses, and attract nobles before rival merchants.",
+    tone: "splendor",
+  },
+  {
+    name: "BANG!",
+    href: "/bang",
+    status: "New · Rooms for 4–7",
+    description:
+      "Draw fast in a hidden-role western showdown with friends or computer gunslingers.",
+    tone: "bang",
+  },
+  {
+    name: "Killer Bunnies",
+    href: "/killer-bunnies",
+    status: "New · Rooms for 2–8",
+    description:
+      "Program your run, protect your Bunny Circle, and hunt the tabletop for the one Magic Carrot.",
+    tone: "killer-bunnies",
+  },
+  {
+    name: "Secret Hitler",
+    href: "/secret-hitler",
+    status: "New · Rooms for 5–10",
+    description:
+      "Nominate a government, pass secret policies, and uncover the hidden Fascist team before democracy falls.",
+    tone: "secret-hitler",
+  },
+  {
+    name: "Sequence",
+    href: "/sequence",
+    status: "New · Rooms for 2–12",
+    description:
+      "Play a card, claim a space, and connect five chips with friends or computer players across up to three teams.",
+    tone: "sequence",
+  },
+  {
     name: "Ticket to Ride",
     href: "/ticket-to-ride",
     status: "New · Rooms for 2–5",

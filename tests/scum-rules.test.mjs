@@ -56,6 +56,13 @@ test("the player to the dealer's left starts the first round", () => {
   assert.match(game.message, /to their left, leads/);
 });
 
+test("a selected opening player leads and table order continues clockwise", () => {
+  const game = createScumGame({ playerCount: 6, startingPlayerIndex: 4, random: still });
+  assert.equal(game.dealerIndex, 3);
+  assert.equal(game.currentPlayerIndex, 4);
+  assert.deepEqual(game.turnOrder, [4, 5, 0, 1, 2, 3]);
+});
+
 test("twos are lowest and Jokers are highest", () => {
   const base = createScumGame({ random: still });
   const game = {

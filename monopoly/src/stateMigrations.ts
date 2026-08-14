@@ -42,7 +42,7 @@ export const migrateMonopolyRoomState = (state: GameState): GameState => {
       : state.pendingTrade
         ? {
             ...state.pendingTrade,
-            expiresAt: state.pendingTrade.expiresAt ?? state.updatedAt + 15_000,
+            expiresAt: state.pendingTrade.expiresAt ?? state.updatedAt + 30_000,
             offeredMoney: state.pendingTrade.offeredMoney ?? 0,
             requestedMoney: state.pendingTrade.requestedMoney ?? 0,
             offeredJailCards: state.pendingTrade.offeredJailCards ?? 0,

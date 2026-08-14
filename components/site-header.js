@@ -6,17 +6,26 @@ import { useEffect, useRef, useState } from "react";
 
 const games = [
   { name: "All Games", href: "/" },
-  { name: "Ticket to Ride", href: "/ticket-to-ride" },
-  { name: "Pinochle", href: "/pinochle" },
-  { name: "Risk", href: "/risk" },
-  { name: "Skull King", href: "/skull-king" },
-  { name: "Hand & Foot", href: "/hand-and-foot" },
-  { name: "Scum", href: "/scum" },
+  { name: "BANG!", href: "/bang" },
   { name: "7-Up", href: "/seven-up" },
+  { name: "Catan", href: "/catan" },
+  { name: "Cover Your Assets", href: "/cover-your-assets" },
+  { name: "Flip 7", href: "/flip-7" },
+  { name: "Hand & Foot", href: "/hand-and-foot" },
   { name: "Hearts", href: "/hearts" },
+  { name: "Killer Bunnies", href: "/killer-bunnies" },
+  { name: "Life", href: "/life" },
   { name: "Mafia", href: "/mafia" },
   { name: "Monopoly", href: "/monopoly" },
-  { name: "Catan", href: "/catan" },
+  { name: "Pinochle", href: "/pinochle" },
+  { name: "Risk", href: "/risk" },
+  { name: "Scum", href: "/scum" },
+  { name: "Secret Hitler", href: "/secret-hitler" },
+  { name: "Sequence", href: "/sequence" },
+  { name: "Skull King", href: "/skull-king" },
+  { name: "Splendor", href: "/splendor" },
+  { name: "Spyrium", href: "/spyrium" },
+  { name: "Ticket to Ride", href: "/ticket-to-ride" },
 ];
 
 export default function SiteHeader() {

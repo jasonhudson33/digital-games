@@ -31,6 +31,15 @@ test("deals a 13-card hand and foot from one more deck than the player count", (
   }
 });
 
+test("the opening player can be selected without changing clockwise table order", () => {
+  let game = createHandFootMatch({ playerCount: 4, startingPlayerIndex: 2, random: () => 0.42 });
+  assert.equal(game.dealerIndex, 1);
+  assert.equal(game.currentPlayerIndex, 2);
+  game = drawHandFootCards(game, 2);
+  game = discardHandFootCard(game, 2, game.players[2].hand[0].id);
+  assert.equal(game.currentPlayerIndex, 3);
+});
+
 test("selected partners sit opposite and every team contains two players", () => {
   const game = createHandFootMatch({ playerName: "Sam", playerCount: 6, teammateName: "Rowan" });
 

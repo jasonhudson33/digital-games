@@ -254,6 +254,13 @@ test("round one deals one card and starts with the player left of the dealer aft
   assert.ok(game.players.slice(1).every((player) => player.bid !== null));
 });
 
+test("a selected opening captain leads from their table seat", () => {
+  let game = createSkullKingMatch({ playerCount: 4, startingPlayerIndex: 2, random: () => 0.5 });
+  assert.equal(game.dealerIndex, 1);
+  game = submitSkullKingBid(game, 0, 0, () => 0.5);
+  assert.equal(game.currentPlayerIndex, 2);
+});
+
 test("room players bid independently before the first player leads", () => {
   let game = createSkullKingMatch({
     playerSeeds: [

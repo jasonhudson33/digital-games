@@ -45,6 +45,23 @@ test("a new game distributes every territory and starts reinforcement", () => {
   assert.ok(game.players.every((player) => Object.values(game.territories).some((item) => item.ownerId === player.id)));
 });
 
+test("the opening commander is selected randomly", () => {
+  const game = createRiskGame("Avery", () => 0.8);
+  assert.equal(game.startingPlayerIndex, 2);
+  assert.equal(game.currentPlayerIndex, 2);
+  assert.match(game.log[0], /Admiral Sato begins/);
+
+  const secondTurn = advancePhase({ ...game, phase: "fortify", reinforcements: 0 });
+  assert.equal(secondTurn.currentPlayerIndex, 0);
+  assert.equal(secondTurn.round, 1);
+  const thirdTurn = advancePhase({ ...secondTurn, phase: "fortify", reinforcements: 0 });
+  assert.equal(thirdTurn.currentPlayerIndex, 1);
+  assert.equal(thirdTurn.round, 1);
+  const nextRound = advancePhase({ ...thirdTurn, phase: "fortify", reinforcements: 0 });
+  assert.equal(nextRound.currentPlayerIndex, 2);
+  assert.equal(nextRound.round, 2);
+});
+
 test("continent bonuses add to reinforcement armies", () => {
   const game = createRiskGame("Avery", () => 0.3);
   const territories = Object.fromEntries(
@@ -58,7 +75,7 @@ test("continent bonuses add to reinforcement armies", () => {
 });
 
 test("reinforcements can only be placed on owned territory", () => {
-  const game = createRiskGame("Avery", () => 0.7);
+  const game = createRiskGame("Avery", () => 0.2);
   const owned = Object.keys(game.territories).find((id) => game.territories[id].ownerId === "human");
   const enemy = Object.keys(game.territories).find((id) => game.territories[id].ownerId !== "human");
   const invalid = placeReinforcement(game, enemy, 1);
@@ -324,7 +341,7 @@ test("normal card trades use fixed values based on the traded symbols", () => {
 });
 
 test("computer completes its full turn", () => {
-  let game = createRiskGame("Avery", () => 0.4);
+  let game = createRiskGame("Avery", () => 0.2);
   while (game.reinforcements > 0) {
     const owned = Object.keys(game.territories).find((id) => game.territories[id].ownerId === "human");
     game = placeReinforcement(game, owned, 1);

@@ -24,7 +24,7 @@ test("room players choose teammates, start opposite, and only see their own hand
   await chooseHandFootTeammate({ roomCode, token: created.token, teammateId: guestId });
   await chooseHandFootTeammate({ roomCode, token: joined.token, teammateId: hostId });
 
-  const started = await startHandFootRoom({ roomCode, token: created.token });
+  const started = await startHandFootRoom({ roomCode, token: created.token, random: () => 0 });
   assert.equal(started.state.phase, "playing");
   assert.equal(started.state.viewerPlayerIndex, 0);
   assert.equal(started.state.players[0].hand.length, 13);
@@ -81,7 +81,7 @@ test("a Hand and Foot room supports sixteen players in eight opposite teams", as
     await addHandFootComputer({ roomCode: created.state.roomCode, token: created.token });
   }
 
-  const started = await startHandFootRoom({ roomCode: created.state.roomCode, token: created.token });
+  const started = await startHandFootRoom({ roomCode: created.state.roomCode, token: created.token, random: () => 0 });
   assert.equal(started.state.players.length, 16);
   assert.equal(started.state.teams.length, 8);
   assert.ok(started.state.teams.every((team) => team.memberIds.length === 2));

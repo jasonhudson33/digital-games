@@ -50,6 +50,13 @@ test("Pinochle creates the right deck and seating for every supported room size"
   assert.deepEqual(createPinochleGame({ playerSeeds: players(5) }).players.map((player) => player.teamId), [0, 1, 2, 3, 4]);
 });
 
+test("the opening bidder can be selected without changing table order", () => {
+  const game = createPinochleGame({ playerSeeds: players(4), startingPlayerIndex: 3 });
+  assert.equal(game.startingPlayerIndex, 3);
+  assert.equal(game.dealerIndex, 2);
+  assert.equal(game.currentPlayerIndex, 3);
+});
+
 test("two-player Pinochle deals twelve each and turns a stock card up for trump", () => {
   const game = createPinochleGame({ playerSeeds: players(2) });
   assert.equal(game.phase, "playing");

@@ -128,7 +128,12 @@ export default function HandAndFootClient() {
 
   function startGame() {
     const cleanName = usePlayerName();
-    setGame(createHandFootMatch({ playerName: cleanName, playerCount, teammateName }));
+    setGame(createHandFootMatch({
+      playerName: cleanName,
+      playerCount,
+      teammateName,
+      startingPlayerIndex: Math.floor(Math.random() * playerCount),
+    }));
     setSelectedIds([]);
     setSelectedMeldTarget(null);
     setError("");
