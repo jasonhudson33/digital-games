@@ -67,13 +67,14 @@ test("only the host can select expansion packs and every player sees the selecti
     expansionIds: ["red", "green", "not-a-pack"],
   });
   assert.deepEqual(configured.state.expansionIds, ["red", "green"]);
-  assert.equal(configured.state.expansionCatalog.length, 18);
-  assert.equal(configured.state.expansionSummary.totalCards, 224);
+  assert.equal(configured.state.expansionCatalog.length, 22);
+  assert.equal(configured.state.expansionSummary.totalCards, 275);
 
   const guestView = await getKillerBunniesRoom({ roomCode: host.state.roomCode, token: guest.token });
   assert.deepEqual(guestView.state.expansionIds, ["red", "green"]);
 
   const started = await startKillerBunniesRoom({ roomCode: host.state.roomCode, token: host.token, random: () => 0 });
   assert.deepEqual(started.state.expansionIds, ["red", "green"]);
-  assert.equal(started.state.cardCounts.total, 224);
+  assert.equal(started.state.cardCounts.numbered, 275);
+  assert.equal(started.state.cardCounts.total, 321);
 });

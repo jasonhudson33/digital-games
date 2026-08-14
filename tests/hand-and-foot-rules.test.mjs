@@ -67,6 +67,86 @@ test("a turn starts by drawing exactly two cards and ends with one discard", () 
   assert.equal(game.turnStage, "draw");
 });
 
+test("draw-ahead permission passes clockwise after each preceding player draws two cards", () => {
+  let game = createHandFootMatch({ playerCount: 4, startingPlayerIndex: 0 });
+
+  assert.throws(() => drawHandFootCards(game, 1), /current player.*drawn|draw ahead/i);
+  game = drawHandFootCards(game, 0);
+  assert.throws(() => drawHandFootCards(game, 0), /already drawn.*two cards|already drawn two cards/i);
+  assert.throws(() => drawHandFootCards(game, 2), /next player|player before|draw ahead/i);
+
+  game = drawHandFootCards(game, 1, 0, 1);
+  assert.throws(() => drawHandFootCards(game, 2), /next player|player before|draw ahead/i);
+  game = drawHandFootCards(game, 1, 0, 1);
+  game = drawHandFootCards(game, 2);
+  game = drawHandFootCards(game, 3);
+
+  assert.equal(game.players[1].hand.length, 13);
+  assert.equal(game.players[1].pendingDraw.length, 2);
+  assert.equal(game.players[2].pendingDraw.length, 2);
+  assert.equal(game.players[3].pendingDraw.length, 2);
+  assert.equal(game.currentPlayerIndex, 0);
+  assert.equal(game.turnStage, "play");
+  assert.throws(() => drawHandFootCards(game, 1), /already drawn.*ahead|two cards ahead/i);
+});
+
+test("ahead-drawn cards join the next player's hand when their turn begins", () => {
+  let game = createHandFootMatch({ playerCount: 4, startingPlayerIndex: 0 });
+  game = drawHandFootCards(game, 0);
+  game = drawHandFootCards(game, 1);
+  const pendingIds = game.players[1].pendingDraw.map((candidate) => candidate.id);
+  const discard = game.players[0].hand[0];
+
+  game = discardHandFootCard(game, 0, discard.id);
+
+  assert.equal(game.currentPlayerIndex, 1);
+  assert.equal(game.turnStage, "play");
+  assert.equal(game.cardsDrawnThisTurn, 2);
+  assert.deepEqual(game.players[1].pendingDraw, []);
+  assert.ok(pendingIds.every((id) => game.players[1].hand.some((candidate) => candidate.id === id)));
+  assert.equal(game.players[1].hand.length, 15);
+});
+
+test("one card drawn ahead is promoted and the player must draw only one more", () => {
+  let game = createHandFootMatch({ playerCount: 4, startingPlayerIndex: 0 });
+  game = drawHandFootCards(game, 0);
+  game = drawHandFootCards(game, 1, 0, 1);
+  game = discardHandFootCard(game, 0, game.players[0].hand[0].id);
+
+  assert.equal(game.currentPlayerIndex, 1);
+  assert.equal(game.turnStage, "draw");
+  assert.equal(game.cardsDrawnThisTurn, 1);
+  assert.equal(game.players[1].hand.length, 14);
+
+  game = drawHandFootCards(game, 1);
+  assert.equal(game.players[1].hand.length, 15);
+  assert.equal(game.turnStage, "play");
+});
+
+test("ahead-drawn cards are not scored if the round ends before that turn", () => {
+  let game = createHandFootMatch({ playerCount: 4, startingPlayerIndex: 0 });
+  const teammateId = game.teams[game.players[0].teamId].memberIds.find((id) => id !== 0);
+  game = {
+    ...game,
+    turnStage: "play",
+    cardsDrawnThisTurn: 2,
+    players: game.players.map((player, index) => {
+      if (index === 0) return { ...player, hand: [], foot: [card("going-out", "clubs", 4)], usingFoot: true };
+      if (index === teammateId) return { ...player, hand: [], foot: [card("teammate-four", "diamonds", 4)], usingFoot: true };
+      return player;
+    }),
+  };
+  game = drawHandFootCards(game, 1);
+  const nextTeam = game.teams[game.players[1].teamId];
+  const expectedScore = scoreHandFootTeam(nextTeam, game.players);
+
+  game = discardHandFootCard(game, 0, "going-out");
+
+  assert.equal(game.phase, "round-over");
+  assert.equal(game.players[1].pendingDraw.length, 2);
+  assert.deepEqual(game.roundSummary.breakdowns[nextTeam.id], { teamId: nextTeam.id, ...expectedScore });
+});
+
 test("a Hand and Foot computer completes a nearby book before starting another meld", () => {
   const base = createHandFootMatch({ playerCount: 4 });
   const nines = [card("nine-a", "clubs", 9), card("nine-b", "hearts", 9)];

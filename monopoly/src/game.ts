@@ -393,6 +393,35 @@ export const startGame = (state: GameState, rng: () => number = Math.random): Ga
   });
 };
 
+export const restartGame = (state: GameState, rng: () => number = Math.random): GameState => {
+  if (state.phase !== 'gameOver') return state;
+  const players = state.players.map((player) => ({
+    ...makePlayer(player.id, player.name, player.color, player.piece),
+    isComputer: player.isComputer
+  }));
+
+  return startGame({
+    ...state,
+    players,
+    currentPlayerIndex: 0,
+    phase: 'lobby',
+    lastRoll: null,
+    pendingCard: null,
+    pendingCardQueue: [],
+    pendingPurchase: null,
+    pendingTax: null,
+    pendingRent: null,
+    pendingUtilityRent: null,
+    pendingDebt: null,
+    pendingAuction: null,
+    pendingJailExit: null,
+    pendingTrade: null,
+    improvements: {},
+    freeParkingPot: 0,
+    log: [log('The players started a new game.'), ...state.log].slice(0, 30)
+  }, rng);
+};
+
 export const rollDice = (state: GameState): GameState => {
   if (
     state.phase !== 'playing' ||

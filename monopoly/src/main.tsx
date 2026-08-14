@@ -64,6 +64,7 @@ import {
   proposeTrade,
   rollDice,
   rollUtilityRent,
+  restartGame,
   sellImprovement,
   setHouseRules,
   stayInJailAndRoll,
@@ -436,6 +437,16 @@ export default function App() {
     void updateGame((state) => mortgageProperty(state, mortgagePlayerId, spaceId));
   };
 
+  const leaveRoom = () => {
+    setGame(null);
+    latestGame.current = null;
+    setJoinCode('');
+    setError('');
+    setIsBoardTradeMode(false);
+    setMortgageConfirmation(null);
+    if (canUseBrowser()) window.history.replaceState(null, '', window.location.pathname);
+  };
+
   if (!isReady) {
     return (
       <div className="monopoly-page">
@@ -496,7 +507,15 @@ export default function App() {
 
   return (
     <div className="monopoly-page">
-    {winner && <WinnerOverlay winner={winner} isWinner={winner.id === playerId} />}
+    {winner && (
+      <WinnerOverlay
+        winner={winner}
+        isWinner={winner.id === playerId}
+        canPlayAgain={Boolean(isHost)}
+        onPlayAgain={() => void updateGame(restartGame)}
+        onLeaveRoom={leaveRoom}
+      />
+    )}
     {mortgageConfirmation && (
       <MortgageConfirmationDialog
         space={board[mortgageConfirmation.spaceId]}
@@ -766,7 +785,19 @@ export default function App() {
   );
 }
 
-function WinnerOverlay({ winner, isWinner }: { winner: Player; isWinner: boolean }) {
+function WinnerOverlay({
+  winner,
+  isWinner,
+  canPlayAgain,
+  onPlayAgain,
+  onLeaveRoom
+}: {
+  winner: Player;
+  isWinner: boolean;
+  canPlayAgain: boolean;
+  onPlayAgain: () => void;
+  onLeaveRoom: () => void;
+}) {
   return (
     <div className="winner-overlay" role="dialog" aria-modal="true" aria-label={`${winner.name} won the game`}>
       <section className="winner-card">
@@ -778,6 +809,18 @@ function WinnerOverlay({ winner, isWinner }: { winner: Player; isWinner: boolean
           <PlayerToken player={winner} />
           <strong>{winner.name}</strong>
           <span>${winner.money}</span>
+        </div>
+        <div className="winner-actions">
+          {canPlayAgain ? (
+            <button className="primary" onClick={onPlayAgain}>
+              <Play size={18} /> Play again
+            </button>
+          ) : (
+            <p className="winner-host-note">The host can start another game in this room.</p>
+          )}
+          <button onClick={onLeaveRoom}>
+            <DoorOpen size={18} /> Leave room
+          </button>
         </div>
       </section>
     </div>

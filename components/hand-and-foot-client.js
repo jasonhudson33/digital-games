@@ -355,8 +355,18 @@ export default function HandAndFootClient() {
   const human = game.players[viewerPlayerIndex];
   const activeCards = activeCardsFor(game, viewerPlayerIndex);
   const yourTurn = game.currentPlayerIndex === viewerPlayerIndex;
+  const pendingDrawCards = human.pendingDraw || [];
+  const precedingPlayerIndex = (viewerPlayerIndex - 1 + game.playerCount) % game.playerCount;
+  const precedingPlayer = game.players[precedingPlayerIndex];
+  const precedingPlayerHasDrawn = precedingPlayerIndex === game.currentPlayerIndex
+    ? game.turnStage === "play" && (game.cardsDrawnThisTurn || 0) >= 2
+    : (precedingPlayer.pendingDrawCount ?? precedingPlayer.pendingDraw?.length ?? 0) >= 2;
+  const canDrawAhead = !yourTurn && precedingPlayerHasDrawn && pendingDrawCards.length < 2;
+  const canDrawCards = (yourTurn && game.turnStage === "draw") || canDrawAhead;
   const drawPiles = game.drawPiles?.length ? game.drawPiles : [game.drawPile];
-  const cardsStillToDraw = 2 - (game.cardsDrawnThisTurn || 0);
+  const cardsStillToDraw = yourTurn
+    ? 2 - (game.cardsDrawnThisTurn || 0)
+    : 2 - pendingDrawCards.length;
   const humanTeam = game.teams[human.teamId];
   const goOutBlockReason = getHandFootGoOutBlockReason(game, viewerPlayerIndex);
   const selectedCards = activeCards.filter((card) => selectedIds.includes(card.id));
@@ -391,6 +401,12 @@ export default function HandAndFootClient() {
     );
   }
 
+  function deselectAll() {
+    setSelectedIds([]);
+    setSelectedMeldTarget(null);
+    setError("");
+  }
+
   return (
     <main className="hf-app hf-game-shell">
       <header className="hf-gamebar">
@@ -417,7 +433,7 @@ export default function HandAndFootClient() {
           {game.players.map((player, index) => (
             <div key={player.id} className={`hf-seat ${game.currentPlayerIndex === index ? "active" : ""} ${player.teamId === human.teamId ? "teammate" : ""}`}>
               <span className="hf-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
-              <span><strong>{player.name}{player.isViewer ? " · You" : ""}</strong><small>Team {player.teamId + 1} · {player.usingFoot ? `${player.footCount ?? player.foot.length} in foot` : `${player.handCount ?? player.hand.length} in hand · ${player.footCount ?? player.foot.length} hidden`}</small></span>
+              <span><strong>{player.name}{player.isViewer ? " · You" : ""}</strong><small>Team {player.teamId + 1} · {player.usingFoot ? `${player.footCount ?? player.foot.length} in foot` : `${player.handCount ?? player.hand.length} in hand · ${player.footCount ?? player.foot.length} hidden`}{(player.pendingDrawCount ?? player.pendingDraw?.length ?? 0) > 0 ? ` · ${player.pendingDrawCount ?? player.pendingDraw.length} drawn ahead` : ""}</small></span>
               {game.currentPlayerIndex === index && <b>{game.turnStage === "draw" ? "Drawing" : "Playing"}</b>}
             </div>
           ))}
@@ -431,7 +447,7 @@ export default function HandAndFootClient() {
                   key={pileIndex}
                   type="button"
                   className="hf-draw-pile"
-                  disabled={!yourTurn || game.turnStage !== "draw" || pile.length === 0}
+                  disabled={!canDrawCards || pile.length === 0}
                   onClick={() => drawFromPile(pileIndex)}
                   aria-label={`Draw one card from pile ${pileIndex + 1}; ${pile.length} cards remain`}
                 >
@@ -455,14 +471,23 @@ export default function HandAndFootClient() {
         <div className="hf-player-heading">
           <div>
             <span className={`hf-turn-dot ${yourTurn ? "on" : ""}`} />
-            <strong>{yourTurn ? (game.turnStage === "draw" ? `Your turn — draw ${cardsStillToDraw === 1 ? "one more" : "two"}` : "Your turn — meld, then discard") : `Waiting for ${game.players[game.currentPlayerIndex].name}`}</strong>
+            <strong>{yourTurn
+              ? game.turnStage === "draw"
+                ? `Your turn — draw ${cardsStillToDraw === 1 ? "one more" : "two"}`
+                : "Your turn — meld, then discard"
+              : canDrawAhead
+                ? `Draw ahead — take ${cardsStillToDraw === 1 ? "one more card" : "two cards"}`
+                : pendingDrawCards.length === 2
+                  ? "Cards drawn — waiting for your turn"
+                  : `Waiting for ${game.players[game.currentPlayerIndex].name}`}</strong>
             <small>{human.usingFoot ? "Playing from your foot" : `Your foot is hidden (${human.footCount ?? human.foot.length} cards)`} · Team {humanTeam.opened ? "is open" : `needs ${game.roundRequirement} points`}</small>
           </div>
           <div className="hf-turn-actions">
-            {yourTurn && game.turnStage === "draw" && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>Draw {cardsStillToDraw}</button>}
+            {canDrawCards && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>{yourTurn ? "Draw" : "Draw ahead"} {cardsStillToDraw}</button>}
             {yourTurn && game.turnStage === "play" && <>
               <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds, targetRank: selectedMeldTarget }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds, selectedMeldTarget))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
               <button type="button" className="hf-discard-button" disabled={!canDiscardSelected} onClick={discardSelectedCard}>Discard selected</button>
+              <button type="button" className="hf-deselect-button" disabled={selectedIds.length === 0} onClick={deselectAll}><X size={15} /> Deselect All</button>
             </>}
           </div>
         </div>
@@ -495,6 +520,14 @@ export default function HandAndFootClient() {
           </div>
         )}
         {error && <div className="hf-error" role="alert">{error}</div>}
+        {pendingDrawCards.length > 0 && !yourTurn && (
+          <div className="hf-predraw-area">
+            <div><strong>Drawn for your next turn</strong><small>These cards stay separate and will not count if the round ends before your turn.</small></div>
+            <div className="hf-predrawn-cards" aria-label="Cards drawn ahead">
+              {pendingDrawCards.map((card) => <PlayingCard key={card.id} card={card} selected={false} disabled />)}
+            </div>
+          </div>
+        )}
         <div className="hf-hand" aria-label={human.usingFoot ? "Your foot" : "Your hand"}>
           {activeCards.map((card) => <PlayingCard key={card.id} card={card} selected={selectedIds.includes(card.id)} disabled={!yourTurn || game.turnStage !== "play"} onClick={() => toggleCard(card.id)} />)}
         </div>
@@ -634,7 +667,7 @@ function RulesDialog({ open, onClose }) {
         <span className="hf-kicker">How to play</span><h2 id="hf-rules-title">Hand &amp; Foot</h2>
         <div className="hf-rules-grid">
           <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. The shoe uses one more deck than the number of players. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
-          <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two with the button, or click any draw pile to take one card at a time. Clicking a natural 4 through Ace selects every matching rank, except an unplayed pair selects one at a time. Twos, jokers, and threes also select individually.</p></div></article>
+          <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two with the button, or click piles one card at a time. After the current player draws two, draw-ahead permission passes clockwise: each player may draw after the player immediately before them finishes drawing two. The active player cannot draw twice before discarding, and ahead-drawn cards stay separate until their turn. Natural ranks select together, while twos, jokers, and threes select individually. Use Deselect All to clear a trial selection.</p></div></article>
           <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
           <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
           <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></div></article>

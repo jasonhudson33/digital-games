@@ -39,13 +39,14 @@
 .hf-setup-grid input, .hf-setup-grid select { width: 100%; min-height: 52px; padding: 0 15px; color: var(--hf-ink); border: 1px solid rgba(31,49,36,.14); border-radius: 14px; outline: none; background: rgba(255,255,255,.66); }
 .hf-setup-grid input:focus, .hf-setup-grid select:focus { border-color: var(--hf-orange); box-shadow: 0 0 0 3px rgba(223,101,56,.12); }
 .hf-setup-grid .hf-primary { grid-column: 1 / -1; }
-.hf-primary, .hf-secondary, .hf-discard-button { min-height: 50px; padding: 0 22px; border: 0; border-radius: 14px; font-weight: 850; cursor: pointer; transition: transform 150ms ease, opacity 150ms ease; }
+.hf-primary, .hf-secondary, .hf-discard-button, .hf-deselect-button { min-height: 50px; padding: 0 22px; border: 0; border-radius: 14px; font-weight: 850; cursor: pointer; transition: transform 150ms ease, opacity 150ms ease; }
 .hf-primary { color: #fff; background: var(--hf-orange); box-shadow: 0 12px 28px rgba(173,63,30,.22); }
-.hf-primary:hover, .hf-secondary:hover, .hf-discard-button:hover { transform: translateY(-2px); }
+.hf-primary:hover, .hf-secondary:hover, .hf-discard-button:hover, .hf-deselect-button:hover { transform: translateY(-2px); }
 .hf-primary.compact { min-height: 44px; }
 .hf-secondary { color: #fff; background: var(--hf-green); }
 .hf-discard-button { color: #7c321f; background: #f0d8c7; }
-.hf-primary:disabled, .hf-secondary:disabled, .hf-discard-button:disabled { opacity: .42; transform: none; cursor: not-allowed; }
+.hf-deselect-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #425149; background: #e6e9e3; }
+.hf-primary:disabled, .hf-secondary:disabled, .hf-discard-button:disabled, .hf-deselect-button:disabled { opacity: .42; transform: none; cursor: not-allowed; }
 .hf-seat-note { display: flex; align-items: center; gap: 8px; margin: 15px 0 0 !important; font-size: .8rem !important; }
 .hf-text-button { display: inline-flex; align-items: center; gap: 7px; margin-top: 18px; padding: 5px 0; color: #596158; border: 0; border-bottom: 1px solid #8f958e; background: transparent; cursor: pointer; }
 .hf-room-loading { min-height: calc(100vh - 74px); display: grid; place-items: center; color: #667067; font-weight: 800; }
@@ -108,9 +109,10 @@
 .hf-player-area { width: min(1420px, calc(100% - 28px)); margin: 12px auto 0; padding: 14px 16px 18px; overflow: hidden; border: 1px solid rgba(42,48,41,.1); border-radius: 20px; background: rgba(255,255,255,.78); box-shadow: 0 12px 32px rgba(51,42,29,.08); }
 .hf-player-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; }.hf-player-heading > div:first-child { display: grid; grid-template-columns: 12px 1fr; align-items: center; }.hf-player-heading strong, .hf-player-heading small { display: block; grid-column: 2; }.hf-player-heading strong { font-size: .86rem; }.hf-player-heading small { margin-top: 3px; color: #747b73; font-size: .68rem; }
 .hf-turn-dot { width: 9px; height: 9px; border-radius: 50%; background: #b7bdb5; }.hf-turn-dot.on { background: #4cae6f; box-shadow: 0 0 0 4px rgba(76,174,111,.14); }
-.hf-turn-actions { display: flex; gap: 8px; }.hf-turn-actions button { min-height: 42px; padding: 0 16px; font-size: .76rem; }
+.hf-turn-actions { display: flex; flex-wrap: wrap; gap: 8px; }.hf-turn-actions button { min-height: 42px; padding: 0 16px; font-size: .76rem; }
 .hf-error { margin: 10px 0 0; padding: 8px 11px; color: #862d1c; border-radius: 9px; background: #fbe5db; font-size: .72rem; }
 .hf-go-out-warning { margin: 10px 0 0; padding: 9px 12px; color: #704715; border: 1px solid rgba(190,126,35,.22); border-radius: 9px; background: #fff1cf; font-size: .72rem; font-weight: 750; }
+.hf-predraw-area { margin-top: 12px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid rgba(31,90,69,.2); border-radius: 14px; background: #edf3e9; }.hf-predraw-area strong, .hf-predraw-area small { display: block; }.hf-predraw-area strong { color: #294c3d; font-size: .8rem; }.hf-predraw-area small { margin-top: 3px; color: #68756c; font-size: .65rem; }.hf-predrawn-cards { display: flex; gap: 8px; }.hf-predrawn-cards .hf-card, .hf-predrawn-cards .hf-card:first-child { margin-left: 0; cursor: default; }
 .hf-wild-target-picker { margin: 12px 0 0; padding: 11px 13px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(223,101,56,.24); border-radius: 13px; background: #fff5e7; }
 .hf-wild-target-picker > span { color: #77422e; font-size: .72rem; font-weight: 850; }
 .hf-wild-target-picker > div { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -145,6 +147,7 @@
 
 @media (max-width: 580px) {
   .hf-intro { width: min(100% - 28px, 1180px); }.hf-intro h1 { font-size: 4.4rem; }.hf-setup-grid { grid-template-columns: 1fr 1fr; }.hf-setup-grid label:first-child { grid-column: 1/-1; }.hf-setup-grid label:nth-child(3) { grid-column: 1/-1; }.hf-room-entry { grid-template-columns: 1fr; }.hf-hero-art { margin-left: -60px; margin-right: -60px; }.hf-gamebar { align-items: flex-start; }.hf-game-actions button { width: 40px; padding: 0; justify-content: center; font-size: 0; }.hf-scoreboard { grid-template-columns: repeat(2,1fr); }.hf-seats { grid-template-columns: 1fr; max-height: 195px; overflow-y: auto; }.hf-table-center { padding: 13px 9px; }.hf-meld-board { grid-template-columns: 1fr; }.hf-hand { padding: 14px 4px 6px; display: grid; grid-template-columns: repeat(auto-fill, 70px); justify-content: center; align-items: end; gap: 9px 6px; overflow: visible; }.hf-card, .hf-card:first-child { min-width: 70px; width: 70px; height: 100px; margin-left: 0; }.hf-results-card { padding: 25px 18px; }.hf-result-actions { flex-direction: column; }.hf-dialog { padding: 25px 18px; }.hf-dialog h2 { font-size: 2.4rem; }.hf-lobby-shell { padding: 24px 12px; }.hf-lobby-card { padding: 24px 16px; }.hf-lobby-players { grid-template-columns: 1fr; }.hf-team-choice { grid-template-columns: 1fr; }.hf-team-choice select { width: 100%; }
+  .hf-predraw-area { align-items: flex-start; flex-direction: column; }.hf-predrawn-cards { width: 100%; justify-content: center; }
 }
 
 @media (max-width: 700px) {

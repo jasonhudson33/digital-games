@@ -261,6 +261,30 @@
   font-weight: 800;
 }
 
+.monopoly-page .winner-actions{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.monopoly-page .winner-actions button{
+  min-height: 46px;
+  justify-content: center;
+  font-weight: 950;
+}
+
+.monopoly-page .winner-host-note{
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.monopoly-page .winner-host-note + button{
+  grid-column: 1 / -1;
+}
+
 @keyframes winner-arrival{
   from { opacity: 0; transform: translateY(20px) scale(.92) rotate(-1deg); }
   to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }

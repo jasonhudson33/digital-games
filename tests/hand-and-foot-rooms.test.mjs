@@ -61,6 +61,56 @@ test("mutual teammate preferences take priority when room teams are built", () =
   assert.deepEqual(pairs.map((pair) => pair.map((player) => player.playerId)), [["a", "d"], ["b", "c"], ["e", "f"]]);
 });
 
+test("room players privately draw ahead in a clockwise chain", async () => {
+  const created = await createHandFootRoom({ name: "Host" });
+  const joinedPlayers = [];
+  for (const name of ["One", "Two", "Three"]) {
+    joinedPlayers.push(await joinHandFootRoom({ roomCode: created.state.roomCode, name }));
+  }
+  let hostView = await startHandFootRoom({ roomCode: created.state.roomCode, token: created.token, random: () => 0 });
+  hostView = await drawHandFootRoomCards({ roomCode: created.state.roomCode, token: created.token });
+
+  const nextPlayerId = hostView.state.players[1].playerId;
+  const nextPlayer = joinedPlayers.find((joined) => joined.state.viewerPlayerId === nextPlayerId);
+  const followingPlayerId = hostView.state.players[2].playerId;
+  const followingPlayer = joinedPlayers.find((joined) => joined.state.viewerPlayerId === followingPlayerId);
+  assert.ok(nextPlayer);
+  assert.ok(followingPlayer);
+
+  await assert.rejects(
+    drawHandFootRoomCards({ roomCode: created.state.roomCode, token: followingPlayer.token }),
+    /player before.*drawn two cards/i
+  );
+
+  const aheadView = await drawHandFootRoomCards({ roomCode: created.state.roomCode, token: nextPlayer.token });
+  assert.equal(aheadView.state.viewerPlayerIndex, 1);
+  assert.equal(aheadView.state.players[1].hand.length, 13);
+  assert.equal(aheadView.state.players[1].pendingDraw.length, 2);
+
+  const followingView = await drawHandFootRoomCards({ roomCode: created.state.roomCode, token: followingPlayer.token });
+  assert.equal(followingView.state.viewerPlayerIndex, 2);
+  assert.equal(followingView.state.players[2].hand.length, 13);
+  assert.equal(followingView.state.players[2].pendingDraw.length, 2);
+
+  hostView = await getHandFootRoom({ roomCode: created.state.roomCode, token: created.token });
+  assert.equal(hostView.state.players[1].pendingDrawCount, 2);
+  assert.deepEqual(hostView.state.players[1].pendingDraw, []);
+  assert.equal(hostView.state.players[2].pendingDrawCount, 2);
+  assert.deepEqual(hostView.state.players[2].pendingDraw, []);
+
+  const discardId = hostView.state.players[0].hand[0].id;
+  await discardHandFootRoomCard({ roomCode: created.state.roomCode, token: created.token, cardId: discardId });
+  const promotedView = await getHandFootRoom({ roomCode: created.state.roomCode, token: nextPlayer.token });
+  assert.equal(promotedView.state.currentPlayerIndex, 1);
+  assert.equal(promotedView.state.turnStage, "play");
+  assert.equal(promotedView.state.players[1].hand.length, 15);
+  assert.deepEqual(promotedView.state.players[1].pendingDraw, []);
+
+  const followingWaitingView = await getHandFootRoom({ roomCode: created.state.roomCode, token: followingPlayer.token });
+  assert.equal(followingWaitingView.state.players[2].hand.length, 13);
+  assert.equal(followingWaitingView.state.players[2].pendingDraw.length, 2);
+});
+
 test("only the host can add computers or start a room", async () => {
   const created = await createHandFootRoom({ name: "Host" });
   const joined = await joinHandFootRoom({ roomCode: created.state.roomCode, name: "Guest" });

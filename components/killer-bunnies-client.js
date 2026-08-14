@@ -156,14 +156,14 @@ function Welcome({ name, setName, joinCode, setJoinCode, busy, error, onCreate, 
             </div>
           </div>
           {error && <p className="kb-error" role="alert">{error}</p>}
-          <div className="kb-welcome-links"><button className="kb-link-button" type="button" onClick={onRules}><BookOpen size={16} /> See how this digital edition plays</button><a className="kb-link-button" href="/killer-bunnies/cards"><Library size={16} /> Browse all 1,485 numbered cards</a></div>
+          <div className="kb-welcome-links"><button className="kb-link-button" type="button" onClick={onRules}><BookOpen size={16} /> See how this digital edition plays</button><a className="kb-link-button" href="/killer-bunnies/cards"><Library size={16} /> Review and update all 1,485 cards</a></div>
         </div>
         <div className="kb-hero-art" aria-hidden="true">
           <div className="kb-sun" /><div className="kb-hill hill-one" /><div className="kb-hill hill-two" />
           <div className="kb-hero-carrot"><Carrot /></div>
           <div className="kb-hero-bunny"><span className="ear left" /><span className="ear right" /><Rabbit /></div>
-          <GameCard card={{ type: "RUN", kind: "bunny", name: "Daring Violet Bunny", color: "violet", detail: "Keep one bunny alive to win." }} className="hero-card card-one" />
-          <GameCard card={{ type: "RUN", kind: "weapon", name: "Whisk of Doom", power: 5, detail: "Roll a d12 against a rival bunny." }} className="hero-card card-two" />
+          <GameCard card={{ type: "RUN", kind: "bunny", catalogNumber: "0004", name: "Sinister Bunny – Blue", color: "blue", detail: "An official Blue Starter Deck bunny." }} className="hero-card card-one" />
+          <GameCard card={{ type: "RUN", kind: "weapon", catalogNumber: "0031", name: "Kitchen Whisk – Weapon Level 1", power: 1, detail: "An official Blue Starter Deck weapon." }} className="hero-card card-two" />
         </div>
       </section>
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
@@ -191,7 +191,7 @@ function Lobby({ game, error, busy, copied, onCopy, onAction, onLeave, onRules, 
         </div>
         {game.hostControls && game.players.length < 8 && <button className="kb-add-bot" type="button" disabled={busy} onClick={() => onAction("addComputer")}><Bot size={17} /> Add computer player</button>}
         <ExpansionSelector game={game} busy={busy} onAction={onAction} />
-        <div className="kb-lobby-meta"><span>{game.expansionSummary.totalCards} cards</span><span>{game.expansionSummary.packCount} expansions</span><span>{game.players.length}/8 seats</span></div>
+        <div className="kb-lobby-meta"><span>{game.expansionSummary.totalCards} numbered cards</span><span>{game.expansionSummary.packCount} expansions</span><span>{game.players.length}/8 seats</span></div>
         {game.hostControls ? <button className="kb-primary kb-start" type="button" disabled={busy || game.players.length < 2} onClick={() => onAction("start")}><Play size={18} /> Start the carrot hunt</button> : <p className="kb-waiting">Waiting for the host to start…</p>}
         {error && <p className="kb-error" role="alert">{error}</p>}
         <div className="kb-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave room</button></div>
@@ -255,8 +255,8 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
   return (
     <main className="kb-app kb-game-shell">
       <header className="kb-gamebar">
-        <div className="kb-game-title"><span><Rabbit size={20} /></span><div><strong>Killer Bunnies</strong><small>Room {game.roomCode} · Turn {game.turnNumber} · {game.cardCounts.total} cards · {game.expansionSummary?.packCount || 0} expansions</small></div></div>
-        <div className="kb-game-actions"><button type="button" onClick={onCopy}><Copy size={15} /> {copied ? "Copied" : game.roomCode}</button><button type="button" onClick={onRules}><BookOpen size={15} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={15} /> Leave</button></div>
+        <div className="kb-game-title"><span><Rabbit size={20} /></span><div><strong>Killer Bunnies</strong><small>Room {game.roomCode} · Turn {game.turnNumber} · {game.cardCounts.numbered} numbered cards · {game.expansionSummary?.packCount || 0} expansions</small></div></div>
+        <div className="kb-game-actions"><button type="button" onClick={onCopy}><Copy size={15} /> {copied ? "Copied" : game.roomCode}</button><a href="/killer-bunnies/cards"><Library size={15} /> Update cards</a><button type="button" onClick={onRules}><BookOpen size={15} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={15} /> Leave</button></div>
       </header>
 
       {!!game.expansionIds?.length && <section className="kb-active-expansions" aria-label="Active expansions"><span><PackageOpen size={13} /> ACTIVE PACKS</span>{game.expansionIds.map((id) => { const pack = KILLER_BUNNIES_EXPANSIONS.find((entry) => entry.id === id); return pack ? <i key={id} style={{ "--pack-color": pack.color }}>{pack.name.replace(" Booster", "")}</i> : null; })}</section>}
@@ -403,10 +403,10 @@ function ExpansionSelector({ game, busy, onAction }) {
   }
 
   return <section className="kb-expansion-picker" aria-labelledby="kb-expansion-title">
-    <header><div><span className="kb-kicker"><PackageOpen size={14} /> Optional booster decks</span><h2 id="kb-expansion-title">Build your game set</h2><p>Base Blue + Yellow is always included. Red adds Rooney’s store and Orange adds Weil’s store; each pack shows its exact card count.</p></div><strong>{game.expansionSummary.totalCards}<small>cards total</small></strong></header>
-    {game.hostControls && <div className="kb-expansion-tools"><button type="button" disabled={busy} onClick={() => setExpansions(catalog.map((entry) => entry.id))}>Select all</button><button type="button" disabled={busy} onClick={() => selectSeries("Series One")}>Series One</button><button type="button" disabled={busy} onClick={() => selectSeries("Series Two")}>Series Two</button><button type="button" disabled={busy || !game.expansionIds.length} onClick={() => setExpansions([])}>Clear</button></div>}
+    <header><div><span className="kb-kicker"><PackageOpen size={14} /> Optional booster decks</span><h2 id="kb-expansion-title">Build your game set</h2><p>Base Blue + Yellow is always included. Red adds Rooney’s store and Orange adds Weil’s store; each pack shows its official numbered-card count.</p></div><strong>{game.expansionSummary.totalCards}<small>numbered cards</small></strong></header>
+    {game.hostControls && <div className="kb-expansion-tools"><button type="button" disabled={busy} onClick={() => setExpansions(catalog.map((entry) => entry.id))}>Select all</button><button type="button" disabled={busy} onClick={() => selectSeries("Series One")}>Series One</button><button type="button" disabled={busy} onClick={() => selectSeries("Conquest")}>Conquest</button><button type="button" disabled={busy} onClick={() => selectSeries("Series Two")}>Series Two</button><button type="button" disabled={busy || !game.expansionIds.length} onClick={() => setExpansions([])}>Clear</button></div>}
     <div className="kb-expansion-series">
-      {["Series One", "Series Two"].map((series) => <div key={series}><label>{series}</label><div>{catalog.filter((entry) => entry.series === series).map((entry) => <button key={entry.id} type="button" className={selected.has(entry.id) ? "selected" : ""} disabled={!game.hostControls || busy} onClick={() => toggle(entry.id)} style={{ "--pack-color": entry.color }} aria-pressed={selected.has(entry.id)}><span>{selected.has(entry.id) ? "✓" : entry.order}</span><strong>{entry.name.replace(" Booster", "")}</strong><small>{entry.signature}</small><b>+{entry.cardCounts.total}</b></button>)}</div></div>)}
+      {["Series One", "Conquest", "Series Two"].map((series) => <div key={series}><label>{series}</label><div>{catalog.filter((entry) => entry.series === series).map((entry) => <button key={entry.id} type="button" className={selected.has(entry.id) ? "selected" : ""} disabled={!game.hostControls || busy} onClick={() => toggle(entry.id)} style={{ "--pack-color": entry.color }} aria-pressed={selected.has(entry.id)}><span>{selected.has(entry.id) ? "✓" : entry.order}</span><strong>{entry.name.replace(" Booster", "")}</strong><small>{entry.signature}</small><b>+{entry.cardCounts.total}</b></button>)}</div></div>)}
     </div>
     {!game.hostControls && <p className="kb-expansion-wait">The room host is choosing the expansion set.</p>}
   </section>;

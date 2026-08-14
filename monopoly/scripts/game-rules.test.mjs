@@ -16,6 +16,7 @@ const {
   addLocalPlayer,
   computerPropertyValue,
   makeInitialState,
+  restartGame,
   rollDice,
   setHouseRules,
   startGame
@@ -96,6 +97,55 @@ test('Monopoly randomly selects the opening player', () => {
   const game = startGame(addLocalPlayer(makeInitialState('host', 'Host', 'FIRST', 'car')), () => 0.99);
   assert.equal(game.currentPlayerIndex, 1);
   assert.match(game.log[0].text, /Player 2 starts/);
+});
+
+test('playing again resets the board while keeping the room and players', () => {
+  const started = startGame(
+    addLocalPlayer(setHouseRules(makeInitialState('host', 'Host', 'AGAIN', 'car'), true)),
+    () => 0
+  );
+  const finished = {
+    ...started,
+    phase: 'gameOver',
+    lastRoll: { dieOne: 6, dieTwo: 6, isDouble: true, nonce: 1, playerId: 'host' },
+    improvements: { 1: 4 },
+    freeParkingPot: 200,
+    players: started.players.map((player, index) => ({
+      ...player,
+      position: 18,
+      money: index === 0 ? 3200 : 0,
+      properties: index === 0 ? [1, 3] : [],
+      mortgagedProperties: index === 0 ? [1] : [],
+      getOutOfJailFreeCards: 1,
+      getOutOfJailFreeCardDecks: ['chance'],
+      jailTurnCount: 2,
+      inJail: true,
+      bankrupt: index === 1
+    }))
+  };
+
+  const replayed = restartGame(finished, () => 0.99);
+
+  assert.equal(replayed.roomCode, 'AGAIN');
+  assert.equal(replayed.phase, 'playing');
+  assert.equal(replayed.currentPlayerIndex, 1);
+  assert.equal(replayed.houseRules, true);
+  assert.equal(replayed.lastRoll, null);
+  assert.deepEqual(replayed.improvements, {});
+  assert.equal(replayed.freeParkingPot, 0);
+  assert.deepEqual(replayed.players.map((player) => ({
+    id: player.id,
+    money: player.money,
+    position: player.position,
+    properties: player.properties,
+    mortgagedProperties: player.mortgagedProperties,
+    jailCards: player.getOutOfJailFreeCards,
+    inJail: player.inJail,
+    bankrupt: player.bankrupt
+  })), [
+    { id: 'host', money: 1500, position: 0, properties: [], mortgagedProperties: [], jailCards: 0, inJail: false, bankrupt: false },
+    { id: finished.players[1].id, money: 1500, position: 0, properties: [], mortgagedProperties: [], jailCards: 0, inJail: false, bankrupt: false }
+  ]);
 });
 
 test('a Monopoly computer values a property that completes its color group', () => {

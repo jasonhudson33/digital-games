@@ -15,6 +15,7 @@ const games = [
   { name: "Hand & Foot", href: "/hand-and-foot" },
   { name: "Hearts", href: "/hearts" },
   { name: "Killer Bunnies", href: "/killer-bunnies" },
+  { name: "Update KB Cards", href: "/killer-bunnies/cards" },
   { name: "Life", href: "/life" },
   { name: "Mafia", href: "/mafia" },
   { name: "Monopoly", href: "/monopoly" },
