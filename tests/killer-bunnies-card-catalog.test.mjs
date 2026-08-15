@@ -66,3 +66,16 @@ test("the publisher checklist typo is normalized to the missing sequential numbe
   assert.equal(getKillerBunniesCatalogCard(1122).name, "Funky Fungus – Bunny Modifier, Double");
   assert.equal(getKillerBunniesCatalogCard(1123).name, "Goldistocks");
 });
+
+test("printed SPECIAL and VERY SPECIAL types are keyed by CIN instead of guessed from the title", () => {
+  assert.equal(getKillerBunniesCatalogCard(58).type, "RUN");
+  assert.equal(getKillerBunniesCatalogCard(66).type, "SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(78).type, "SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(80).type, "VERY SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(81).type, "VERY SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(145).type, "SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(152).type, "VERY SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(203).type, "VERY SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(1349).type, "SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(1469).type, "SPECIAL");
+});

@@ -7,6 +7,7 @@ import {
   KILLER_BUNNIES_CATALOG_COUNT,
   KILLER_BUNNIES_DECK_CATALOG,
 } from "../lib/killer-bunnies-card-catalog";
+import { KILLER_BUNNIES_PRINTED_TYPE_COUNTS } from "../lib/killer-bunnies-card-types";
 
 const PAGE_SIZE = 120;
 
@@ -14,21 +15,24 @@ export default function KillerBunniesCardCatalog() {
   const [query, setQuery] = useState("");
   const [deckId, setDeckId] = useState("all");
   const [kind, setKind] = useState("all");
+  const [printedType, setPrintedType] = useState("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [copiedNumber, setCopiedNumber] = useState("");
 
   const kinds = useMemo(() => [...new Set(KILLER_BUNNIES_CARD_CATALOG.map((card) => card.kind))].sort(), []);
+  const printedTypes = useMemo(() => [...new Set(KILLER_BUNNIES_CARD_CATALOG.map((card) => card.type))].sort(), []);
   const filteredCards = useMemo(() => {
     const search = query.trim().toLowerCase();
     return KILLER_BUNNIES_CARD_CATALOG.filter((card) => {
       if (deckId !== "all" && card.deckId !== deckId) return false;
       if (kind !== "all" && card.kind !== kind) return false;
+      if (printedType !== "all" && card.type !== printedType) return false;
       if (!search) return true;
       return card.catalogNumber.includes(search)
         || card.name.toLowerCase().includes(search)
         || card.deckName.toLowerCase().includes(search);
     });
-  }, [deckId, kind, query]);
+  }, [deckId, kind, printedType, query]);
 
   function updateFilter(setter, value) {
     setter(value);
@@ -36,7 +40,7 @@ export default function KillerBunniesCardCatalog() {
   }
 
   function copyChangeRequest(card) {
-    const request = `Killer Bunnies card #${card.catalogNumber} — ${card.name}\nCurrent digital behavior: ${card.detail}\nRequested change: `;
+    const request = `Killer Bunnies card #${card.catalogNumber} — ${card.name}\nPrinted type: ${card.type}\nCurrent digital behavior: ${card.detail}\nRequested change: `;
     void navigator.clipboard.writeText(request);
     setCopiedNumber(card.catalogNumber);
     window.setTimeout(() => setCopiedNumber(""), 1600);
@@ -52,6 +56,7 @@ export default function KillerBunniesCardCatalog() {
         <div className="kb-catalog-totals">
           <span><strong>{KILLER_BUNNIES_CATALOG_COUNT.toLocaleString()}</strong> unique numbers</span>
           <span><strong>{KILLER_BUNNIES_DECK_CATALOG.length}</strong> decks</span>
+          <span><strong>{KILLER_BUNNIES_PRINTED_TYPE_COUNTS.special}</strong> Special · <strong>{KILLER_BUNNIES_PRINTED_TYPE_COUNTS.verySpecial}</strong> Very Special</span>
           <span><CheckCircle2 /><strong>0</strong> duplicates or gaps</span>
         </div>
       </header>
@@ -61,6 +66,7 @@ export default function KillerBunniesCardCatalog() {
           <label className="kb-catalog-search"><Search /><span>Search cards</span><input value={query} onChange={(event) => updateFilter(setQuery, event.target.value)} placeholder="Name or number, such as 0287" /></label>
           <label><span>Deck</span><select value={deckId} onChange={(event) => updateFilter(setDeckId, event.target.value)}><option value="all">All 24 decks</option>{[...new Set(KILLER_BUNNIES_DECK_CATALOG.map((deck) => deck.series))].map((series) => <optgroup key={series} label={series}>{KILLER_BUNNIES_DECK_CATALOG.filter((deck) => deck.series === series).map((deck) => <option key={deck.id} value={deck.id}>{deck.name} · {deck.cardCount}</option>)}</optgroup>)}</select></label>
           <label><span>Generated category</span><select value={kind} onChange={(event) => updateFilter(setKind, event.target.value)}><option value="all">All categories</option>{kinds.map((entry) => <option key={entry} value={entry}>{categoryLabel(entry)}</option>)}</select></label>
+          <label><span>Printed type</span><select value={printedType} onChange={(event) => updateFilter(setPrintedType, event.target.value)}><option value="all">All printed types</option>{printedTypes.map((entry) => <option key={entry} value={entry}>{entry}</option>)}</select></label>
         </div>
 
         <div className="kb-catalog-heading"><div><span>NUMBERED CARD RECORDS</span><h2 id="kb-catalog-results">{filteredCards.length.toLocaleString()} cards found</h2></div><p>The publisher’s Caramel Swirl page prints 1120 twice. The second occurrence is normalized to 1122 to preserve the official continuous sequence.</p></div>
@@ -90,7 +96,7 @@ function CatalogCard({ card, copied, onCopyChange }) {
     <strong className="kb-catalog-behavior-label">CURRENT DIGITAL BEHAVIOR</strong>
     <p>{card.detail}</p>
     {!!metadata.length && <div>{metadata.map((entry) => <i key={entry}>{entry}</i>)}</div>}
-    <footer><span>{card.deckName}</span><small>{card.confidence === "unverified" ? "Effect needs card-text verification" : `${card.type} · ${card.confidence}`}</small><button type="button" onClick={onCopyChange}>{copied ? "Copied request" : "Copy change request"}</button></footer>
+    <footer><span>{card.deckName}</span><small>{card.type} · {card.confidence === "unverified" ? "effect needs card-text verification" : card.confidence}</small><button type="button" onClick={onCopyChange}>{copied ? "Copied request" : "Copy change request"}</button></footer>
   </article>;
 }
 

@@ -67,6 +67,14 @@ test("the game uses all 165 official Blue and Yellow numbered cards with unnumbe
   assert.ok(numberedCards.every((card) => /^\d{4}$/.test(card.catalogNumber)));
   assert.ok(game.magicCarrotDeck.every((card) => !card.catalogNumber));
   assert.ok([...game.cabbageSupply, ...game.waterSupply].every((card) => !card.catalogNumber));
+
+  const basePlayableCards = [
+    ...game.mainDeck,
+    ...game.players.flatMap((player) => [...player.hand, ...player.bank]),
+  ];
+  assert.equal(basePlayableCards.filter((card) => card.type === "SPECIAL").length, 20);
+  assert.equal(basePlayableCards.filter((card) => card.type === "VERY SPECIAL").length, 5);
+  assert.equal(basePlayableCards.find((card) => card.catalogNumber === "0080").type, "VERY SPECIAL");
 });
 
 test("each player chooses their opening TOP RUN and BOTTOM RUN from seven cards", () => {
