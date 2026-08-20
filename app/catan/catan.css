@@ -1,3 +1,16 @@
+/* ── Route surface ──────────────────────────────────────────────────────────
+ * The ground this route paints. The site header reads these instead of the
+ * global --bg, so it stops cutting a cool grey band across the top of a
+ * warm page. Measured from the rendered page, not guessed.
+ */
+:root {
+  --route-surface: #ecddc5;
+  --route-ink: #1e1a15;
+  --route-muted: rgba(30, 26, 21, 0.62);
+  --route-line: rgba(30, 26, 21, 0.14);
+  --route-chip: rgba(255, 255, 255, 0.66);
+}
+
 .catan-page {
   --catan-red: #b72f34;
   --catan-red-dark: #7f1f25;

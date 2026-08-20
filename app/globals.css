@@ -16,8 +16,10 @@
   top: 0;
   z-index: 40;
   backdrop-filter: blur(14px) saturate(1.4);
-  background: color-mix(in oklab, var(--bg) 80%, transparent);
-  border-bottom: 1px solid var(--line);
+  /* Adopts the route's own ground — see --route-surface in tokens.css. */
+  background: color-mix(in oklab, var(--route-surface) 82%, transparent);
+  border-bottom: 1px solid var(--route-line);
+  color: var(--route-ink);
 }
 
 .site-header-inner {
@@ -61,9 +63,9 @@
   align-items: center;
   gap: 7px;
   padding: 5px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--route-line);
   border-radius: var(--r-pill);
-  background: var(--surface);
+  background: var(--route-chip);
   font-size: var(--step--1);
   font-weight: 600;
   white-space: nowrap;
@@ -82,18 +84,18 @@
   gap: 7px;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--route-line);
   border-radius: var(--r-md);
-  background: var(--surface);
-  color: var(--muted);
+  background: var(--route-chip);
+  color: var(--route-muted);
   font-size: var(--step--1);
   font-weight: 500;
   transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .site-find:hover {
-  color: var(--ink);
-  border-color: var(--line-strong);
+  color: var(--route-ink);
+  border-color: var(--route-ink);
 }
 
 .site-find svg {
@@ -103,10 +105,10 @@
 
 .site-find-key {
   padding: 2px 5px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--route-line);
   border-radius: var(--r-xs);
-  background: var(--surface-2);
-  color: var(--muted);
+  background: transparent;
+  color: var(--route-muted);
   font-family: var(--font-mono);
   font-size: 0.68rem;
 }

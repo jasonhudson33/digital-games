@@ -1,3 +1,16 @@
+/* ── Route surface ──────────────────────────────────────────────────────────
+ * The ground this route paints. The site header reads these instead of the
+ * global --bg, so it stops cutting a grey band across the top of a
+ * dark page. Measured from the rendered page, not guessed.
+ */
+:root {
+  --route-surface: #142a24;
+  --route-ink: #f0f4f3;
+  --route-muted: rgba(240, 244, 243, 0.66);
+  --route-line: rgba(240, 244, 243, 0.16);
+  --route-chip: rgba(255, 255, 255, 0.08);
+}
+
 :root {
   --spy-ink: #182521;
   --spy-deep: #10231f;
