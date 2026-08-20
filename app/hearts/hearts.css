@@ -1,3 +1,12 @@
+/* ── Palette ────────────────────────────────────────────────────────────────
+ * The colours this game repeats, named for how it uses them. Hoisted so that
+ * changing one is one edit rather than 4 scattered ones.
+ */
+:root {
+  --hrt-white: #fff;
+  --hrt-ink-pale-sand: #f7f2e8;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * The ground this route paints. The site header reads these instead of the
  * global --bg, so it stops cutting a cool grey band across the top of a
@@ -14,7 +23,7 @@
 .hearts-app {
   --heart-red: #e7473c;
   --heart-deep: #8f1f28;
-  --cream: #f7f2e8;
+  --cream: var(--hrt-ink-pale-sand);
   --ink: #171a17;
   --felt: #123d32;
   --felt-light: #1a5444;
@@ -277,7 +286,7 @@
   border-radius: 12px;
   background:
     linear-gradient(145deg, rgba(255,255,255,.96), rgba(249,246,238,.98)),
-    #fff;
+    var(--hrt-white);
   box-shadow: 0 10px 22px rgba(18, 24, 20, .2);
 }
 
@@ -324,7 +333,7 @@
   gap: 10px;
   padding: 11px 16px;
   border-radius: 999px;
-  color: #f7f2e8;
+  color: var(--hrt-ink-pale-sand);
   background: #202420;
   box-shadow: 0 13px 30px rgba(27, 30, 27, .2);
   font-size: .76rem;
@@ -370,7 +379,7 @@
   height: 40px;
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--hrt-white);
   border-radius: 12px;
   background: var(--heart-red);
 }
@@ -456,7 +465,7 @@
 .score-item small { display: block; }
 .score-item strong { color: #f8f4e9; font-size: .83rem; }
 .score-item small { margin-top: 2px; color: rgba(248, 244, 233, .43); font-size: .65rem; }
-.score-item b { color: #fff; font-family: var(--font-ui); font-size: 1.3rem; }
+.score-item b { color: var(--hrt-white); font-family: var(--font-ui); font-size: 1.3rem; }
 
 .felt-table {
   position: relative;
@@ -517,7 +526,7 @@
 .opponent-seat.active::before { opacity: 1; }
 .opponent-seat.active .opponent-avatar { box-shadow: 0 0 0 3px var(--heart-red); }
 .opponent-seat strong, .opponent-seat small { display: block; }
-.opponent-seat strong { color: #fff; font-size: .81rem; }
+.opponent-seat strong { color: var(--hrt-white); font-size: .81rem; }
 .opponent-seat small { margin-top: 2px; font-size: .65rem; }
 .opponent-avatar { width: 34px; height: 34px; font-size: .8rem; }
 .opponent-cards {
@@ -811,7 +820,7 @@
 
 .variant-rule-block {
   padding: 16px;
-  color: #f7f2e8;
+  color: var(--hrt-ink-pale-sand);
   border-radius: 15px;
   background: #232824;
 }

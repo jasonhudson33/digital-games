@@ -1,3 +1,14 @@
+/* ── Palette ────────────────────────────────────────────────────────────────
+ * The colours this game repeats, named for how it uses them. Hoisted so that
+ * changing one is one edit rather than 6 scattered ones.
+ */
+:root {
+  --scum-deep-teal: #173f33;
+  --scum-ink-grey: #777d74;
+  --scum-surface-white: #fffdf7;
+  --scum-ink-red: #8b3d31;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * The ground this route paints. The site header reads these instead of the
  * global --bg, so it stops cutting a cool grey band across the top of a
@@ -106,7 +117,7 @@
 .scum-setup input {
   min-height: 50px;
   border-color: rgba(30, 48, 35, .12);
-  background: #fffdf7;
+  background: var(--scum-surface-white);
 }
 
 .scum-player-count,
@@ -150,7 +161,7 @@
   border: 0;
   border-radius: 14px;
   color: #fff9eb;
-  background: #173f33;
+  background: var(--scum-deep-teal);
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 12px 24px rgba(20, 60, 48, .2);
@@ -428,17 +439,17 @@
 .rules-card h2, .results-card h2, .trade-card h2 { margin: 14px 0 24px; font: 500 clamp(2.2rem, 7vw, 3.4rem)/.95 var(--font-display); letter-spacing: -.045em; }
 .rules-card ol { margin: 0 0 22px; padding: 0; list-style: none; counter-reset: rules; }
 .rules-card li { counter-increment: rules; position: relative; display: grid; grid-template-columns: 110px 1fr; gap: 15px; padding: 14px 0 14px 42px; border-bottom: 1px solid rgba(27,43,31,.1); }
-.rules-card li::before { content: counter(rules); position: absolute; left: 0; top: 12px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f7edd2; background: #173f33; font-size: .72rem; font-weight: 800; }
+.rules-card li::before { content: counter(rules); position: absolute; left: 0; top: 12px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f7edd2; background: var(--scum-deep-teal); font-size: .72rem; font-weight: 800; }
 .rules-card li b { font-size: .85rem; }.rules-card li span { color: #646a62; font-size: .78rem; line-height: 1.5; }
-.rules-card > p { color: #8b3d31; font-family: var(--font-ui); font-size: 1.08rem; }
+.rules-card > p { color: var(--scum-ink-red); font-family: var(--font-ui); font-size: 1.08rem; }
 .rules-card .scum-primary { width: 100%; margin-top: 5px; }
 
 .results-card { text-align: center; }
 .results-crown { width: 74px; height: 74px; display: grid; place-items: center; margin: 0 auto 15px; border-radius: 50%; color: #6d5018; background: var(--scum-gold); }
-.results-kicker { color: #8b3d31; text-transform: uppercase; letter-spacing: .16em; font-size: .66rem; font-weight: 800; }
+.results-kicker { color: var(--scum-ink-red); text-transform: uppercase; letter-spacing: .16em; font-size: .66rem; font-weight: 800; }
 .results-list { margin: 0 0 22px; text-align: left; }
 .results-list > div { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; padding: 12px 8px; border-bottom: 1px solid rgba(27,43,31,.1); }
-.results-list > div.you { color: #8b3d31; }.results-list span { font-family: var(--font-ui); font-size: 1.1rem; }.results-list small { color: #747970; }
+.results-list > div.you { color: var(--scum-ink-red); }.results-list span { font-family: var(--font-ui); font-size: 1.1rem; }.results-list small { color: #747970; }
 .results-card .scum-primary { width: 100%; }
 
 .trade-card { width: min(760px, 100%); }
@@ -455,11 +466,11 @@
   background: rgba(255, 255, 255, .45);
 }
 .trade-groups > div.is-you { border-color: rgba(139, 61, 49, .35); background: rgba(255, 249, 239, .86); }
-.trade-groups > div > span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f8edd4; background: #173f33; font-size: .72rem; font-weight: 800; }
-.trade-groups strong { font-size: .8rem; }.trade-groups small { color: #777d74; font-size: .66rem; }.trade-groups i { color: #a67827; text-align: center; font-style: normal; }
+.trade-groups > div > span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #f8edd4; background: var(--scum-deep-teal); font-size: .72rem; font-weight: 800; }
+.trade-groups strong { font-size: .8rem; }.trade-groups small { color: var(--scum-ink-grey); font-size: .66rem; }.trade-groups i { color: #a67827; text-align: center; font-style: normal; }
 .trade-choice { margin: 0 0 18px; padding: 15px; border-radius: 16px; background: rgba(24, 63, 51, .07); }
 .trade-choice > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.trade-choice > div:first-child strong { font-size: .82rem; }.trade-choice > div:first-child small { color: #777d74; font-size: .72rem; }
+.trade-choice > div:first-child strong { font-size: .82rem; }.trade-choice > div:first-child small { color: var(--scum-ink-grey); font-size: .72rem; }
 .trade-hand { display: flex; align-items: flex-end; min-height: 102px; padding-top: 10px; overflow-x: auto; overflow-y: hidden; }
 .trade-hand button { width: 55px; min-width: 55px; height: 92px; margin-left: -7px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; transition: transform 140ms ease; }
 .trade-hand button:first-child { margin-left: 0; }.trade-hand button.selected { transform: translateY(-10px); }
@@ -499,11 +510,11 @@
 .scum-room-entry input {
   min-height: 50px;
   border-color: rgba(30, 48, 35, .12);
-  background: #fffdf7;
+  background: var(--scum-surface-white);
 }
 
 .scum-room-entry > .scum-primary { align-self: end; }
-.scum-room-entry > small { grid-column: 1 / -1; color: #777d74; text-align: center; font-size: .69rem; }
+.scum-room-entry > small { grid-column: 1 / -1; color: var(--scum-ink-grey); text-align: center; font-size: .69rem; }
 
 .scum-entry-divider {
   grid-column: 1 / -1;
@@ -570,7 +581,7 @@
   padding: 13px 14px;
   border-radius: 16px;
   color: #f7eed9;
-  background: #173f33;
+  background: var(--scum-deep-teal);
 }
 .scum-room-code > span { text-transform: uppercase; letter-spacing: .12em; font-size: .64rem; font-weight: 800; }
 .scum-room-code > strong { color: var(--scum-gold); font: 700 1.7rem var(--font-display); letter-spacing: .16em; }
@@ -588,9 +599,9 @@
   border-radius: 13px;
   background: rgba(255,255,255,.46);
 }
-.scum-lobby-players > div > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #173f33; background: var(--scum-gold); font: 700 .85rem var(--font-ui); }
+.scum-lobby-players > div > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--scum-deep-teal); background: var(--scum-gold); font: 700 .85rem var(--font-ui); }
 .scum-lobby-players strong { font-size: .82rem; }
-.scum-lobby-players small { color: #777d74; font-size: .66rem; }
+.scum-lobby-players small { color: var(--scum-ink-grey); font-size: .66rem; }
 .scum-lobby-players button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border: 0; color: #9f3328; background: transparent; font-size: .66rem; font-weight: 800; cursor: pointer; }
 
 .scum-add-computer { margin-top: 10px; min-height: 38px; font-size: .75rem; }
@@ -608,12 +619,12 @@
 .scum-lobby-options strong, .scum-lobby-options span { display: block; }
 .scum-lobby-options strong { font-size: .82rem; }
 .scum-lobby-options span { margin-top: 4px; color: #70766e; font-size: .7rem; }
-.scum-lobby-options select { min-height: 42px; padding: 0 12px; border: 1px solid rgba(30,48,35,.15); border-radius: 10px; color: #173f33; background: #fffdf7; font-weight: 800; }
+.scum-lobby-options select { min-height: 42px; padding: 0 12px; border: 1px solid rgba(30,48,35,.15); border-radius: 10px; color: var(--scum-deep-teal); background: var(--scum-surface-white); font-weight: 800; }
 
 .scum-lobby-summary { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 17px; }
 .scum-lobby-summary span { padding: 6px 9px; border-radius: 999px; color: #6d746c; background: rgba(23,63,51,.07); font-size: .66rem; font-weight: 700; }
 .scum-lobby-start { width: 100%; }
-.scum-lobby-waiting { color: #777d74; text-align: center; font-size: .76rem; }
+.scum-lobby-waiting { color: var(--scum-ink-grey); text-align: center; font-size: .76rem; }
 .scum-lobby-footer { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
 .scum-lobby-footer button { min-height: 44px; font-size: .72rem; }
 

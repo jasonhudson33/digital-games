@@ -1,3 +1,12 @@
+/* ── Palette ────────────────────────────────────────────────────────────────
+ * The colours this game repeats, named for how it uses them. Hoisted so that
+ * changing one is one edit rather than 3 scattered ones.
+ */
+:root {
+  --pn-ink-deep-green: #17251f;
+  --pn-surface-pale-sand: #fffaf1;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * The ground this route paints. The site header reads these instead of the
  * global --bg, so it stops cutting a grey band across the top of a
@@ -14,7 +23,7 @@
 .pn-app {
   --pn-cream: #f6edda;
   --pn-paper: #fffaf0;
-  --pn-ink: #17251f;
+  --pn-ink: var(--pn-ink-deep-green);
   --pn-green: #164c3c;
   --pn-green-dark: #0b2f27;
   --pn-gold: #d9a936;
@@ -76,7 +85,7 @@
 
 .pn-hero-art { position: relative; min-height: 560px; display: grid; place-items: center; }
 .pn-sunburst { position: absolute; width: 440px; height: 440px; border: 1px solid rgba(230,185,76,.38); border-radius: 50%; box-shadow: 0 0 0 45px rgba(230,185,76,.05), 0 0 0 90px rgba(230,185,76,.035); }
-.pn-art-card { position: absolute; width: 215px; aspect-ratio: .7; display: flex; flex-direction: column; justify-content: space-between; padding: 22px; border: 9px solid #f8ead0; border-radius: 17px; color: #17251f; background: #fffaf1; box-shadow: 0 30px 55px rgba(0,0,0,.35); font-family: var(--font-ui); font-size: 3.1rem; font-weight: 700; }
+.pn-art-card { position: absolute; width: 215px; aspect-ratio: .7; display: flex; flex-direction: column; justify-content: space-between; padding: 22px; border: 9px solid #f8ead0; border-radius: 17px; color: var(--pn-ink-deep-green); background: var(--pn-surface-pale-sand); box-shadow: 0 30px 55px rgba(0,0,0,.35); font-family: var(--font-ui); font-size: 3.1rem; font-weight: 700; }
 .pn-art-card b { align-self: center; font-size: 7.5rem; line-height: 1; }
 .pn-art-card.queen { transform: translate(-65px, -18px) rotate(-11deg); }
 .pn-art-card.jack { color: var(--pn-red); transform: translate(76px, 20px) rotate(10deg); }
@@ -186,7 +195,7 @@
 .pn-bid-controls .pn-primary { min-height: 39px; padding: 0 13px; }
 .pn-pass { height: 39px; border: 1px solid rgba(255,255,255,.17); border-radius: 8px; padding: 0 13px; color: #e8dac0; background: transparent; cursor: pointer; }
 .pn-trump-controls > span { margin-right: 4px; font-size: .76rem; font-weight: 800; text-transform: uppercase; }
-.pn-trump-controls button { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; color: #15251f; background: #fffaf1; font-family: var(--font-ui); font-size: 1.55rem; cursor: pointer; }
+.pn-trump-controls button { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; color: #15251f; background: var(--pn-surface-pale-sand); font-family: var(--font-ui); font-size: 1.55rem; cursor: pointer; }
 .pn-trump-controls button.red { color: var(--pn-red); }
 .pn-meld-panel { align-self: center; max-height: 420px; overflow-y: auto; padding: 10px; border-radius: 14px; color: #dbe9e0; background: rgba(4,31,24,.42); }
 .pn-panel-label { display: block; margin: 2px 3px 8px; color: #e1bd5d; font-size: .66rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
@@ -199,7 +208,7 @@
 .pn-meld-item { padding: 5px 0 3px 8px; color: #afc5b8; font-size: .68rem; }
 .pn-meld-item b { color: #e8ca77; }
 .pn-meld-cards { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
-.pn-meld-cards span { padding: 2px 4px; border-radius: 4px; color: #17251f; background: #fff9e9; font-family: var(--font-ui); font-weight: 800; }
+.pn-meld-cards span { padding: 2px 4px; border-radius: 4px; color: var(--pn-ink-deep-green); background: #fff9e9; font-family: var(--font-ui); font-weight: 800; }
 .pn-meld-cards span.red { color: #ad312e; }
 .pn-meld-panel small { display: block; padding: 4px 0 0 8px; color: #91a99b; }
 
@@ -215,7 +224,7 @@
 .pn-hand-card.playable { cursor: pointer; }
 .pn-hand-card.playable:hover { transform: translateY(-8px); }
 .pn-hand-card.selected { transform: translateY(-11px); filter: drop-shadow(0 0 4px #d4a429); }
-.pn-card { position: relative; width: 73px; height: 103px; display: block; border: 1px solid #d8cfbc; border-radius: 8px; color: #17201c; background: linear-gradient(145deg, #fff, #fffaf1); box-shadow: 0 4px 9px rgba(25,20,13,.2); font-family: var(--font-ui); }
+.pn-card { position: relative; width: 73px; height: 103px; display: block; border: 1px solid #d8cfbc; border-radius: 8px; color: #17201c; background: linear-gradient(145deg, #fff, var(--pn-surface-pale-sand)); box-shadow: 0 4px 9px rgba(25,20,13,.2); font-family: var(--font-ui); }
 .pn-card.red { color: #b52e2d; }
 .pn-card-corner { position: absolute; top: 5px; left: 6px; display: grid; justify-items: center; font-size: .8rem; line-height: .9; }
 .pn-card-corner i { font-style: normal; font-size: .78rem; }

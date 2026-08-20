@@ -1,3 +1,11 @@
+/* ── Palette ────────────────────────────────────────────────────────────────
+ * The colours this game repeats, named for how it uses them. Hoisted so that
+ * changing one is one edit rather than 6 scattered ones.
+ */
+:root {
+  --cya-red: #b94736;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * This game paints light panels rather than its own page ground, so it pins the
  * ground explicitly. Without this a dark OS preference would put near-black
@@ -19,7 +27,7 @@
   --cya-green-2: #1f6650;
   --cya-cream: #f7efd9;
   --cya-gold: #d6a431;
-  --cya-red: #b94736;
+  --cya-red: var(--cya-red);
   color: var(--cya-ink);
   font-family: var(--font-ui);
 }
@@ -121,7 +129,7 @@
 .cya-or { display: flex; align-items: center; gap: 10px; margin: 23px 0; color: #848980; font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
 .cya-or::before, .cya-or::after { content: ""; flex: 1; height: 1px; background: rgba(23,41,33,.13); }
 .cya-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.cya-join button { padding: 0 20px; border: 0; border-radius: 13px; color: white; background: #b94736; font-weight: 800; cursor: pointer; }
+.cya-join button { padding: 0 20px; border: 0; border-radius: 13px; color: white; background: var(--cya-red); font-weight: 800; cursor: pointer; }
 .cya-rules-link { padding: 10px 0; color: #5b665f; background: transparent; }
 .cya-entry-card > .cya-rules-link { width: 100%; margin-top: 14px; }
 .cya-rules-link svg { width: 17px; }
@@ -154,7 +162,7 @@
 .cya-table-header h1 { font: 600 clamp(1.7rem, 3vw, 2.5rem)/1 var(--font-display); }
 .cya-turn-pill, .cya-icon-button { min-height: 44px; padding: 9px 13px; border-radius: 12px; }
 .cya-turn-pill { display: flex; align-items: center; gap: 7px; color: #5c675f; background: #ebeae1; font-weight: 800; }
-.cya-turn-pill.mine { color: #fff7e5; background: #b94736; }
+.cya-turn-pill.mine { color: #fff7e5; background: var(--cya-red); }
 .cya-turn-pill svg, .cya-icon-button svg { width: 16px; }
 .cya-icon-button { color: #43554c; background: #ecebe3; }
 .cya-error { margin: 12px 0 0; }
@@ -207,7 +215,7 @@
 .cya-asset-set em { float: right; margin-top: -25px; padding: 4px 6px; border-radius: 6px; color: #527064; background: #e8efe9; font-size: .59rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
 .cya-asset-set.top:not(:first-child) { outline: 2px solid color-mix(in srgb, var(--set-color), transparent 58%); }
 .cya-asset-set.covered { transform: scale(.97); opacity: .72; }
-.cya-challenge-button { width: 100%; margin-top: 9px; padding: 9px; border-radius: 11px; color: white; background: #b94736; font-size: .76rem; }
+.cya-challenge-button { width: 100%; margin-top: 9px; padding: 9px; border-radius: 11px; color: white; background: var(--cya-red); font-size: .76rem; }
 .cya-challenge-button svg { width: 15px; }
 
 .cya-hand-panel { margin-top: 14px; padding: 18px; border: 1px solid rgba(23,41,33,.12); border-radius: 22px; background: rgba(255,252,244,.96); box-shadow: 0 16px 42px rgba(34,41,28,.1); }
@@ -218,7 +226,7 @@
 .cya-hand-card { flex: 0 0 auto; padding: 0; border: 0; border-radius: 14px; background: transparent; cursor: pointer; transition: transform .16s ease, filter .16s ease; }
 .cya-hand-card:hover:not(:disabled) { transform: translateY(-5px); }
 .cya-hand-card.selected { transform: translateY(-10px); filter: drop-shadow(0 8px 6px rgba(185,71,54,.25)); }
-.cya-hand-card.selected .cya-card { outline: 4px solid #b94736; outline-offset: 2px; }
+.cya-hand-card.selected .cya-card { outline: 4px solid var(--cya-red); outline-offset: 2px; }
 .cya-hand-card:disabled { cursor: default; opacity: .72; }
 .cya-hand-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding-top: 12px; border-top: 1px solid rgba(23,41,33,.1); }
 .cya-hand-actions p { flex: 1; min-width: 260px; margin: 0; color: #737a74; font-size: .82rem; }
@@ -240,7 +248,7 @@
 .cya-card.compact .cya-card-icon { height: 43px; font-size: 1.5rem; }
 .cya-card.compact > strong { font-size: .68rem; }
 
-.cya-challenge-banner { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 15px; margin-top: 13px; padding: 14px 17px; border: 1px solid rgba(185,71,54,.28); border-radius: 18px; color: #f9ecdb; background: linear-gradient(120deg, #812f28, #b94736); box-shadow: 0 12px 30px rgba(133,43,33,.22); }
+.cya-challenge-banner { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 15px; margin-top: 13px; padding: 14px 17px; border: 1px solid rgba(185,71,54,.28); border-radius: 18px; color: #f9ecdb; background: linear-gradient(120deg, #812f28, var(--cya-red)); box-shadow: 0 12px 30px rgba(133,43,33,.22); }
 .cya-challenge-banner .cya-kicker { color: #f2c65c; }
 .cya-challenge-banner h2, .cya-challenge-banner p { margin: 0; }
 .cya-challenge-banner h2 { font: 600 1.45rem var(--font-ui); }

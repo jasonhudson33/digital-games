@@ -1,3 +1,11 @@
+/* ── Palette ────────────────────────────────────────────────────────────────
+ * The colours this game repeats, named for how it uses them. Hoisted so that
+ * changing one is one edit rather than 4 scattered ones.
+ */
+:root {
+  --nt-ink-indigo: #777181;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * This game paints light panels rather than its own page ground, so it pins the
  * ground explicitly. Without this a dark OS preference would put near-black
@@ -71,7 +79,7 @@
 .nt-lobby-card h1 { margin: 8px 0 5px; font: 950 clamp(2.7rem, 7vw, 5rem)/.9 var(--font-poster); letter-spacing: -.025em; text-transform: uppercase; }
 .nt-lobby-card h1 button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; color: var(--nt-pink); background: transparent; cursor: pointer; }
 .nt-lobby-card h1 svg { width: 25px; }
-.nt-lobby-card header p:last-child { color: #777181; }
+.nt-lobby-card header p:last-child { color: var(--nt-ink-indigo); }
 .nt-seats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 26px; }
 .nt-seat { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 71px; padding: 11px; border: 1px solid rgba(41,35,66,.11); border-radius: 15px; background: white; }
 .nt-seat > span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: white; background: var(--nt-violet); }
@@ -86,14 +94,14 @@
 .nt-ready span { font-weight: 900; }
 .nt-start { width: 100%; margin-top: 12px; background: linear-gradient(135deg, #ff6d99, #e94c7b); box-shadow: 0 10px 23px rgba(255,93,143,.23); }
 .nt-lobby .nt-leave { width: 100%; }
-.nt-waiting { padding: 12px; color: #777181; text-align: center; }
+.nt-waiting { padding: 12px; color: var(--nt-ink-indigo); text-align: center; }
 
 .nt-game-shell { width: min(1500px, calc(100% - 20px)); margin: 0 auto; padding: 14px 0 42px; }
 .nt-game-header { display: flex; align-items: center; gap: 9px; padding: 11px 13px; border: 1px solid rgba(41,35,66,.12); border-radius: 18px; background: rgba(255,253,248,.94); box-shadow: 0 10px 30px rgba(41,35,66,.08); }
 .nt-brand-lockup { display: flex; align-items: center; gap: 10px; margin-right: auto; }
 .nt-brand-lockup > span { display: grid; place-items: center; width: 47px; height: 50px; border-radius: 50%; color: white; background: var(--nt-pink); font: 950 1.15rem/.9 var(--font-poster); transform: rotate(-6deg); }
 .nt-brand-lockup p, .nt-brand-lockup h1 { margin: 0; }
-.nt-brand-lockup p { color: #777181; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.nt-brand-lockup p { color: var(--nt-ink-indigo); font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .nt-brand-lockup h1 { font: 950 1.55rem/.95 var(--font-poster); letter-spacing: .02em; text-transform: uppercase; }
 .nt-turn-callout, .nt-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 9px 12px; border-radius: 11px; }
 .nt-turn-callout { color: #676073; background: #eeecf1; font-size: .78rem; font-weight: 900; }
@@ -184,7 +192,7 @@
 .nt-results-modal { width: min(560px, 100%); text-align: center; }
 .nt-modal-trophy { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; color: #46358f; background: var(--nt-yellow); transform: rotate(-4deg); }
 .nt-modal-trophy svg { width: 31px; height: 31px; }
-.nt-results-modal > p:not(.nt-kicker) { color: #777181; }
+.nt-results-modal > p:not(.nt-kicker) { color: var(--nt-ink-indigo); }
 .nt-results { display: grid; gap: 7px; margin: 23px 0 15px; text-align: left; }
 .nt-results > div { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 11px; background: #f0edf4; }
 .nt-results > div > span { display: grid; place-items: center; width: 26px; height: 30px; border-radius: 50%; color: white; background: #55496f; font-weight: 900; }
