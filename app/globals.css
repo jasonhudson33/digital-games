@@ -5,6 +5,12 @@
  * Tokens, resets and the focus ring live in ./tokens.css, which loads first.
  */
 
+/* ── Site header ─────────────────────────────────────────────────────────────
+ *
+ * Brand, current game, and one way to find another. The catalogue that used to
+ * live here as a 26-item dropdown is now the command palette below.
+ */
+
 .site-header {
   position: sticky;
   top: 0;
@@ -15,105 +21,230 @@
 }
 
 .site-header-inner {
-  position: relative;
-  width: min(1240px, calc(100% - 24px));
-  margin: 0 auto;
-  padding: 14px 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: var(--sp-3);
+  width: min(var(--page-max), calc(100% - var(--page-gutter) * 2));
+  min-height: var(--header-h);
+  margin: 0 auto;
+  padding: 11px 0;
 }
 
 .site-brand {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.site-nav {
-  display: none;
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(280px, calc(100vw - 24px));
-  max-height: calc(100vh - 90px);
-  padding: 10px;
-  overflow-y: auto;
-  border: 1px solid rgba(30, 26, 23, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 252, 246, 0.98);
-  box-shadow: var(--shadow);
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.site-nav.open {
   display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-right: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: var(--tracking-display);
 }
 
-.site-menu-toggle {
+.site-brand-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(146deg, oklch(0.5 0.16 285), oklch(0.34 0.13 265));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.site-current {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid rgba(30, 26, 23, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.7);
   align-items: center;
-  justify-content: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: var(--step--1);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.site-current-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h, 260));
+}
+
+.site-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--step--1);
+  font-weight: 500;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.site-find:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.site-find svg {
+  width: 15px;
+  height: 15px;
+}
+
+.site-find-key {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+/* ── Command palette ─────────────────────────────────────────────────────── */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: start center;
+  padding: 12vh var(--page-gutter) var(--sp-5);
+  background: rgba(8, 9, 12, 0.6);
+  backdrop-filter: blur(5px);
+}
+
+.palette {
+  display: flex;
   flex-direction: column;
-  gap: 4px;
+  width: min(540px, 100%);
+  max-height: 66vh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--sh-2);
+}
+
+.palette-input {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font-size: var(--step-1);
+}
+
+.palette-input:focus {
+  outline: none;
+}
+
+.palette-list {
+  overflow-y: auto;
+  padding: var(--sp-2);
+}
+
+.palette-group {
+  margin: 0;
+  padding: 10px 10px 5px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 
-.site-menu-toggle span {
-  display: block;
-  width: 18px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--ink);
-  transition: opacity 120ms ease, transform 120ms ease;
+.palette-item[aria-selected="true"] {
+  background: var(--accent-soft);
 }
 
-.site-menu-toggle[aria-expanded="true"] span:first-child {
-  transform: translateY(6px) rotate(45deg);
+.palette-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-xs);
+  background: linear-gradient(
+    146deg,
+    oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h, 260)),
+    oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h, 260))
+  );
 }
 
-.site-menu-toggle[aria-expanded="true"] span:nth-child(2) {
-  opacity: 0;
+.palette-item b {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.site-menu-toggle[aria-expanded="true"] span:last-child {
-  transform: translateY(-6px) rotate(-45deg);
-}
-
-.site-nav-link {
-  padding: 9px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(30, 26, 23, 0.08);
-  background: rgba(255, 255, 255, 0.56);
+.palette-item small {
   color: var(--muted);
-  transition: background 120ms ease, transform 120ms ease;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.site-nav-link:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.88);
+.palette-empty {
+  margin: 0;
+  padding: 26px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--step--1);
 }
 
-.site-nav-link[aria-current="page"] {
-  color: var(--ink);
-  border-color: rgba(184, 76, 42, 0.2);
-  background: rgba(184, 76, 42, 0.1);
-  font-weight: 700;
+.palette-foot {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
-.page-shell {
-  width: min(1240px, calc(100% - 24px));
-  margin: 0 auto;
-  padding: 24px 0 40px;
+@media (max-width: 560px) {
+  .site-find-key {
+    display: none;
+  }
+
+  .site-find-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .palette-backdrop {
+    padding-top: 6vh;
+  }
+
+  .palette-item small {
+    display: none;
+  }
 }
 
 /* ── Hub ─────────────────────────────────────────────────────────────────────
