@@ -129,7 +129,6 @@ export default function KillerBunniesClient() {
     window.history.replaceState(null, "", "/killer-bunnies");
   }
 
-  if (!ready) return <main className="kb-app"><div className="kb-loading">Opening the burrow…</div></main>;
   if (!game) return <Welcome name={playerName} setName={setPlayerName} joinCode={joinCode} setJoinCode={setJoinCode} busy={busy} error={error} onCreate={createRoom} onJoin={joinRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
   if (game.phase === "lobby") return <Lobby game={game} error={error} busy={busy} copied={copied} onCopy={copyInvite} onAction={action} onLeave={leaveRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
 

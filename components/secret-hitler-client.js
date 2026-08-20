@@ -130,7 +130,6 @@ export default function SecretHitlerClient() {
     window.setTimeout(() => setCopied(false), 1500);
   }
 
-  if (!ready) return <main className="sh-app sh-loading">Preparing the table…</main>;
   if (!game) return <Landing {...{ playerName, setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }} />;
   if (game.phase === "lobby") return <Lobby {...{ game, action, copyInvite, copied, leaveRoom, busy, error, rulesOpen, setRulesOpen }} />;
 

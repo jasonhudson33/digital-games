@@ -256,9 +256,6 @@ export default function HandAndFootClient() {
     ));
   }
 
-  if (!isReady) {
-    return <main className="hf-app hf-intro-shell"><div className="hf-room-loading">Setting the table…</div></main>;
-  }
 
   if (!game) {
     return (

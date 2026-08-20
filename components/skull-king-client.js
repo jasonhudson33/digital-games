@@ -298,9 +298,6 @@ export default function SkullKingClient() {
     setGame((current) => playSkullKingCard(current, ghostPlayerIndex, ghostCard.id, getSkullKingGhostDeclaration(ghostCard)));
   }
 
-  if (!isReady) {
-    return <main className="skull-app skull-intro-shell"><div className="skull-room-loading">Charting the course…</div></main>;
-  }
 
   if (!game) {
     return (

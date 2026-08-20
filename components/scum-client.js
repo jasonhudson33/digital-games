@@ -168,9 +168,6 @@ export default function ScumClient() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  if (!isReady) {
-    return <main className="scum-app scum-intro-shell"><div className="scum-room-loading">Setting the table…</div></main>;
-  }
 
   if (!game) {
     return (

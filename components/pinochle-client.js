@@ -161,7 +161,6 @@ export default function PinochleClient() {
     window.setTimeout(() => setCopied(false), 1500);
   }
 
-  if (!isReady) return <main className="pn-app pn-loading">Shuffling the deck…</main>;
 
   if (!game) {
     return (
