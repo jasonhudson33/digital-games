@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en" data-direction="refine" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Digital Games — hub & shell prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   0 · PROTOTYPE CHROME  (not part of the app)
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:#101216;color:#e8eaee;
+  font-family:Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.proto-bar{
+  position:sticky;top:0;z-index:200;
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:12px 20px;
+  background:rgba(16,18,22,.88);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.09);
+}
+.proto-title{font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8b919d;margin-right:auto}
+.proto-title b{color:#fff;font-weight:600;letter-spacing:0}
+.proto-group{display:flex;align-items:center;gap:8px}
+.proto-group>span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#767c88}
+.seg{display:flex;padding:3px;border-radius:9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08)}
+.seg button{
+  appearance:none;border:0;background:transparent;color:#a9afba;
+  font:inherit;font-size:.78rem;font-weight:500;
+  padding:6px 12px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;
+}
+.seg button:hover{color:#fff}
+.seg button[aria-pressed="true"]{background:#fff;color:#101216;font-weight:600}
+.seg button:focus-visible{outline:2px solid #7c9cff;outline-offset:2px}
+.proto-note{
+  max-width:940px;margin:26px auto 0;padding:0 20px;
+  font-size:.86rem;line-height:1.65;color:#8b919d;
+}
+.proto-note b{color:#d6dae1;font-weight:600}
+.proto-stage{padding:26px 20px 70px;display:flex;justify-content:center}
+.frame{
+  width:100%;max-width:1240px;
+  container-type:inline-size;container-name:app;
+  border-radius:18px;overflow:clip;
+  box-shadow:0 30px 90px rgba(0,0,0,.5);
+  transition:max-width .35s cubic-bezier(.4,0,.2,1);
+}
+body[data-viewport="phone"] .frame{max-width:414px;border-radius:34px;border:9px solid #26292f}
+
+/* ============================================================
+   1 · TOKENS  — same names, different values per direction
+   ============================================================ */
+.app{
+  --step--1:.8rem; --step-0:.95rem; --step-1:1.15rem;
+  --step-2:1.5rem; --step-3:2.1rem; --step-4:clamp(2.4rem,5cqi,3.4rem);
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --dur:170ms; --ease:cubic-bezier(.32,.72,.35,1);
+  --tile-lo-l:.255; --tile-hi-l:.435;
+}
+
+/* --- REFINE : warm paper, serif display, soft radii, gold-spark tiles --- */
+[data-direction="refine"] .app{
+  --font-display:'Fraunces',Georgia,serif;
+  --font-ui:'Inter',system-ui,sans-serif;
+  --display-tracking:-.015em; --display-case:none; --display-weight:600;
+  --r-xl:26px; --r-lg:20px; --r-md:14px; --r-sm:10px;
+  --tile-lo-c:.055; --tile-hi-c:.115;
+}
+/* declared on the tile itself — --hs only exists here, and custom properties
+   resolve their var() references at the element that declares them */
+[data-direction="refine"] .tile,
+[data-direction="refine"] .lobby-stage{
+  --tile-overlay:radial-gradient(circle at 84% 13%,oklch(.84 .14 var(--hs) / .45),transparent 34%);
+}
+[data-direction="refine"][data-theme="light"] .app{
+  --bg:#f4efe7; --surface:#fffdf8; --surface-2:#f9f2e9; --surface-3:#ffffff;
+  --ink:#1e1a17; --muted:#6c6156; --line:rgba(30,26,23,.13); --line-strong:rgba(30,26,23,.22);
+  --accent:#b0472a; --accent-soft:rgba(176,71,42,.1); --on-accent:#fff8f4;
+  --focus:#0b57d0;
+  --sh-1:0 1px 2px rgba(39,26,16,.05),0 10px 26px rgba(39,26,16,.07);
+  --sh-2:0 22px 54px rgba(39,26,16,.17);
+  --page-wash:radial-gradient(circle at 6% 0%,rgba(176,71,42,.09),transparent 34%),radial-gradient(circle at 96% 2%,rgba(55,93,129,.1),transparent 30%);
+}
+[data-direction="refine"][data-theme="dark"] .app{
+  --bg:#15110e; --surface:#211b16; --surface-2:#2a221b; --surface-3:#31281f;
+  --ink:#f6eee3; --muted:#b0a294; --line:rgba(246,238,227,.13); --line-strong:rgba(246,238,227,.24);
+  --accent:#e58258; --accent-soft:rgba(229,130,88,.14); --on-accent:#221007;
+  --focus:#9cc0ff;
+  --sh-1:0 1px 2px rgba(0,0,0,.4),0 10px 26px rgba(0,0,0,.36);
+  --sh-2:0 22px 54px rgba(0,0,0,.55);
+  --page-wash:radial-gradient(circle at 6% 0%,rgba(229,130,88,.11),transparent 36%),radial-gradient(circle at 96% 2%,rgba(80,130,175,.1),transparent 32%);
+}
+
+/* --- MODERN : cool neutrals, grotesque display, tight radii, flat tiles --- */
+[data-direction="modern"] .app{
+  --font-display:'Space Grotesk',system-ui,sans-serif;
+  --font-ui:'Inter',system-ui,sans-serif;
+  --display-tracking:-.03em; --display-case:none; --display-weight:700;
+  --r-xl:15px; --r-lg:13px; --r-md:10px; --r-sm:7px;
+  --tile-lo-c:.085; --tile-hi-c:.165;
+}
+[data-direction="modern"] .tile,
+[data-direction="modern"] .lobby-stage{
+  --tile-overlay:
+    linear-gradient(168deg,rgba(255,255,255,.16),rgba(255,255,255,0) 44%),
+    radial-gradient(120% 90% at 100% 0%,oklch(.72 .19 var(--hs) / .34),transparent 62%);
+}
+[data-direction="modern"][data-theme="light"] .app{
+  --bg:#f1f2f5; --surface:#ffffff; --surface-2:#f6f7f9; --surface-3:#ffffff;
+  --ink:#0e1015; --muted:#5c606a; --line:rgba(14,16,21,.11); --line-strong:rgba(14,16,21,.2);
+  --accent:#4b41d8; --accent-soft:rgba(75,65,216,.09); --on-accent:#ffffff;
+  --focus:#4b41d8;
+  --sh-1:0 1px 2px rgba(14,16,21,.05),0 6px 16px rgba(14,16,21,.05);
+  --sh-2:0 18px 40px rgba(14,16,21,.13);
+  --page-wash:none;
+}
+[data-direction="modern"][data-theme="dark"] .app{
+  --bg:#0a0c10; --surface:#141821; --surface-2:#1a1f29; --surface-3:#212734;
+  --ink:#eef0f4; --muted:#949aa6; --line:rgba(238,240,244,.12); --line-strong:rgba(238,240,244,.22);
+  --accent:#8b83ff; --accent-soft:rgba(139,131,255,.14); --on-accent:#0a0c10;
+  --focus:#8b83ff;
+  --sh-1:0 1px 2px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.4);
+  --sh-2:0 18px 40px rgba(0,0,0,.6);
+  --page-wash:radial-gradient(circle at 50% -8%,rgba(139,131,255,.1),transparent 44%);
+}
+
+/* ============================================================
+   2 · APP SHELL
+   ============================================================ */
+.app{
+  background:var(--page-wash),var(--bg);
+  color:var(--ink);
+  font-family:var(--font-ui);
+  font-size:var(--step-0);
+  min-height:660px;
+  transition:background-color var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+/* :where() keeps these resets at zero specificity so component rules
+   (.btn, .tile, .skip, .resume-go) win without needing !important */
+.app :where(a){color:inherit;text-decoration:none}
+.app :where(button,input,select){font:inherit;color:inherit}
+.app :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+.wrap{width:min(1160px,100% - 40px);margin-inline:auto}
+@container app (max-width:640px){.wrap{width:calc(100% - 28px)}}
+
+/* skip link — one of the audit fixes, shown working */
+.skip{
+  position:absolute;left:12px;top:-60px;z-index:90;
+  padding:10px 16px;border-radius:var(--r-md);
+  background:var(--accent);color:var(--on-accent);font-weight:600;font-size:var(--step--1);
+  transition:top var(--dur) var(--ease);
+}
+.skip:focus{top:12px}
+
+/* --- header --- */
+.hdr{
+  position:sticky;top:0;z-index:60;
+  border-bottom:1px solid var(--line);
+  background:color-mix(in oklab,var(--bg) 78%,transparent);
+  backdrop-filter:blur(14px) saturate(1.4);
+}
+.hdr-in{display:flex;align-items:center;gap:var(--sp-3);padding:11px 0;min-height:60px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-tracking);font-size:1.05rem;margin-right:auto}
+.brand-mark{
+  width:28px;height:28px;flex:none;border-radius:8px;
+  display:grid;place-items:center;
+  background:linear-gradient(146deg,oklch(.5 .14 30),oklch(.32 .1 355));
+  color:#fff;font-size:.72rem;font-weight:700;font-family:var(--font-ui);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);
+}
+[data-direction="modern"] .brand-mark{border-radius:7px}
+
+.ghost-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:38px;padding:0 12px;
+  border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--surface);color:var(--muted);
+  font-size:var(--step--1);font-weight:500;cursor:pointer;
+  transition:border-color var(--dur) var(--ease),color var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.ghost-btn:hover{color:var(--ink);border-color:var(--line-strong)}
+.kbd{
+  padding:2px 5px;border-radius:5px;border:1px solid var(--line);
+  background:var(--surface-2);font-size:.68rem;font-family:ui-monospace,Menlo,monospace;color:var(--muted);
+}
+@container app (max-width:560px){.kbd{display:none}}
+.hdr-current{
+  display:none;align-items:center;gap:7px;
+  padding:5px 11px 5px 6px;border-radius:999px;
+  background:var(--accent-soft);border:1px solid color-mix(in oklab,var(--accent) 28%,transparent);
+  font-size:var(--step--1);font-weight:600;
+}
+.hdr-dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+
+/* --- hero --- */
+.hero{padding:var(--sp-6) 0 var(--sp-5)}
+.eyebrow{
+  margin:0 0 10px;font-size:.7rem;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+}
+.hero h1{
+  margin:0;font-family:var(--font-display);
+  font-weight:var(--display-weight);letter-spacing:var(--display-tracking);
+  text-transform:var(--display-case);
+  font-size:var(--step-4);line-height:1.02;
+}
+.hero p{margin:12px 0 0;max-width:52ch;color:var(--muted);line-height:1.6}
+
+/* --- resume row --- */
+.resume{margin-bottom:var(--sp-5)}
+.row-head{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:var(--sp-3)}
+.row-head h2{
+  margin:0;font-family:var(--font-display);font-weight:var(--display-weight);
+  letter-spacing:var(--display-tracking);font-size:var(--step-1);
+}
+.row-head span{font-size:var(--step--1);color:var(--muted)}
+.resume-row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3)}
+@container app (max-width:700px){.resume-row{grid-template-columns:1fr;}}
+.resume-card{
+  display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:var(--sp-3);
+  padding:11px 14px 11px 11px;border-radius:var(--r-lg);
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-1);
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+.resume-card:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+.resume-chip{
+  width:44px;height:44px;border-radius:var(--r-md);display:grid;place-items:center;
+  font-family:var(--font-display);font-weight:700;font-size:.95rem;color:#fff;
+  background:linear-gradient(146deg,oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h)));
+}
+.resume-card b{display:block;font-size:var(--step-0);font-weight:600}
+.resume-card small{display:block;margin-top:2px;color:var(--muted);font-size:.76rem}
+.resume-go{font-size:var(--step--1);font-weight:600;color:var(--accent)}
+
+/* --- filter bar --- */
+.browse{position:relative}
+.filters{
+  position:sticky;top:60px;z-index:50;
+  padding:var(--sp-4) 0;margin-bottom:var(--sp-4);
+  background:color-mix(in oklab,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.filter-line{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap}
+.filter-line + .filter-line{margin-top:11px}
+.flabel{
+  flex:none;min-width:58px;font-size:.68rem;font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+}
+.chips{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+/* narrow: the full filter block is ~470px tall, so don't pin it to the top —
+   scroll the chip rows sideways instead and let the bar scroll away */
+@container app (max-width:640px){
+  .filters{position:static}
+  .filter-line{flex-wrap:wrap;gap:8px}
+  .filter-line .chips{
+    flex:1;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    mask-image:linear-gradient(90deg,#000 90%,transparent);
+  }
+  .filter-line .chips::-webkit-scrollbar{display:none}
+  .filter-line .chip{flex:none}
+  .search-wrap{flex-basis:100%;order:9}
+  .flabel{min-width:auto}
+}
+.chip{
+  min-height:34px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);
+  color:var(--muted);font-size:var(--step--1);font-weight:500;cursor:pointer;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease);
+}
+.chip:hover{color:var(--ink);border-color:var(--line-strong)}
+.chip[aria-pressed="true"]{
+  background:var(--accent);border-color:var(--accent);
+  color:var(--on-accent);font-weight:600;
+}
+.chip.num{min-width:36px;padding:0 8px;font-variant-numeric:tabular-nums}
+.search-wrap{position:relative;flex:1;min-width:190px}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted);pointer-events:none}
+.search{
+  width:100%;min-height:40px;padding:0 34px 0 34px;
+  border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--surface);
+}
+.search::placeholder{color:var(--muted)}
+.search-clear{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;border:0;border-radius:6px;background:transparent;
+  color:var(--muted);cursor:pointer;display:none;place-items:center;
+}
+.search-wrap.has-value .search-clear{display:grid}
+.result-line{
+  display:flex;align-items:center;gap:10px;
+  margin-top:11px;font-size:var(--step--1);color:var(--muted);
+}
+.reset{
+  border:0;background:transparent;color:var(--accent);
+  font-size:var(--step--1);font-weight:600;cursor:pointer;padding:4px 6px;border-radius:6px;
+}
+
+/* --- game grid --- */
+.grid{
+  display:grid;gap:var(--sp-4);
+  grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
+  padding-bottom:var(--sp-7);
+}
+@container app (max-width:520px){.grid{grid-template-columns:1fr;gap:var(--sp-3)}}
+
+.tile{
+  --h:0;--hs:60;color:#fff;
+  position:relative;isolation:isolate;overflow:hidden;
+  display:flex;flex-direction:column;
+  min-height:212px;padding:var(--sp-4);
+  border-radius:var(--r-xl);
+  color:#fff;
+  background:
+    linear-gradient(0deg,rgba(0,0,0,.34),rgba(0,0,0,0) 58%),
+    var(--tile-overlay),
+    linear-gradient(146deg,
+      oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),
+      oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h)));
+  box-shadow:var(--sh-1),inset 0 0 0 1px rgba(255,255,255,.09);
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+  animation:tile-in 260ms var(--ease) backwards;
+}
+@keyframes tile-in{from{opacity:0;transform:translateY(7px)}}
+.tile:hover{transform:translateY(-4px);box-shadow:var(--sh-2),inset 0 0 0 1px rgba(255,255,255,.18)}
+.tile:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.tile-mono{
+  position:absolute;right:-6px;bottom:-26px;z-index:-1;
+  font-family:var(--font-display);font-weight:700;font-size:7.2rem;line-height:.8;
+  letter-spacing:-.05em;color:rgba(255,255,255,.085);user-select:none;
+}
+.tile-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:auto}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 9px;border-radius:999px;
+  /* dark scrim, not translucent white: a white pill surface lightens the
+     substrate and drops these 0.72rem labels to ~3.4:1. This keeps them >5:1
+     on every hue in the wheel. */
+  background:rgba(0,0,0,.3);
+  border:1px solid rgba(255,255,255,.16);
+  font-size:.72rem;font-weight:600;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+}
+.pill.new{background:rgba(255,255,255,.92);color:#16181d;border-color:transparent}
+.pill svg{width:11px;height:11px;opacity:.85}
+.est{border-bottom:1px dotted rgba(255,255,255,.6);cursor:help}
+.tile h3{
+  margin:var(--sp-4) 0 6px;
+  font-family:var(--font-display);font-weight:var(--display-weight);
+  letter-spacing:var(--display-tracking);text-transform:var(--display-case);
+  font-size:var(--step-2);line-height:1.08;
+}
+.tile p{margin:0;font-size:.83rem;line-height:1.5;color:rgba(255,255,255,.84);max-width:32ch}
+.tile-cta{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-top:var(--sp-4);font-size:var(--step--1);font-weight:600;
+}
+.tile-cta svg{width:13px;height:13px;transition:transform var(--dur) var(--ease)}
+.tile:hover .tile-cta svg{transform:translateX(3px)}
+
+/* --- empty state --- */
+.empty{
+  grid-column:1/-1;padding:var(--sp-7) var(--sp-5);text-align:center;
+  border:1px dashed var(--line-strong);border-radius:var(--r-xl);
+  background:var(--surface-2);
+}
+.empty h3{margin:0 0 8px;font-family:var(--font-display);font-weight:var(--display-weight);font-size:var(--step-1)}
+.empty p{margin:0 auto 16px;max-width:40ch;color:var(--muted);font-size:var(--step--1);line-height:1.6}
+.btn{
+  display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 18px;
+  border:0;border-radius:var(--r-md);
+  background:var(--accent);color:var(--on-accent);
+  font-size:var(--step--1);font-weight:600;cursor:pointer;
+  transition:filter var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn.sec{background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+
+/* ============================================================
+   3 · LOBBY PREVIEW  (shows the direction applied in-game)
+   ============================================================ */
+.section-rule{
+  margin:0 0 var(--sp-5);padding-top:var(--sp-6);
+  border-top:1px solid var(--line);
+}
+.lobby{
+  display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);
+  gap:var(--sp-4);padding-bottom:var(--sp-7);
+}
+@container app (max-width:820px){.lobby{grid-template-columns:1fr}}
+.lobby-stage{
+  --h:200;--hs:245;
+  position:relative;overflow:hidden;
+  min-height:330px;padding:var(--sp-6);border-radius:var(--r-xl);color:#fff;
+  background:
+    linear-gradient(0deg,rgba(0,0,0,.3),rgba(0,0,0,0) 60%),
+    var(--tile-overlay),
+    linear-gradient(146deg,
+      oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),
+      oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h)));
+  box-shadow:var(--sh-1),inset 0 0 0 1px rgba(255,255,255,.09);
+  display:flex;flex-direction:column;
+}
+.lobby-stage .eyebrow{color:rgba(255,255,255,.72)}
+.lobby-stage h2{
+  margin:0 0 10px;font-family:var(--font-display);
+  font-weight:var(--display-weight);letter-spacing:var(--display-tracking);
+  text-transform:var(--display-case);font-size:clamp(2.1rem,5cqi,3rem);line-height:1;
+}
+.lobby-stage>p{margin:0;max-width:44ch;color:rgba(255,255,255,.84);line-height:1.6;font-size:.9rem}
+.lobby-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:var(--sp-4)}
+.fan{margin-top:auto;padding-top:var(--sp-5);display:flex;gap:8px}
+.pcard{
+  width:56px;height:80px;flex:none;border-radius:var(--r-sm);
+  border:2px solid rgba(255,255,255,.9);
+  background:linear-gradient(146deg,oklch(.62 .17 var(--ch)),oklch(.44 .14 var(--ch)));
+  box-shadow:0 8px 18px rgba(0,0,0,.3);
+  display:grid;place-items:center;
+  font-family:var(--font-display);font-weight:700;font-size:1.5rem;color:#fff;
+  transition:transform var(--dur) var(--ease);
+}
+.fan .pcard:nth-child(1){--ch:28;transform:rotate(-8deg)}
+.fan .pcard:nth-child(2){--ch:150;transform:translateY(-6px)}
+.fan .pcard:nth-child(3){--ch:250;transform:rotate(6deg)}
+.fan:hover .pcard:nth-child(1){transform:rotate(-13deg) translateY(-4px)}
+.fan:hover .pcard:nth-child(3){transform:rotate(11deg) translateY(-4px)}
+
+.lobby-panel{
+  padding:var(--sp-5);border-radius:var(--r-xl);
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-1);
+  display:flex;flex-direction:column;
+}
+.lobby-panel h3{
+  margin:0 0 4px;font-family:var(--font-display);
+  font-weight:var(--display-weight);letter-spacing:var(--display-tracking);font-size:var(--step-1);
+}
+.lobby-panel>p{margin:0 0 var(--sp-4);color:var(--muted);font-size:var(--step--1);line-height:1.55}
+.seat{
+  display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;
+  padding:9px 11px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:var(--surface-2);
+}
+.seat + .seat{margin-top:7px}
+.seat-av{
+  width:34px;height:34px;border-radius:var(--r-sm);display:grid;place-items:center;
+  color:#fff;font-size:.78rem;font-weight:700;
+  background:linear-gradient(146deg,oklch(.55 .13 var(--ch,250)),oklch(.36 .1 var(--ch,250)));
+}
+.seat b{display:block;font-size:.86rem;font-weight:600}
+.seat small{display:block;margin-top:1px;color:var(--muted);font-size:.72rem}
+.seat-tag{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.seat.ready .seat-tag{color:oklch(.55 .13 150)}
+.add-seat{
+  width:100%;margin-top:9px;min-height:42px;
+  border:1px dashed var(--line-strong);border-radius:var(--r-md);
+  background:transparent;color:var(--muted);
+  font-size:var(--step--1);font-weight:600;cursor:pointer;
+  transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.add-seat:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.lobby-actions{margin-top:auto;padding-top:var(--sp-4);display:grid;gap:8px}
+.lobby-actions .btn{width:100%;justify-content:center;min-height:46px}
+
+/* ============================================================
+   4 · COMMAND PALETTE  (replaces the 26-item dropdown)
+   ============================================================ */
+.pal-backdrop{
+  position:fixed;inset:0;z-index:150;
+  display:none;place-items:start center;padding:12vh 20px 20px;
+  background:rgba(8,9,12,.6);backdrop-filter:blur(5px);
+}
+.pal-backdrop.open{display:grid}
+.pal{
+  width:min(540px,100%);max-height:66vh;display:flex;flex-direction:column;
+  border-radius:var(--r-xl);overflow:hidden;
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-2);
+  font-family:var(--font-ui);color:var(--ink);
+}
+.pal-input{
+  width:100%;min-height:54px;padding:0 18px;
+  border:0;border-bottom:1px solid var(--line);background:transparent;
+  font-size:var(--step-1);
+}
+.pal-input:focus{outline:none}
+.pal-list{overflow-y:auto;padding:8px;margin:0;list-style:none}
+.pal-group{
+  padding:10px 10px 5px;font-size:.66rem;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+}
+.pal-item{
+  display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:11px;
+  padding:9px 10px;border-radius:var(--r-sm);cursor:pointer;
+}
+.pal-item[aria-selected="true"]{background:var(--accent-soft)}
+.pal-dot{
+  width:26px;height:26px;border-radius:7px;
+  background:linear-gradient(146deg,oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h)));
+}
+.pal-item b{font-size:.9rem;font-weight:600}
+.pal-item small{color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+.pal-foot{
+  display:flex;gap:14px;padding:9px 16px;border-top:1px solid var(--line);
+  background:var(--surface-2);font-size:.72rem;color:var(--muted);
+}
+.pal-empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:var(--step--1)}
+
+/* footnote */
+.foot{
+  padding:var(--sp-5) 0 var(--sp-7);border-top:1px solid var(--line);
+  color:var(--muted);font-size:.78rem;line-height:1.7;
+}
+.foot code{
+  font-family:ui-monospace,Menlo,monospace;font-size:.74rem;
+  padding:1px 5px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body data-viewport="desktop">
+
+<div class="proto-bar">
+  <div class="proto-title">Digital Games · <b>hub &amp; shell prototype</b></div>
+  <div class="proto-group">
+    <span>Direction</span>
+    <div class="seg" id="segDirection">
+      <button type="button" data-v="refine" aria-pressed="true">Refine</button>
+      <button type="button" data-v="modern" aria-pressed="false">Modernize</button>
+    </div>
+  </div>
+  <div class="proto-group">
+    <span>Theme</span>
+    <div class="seg" id="segTheme">
+      <button type="button" data-v="light" aria-pressed="true">Light</button>
+      <button type="button" data-v="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="proto-group">
+    <span>Screen</span>
+    <div class="seg" id="segViewport">
+      <button type="button" data-v="desktop" aria-pressed="true">Desktop</button>
+      <button type="button" data-v="phone" aria-pressed="false">Phone</button>
+    </div>
+  </div>
+</div>
+
+<p class="proto-note">
+  Both directions are the <b>same component code and the same token names</b> — only the values differ.
+  Choosing one is a config change, not a rewrite. Try the player-count filter, the search, and
+  <b>⌘K</b> (or the Find game button). Switch to <b>Phone</b> to see the container-query layout.
+</p>
+
+<div class="proto-stage">
+<div class="frame">
+<div class="app">
+
+  <a class="skip" href="#main">Skip to games</a>
+
+  <header class="hdr">
+    <div class="wrap hdr-in">
+      <a class="brand" href="#"><span class="brand-mark">DG</span> Digital Games</a>
+      <span class="hdr-current" id="hdrCurrent"><span class="hdr-dot"></span><span id="hdrCurrentName"></span></span>
+      <button type="button" class="ghost-btn" id="openPal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        Find game <span class="kbd">⌘K</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Twenty-four games, one table</p>
+      <h1>Who's playing tonight?</h1>
+      <p>Tell us how many of you there are and how long you've got. We'll show you what fits.</p>
+    </section>
+
+    <section class="resume" aria-labelledby="resumeHead">
+      <div class="row-head">
+        <h2 id="resumeHead">Jump back in</h2>
+        <span>Your last three</span>
+      </div>
+      <div class="resume-row" id="resumeRow"></div>
+    </section>
+  </div>
+
+  <!-- sticky is scoped to .browse so the filter bar releases at the end of the grid -->
+  <div class="browse">
+  <div class="filters">
+    <div class="wrap">
+      <div class="filter-line">
+        <span class="flabel" id="lblPlayers">Players</span>
+        <div class="chips" role="group" aria-labelledby="lblPlayers" id="playerChips"></div>
+      </div>
+      <div class="filter-line">
+        <span class="flabel" id="lblTime">Time</span>
+        <div class="chips" role="group" aria-labelledby="lblTime" id="timeChips"></div>
+        <div class="search-wrap" id="searchWrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input class="search" id="search" type="search" placeholder="Search games…" aria-label="Search games">
+          <button class="search-clear" id="searchClear" type="button" aria-label="Clear search">✕</button>
+        </div>
+      </div>
+      <div class="filter-line">
+        <span class="flabel" id="lblKind">Kind</span>
+        <div class="chips" role="group" aria-labelledby="lblKind" id="kindChips"></div>
+      </div>
+      <div class="result-line">
+        <span id="resultCount" role="status"></span>
+        <button class="reset" id="reset" type="button" hidden>Clear filters</button>
+      </div>
+    </div>
+  </div>
+
+  <main id="main" class="wrap">
+    <div class="grid" id="grid"></div>
+  </main>
+  </div><!-- /.browse -->
+
+  <section class="wrap">
+    <div class="section-rule"></div>
+    <div class="row-head">
+      <h2>The same system, in-game</h2>
+      <span>Lobby pattern, promoted from UNO/DOS to every game</span>
+    </div>
+    <section class="lobby">
+      <div class="lobby-stage">
+        <p class="eyebrow">Room 4KQ2 · waiting to start</p>
+        <h2>Secret Hitler</h2>
+        <p>Nominate a government, pass secret policies, and uncover the hidden Fascist team before democracy falls.</p>
+        <div class="lobby-meta">
+          <span class="pill">5–10 players</span>
+          <span class="pill">30–45 min</span>
+          <span class="pill">Computer players on</span>
+        </div>
+        <div class="fan"><div class="pcard">♠</div><div class="pcard">♥</div><div class="pcard">★</div></div>
+      </div>
+      <div class="lobby-panel">
+        <h3>Table</h3>
+        <p>4 of 10 seats filled. Share the room code or add a computer player.</p>
+        <div class="seat ready"><span class="seat-av" style="--ch:28">JH</span><span><b>Jason</b><small>Host · this device</small></span><span class="seat-tag">Ready</span></div>
+        <div class="seat ready"><span class="seat-av" style="--ch:150">EM</span><span><b>Emily</b><small>Joined 2 min ago</small></span><span class="seat-tag">Ready</span></div>
+        <div class="seat"><span class="seat-av" style="--ch:250">TK</span><span><b>Tom</b><small>Joined just now</small></span><span class="seat-tag">Waiting</span></div>
+        <div class="seat ready"><span class="seat-av" style="--ch:320">C1</span><span><b>Computer</b><small>Balanced</small></span><span class="seat-tag">Ready</span></div>
+        <button class="add-seat" type="button">+ Add computer player</button>
+        <div class="lobby-actions">
+          <button class="btn" type="button">Start game</button>
+          <button class="btn sec" type="button">Copy invite link</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="foot">
+      Prototype notes · Tiles are generated from one CSS recipe and a single <code>--h</code> hue per game,
+      replacing ~250 lines of hand-tuned gradients. Hues are spread so no two alphabetically adjacent games sit
+      within 40°. Player counts and durations marked with a dotted underline are <b>estimates</b> — the repo
+      doesn't record them yet, which is the argument for a structured <code>lib/games.js</code>.
+      Fonts load once via <code>next/font</code> in the real build; here they come from one preconnected
+      stylesheet rather than three route-level <code>@import</code>s.
+    </div>
+  </section>
+
+</div><!-- /.app -->
+</div><!-- /.frame -->
+</div><!-- /.proto-stage -->
+
+<div class="pal-backdrop" id="palBackdrop" role="dialog" aria-modal="true" aria-label="Find a game">
+  <div class="pal">
+    <input class="pal-input" id="palInput" type="text" placeholder="Search 24 games…" aria-label="Search games" autocomplete="off">
+    <div class="pal-list" id="palList"></div>
+    <div class="pal-foot"><span>↑↓ to move</span><span>↵ to open</span><span>esc to close</span></div>
+  </div>
+</div>
+
+<script>
+/* ---------- data : the proposed lib/games.js shape ---------- */
+const GAMES = [
+  {slug:"seven-up",       name:"7-Up",              h:205, players:[2,6],  est:"players", mins:[20,30], kind:"card",   modes:["online","computer","local"], blurb:"Classic card play with local seats, computer players, and shared online rooms."},
+  {slug:"bang",           name:"BANG!",             h:70,  players:[4,7],                mins:[30,45], kind:"hidden", modes:["online","computer"], blurb:"Draw fast in a hidden-role western showdown with friends or computer gunslingers.", isNew:true},
+  {slug:"catan",          name:"Catan",             h:25,  players:[3,4],  est:"players", mins:[60,90], kind:"board",  modes:["online"], blurb:"Settle a randomized island, gather resources, trade, and race to ten victory points."},
+  {slug:"cover",          name:"Cover Your Assets", h:150, players:[2,6],                mins:[20,30], kind:"card",   modes:["online","computer"], blurb:"Pair a fortune, cover your stack, and challenge exposed assets with friends or rivals."},
+  {slug:"dos",            name:"DOS",               h:250, players:[2,4],                mins:[15,25], kind:"card",   modes:["online","computer"], blurb:"Match the center row with single cards or two-card sums and turn colors into bonuses."},
+  {slug:"flip-7",         name:"Flip 7",            h:320, players:[2,10],               mins:[15,20], kind:"card",   modes:["online","computer"], blurb:"Flip unique numbers, dodge duplicates, and press your luck against friends or computers.", isNew:true},
+  {slug:"hand-and-foot",  name:"Hand and Foot",     h:100, players:[4,4],  est:"players", mins:[45,60], kind:"card",   modes:["online","computer"], blurb:"Build books with your partner, unlock your hidden foot, and chase the biggest score."},
+  {slug:"hearts",         name:"Hearts",            h:358, players:[4,4],  est:"players", mins:[25,35], kind:"card",   modes:["online","computer"], blurb:"Play Classic Hearts or remove every guardrail with fast, unforgiving Killer Hearts."},
+  {slug:"killer-bunnies", name:"Killer Bunnies",    h:125, players:[2,8],                mins:[45,60], kind:"card",   modes:["online","computer"], blurb:"Program your run, protect your Bunny Circle, and hunt the table for the Magic Carrot."},
+  {slug:"life",           name:"Life",              h:185, players:[2,6],                mins:[30,45], kind:"board",  modes:["online","computer"], blurb:"Spin through careers, homes, family milestones, and retirement with friends or computers."},
+  {slug:"mafia",          name:"Mafia",             h:288, players:[6,15], est:"players", mins:[20,40], kind:"hidden", modes:["online"], blurb:"Create a room, assign hidden roles, and play through shared night and day phases."},
+  {slug:"monopoly",       name:"Monopoly",          h:160, players:[2,6],  est:"players", mins:[60,120],kind:"board",  modes:["online"], blurb:"Buy properties, roll animated dice, trade, mortgage, auction, and build houses."},
+  {slug:"no-thanks",      name:"No Thanks!",        h:275, players:[3,7],                mins:[15,20], kind:"card",   modes:["online","computer"], blurb:"Take the card or pay to pass, build low-scoring runs, and outlast everyone at the table."},
+  {slug:"pinochle",       name:"Pinochle",          h:340, players:[2,6],                mins:[40,60], kind:"card",   modes:["online","computer"], blurb:"Win the auction, lay down your meld, call trump, and make the contract at a shared table.", isNew:true},
+  {slug:"qwirkle",        name:"Qwirkle",           h:235, players:[2,4],                mins:[30,45], kind:"board",  modes:["online","computer"], blurb:"Match colors and shapes, cross the grid for bigger scores, and complete six-tile Qwirkles."},
+  {slug:"risk",           name:"Risk",              h:95,  players:[1,1],                mins:[45,70], kind:"board",  modes:["computer"], blurb:"Deploy armies, roll into battle, claim continent bonuses, and conquer the world solo."},
+  {slug:"scum",           name:"Scum",              h:50,  players:[3,10], est:"players", mins:[20,30], kind:"card",   modes:["online","computer"], blurb:"Climb from lowly 2s to Jokers, shed every card, and fight your way from Scum to President."},
+  {slug:"secret-hitler",  name:"Secret Hitler",     h:200, players:[5,10],               mins:[30,45], kind:"hidden", modes:["online","computer"], blurb:"Nominate a government, pass secret policies, and uncover the hidden Fascist team."},
+  {slug:"sequence",       name:"Sequence",          h:300, players:[2,12],               mins:[25,35], kind:"board",  modes:["online","computer"], blurb:"Play a card, claim a space, and connect five chips across up to three teams."},
+  {slug:"skull-king",     name:"Skull King",        h:175, players:[2,8],  est:"players", mins:[30,40], kind:"card",   modes:["online","computer"], blurb:"Bid your tricks, command Pirates and monsters, and survive ten rounds for the crown."},
+  {slug:"splendor",       name:"Splendor",          h:265, players:[2,4],                mins:[30,40], kind:"board",  modes:["online","computer"], blurb:"Gather gems, build a permanent engine of bonuses, and attract nobles before rival merchants."},
+  {slug:"spyrium",        name:"Spyrium",           h:140, players:[2,5],                mins:[45,60], kind:"board",  modes:["online","computer"], blurb:"Place workers in a shifting Victorian market, mine crystals, and build an industrial empire."},
+  {slug:"ticket",         name:"Ticket to Ride",    h:215, players:[2,5],                mins:[40,60], kind:"board",  modes:["online","computer"], blurb:"Collect colorful train cards, claim routes across the map, and complete destination tickets."},
+  {slug:"uno",            name:"UNO",               h:30,  players:[2,10],               mins:[15,25], kind:"card",   modes:["online","computer"], blurb:"Play Classic UNO or flip every hand between light and dark sides in UNO Flip."},
+];
+const KINDS = {card:"Cards", board:"Board & strategy", hidden:"Hidden role"};
+const RECENT = ["skull-king","catan","uno"];
+
+/* ---------- state ---------- */
+const state = {players:null, time:"any", kind:"all", q:""};
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const playersLabel = g => {
+  const [a,b] = g.players;
+  const txt = a === b ? (a === 1 ? "Solo" : `${a} players`) : `${a}–${b} players`;
+  return g.est === "players" ? `<span class="est" title="Estimated — not recorded in the repo yet">${txt}</span>` : txt;
+};
+const timeLabel = g => `${g.mins[0]}–${g.mins[1]} min`;
+const bucket = g => { const m = g.mins[0]; return m <= 20 ? "quick" : m <= 40 ? "mid" : "long"; };
+
+/* ---------- chips ---------- */
+function buildChips(){
+  const p = $("#playerChips");
+  p.innerHTML = `<button class="chip" type="button" data-p="any" aria-pressed="true">Any</button>` +
+    [1,2,3,4,5,6,7,8,9,10,12].map(n =>
+      `<button class="chip num" type="button" data-p="${n}" aria-pressed="false">${n === 1 ? "Solo" : n}</button>`
+    ).join("");
+
+  $("#timeChips").innerHTML = [["any","Any"],["quick","Under 20 min"],["mid","20–40 min"],["long","45 min +"]]
+    .map(([v,l]) => `<button class="chip" type="button" data-t="${v}" aria-pressed="${v==="any"}">${l}</button>`).join("");
+
+  $("#kindChips").innerHTML = [["all","All"],["card","Cards"],["board","Board & strategy"],["hidden","Hidden role"]]
+    .map(([v,l]) => `<button class="chip" type="button" data-k="${v}" aria-pressed="${v==="all"}">${l}</button>`).join("");
+}
+function press(group, attr, value){
+  document.querySelectorAll(`${group} .chip`).forEach(c =>
+    c.setAttribute("aria-pressed", String(c.dataset[attr] === value)));
+}
+
+/* ---------- filtering ---------- */
+function filtered(){
+  const q = state.q.trim().toLowerCase();
+  return GAMES.filter(g => {
+    if (state.players !== null){
+      const n = state.players;
+      if (n < g.players[0] || n > g.players[1]) return false;
+    }
+    if (state.time !== "any" && bucket(g) !== state.time) return false;
+    if (state.kind !== "all" && g.kind !== state.kind) return false;
+    if (q && !(g.name.toLowerCase().includes(q) || g.blurb.toLowerCase().includes(q) || KINDS[g.kind].toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13m-5-6 6 6-6 6"/></svg>`;
+const BOT   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12v2M15 12v2"/></svg>`;
+
+function tile(g, i){
+  const initials = g.name.replace(/[^A-Za-z0-9 ]/g,"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  return `<a class="tile" href="#" style="--h:${g.h};--hs:${(g.h+45)%360};animation-delay:${Math.min(i*22,260)}ms" data-slug="${g.slug}">
+    <span class="tile-mono" aria-hidden="true">${initials}</span>
+    <span class="tile-top">
+      ${g.isNew ? `<span class="pill new">New</span>` : ``}
+      <span class="pill">${playersLabel(g)}</span>
+      <span class="pill">${timeLabel(g)}</span>
+      ${g.modes.includes("computer") ? `<span class="pill">${BOT} Computers</span>` : ``}
+    </span>
+    <h3>${esc(g.name)}</h3>
+    <p>${esc(g.blurb)}</p>
+    <span class="tile-cta">Open game ${ARROW}</span>
+  </a>`;
+}
+
+function render(){
+  const list = filtered();
+  const grid = $("#grid");
+  grid.innerHTML = list.length
+    ? list.map(tile).join("")
+    : `<div class="empty">
+         <h3>Nothing fits that combination</h3>
+         <p>No game in the catalogue matches ${state.players !== null ? `<b>${state.players === 1 ? "solo play" : state.players + " players"}</b>` : "these filters"}${state.time !== "any" ? " at that length" : ""}${state.kind !== "all" ? ` in ${KINDS[state.kind].toLowerCase()}` : ""}. Try widening the time range.</p>
+         <button class="btn" type="button" onclick="window.__reset()">Clear filters</button>
+       </div>`;
+
+  const active = state.players !== null || state.time !== "any" || state.kind !== "all" || state.q.trim() !== "";
+  $("#resultCount").textContent = list.length === GAMES.length
+    ? `All ${GAMES.length} games`
+    : `${list.length} of ${GAMES.length} game${list.length === 1 ? "" : "s"}`;
+  $("#reset").hidden = !active;
+  $("#searchWrap").classList.toggle("has-value", state.q !== "");
+}
+
+function renderResume(){
+  $("#resumeRow").innerHTML = RECENT.map(slug => {
+    const g = GAMES.find(x => x.slug === slug);
+    const initials = g.name.replace(/[^A-Za-z0-9 ]/g,"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    return `<a class="resume-card" href="#" style="--h:${g.h}">
+      <span class="resume-chip">${initials}</span>
+      <span><b>${esc(g.name)}</b><small>Played 2 days ago · 4 players</small></span>
+      <span class="resume-go">${ARROW}</span>
+    </a>`;
+  }).join("");
+}
+
+/* ---------- command palette (with focus trap + restore) ---------- */
+let palIndex = 0, palResults = [], lastFocus = null;
+function palRender(){
+  const q = $("#palInput").value.trim().toLowerCase();
+  palResults = GAMES.filter(g => !q || g.name.toLowerCase().includes(q) || KINDS[g.kind].toLowerCase().includes(q));
+  palIndex = Math.min(palIndex, Math.max(palResults.length - 1, 0));
+  if (!palResults.length){ $("#palList").innerHTML = `<div class="pal-empty">No game called “${esc(q)}”.</div>`; return; }
+  let html = "", lastKind = null;
+  palResults.forEach((g, i) => {
+    if (g.kind !== lastKind){ html += `<div class="pal-group">${KINDS[g.kind]}</div>`; lastKind = g.kind; }
+    html += `<div class="pal-item" role="option" aria-selected="${i === palIndex}" data-i="${i}">
+      <span class="pal-dot" style="--h:${g.h}"></span>
+      <b>${esc(g.name)}</b>
+      <small>${g.players[0] === g.players[1] ? g.players[0] : g.players[0] + "–" + g.players[1]} · ${g.mins[0]}–${g.mins[1]}m</small>
+    </div>`;
+  });
+  $("#palList").innerHTML = html;
+}
+function palOpen(){
+  lastFocus = document.activeElement;
+  $("#palBackdrop").classList.add("open");
+  $("#palInput").value = ""; palIndex = 0; palRender();
+  $("#palInput").focus();
+}
+function palClose(){
+  $("#palBackdrop").classList.remove("open");
+  if (lastFocus) lastFocus.focus();
+}
+function palPick(i){
+  const g = palResults[i]; if (!g) return;
+  $("#hdrCurrentName").textContent = g.name;
+  $("#hdrCurrent").style.display = "inline-flex";
+  palClose();
+}
+
+/* ---------- wiring ---------- */
+buildChips(); renderResume(); render();
+
+$("#playerChips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  state.players = b.dataset.p === "any" ? null : Number(b.dataset.p);
+  press("#playerChips", "p", b.dataset.p); render();
+});
+$("#timeChips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  state.time = b.dataset.t; press("#timeChips", "t", b.dataset.t); render();
+});
+$("#kindChips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  state.kind = b.dataset.k; press("#kindChips", "k", b.dataset.k); render();
+});
+$("#search").addEventListener("input", e => { state.q = e.target.value; render(); });
+$("#searchClear").addEventListener("click", () => { $("#search").value = ""; state.q = ""; render(); $("#search").focus(); });
+
+window.__reset = () => {
+  state.players = null; state.time = "any"; state.kind = "all"; state.q = "";
+  $("#search").value = "";
+  press("#playerChips","p","any"); press("#timeChips","t","any"); press("#kindChips","k","all");
+  render();
+};
+$("#reset").addEventListener("click", window.__reset);
+
+$("#grid").addEventListener("click", e => {
+  const t = e.target.closest(".tile"); if (!t) return;
+  e.preventDefault();
+  const g = GAMES.find(x => x.slug === t.dataset.slug);
+  $("#hdrCurrentName").textContent = g.name;
+  $("#hdrCurrent").style.display = "inline-flex";
+});
+
+$("#openPal").addEventListener("click", palOpen);
+$("#palInput").addEventListener("input", () => { palIndex = 0; palRender(); });
+$("#palList").addEventListener("click", e => {
+  const it = e.target.closest(".pal-item"); if (it) palPick(Number(it.dataset.i));
+});
+$("#palBackdrop").addEventListener("click", e => { if (e.target === $("#palBackdrop")) palClose(); });
+
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); palOpen(); return; }
+  if (!$("#palBackdrop").classList.contains("open")) return;
+  if (e.key === "Escape"){ e.preventDefault(); palClose(); }
+  else if (e.key === "ArrowDown"){ e.preventDefault(); palIndex = Math.min(palIndex + 1, palResults.length - 1); palRender(); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); palIndex = Math.max(palIndex - 1, 0); palRender(); }
+  else if (e.key === "Enter"){ e.preventDefault(); palPick(palIndex); }
+  else if (e.key === "Tab"){ e.preventDefault(); $("#palInput").focus(); } /* trap */
+});
+
+/* prototype chrome */
+function seg(id, apply){
+  document.getElementById(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    [...b.parentNode.children].forEach(c => c.setAttribute("aria-pressed", String(c === b)));
+    apply(b.dataset.v);
+  });
+}
+seg("segDirection", v => document.documentElement.dataset.direction = v);
+seg("segTheme",     v => document.documentElement.dataset.theme = v);
+seg("segViewport",  v => document.body.dataset.viewport = v);
+</script>
+</body>
+</html>
