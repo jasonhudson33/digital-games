@@ -1,0 +1,248 @@
+/* ============================================================================
+ * Design tokens
+ * ----------------------------------------------------------------------------
+ * One layer that every stylesheet reads from. Before this file the app had two
+ * unrelated systems — a warm Georgia/cream one in globals.css and a cool
+ * Inter/Impact one in color-games.css — plus six per-game :root blocks that had
+ * each independently reinvented the same green-and-gold palette.
+ *
+ * The names here are stable; the values are the "Modernize" direction. Swapping
+ * the palette later means editing this file only.
+ *
+ * Legacy aliases (--panel, --border, --shadow …) are kept so the 20 per-game
+ * stylesheets keep working unchanged.
+ * ==========================================================================*/
+
+:root {
+  color-scheme: light;
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  /* Set by next/font in app/layout.js. The fallbacks matter: they are what
+     renders if the font files fail, and they are metric-similar enough that
+     the swap is not jarring. */
+  --font-ui: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-ui);
+  --font-poster: var(--font-anton), "Arial Narrow", var(--font-ui);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --tracking-display: -0.03em;
+  --tracking-eyebrow: 0.14em;
+
+  /* Fluid scale. Steps are ~1.22 apart; --step-4 is the only clamped one
+     because page titles are the only thing that needs to shrink on a phone. */
+  --step--2: 0.72rem;
+  --step--1: 0.82rem;
+  --step-0: 0.95rem;
+  --step-1: 1.15rem;
+  --step-2: 1.45rem;
+  --step-3: 1.9rem;
+  --step-4: clamp(2.2rem, 1.4rem + 3.2vw, 3.4rem);
+
+  /* ── Space ────────────────────────────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  /* ── Radius ───────────────────────────────────────────────────────────── */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 13px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* ── Colour ───────────────────────────────────────────────────────────── */
+  --bg: #f1f2f5;
+  --surface: #ffffff;
+  --surface-2: #f6f7f9;
+  --surface-3: #ffffff;
+  --ink: #0e1015;
+  --muted: #5c606a;
+  --line: rgba(14, 16, 21, 0.11);
+  --line-strong: rgba(14, 16, 21, 0.2);
+
+  --accent: #4b41d8;
+  --accent-hover: #3d34bd;
+  --accent-soft: rgba(75, 65, 216, 0.09);
+  --on-accent: #ffffff;
+
+  --success: #157347;
+  --success-soft: rgba(21, 115, 71, 0.1);
+  --danger: #b3261e;
+  --danger-soft: rgba(179, 38, 30, 0.1);
+  --warning: #8a5300;
+  --warning-soft: rgba(138, 83, 0, 0.1);
+
+  /* Focus ring. Deliberately a separate token: it has to stay visible on
+     surfaces AND on the saturated game tiles, so it never inherits --accent. */
+  --focus: #1b52ff;
+  --focus-on-dark: #a9bcff;
+
+  /* ── Elevation ────────────────────────────────────────────────────────── */
+  --sh-1: 0 1px 2px rgba(14, 16, 21, 0.05), 0 6px 16px rgba(14, 16, 21, 0.05);
+  --sh-2: 0 18px 40px rgba(14, 16, 21, 0.13);
+
+  /* ── Motion ───────────────────────────────────────────────────────────── */
+  --dur-fast: 120ms;
+  --dur: 170ms;
+  --ease: cubic-bezier(0.32, 0.72, 0.35, 1);
+
+  /* ── Game tiles ───────────────────────────────────────────────────────── */
+  /* The recipe lives in globals.css; these are the constants it reads. Only
+     the hue varies per game, and it comes from lib/games.js. Lightness is
+     pinned here so text contrast is guaranteed once rather than eyeballed
+     twenty-four times. */
+  --tile-lo-l: 0.255;
+  --tile-hi-l: 0.435;
+  --tile-lo-c: 0.085;
+  --tile-hi-c: 0.165;
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --measure: 62ch;
+  --page-max: 1160px;
+  --page-gutter: 20px;
+  --header-h: 60px;
+}
+
+/* Dark is opt-in rather than automatic. The twenty per-game stylesheets were
+   written against a light background and some hardcode light surfaces, so
+   flipping everyone by prefers-color-scheme would ship broken screens. Once
+   those are audited, deleting the [data-theme] guard below is all it takes. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0a0c10;
+  --surface: #141821;
+  --surface-2: #1a1f29;
+  --surface-3: #212734;
+  --ink: #eef0f4;
+  --muted: #949aa6;
+  --line: rgba(238, 240, 244, 0.12);
+  --line-strong: rgba(238, 240, 244, 0.22);
+
+  --accent: #8b83ff;
+  --accent-hover: #a29bff;
+  --accent-soft: rgba(139, 131, 255, 0.14);
+  --on-accent: #0a0c10;
+
+  --success: #46d18a;
+  --success-soft: rgba(70, 209, 138, 0.14);
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.14);
+  --warning: #e0b252;
+  --warning-soft: rgba(224, 178, 82, 0.14);
+
+  --focus: #a9bcff;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Legacy aliases — the per-game stylesheets still use these names. */
+:root {
+  --panel: var(--surface);
+  --panel-strong: var(--surface-3);
+  --border: var(--line);
+  --shadow: var(--sh-1);
+}
+
+/* ============================================================================
+ * Base
+ * ==========================================================================*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* :where() keeps these resets at zero specificity. A plain `.app a { color:
+   inherit }` is (0,1,1) and silently beats component rules like
+   `.game-tile { color: #fff }` at (0,1,0) — which is exactly the kind of bug
+   that looks like the gradient broke. */
+:where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+:where(button) {
+  cursor: pointer;
+}
+
+:where(h1, h2, h3, h4) {
+  margin: 0;
+}
+
+:where(img, svg, video) {
+  max-width: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* One global focus ring. Previously :focus-visible appeared in three of the
+   twenty-two stylesheets, so keyboard players got the browser default outline
+   — frequently invisible against a dark game tile. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* Elements that sit on a saturated tile need the light ring instead. */
+.on-tile :focus-visible,
+:focus-visible.on-tile {
+  outline-color: var(--focus-on-dark);
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Screen-reader-only, for the labels sighted users get from context. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
