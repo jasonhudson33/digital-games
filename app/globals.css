@@ -116,40 +116,377 @@
   padding: 24px 0 40px;
 }
 
+/* ── Hub ─────────────────────────────────────────────────────────────────────
+ *
+ * The old hub was a flat alphabetical grid of 24 cards at min-height 280px —
+ * about eight screens of scrolling on a phone — with no way to answer the only
+ * question a game night actually asks: "we have five people and twenty minutes,
+ * what can we play?" The information was on the card, but as prose.
+ *
+ * Everything below is client-side filtering over a 24-item array from
+ * lib/games.js. No network, no state library.
+ */
+
 .hub-shell {
-  width: min(1180px, calc(100% - 24px));
+  width: min(var(--page-max), calc(100% - var(--page-gutter) * 2));
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding-bottom: var(--sp-7);
 }
 
 .hub-hero {
-  padding: 32px;
-  border-radius: 30px;
-  border: 1px solid var(--border);
-  background:
-    linear-gradient(135deg, rgba(255, 251, 245, 0.96), rgba(249, 240, 229, 0.92)),
-    var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.hub-hero.compact {
-  padding-bottom: 24px;
+  padding: var(--sp-6) 0 var(--sp-5);
 }
 
 .hub-eyebrow {
   margin: 0 0 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.72rem;
   color: var(--muted);
 }
 
+.hub-hero h1 {
+  font-size: var(--step-4);
+  line-height: 1.02;
+}
+
 .hub-copy {
-  max-width: 58ch;
-  margin: 16px 0 0;
+  max-width: 52ch;
+  margin: 12px 0 0;
   color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.65;
+  line-height: 1.6;
+}
+
+/* ── Jump back in ─────────────────────────────────────────────────────────── */
+
+.hub-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.hub-row-head h2 {
+  font-size: var(--step-1);
+}
+
+.hub-row-head span {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+.hub-resume {
+  margin-bottom: var(--sp-5);
+}
+
+.resume-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.resume-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 11px 14px 11px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.resume-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2);
+}
+
+.resume-chip {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: linear-gradient(
+    146deg,
+    oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),
+    oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h))
+  );
+}
+
+.resume-card b {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-card small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.resume-go {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.resume-go svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+
+/* Sticky is scoped to .hub-browse so the bar releases at the end of the grid
+   instead of following the page over everything below it. */
+.hub-browse {
+  position: relative;
+}
+
+.hub-filters {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 30;
+  padding: var(--sp-4) 0;
+  margin-bottom: var(--sp-4);
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.filter-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.filter-line + .filter-line {
+  margin-top: 11px;
+}
+
+.filter-label {
+  flex: none;
+  min-width: 58px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.chip {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--step--1);
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.chip:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.chip.is-count {
+  min-width: 36px;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hub-search {
+  position: relative;
+  flex: 1;
+  min-width: 190px;
+}
+
+.hub-search > svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.hub-search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.hub-search input::placeholder {
+  color: var(--muted);
+}
+
+.hub-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--muted);
+}
+
+.hub-search-clear svg {
+  width: 15px;
+  height: 15px;
+}
+
+.hub-result-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 11px;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+.hub-reset {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.hub-empty {
+  grid-column: 1 / -1;
+  padding: var(--sp-7) var(--sp-5);
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+}
+
+.hub-empty h2 {
+  margin-bottom: var(--sp-2);
+  font-size: var(--step-1);
+}
+
+.hub-empty p {
+  margin: 0 auto var(--sp-4);
+  max-width: 42ch;
+  color: var(--muted);
+  font-size: var(--step--1);
+  line-height: 1.6;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--step--1);
+  font-weight: 600;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.button.is-secondary {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* ── Narrow ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .resume-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The whole filter block is ~470px tall on a phone, so pinning it to the top
+   would eat the viewport. Scroll the chip rows sideways instead and let the bar
+   scroll away with the page. */
+@media (max-width: 640px) {
+  .hub-filters {
+    position: static;
+  }
+
+  .filter-line .chips {
+    flex: 1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, #000 90%, transparent);
+  }
+
+  .filter-line .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-line .chip {
+    flex: none;
+  }
+
+  .hub-search {
+    flex-basis: 100%;
+    order: 9;
+  }
+
+  .filter-label {
+    min-width: auto;
+  }
 }
 
 /* ── Game tiles ──────────────────────────────────────────────────────────────

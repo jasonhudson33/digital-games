@@ -1,27 +1,11 @@
-import GameTile from "../components/game-tile";
-import { GAMES } from "../lib/games";
+import GameHub from "../components/game-hub";
 
 export const metadata = {
   title: "Digital Games",
-  description: "Twenty-four party games, playable in your browser.",
+  description:
+    "Twenty-four party games, playable in your browser. Filter by how many of you there are and how long you have.",
 };
 
 export default function Page() {
-  return (
-    <main className="hub-shell">
-      <section className="hub-hero">
-        <p className="hub-eyebrow">Twenty-four games, one table</p>
-        <h1>Pick a game night.</h1>
-        <p className="hub-copy">
-          Pull up a chair. Choose a classic and start playing right in your browser.
-        </p>
-      </section>
-
-      <section className="game-grid" aria-label="Available games">
-        {GAMES.map((game) => (
-          <GameTile key={game.slug} game={game} />
-        ))}
-      </section>
-    </main>
-  );
+  return <GameHub />;
 }

@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Bot } from "lucide-react";
 
 import { gameHref, isEstimated, minutesLabel, playersLabel } from "../lib/games";
+import { rememberGame } from "../lib/recent-games";
 
 /** "Cover Your Assets" -> "CY", "UNO" -> "UN", "7-Up" -> "7U" */
 export function monogram(name) {
@@ -25,6 +28,7 @@ export default function GameTile({ game }) {
       className="game-tile"
       data-game={game.slug}
       style={{ "--h": game.hue, "--hs": (game.hue + 45) % 360 }}
+      onClick={() => rememberGame(game.slug)}
     >
       <span className="game-tile-mono" aria-hidden="true">
         {monogram(game.name)}
