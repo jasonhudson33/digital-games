@@ -18,20 +18,12 @@ export const KillerBunniesRoomService = {
     return payload.state;
   },
   subscribe(roomCode, token, handler) {
-    let stopped = false;
-    let lastUpdatedAt = 0;
-    const poll = async () => {
-      try {
-        const state = await KillerBunniesRoomService.load(roomCode, token);
-        if (!stopped && state.updatedAt > lastUpdatedAt) {
-          lastUpdatedAt = state.updatedAt;
-          handler(state);
-        }
-      } catch {}
-    };
-    void poll();
-    const interval = window.setInterval(poll, 1200);
-    return () => { stopped = true; window.clearInterval(interval); };
+    // Pauses on hidden tabs and backs off while the room is quiet.
+    // See lib/room-poll.js for why 1.2s forever was expensive.
+    return createRoomPoll({
+      load: () => KillerBunniesRoomService.load(roomCode, token),
+      onState: handler,
+    });
   },
 };
 

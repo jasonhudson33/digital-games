@@ -86,6 +86,11 @@ export default function SevenUpClient() {
     pollRoomState(room.roomCode, room.token);
     stopPolling();
     pollTimerRef.current = window.setInterval(() => {
+      // Skip ticks while the tab is hidden. handleRoomVisibility below already
+      // refetches on return, so there is nothing to catch up on. (This client
+      // keeps its own loop rather than using lib/room-poll.js because
+      // pollRoomState owns its state updates instead of returning state.)
+      if (document.hidden) return;
       pollRoomState(room.roomCode, room.token);
     }, room.state?.status === "waiting" ? 1000 : 1500);
 

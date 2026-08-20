@@ -29,25 +29,12 @@ export const ScumRoomService = {
   },
 
   subscribe(roomCode, token, handler) {
-    let stopped = false;
-    let lastUpdatedAt = 0;
-    const poll = async () => {
-      try {
-        const state = await ScumRoomService.load(roomCode, token);
-        if (!stopped && state.updatedAt > lastUpdatedAt) {
-          lastUpdatedAt = state.updatedAt;
-          handler(state);
-        }
-      } catch {
-        // A temporary polling failure should not throw the player out of the room.
-      }
-    };
-    void poll();
-    const intervalId = window.setInterval(poll, 1200);
-    return () => {
-      stopped = true;
-      window.clearInterval(intervalId);
-    };
+    // Pauses on hidden tabs and backs off while the room is quiet.
+    // See lib/room-poll.js for why 1.2s forever was expensive.
+    return createRoomPoll({
+      load: () => ScumRoomService.load(roomCode, token),
+      onState: handler,
+    });
   },
 };
 
