@@ -152,342 +152,170 @@
   line-height: 1.65;
 }
 
+/* ── Game tiles ──────────────────────────────────────────────────────────────
+ *
+ * One recipe. Each tile carries a single custom property — `--h`, the OKLCH hue
+ * that lives with the game in lib/games.js — and every colour is derived from
+ * it. Adding a game is one data entry, not a new CSS rule.
+ *
+ * This replaces ~250 lines of hand-tuned per-game gradients in which thirteen
+ * of the twenty-four games resolved to the same deep-green-to-rust with a gold
+ * spark in the same corner. Colour is the fastest scanning channel there is and
+ * it was carrying almost no information.
+ *
+ * Two things make it safe to generate rather than eyeball:
+ *
+ *  1. OKLCH is perceptually uniform, so equal hue steps look equal — unlike
+ *     HSL, where a 40° step near blue and near green read very differently.
+ *  2. Lightness and chroma are pinned in tokens.css instead of chosen per game,
+ *     so text contrast is verified once for the recipe rather than twenty-four
+ *     times by hand. The bottom scrim guarantees the blurb sits on a dark
+ *     enough field at every hue — measured worst case 7.5:1, and the pills use
+ *     a dark scrim for the same reason (a translucent white one lightens the
+ *     substrate and drops 0.72rem labels to 3.4:1).
+ *
+ * Careful with --hs: a custom property resolves its var() references at the
+ * element that DECLARES it. Declaring --tile-spark on a shared ancestor, where
+ * --hs does not exist, computes to the guaranteed-invalid value and silently
+ * kills the whole background shorthand. It has to be declared here, on .game-tile.
+ */
+
 .game-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
-  margin-top: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-7);
 }
 
-.game-card,
-.game-detail-card {
-  border: 1px solid var(--border);
-  border-radius: 26px;
-  box-shadow: var(--shadow);
-}
+.game-tile {
+  --h: 0;                        /* hue, from lib/games.js */
+  --hs: 60;                      /* spark hue: --h + 45, precomputed in JS */
 
-.game-card {
-  display: block;
-  min-height: 280px;
-  padding: 24px;
-  background: rgba(255, 252, 246, 0.94);
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
-}
-
-.game-card.warm {
-  background:
-    radial-gradient(circle at top right, rgba(184, 76, 42, 0.16), transparent 28%),
-    rgba(255, 252, 246, 0.94);
-}
-
-.game-card.flip-7 {
-  color: #ffffff;
-  border-color: rgba(255, 211, 78, 0.28);
-  background:
-    radial-gradient(circle at 84% 20%, rgba(255, 211, 78, 0.84), transparent 15%),
-    radial-gradient(circle at 7% 95%, rgba(38, 115, 232, 0.62), transparent 35%),
-    linear-gradient(145deg, #2b3855 0%, #151d31 66%, #ef4e3d 150%);
-}
-
-.game-card.flip-7 .game-status,
-.game-card.flip-7 p {
-  color: #d8deeb;
-}
-
-.game-card.no-thanks {
-  color: #fffaf0;
-  border-color: rgba(255, 216, 103, 0.3);
-  background:
-    radial-gradient(circle at 84% 18%, rgba(255, 216, 103, 0.76), transparent 16%),
-    radial-gradient(circle at 8% 94%, rgba(116, 216, 189, 0.45), transparent 33%),
-    linear-gradient(145deg, #6a50bd 0%, #493796 62%, #2b2547 100%);
-}
-
-.game-card.no-thanks .game-status,
-.game-card.no-thanks p {
-  color: #e8e1f7;
-}
-
-.game-card.bang {
-  color: #fff2d5;
-  border-color: rgba(226, 175, 89, 0.28);
-  background:
-    radial-gradient(circle at 82% 18%, rgba(230, 170, 69, 0.82), transparent 14%),
-    linear-gradient(155deg, #245540 0%, #143e32 54%, #8a3021 125%);
-}
-
-.game-card.bang .game-status,
-.game-card.bang p {
-  color: #ead9b9;
-}
-
-.game-card.killer-bunnies {
-  color: #fff8df;
-  border-color: rgba(255, 232, 157, 0.24);
-  background:
-    radial-gradient(circle at 83% 18%, rgba(245, 185, 71, 0.64), transparent 23%),
-    radial-gradient(circle at 10% 94%, rgba(93, 151, 86, 0.66), transparent 30%),
-    linear-gradient(145deg, #2f7a5a, #194b3b 68%, #783d2b);
-}
-
-.game-card.cover-your-assets {
-  color: #fff5d8;
-  border-color: rgba(239, 201, 97, 0.26);
-  background:
-    radial-gradient(circle at 84% 17%, rgba(232, 181, 68, 0.58), transparent 23%),
-    radial-gradient(circle at 12% 92%, rgba(57, 132, 100, 0.54), transparent 30%),
-    repeating-linear-gradient(145deg, transparent 0 28px, rgba(255, 255, 255, 0.025) 28px 30px),
-    linear-gradient(145deg, #1b6049, #0d3b2f 67%, #8b3228);
-}
-
-.game-card.cover-your-assets .game-status {
-  color: #fff0bd;
-  background: rgba(255, 255, 255, 0.11);
-}
-
-.game-card.night {
-  color: #f7f1eb;
-  border-color: rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at top left, rgba(226, 186, 96, 0.18), transparent 24%),
-    linear-gradient(180deg, rgba(29, 36, 57, 0.98), rgba(16, 19, 31, 0.98));
-}
-
-.game-card.secret-hitler {
-  color: #f8edda;
-  border-color: rgba(216, 181, 112, 0.24);
-  background:
-    radial-gradient(circle at 85% 15%, rgba(209, 163, 82, 0.2), transparent 25%),
-    linear-gradient(145deg, #17362f 0%, #14231f 48%, #601c1a 130%);
-}
-
-.game-card.secret-hitler .game-status,
-.game-card.secret-hitler p {
-  color: #cbbfae;
-}
-
-.game-card.catan {
-  color: #fff8df;
-  border-color: rgba(255, 239, 190, 0.22);
-  background:
-    radial-gradient(circle at 85% 15%, rgba(243, 188, 53, 0.46), transparent 22%),
-    radial-gradient(circle at 15% 90%, rgba(67, 151, 151, 0.58), transparent 30%),
-    linear-gradient(145deg, #b92f34, #7f2228 62%, #183f4e);
-}
-
-.game-card.ticket-to-ride {
-  color: #fff5d9;
-  border-color: rgba(238, 202, 113, 0.24);
-  background:
-    radial-gradient(circle at 84% 16%, rgba(225, 170, 65, 0.55), transparent 22%),
-    repeating-linear-gradient(168deg, transparent 0 31px, rgba(211, 174, 91, 0.1) 31px 35px),
-    linear-gradient(145deg, #286073, #173b4c 64%, #922f2c);
-}
-
-.game-card.splendor {
-  color: #fff7df;
-  border-color: rgba(229, 194, 112, 0.24);
-  background:
-    radial-gradient(circle at 82% 18%, rgba(233, 195, 103, 0.46), transparent 19%),
-    repeating-linear-gradient(135deg, transparent 0 37px, rgba(255, 255, 255, 0.045) 38px 39px),
-    linear-gradient(145deg, #215e55, #153d38 70%, #6b4a26);
-}
-
-.game-card.splendor .game-status,
-.game-card.splendor p {
-  color: rgba(255, 247, 223, 0.72);
-}
-
-.game-card.qwirkle {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 212px;
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
   color: #fff;
   background:
-    radial-gradient(circle at 83% 20%, rgba(244, 197, 66, .42) 0 7px, transparent 8px),
-    radial-gradient(circle at 72% 30%, rgba(58, 134, 255, .44) 0 9px, transparent 10px),
-    radial-gradient(circle at 88% 39%, rgba(239, 71, 111, .4) 0 8px, transparent 9px),
-    linear-gradient(145deg, #20232d, #101219);
+    /* bottom scrim — what makes the blurb legible at every hue */
+    linear-gradient(0deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0) 58%),
+    /* top sheen + corner spark */
+    linear-gradient(168deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 44%),
+    radial-gradient(120% 90% at 100% 0%, oklch(0.72 0.19 var(--hs) / 0.34), transparent 62%),
+    /* the tile itself */
+    linear-gradient(
+      146deg,
+      oklch(var(--tile-hi-l) var(--tile-hi-c) var(--h)),
+      oklch(var(--tile-lo-l) var(--tile-lo-c) var(--h))
+    );
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
-.game-card.qwirkle .game-status,
-.game-card.qwirkle p { color: rgba(255,255,255,.7); }
-
-.game-card.spyrium {
-  color: #f2ead7;
-  border-color: rgba(209, 166, 82, 0.27);
-  background:
-    radial-gradient(circle at 82% 18%, rgba(66, 224, 143, 0.48), transparent 17%),
-    repeating-radial-gradient(circle at 82% 18%, transparent 0 25px, rgba(204, 158, 76, 0.12) 26px 28px),
-    linear-gradient(145deg, #244a3d, #102b24 68%, #5e3c23);
-}
-
-.game-card.spyrium .game-status,
-.game-card.spyrium p {
-  color: rgba(240, 230, 207, 0.74);
-}
-
-.game-card.sequence {
-  color: #fff8df;
-  border-color: rgba(242, 202, 101, 0.25);
-  background:
-    radial-gradient(circle at 82% 16%, rgba(239, 183, 62, 0.55), transparent 23%),
-    radial-gradient(circle at 14% 88%, rgba(50, 111, 167, 0.55), transparent 28%),
-    linear-gradient(145deg, #1c684f, #0d4033 67%, #672d28);
-}
-
-.game-card.life {
-  color: #fffbed;
-  border-color: rgba(255, 241, 177, 0.28);
-  background:
-    radial-gradient(circle at 83% 18%, rgba(246, 201, 83, 0.78), transparent 21%),
-    radial-gradient(circle at 12% 92%, rgba(238, 108, 93, 0.58), transparent 30%),
-    repeating-linear-gradient(155deg, transparent 0 32px, rgba(255, 255, 255, 0.04) 32px 34px),
-    linear-gradient(145deg, #0d7868, #07564d 67%, #0c3c38);
-}
-
-.game-card.life .game-status,
-.game-card.life p {
-  color: rgba(255, 251, 237, 0.82);
-}
-
-.game-card.hearts {
-  color: #fff8ef;
-  border-color: rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(circle at 82% 18%, rgba(255, 98, 85, 0.52), transparent 25%),
-    radial-gradient(circle at 12% 92%, rgba(31, 114, 88, 0.5), transparent 30%),
-    linear-gradient(145deg, #8f1f28, #421a21 68%, #142b25);
-}
-
-.game-card.scum {
-  color: #fff6df;
-  border-color: rgba(238, 200, 96, 0.22);
-  background:
-    radial-gradient(circle at 82% 18%, rgba(226, 184, 79, 0.44), transparent 23%),
-    radial-gradient(circle at 10% 92%, rgba(190, 67, 49, 0.42), transparent 29%),
-    linear-gradient(145deg, #1d5948, #12352c 68%, #391d1b);
-}
-
-.game-card.hand-foot {
-  color: #fff8e7;
-  border-color: rgba(238, 198, 93, 0.24);
-  background:
-    radial-gradient(circle at 84% 18%, rgba(231, 181, 74, 0.48), transparent 23%),
-    radial-gradient(circle at 10% 92%, rgba(222, 95, 53, 0.45), transparent 29%),
-    linear-gradient(145deg, #1f5a45, #173c30 66%, #612d21);
-}
-
-.game-card.pinochle {
-  color: #fff6dc;
-  border-color: rgba(239, 201, 100, 0.24);
-  background:
-    radial-gradient(circle at 82% 16%, rgba(227, 178, 54, 0.52), transparent 24%),
-    radial-gradient(circle at 12% 92%, rgba(170, 47, 43, 0.44), transparent 29%),
-    linear-gradient(145deg, #164f3d, #0c352a 68%, #3f211d);
-}
-
-.game-card.skull-king {
-  color: #f7ead3;
-  border-color: rgba(228, 184, 75, 0.25);
-  background:
-    radial-gradient(circle at 84% 15%, rgba(228, 184, 75, 0.42), transparent 22%),
-    radial-gradient(circle at 12% 92%, rgba(42, 135, 125, 0.44), transparent 30%),
-    linear-gradient(145deg, #153f40, #0c282f 66%, #351f20);
-}
-
-.game-card.risk {
-  color: #fff5d8;
-  border-color: rgba(239, 195, 86, 0.25);
-  background:
-    radial-gradient(circle at 84% 16%, rgba(239, 195, 86, 0.45), transparent 22%),
-    radial-gradient(circle at 12% 90%, rgba(73, 139, 126, 0.48), transparent 30%),
-    linear-gradient(145deg, #234d58, #102f3b 66%, #4d2c20);
-}
-
-.game-card.risk .game-status {
-  color: #fff0bf;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.game-card.skull-king .game-status {
-  color: #f5dfaa;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.game-card.hand-foot .game-status {
-  color: #fff3d0;
-  background: rgba(255, 255, 255, 0.11);
-}
-
-.game-card.scum .game-status {
-  color: #fff3d2;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.game-card.hearts .game-status {
-  color: #fff4e8;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.game-card.catan .game-status {
-  color: #fff5d6;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.game-card:hover {
+.game-tile:hover {
   transform: translateY(-4px);
-  box-shadow: 0 26px 60px rgba(39, 26, 16, 0.16);
+  box-shadow: var(--sh-2), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
-.game-status {
+.game-tile:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Ghosted monogram, purely texture. Sits behind the content via z-index on a
+   child of an isolated stacking context. */
+.game-tile-mono {
+  position: absolute;
+  right: -6px;
+  bottom: -26px;
+  z-index: -1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 7.2rem;
+  line-height: 0.8;
+  letter-spacing: -0.05em;
+  color: rgba(255, 255, 255, 0.085);
+  user-select: none;
+}
+
+.game-tile-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: auto;
+}
+
+.game-pill {
   display: inline-flex;
-  margin-bottom: 16px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.62);
-  font-size: 0.82rem;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  /* dark scrim, not translucent white — see the contrast note above */
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
-.game-card.night .game-status {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(247, 241, 235, 0.88);
+.game-pill svg {
+  width: 11px;
+  height: 11px;
+  opacity: 0.85;
 }
 
-.game-card h2 {
-  margin-bottom: 12px;
-  font-size: clamp(2rem, 3vw, 2.8rem);
+.game-pill.is-new {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: transparent;
+  color: #16181d;
 }
 
-.game-card p,
-.game-detail-card p {
+/* Values lib/games.js flags as estimates rather than recorded rules. */
+.game-pill .is-estimated {
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.6);
+  cursor: help;
+}
+
+.game-tile h2 {
+  margin: var(--sp-4) 0 6px;
+  font-size: var(--step-2);
+  line-height: 1.08;
+}
+
+.game-tile p {
   margin: 0;
-  line-height: 1.6;
-}
-
-.game-card p {
-  max-width: 28ch;
+  max-width: 32ch;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .game-cta {
   display: inline-flex;
-  margin-top: 24px;
-  font-weight: 700;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--sp-4);
+  font-size: var(--step--1);
+  font-weight: 600;
 }
 
-.game-detail-card {
-  margin-top: 22px;
-  padding: 24px;
-  background: rgba(255, 252, 246, 0.92);
+.game-cta svg {
+  width: 13px;
+  height: 13px;
+  transition: transform var(--dur) var(--ease);
 }
 
-.game-detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 20px;
+.game-tile:hover .game-cta svg {
+  transform: translateX(3px);
 }
 
-.hero {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -941,9 +769,8 @@ input {
 
 @media (max-width: 960px) {
   .hub-hero,
-  .game-card,
-  .game-detail-card {
-    border-radius: 24px;
+  .game-tile {
+    border-radius: var(--r-xl);
   }
 
   .control-panel,
@@ -971,9 +798,8 @@ input {
   }
 
   .hub-hero,
-  .game-card,
-  .game-detail-card {
-    padding: 20px;
+  .game-tile {
+    padding: var(--sp-4);
   }
 
   .hero,
