@@ -1,10 +1,8 @@
 import LifeClient from "../../components/life-client";
 import "./life.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "Life | Digital Games",
-  description: "Spin through a room-based game of Life with friends and computer players.",
-};
+export const metadata = gameMetadata("life");
 
 export default function LifePage() {
   return <LifeClient />;

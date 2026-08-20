@@ -1337,3 +1337,102 @@ input {
     width: 44px;
   }
 }
+
+/* ── Status pages (error, 404) and route skeletons ──────────────────────────
+ *
+ * There was no error.js, not-found.js or loading.js anywhere in app/, so an
+ * exception mid-game dropped the player on the Next.js default error screen
+ * with no route home, and a slow game route showed nothing at all.
+ */
+
+.status-page {
+  width: min(560px, calc(100% - var(--page-gutter) * 2));
+  margin: 0 auto;
+  padding: clamp(var(--sp-7), 12vh, 140px) 0 var(--sp-7);
+  text-align: center;
+}
+
+.status-eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.status-page h1 {
+  font-size: var(--step-3);
+  line-height: 1.05;
+}
+
+.status-copy {
+  margin: var(--sp-3) auto 0;
+  max-width: 44ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+
+.status-digest {
+  margin-top: var(--sp-5);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.skeleton {
+  display: block;
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    color-mix(in oklab, var(--surface-2) 60%, var(--line)) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s var(--ease) infinite;
+}
+
+.skeleton-hero {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-6) 0 var(--sp-5);
+}
+
+.skeleton-line {
+  height: 14px;
+  max-width: 52ch;
+}
+
+.skeleton-line.is-short {
+  width: 180px;
+  height: 10px;
+}
+
+.skeleton-line.is-title {
+  height: 44px;
+  max-width: 18ch;
+  border-radius: var(--r-lg);
+}
+
+.skeleton-tile {
+  min-height: 212px;
+  border-radius: var(--r-xl);
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}

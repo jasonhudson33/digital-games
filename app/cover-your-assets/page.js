@@ -1,10 +1,8 @@
 import CoverYourAssetsClient from "../../components/cover-your-assets-client";
 import "./cover-your-assets.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "Cover Your Assets | Digital Games",
-  description: "Build, cover, and steal fortunes in a private room with friends or computer players.",
-};
+export const metadata = gameMetadata("cover-your-assets");
 
 export default function CoverYourAssetsPage() {
   return <CoverYourAssetsClient />;

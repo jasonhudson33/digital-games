@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Digital Games">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6f63ff"/>
+      <stop offset="1" stop-color="#2b2270"/>
+    </linearGradient>
+    <linearGradient id="cardA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a59"/>
+      <stop offset="1" stop-color="#d8402c"/>
+    </linearGradient>
+    <linearGradient id="cardB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4fd1a0"/>
+      <stop offset="1" stop-color="#159a68"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+
+  <g transform="translate(256 268)">
+    <rect x="-142" y="-104" width="150" height="212" rx="22"
+          fill="url(#cardA)" stroke="#fff" stroke-width="14"
+          transform="rotate(-14)"/>
+    <rect x="-8" y="-118" width="150" height="212" rx="22"
+          fill="url(#cardB)" stroke="#fff" stroke-width="14"
+          transform="rotate(11)"/>
+  </g>
+</svg>

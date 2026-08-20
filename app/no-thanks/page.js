@@ -1,10 +1,8 @@
 import NoThanksClient from "../../components/no-thanks-client";
 import "./no-thanks.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "No Thanks! | Digital Games",
-  description: "Take a card or pay to pass in private rooms with friends and computer players.",
-};
+export const metadata = gameMetadata("no-thanks");
 
 export default function NoThanksPage() {
   return <NoThanksClient />;

@@ -1,10 +1,8 @@
 import SequenceClient from "../../components/sequence-client";
 import "./sequence.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "Sequence | Digital Games",
-  description: "Build rows of five in a shared Sequence room with friends or computer players.",
-};
+export const metadata = gameMetadata("sequence");
 
 export default function SequencePage() {
   return <SequenceClient />;

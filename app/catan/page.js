@@ -1,11 +1,8 @@
 import CatanClient from "../../components/catan-client";
 import "./catan.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "Catan | Digital Games",
-  description:
-    "Settle a new island, gather resources, trade with the bank, and race to ten victory points.",
-};
+export const metadata = gameMetadata("catan");
 
 export default function CatanPage() {
   return <CatanClient />;

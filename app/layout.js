@@ -3,6 +3,7 @@ import { Anton, Inter, Space_Grotesk } from "next/font/google";
 
 import DialogFocusManager from "../components/dialog-focus";
 import SiteHeader from "../components/site-header";
+import { siteUrl } from "../lib/metadata";
 import "./tokens.css";
 import "./globals.css";
 import "./color-games.css";
@@ -43,8 +44,30 @@ const anton = Anton({
 });
 
 export const metadata = {
-  title: "Digital Games",
-  description: "Launch party games from one shared landing page.",
+  // Lets every route declare OpenGraph images and canonicals as relative paths
+  // instead of rebuilding an absolute origin from request headers.
+  metadataBase: siteUrl(),
+  title: {
+    default: "Digital Games",
+    template: "%s",
+  },
+  description: "Twenty-four party games, playable in your browser.",
+  applicationName: "Digital Games",
+  openGraph: {
+    type: "website",
+    siteName: "Digital Games",
+    title: "Digital Games",
+    description: "Twenty-four party games, playable in your browser.",
+  },
+};
+
+export const viewport = {
+  // Matches --bg so the browser chrome stops fighting the page on a phone.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f1f2f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0c10" },
+  ],
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }) {
