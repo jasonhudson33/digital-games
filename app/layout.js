@@ -67,14 +67,13 @@ export const viewport = {
     { media: "(prefers-color-scheme: light)", color: "#f1f2f5" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0c10" },
   ],
-  colorScheme: "light",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      data-theme="light"
       className={`${inter.variable} ${spaceGrotesk.variable} ${anton.variable}`}
     >
       <body>

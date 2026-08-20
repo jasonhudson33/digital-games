@@ -125,10 +125,60 @@
   --header-h: 60px;
 }
 
-/* Dark is opt-in rather than automatic. The twenty per-game stylesheets were
-   written against a light background and some hardcode light surfaces, so
-   flipping everyone by prefers-color-scheme would ship broken screens. Once
-   those are audited, deleting the [data-theme] guard below is all it takes. */
+/* Dark mode.
+ *
+ * This follows the OS for everything the tokens actually drive: the hub, the
+ * header, the shared table shell (so UNO, DOS, Seven Up and Monopoly come with
+ * it), the command palette and the error and 404 pages.
+ *
+ * It deliberately does NOT drag the twenty bespoke games with it. Hearts is
+ * cream by design, Spyrium and Skull King are already near-black, Bang is
+ * sand — those are authored atmospheres, not an accident of the default
+ * palette, and repainting them would mean redesigning twenty games and
+ * throwing away the best work in the app. Each of them pins its own ground via
+ * --route-surface, so a dark OS changes the chrome around them and leaves the
+ * game itself alone.
+ *
+ * The media query is guarded so an explicit data-theme="light" still wins, and
+ * the same values are repeated under [data-theme="dark"] so a future toggle
+ * wins in the other direction.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #0a0c10;
+    --surface: #141821;
+    --surface-2: #1a1f29;
+    --surface-3: #212734;
+    --ink: #eef0f4;
+    --muted: #949aa6;
+    --line: rgba(238, 240, 244, 0.12);
+    --line-strong: rgba(238, 240, 244, 0.22);
+
+    --accent: #8b83ff;
+    --accent-hover: #a29bff;
+    --accent-soft: rgba(139, 131, 255, 0.14);
+    --on-accent: #0a0c10;
+
+    --success: #46d18a;
+    --success-soft: rgba(70, 209, 138, 0.14);
+    --danger: #ff6b6b;
+    --danger-soft: rgba(255, 107, 107, 0.14);
+    --warning: #e0b252;
+    --warning-soft: rgba(224, 178, 82, 0.14);
+
+    --focus: #a9bcff;
+
+    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.4);
+    --sh-2: 0 18px 40px rgba(0, 0, 0, 0.6);
+
+    /* Tiles lift slightly in dark so they do not sink into the ground. */
+    --tile-lo-l: 0.285;
+    --tile-hi-l: 0.475;
+  }
+}
+
 :root[data-theme="dark"] {
   color-scheme: dark;
 
@@ -214,7 +264,10 @@ body {
      so the translucent header blurs over the right colour instead of letting a
      light body show through and washing out a dark page. */
   background: var(--route-surface);
-  color: var(--ink);
+  /* --route-ink, not --ink: a game that pins a light ground must keep dark text
+     when the OS is dark, or Hearts renders light type on cream. Defaults to
+     --ink, so the hub and the token-driven games still follow the OS. */
+  color: var(--route-ink);
   font-family: var(--font-ui);
   font-size: var(--step-0);
   line-height: 1.55;

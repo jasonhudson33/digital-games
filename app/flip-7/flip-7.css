@@ -1,3 +1,16 @@
+/* ── Route surface ──────────────────────────────────────────────────────────
+ * This game paints light panels rather than its own page ground, so it pins the
+ * ground explicitly. Without this a dark OS preference would put near-black
+ * behind cream panels — the game is a light room by design.
+ */
+:root {
+  --route-surface: #f1f2f5;
+  --route-ink: #0e1015;
+  --route-muted: rgba(14, 16, 21, 0.62);
+  --route-line: rgba(14, 16, 21, 0.13);
+  --route-chip: #ffffff;
+}
+
 .f7-landing,
 .f7-lobby,
 .f7-game-shell {
