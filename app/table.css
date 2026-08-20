@@ -135,6 +135,13 @@
 }
 
 .tbl-hero {
+  /* Column layout rather than a positioned fan. The card fan used to be
+     absolutely positioned at bottom-right, which overlapped the description and
+     hid the third badge at desktop widths. As a flow item pushed down by
+     margin-top:auto it lands in the same place and cannot collide. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   min-height: 620px;
   padding: clamp(var(--sp-6), 6vw, 70px);
   border-radius: var(--r-xl) 0 0 var(--r-xl);
@@ -170,6 +177,10 @@
   flex-wrap: wrap;
   gap: 9px;
   margin-top: var(--sp-6);
+  /* Floor for the gap above the card fan. The fan uses margin-top:auto, which
+     collapses to zero once the hero content fills the available height — this
+     keeps the badges and the cards from sitting flush against each other. */
+  margin-bottom: var(--sp-5);
 }
 
 .tbl-hero-badges span {
@@ -192,11 +203,12 @@
 }
 
 .tbl-hero-fan {
-  position: absolute;
-  right: 9%;
-  bottom: 8%;
+  position: relative;
+  align-self: flex-end;
+  margin-top: auto;
   width: 330px;
   height: 230px;
+  flex: none;
 }
 
 .tbl-hero-fan .tbl-card {
@@ -1258,7 +1270,7 @@
   .tbl-landing { padding-top: 18px; }
   .tbl-hero { min-height: 575px; padding: var(--sp-6) 23px; }
   .tbl-hero h1 { font-size: 4.2rem; }
-  .tbl-hero-fan { right: 1%; bottom: 3%; transform: scale(0.8); transform-origin: right bottom; }
+  .tbl-hero-fan { transform: scale(0.8); transform-origin: right bottom; }
   .tbl-entry { padding: var(--sp-5); }
   .tbl-lobby-head { display: block; }
   .tbl-seats,
