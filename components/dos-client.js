@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Trophy, Users } from "lucide-react";
+
 import { CardBack, ColorGameCard, cardName } from "./color-game-card";
 import { DosRoomService } from "./dos-room-service";
-import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./uno-client";
+import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
 import {
   MAX_PLAYERS, MIN_PLAYERS, addComputerPlayer, addPlayer, callDos, catchDos, createLobby, currentPlayer,
   drawCard, endTurn, matchOptions, placeCenterCard, playMatch, removeComputerPlayer, runComputerStep,
@@ -107,32 +108,132 @@ export default function DosClient() {
     setSelectedHand((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : current.length < 2 ? [...current, cardId] : [current[1], cardId]);
   }
 
-  return <main className="cg-game dos-theme">
-    <GameHeader title="DOS" room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
-    {error && <p className="cg-error">{error}</p>}
-    <section className="cg-opponents">{room.players.filter((player) => player.id !== playerId).map((player) => <article key={player.id} className={active?.id === player.id ? "active" : ""}><span>{player.isComputer ? <Bot /> : player.name[0].toUpperCase()}</span><div><strong>{player.name}</strong><small>{player.cards.length} cards · {player.score} pts</small></div><div className="cg-mini-stack"><CardBack count={player.cards.length} small /></div></article>)}</section>
-    <section className="dos-table">
-      <aside><p>Round {room.round}</p><strong>Make the sum.</strong><span>First to {room.targetScore}</span><CardBack count={room.deck.length} small /></aside>
-      <div className="dos-center"><header><p>Center row</p><span>Select one center card, then one matching card or two cards whose values add up to it.</span></header><div>{room.centerRow.map((center) => <ColorGameCard key={center.id} card={center} selected={selectedCenter === center.id} disabled={!myTurn || mustPlace} onClick={myTurn && !mustPlace ? () => setSelectedCenter(center.id) : undefined} />)}</div></div>
-      <aside className="cg-log"><p>Table talk</p>{room.log.slice(0, 5).map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</aside>
-    </section>
-    {canCatch && <button className="cg-catch" onClick={() => update((current) => catchDos(current, playerId))}>Catch missed DOS — make them draw 2</button>}
-    <section className="cg-hand-zone">
-      <header><div><p>Your hand</p><strong>{me.cards.length} cards · {me.score} points</strong></div><button className={me.dosSafe ? "armed" : ""} disabled={me.cards.length !== 2 || me.dosSafe} onClick={() => update((current) => callDos(current, playerId))}>DOS{me.dosSafe ? " called!" : "!"}</button></header>
-      <div className="cg-hand">{me.cards.map((held) => <ColorGameCard key={held.id} card={held} selected={selectedHand.includes(held.id)} disabled={busy || !myTurn} onClick={myTurn ? () => mustPlace ? update((current) => placeCenterCard(current, playerId, held.id)) : toggleHand(held.id) : undefined} label={`${cardName(held)}${mustPlace ? ", place in center" : ""}`} />)}</div>
-      {myTurn && <div className="dos-action-panel">{mustPlace ? <p>Choose {room.turn.placementRemaining} card{room.turn.placementRemaining === 1 ? "" : "s"} from your hand to add to the center row.</p> : <><div>{selectedOption ? <p><b>Valid {selectedOption.handCardIds.length === 2 ? "double" : "single"} match.</b>{selectedOption.colorBonus ? ` ${selectedOption.colorBonus === "double" ? "Every opponent draws 1, and you place a bonus card." : "You place a bonus card."}` : ""}</p> : <p>{selectedHand.length && selectedCenter ? "Those cards do not match. Try another combination." : "Select cards to build a match, or draw if you want to pass."}</p>}</div><button disabled={busy || !selectedOption} onClick={() => update((current) => playMatch(current, playerId, selectedOption.id))}>Play match</button><button className="secondary" disabled={busy || room.turn.drawn || room.turn.matchedCount > 0} onClick={() => update((current) => drawCard(current, playerId))}>Draw one</button>{canEnd && <button className="secondary" disabled={busy} onClick={() => update((current) => endTurn(current, playerId))}>{room.turn.matchedCount ? "End turn" : "Add a card & end"}</button>}</>}</div>}
-    </section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-    {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
-  </main>;
+  return (
+    <main className="tbl-game dos-theme">
+      <GameHeader title="DOS" room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+      {error && <p className="tbl-error" role="alert">{error}</p>}
+
+      <section className="tbl-opponents">
+        {room.players.filter((player) => player.id !== playerId).map((player) => (
+          <article key={player.id} className={`tbl-opponent${active?.id === player.id ? " is-active" : ""}`}>
+            <span className="tbl-opponent-avatar" aria-hidden="true">{player.isComputer ? <Bot /> : player.name[0].toUpperCase()}</span>
+            <div>
+              <strong>{player.name}</strong>
+              <small>{player.cards.length} cards · {player.score} pts</small>
+            </div>
+            <div className="tbl-mini-stack"><CardBack count={player.cards.length} small /></div>
+          </article>
+        ))}
+      </section>
+
+      <section className="dos-table">
+        <aside className="tbl-side">
+          <p>Round {room.round}</p>
+          <strong>Make the sum.</strong>
+          <span>First to {room.targetScore}</span>
+          <CardBack count={room.deck.length} small />
+        </aside>
+
+        <div className="dos-center">
+          <header className="dos-center-head">
+            <p>Center row</p>
+            <span>Select one center card, then one matching card or two cards whose values add up to it.</span>
+          </header>
+          <div className="dos-center-row">
+            {room.centerRow.map((center) => (
+              <ColorGameCard key={center.id} card={center} selected={selectedCenter === center.id} disabled={!myTurn || mustPlace} onClick={myTurn && !mustPlace ? () => setSelectedCenter(center.id) : undefined} />
+            ))}
+          </div>
+        </div>
+
+        <aside className="tbl-side tbl-log">
+          <p>Table talk</p>
+          {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
+        </aside>
+      </section>
+
+      {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchDos(current, playerId))}>Catch missed DOS — make them draw 2</button>}
+
+      <section className="tbl-hand-zone">
+        <header className="tbl-hand-header">
+          <div>
+            <p>Your hand</p>
+            <strong>{me.cards.length} cards · {me.score} points</strong>
+          </div>
+          <button type="button" className={`tbl-call${me.dosSafe ? " is-armed" : ""}`} disabled={me.cards.length !== 2 || me.dosSafe} onClick={() => update((current) => callDos(current, playerId))}>
+            DOS{me.dosSafe ? " called!" : "!"}
+          </button>
+        </header>
+
+        <div className="tbl-hand">
+          {me.cards.map((held) => (
+            <ColorGameCard key={held.id} card={held} selected={selectedHand.includes(held.id)} disabled={busy || !myTurn} onClick={myTurn ? () => mustPlace ? update((current) => placeCenterCard(current, playerId, held.id)) : toggleHand(held.id) : undefined} label={`${cardName(held)}${mustPlace ? ", place in center" : ""}`} />
+          ))}
+        </div>
+
+        {myTurn && (
+          <div className="dos-action-panel">
+            {mustPlace ? (
+              <p>Choose {room.turn.placementRemaining} card{room.turn.placementRemaining === 1 ? "" : "s"} from your hand to add to the center row.</p>
+            ) : (
+              <>
+                <div className="dos-action-status">
+                  {selectedOption ? (
+                    <p><b>Valid {selectedOption.handCardIds.length === 2 ? "double" : "single"} match.</b>{selectedOption.colorBonus ? ` ${selectedOption.colorBonus === "double" ? "Every opponent draws 1, and you place a bonus card." : "You place a bonus card."}` : ""}</p>
+                  ) : (
+                    <p>{selectedHand.length && selectedCenter ? "Those cards do not match. Try another combination." : "Select cards to build a match, or draw if you want to pass."}</p>
+                  )}
+                </div>
+                <button type="button" className="tbl-primary" disabled={busy || !selectedOption} onClick={() => update((current) => playMatch(current, playerId, selectedOption.id))}>Play match</button>
+                <button type="button" className="tbl-secondary" disabled={busy || room.turn.drawn || room.turn.matchedCount > 0} onClick={() => update((current) => drawCard(current, playerId))}>Draw one</button>
+                {canEnd && <button type="button" className="tbl-secondary" disabled={busy} onClick={() => update((current) => endTurn(current, playerId))}>{room.turn.matchedCount ? "End turn" : "Add a card & end"}</button>}
+              </>
+            )}
+          </div>
+        )}
+      </section>
+
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
+    </main>
+  );
 }
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="cg-landing dos-theme"><section className="cg-hero"><p className="cg-kicker">Two piles. Two-card sums. Twice the strategy.</p><h1>Make a match.<br /><em>Call DOS.</em></h1><p>Match center numbers singly or with two-card sums, then turn color matches into table-changing bonuses.</p><div><span><Users /> 2–4 players</span><span><Bot /> Computer seats</span><span><Trophy /> Race to 200</span></div><div className="cg-hero-fan"><ColorGameCard card={{ type: "number", color: "blue", value: 3 }} /><ColorGameCard card={{ type: "number", color: "yellow", value: 7 }} /><ColorGameCard card={{ type: "wildDos", color: null, value: 2 }} /></div></section><EntryCard gameName="DOS" {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} onRules={() => setShowRules(true)} />{showRules && <RulesModal onClose={() => setShowRules(false)} />}</main>;
+  return (
+    <main className="tbl-landing dos-theme">
+      <section className="tbl-hero">
+        <p className="tbl-kicker">Two piles. Two-card sums. Twice the strategy.</p>
+        <h1>Make a match.<br /><em>Call DOS.</em></h1>
+        <p className="tbl-hero-copy">Match center numbers singly or with two-card sums, then turn color matches into table-changing bonuses.</p>
+        <div className="tbl-hero-badges">
+          <span><Users aria-hidden="true" /> 2–4 players</span>
+          <span><Bot aria-hidden="true" /> Computer seats</span>
+          <span><Trophy aria-hidden="true" /> Race to 200</span>
+        </div>
+        <div className="tbl-hero-fan" aria-hidden="true">
+          <ColorGameCard card={{ type: "number", color: "blue", value: 3 }} />
+          <ColorGameCard card={{ type: "number", color: "yellow", value: 7 }} />
+          <ColorGameCard card={{ type: "wildDos", color: null, value: 2 }} />
+        </div>
+      </section>
+      <EntryCard gameName="DOS" {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} onRules={() => setShowRules(true)} />
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    </main>
+  );
 }
 
 function RulesModal({ onClose }) {
-  return <ChoiceModal wide title="How to play DOS" onClose={onClose} text="On your turn, match any or all center-row cards once each—or draw. A single card may match a center number, or two cards may add up to it."><div className="cg-rule-grid"><article><b>Color bonuses</b><p>A number-and-color single match lets you place one card in the center. If both cards in a double match share the center color, every opponent also draws 1.</p></article><article><b>Ending a turn</b><p>Matched center cards and played cards are discarded, the row refills to at least two, then earned bonus cards are placed into the row.</p></article><article><b>Wilds + DOS</b><p>Wild DOS is a 2 of any color. A colored Wild # is any number 1–10. Call DOS whenever you hold exactly two cards or draw 2 if caught.</p></article><article><b>Scoring</b><p>Numbers score face value, Wild DOS scores 20, and Wild # scores 40. The first player to 200 points wins.</p></article></div></ChoiceModal>;
+  return (
+    <ChoiceModal wide title="How to play DOS" onClose={onClose} text="On your turn, match any or all center-row cards once each—or draw. A single card may match a center number, or two cards may add up to it.">
+      <div className="tbl-rule-grid">
+        <article><b>Color bonuses</b><p>A number-and-color single match lets you place one card in the center. If both cards in a double match share the center color, every opponent also draws 1.</p></article>
+        <article><b>Ending a turn</b><p>Matched center cards and played cards are discarded, the row refills to at least two, then earned bonus cards are placed into the row.</p></article>
+        <article><b>Wilds + DOS</b><p>Wild DOS is a 2 of any color. A colored Wild # is any number 1–10. Call DOS whenever you hold exactly two cards or draw 2 if caught.</p></article>
+        <article><b>Scoring</b><p>Numbers score face value, Wild DOS scores 20, and Wild # scores 40. The first player to 200 points wins.</p></article>
+      </div>
+    </ChoiceModal>
+  );
 }
 
 function sameIds(left, right) { return left.length === right.length && left.every((id) => right.includes(id)); }

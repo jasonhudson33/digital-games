@@ -1,16 +1,68 @@
 import { Ban, CirclePlus, Hash, RefreshCw, Shuffle, SkipForward } from "lucide-react";
 
-export function ColorGameCard({ card, selected = false, disabled = false, small = false, dark = false, onClick, label }) {
+/*
+ * The playing card used by UNO and DOS.
+ *
+ * The corners and face carried no class names, so the stylesheet reached them
+ * with `.cg-card > small`, `> small:last-child` and `> i` — which meant the
+ * card's appearance depended on the order of its children. They are named now.
+ */
+
+export function ColorGameCard({
+  card,
+  selected = false,
+  disabled = false,
+  small = false,
+  dark = false,
+  onClick,
+  label,
+}) {
   if (!card) return null;
+
+  const className = [
+    "tbl-card",
+    `is-${card.color || "wild"}`,
+    dark && "is-dark-face",
+    selected && "is-selected",
+    small && "is-small",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const content = cardContent(card);
-  const className = `cg-card cg-${card.color || "wild"} ${dark ? "cg-dark-face" : ""} ${selected ? "selected" : ""} ${small ? "small" : ""}`;
   const title = label || cardName(card);
-  if (onClick) return <button type="button" className={className} disabled={disabled} onClick={onClick} aria-label={title}>{content}</button>;
-  return <div className={className} aria-label={title}>{content}</div>;
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} disabled={disabled} onClick={onClick} aria-label={title}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div className={className} role="img" aria-label={title}>
+      {content}
+    </div>
+  );
 }
 
 export function CardBack({ count, small = false, flipSide = null }) {
-  return <div className={`cg-card cg-back ${flipSide ? `flip-${flipSide}` : ""} ${small ? "small" : ""}`}><span>{flipSide ? "UNO" : "COLOR"}</span><strong>{count ?? ""}</strong><span>{flipSide ? "FLIP" : "CARDS"}</span></div>;
+  const className = [
+    "tbl-card",
+    "tbl-card-back",
+    flipSide && `flip-${flipSide}`,
+    small && "is-small",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={className} role="img" aria-label={`${count ?? 0} cards face down`}>
+      <span>{flipSide ? "UNO" : "COLOR"}</span>
+      <strong>{count ?? ""}</strong>
+      <span>{flipSide ? "FLIP" : "CARDS"}</span>
+    </div>
+  );
 }
 
 export function cardName(card) {
@@ -30,26 +82,35 @@ export function cardName(card) {
 }
 
 function cardContent(card) {
-  let middle;
-  if (card.type === "number") middle = <strong>{card.value}</strong>;
-  else if (card.type === "wildDos") middle = <><strong>2</strong><b>DOS</b></>;
-  else if (card.type === "wildNumber") middle = <><Hash /><b>WILD</b></>;
-  else if (card.type === "wild4") middle = <><CirclePlus /><strong>4</strong></>;
-  else if (card.type === "wildDraw2") middle = <><CirclePlus /><strong>2</strong></>;
-  else if (card.type === "wildDrawColor") middle = <><Shuffle /><b>COLOR</b></>;
-  else if (card.type === "wild") middle = <Shuffle />;
-  else if (card.type === "draw1") middle = <><CirclePlus /><strong>1</strong></>;
-  else if (card.type === "draw2") middle = <><CirclePlus /><strong>2</strong></>;
-  else if (card.type === "draw5") middle = <><CirclePlus /><strong>5</strong></>;
-  else if (card.type === "reverse") middle = <RefreshCw />;
-  else if (card.type === "skip") middle = <SkipForward />;
-  else if (card.type === "skipEveryone") middle = <><Ban /><b>EVERYONE</b></>;
-  else if (card.type === "flip") middle = <><RefreshCw /><b>FLIP</b></>;
-  else middle = <Ban />;
-  return <><small>{corner(card)}</small><i>{middle}</i><small>{corner(card)}</small></>;
+  const corner = cornerLabel(card);
+  return (
+    <>
+      <small className="tbl-card-corner">{corner}</small>
+      <i className="tbl-card-face">{cardFaceContent(card)}</i>
+      <small className="tbl-card-corner is-bottom">{corner}</small>
+    </>
+  );
 }
 
-function corner(card) {
+function cardFaceContent(card) {
+  if (card.type === "number") return <strong>{card.value}</strong>;
+  if (card.type === "wildDos") return <><strong>2</strong><b>DOS</b></>;
+  if (card.type === "wildNumber") return <><Hash /><b>WILD</b></>;
+  if (card.type === "wild4") return <><CirclePlus /><strong>4</strong></>;
+  if (card.type === "wildDraw2") return <><CirclePlus /><strong>2</strong></>;
+  if (card.type === "wildDrawColor") return <><Shuffle /><b>COLOR</b></>;
+  if (card.type === "wild") return <Shuffle />;
+  if (card.type === "draw1") return <><CirclePlus /><strong>1</strong></>;
+  if (card.type === "draw2") return <><CirclePlus /><strong>2</strong></>;
+  if (card.type === "draw5") return <><CirclePlus /><strong>5</strong></>;
+  if (card.type === "reverse") return <RefreshCw />;
+  if (card.type === "skip") return <SkipForward />;
+  if (card.type === "skipEveryone") return <><Ban /><b>EVERYONE</b></>;
+  if (card.type === "flip") return <><RefreshCw /><b>FLIP</b></>;
+  return <Ban />;
+}
+
+function cornerLabel(card) {
   if (card.type === "number") return card.value;
   if (card.type === "wildDos") return "2";
   if (card.type === "wildNumber") return "#";

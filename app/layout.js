@@ -6,7 +6,7 @@ import SiteHeader from "../components/site-header";
 import { siteUrl } from "../lib/metadata";
 import "./tokens.css";
 import "./globals.css";
-import "./color-games.css";
+import "./table.css";
 
 /*
  * Fonts are declared once, here.
