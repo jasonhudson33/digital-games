@@ -228,7 +228,7 @@ function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart
     <div className="cya-seat-grid">{room.players.map((player, index) => <div className="cya-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer rival" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}</div>
     {isHost && room.players.length < MAX_PLAYERS && <button className="cya-add-computer" disabled={busy} onClick={onAddComputer}><Bot /> Add computer rival</button>}
     <div className={`cya-ready-note ${canStart ? "ready" : ""}`}><strong>{room.players.length} / {MAX_PLAYERS} seats</strong><span>{canStart ? "The table is ready to play" : "Add at least one rival"}</span></div>
-    {isHost ? <button className="cya-primary cya-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Deal the cards</button> : <p className="cya-waiting">Waiting for {room.players[0].name} to deal…</p>}
+    {isHost ? <button className="cya-primary cya-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="cya-waiting">Waiting for {room.players[0].name} to deal…</p>}
     <button className="cya-quiet" onClick={onLeave}>Leave room</button>{error && <p className="cya-form-error">{error}</p>}
   </section></main>;
 }

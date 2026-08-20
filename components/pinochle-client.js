@@ -186,7 +186,7 @@ export default function PinochleClient() {
                   onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
                   onKeyDown={(event) => event.key === "Enter" && joinRoom()}
                   maxLength={5}
-                  placeholder="CODE"
+                  placeholder="ROOM CODE"
                   aria-label="Room code"
                 />
                 <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>

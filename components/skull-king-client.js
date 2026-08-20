@@ -333,7 +333,7 @@ export default function SkullKingClient() {
             </div>
             <div className="skull-entry-divider"><span>or gather a human crew</span></div>
             <div className="skull-room-entry">
-              <button type="button" className="skull-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create room</button>
+              <button type="button" className="skull-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create a room</button>
               <div className="skull-join-row">
                 <input
                   value={joinCode}
@@ -638,7 +638,7 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
 
         <div className="skull-lobby-summary"><span>{game.players.length} captains</span>{game.players.length === 2 && <span>+ Ghost Crew</span>}<span>10 rounds</span><span>Private hands</span></div>
         {game.hostControls ? (
-          <button type="button" className="skull-primary skull-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start voyage</button>
+          <button type="button" className="skull-primary skull-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start game</button>
         ) : (
           <p className="skull-lobby-waiting">Waiting for the host to start the voyage…</p>
         )}

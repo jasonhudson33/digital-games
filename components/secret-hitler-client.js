@@ -162,7 +162,7 @@ function Landing({ playerName, setPlayerName, joinCode, setJoinCode, createRoom,
           <button className="sh-primary" type="button" disabled={busy} onClick={createRoom}><Plus size={18} /> Create a room</button>
           <div className="sh-divider"><span>or join an existing table</span></div>
           <div className="sh-join-row">
-            <input aria-label="Room code" value={joinCode} maxLength={5} placeholder="ROOM" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
+            <input aria-label="Room code" value={joinCode} maxLength={5} placeholder="ROOM CODE" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
             <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>
           </div>
           {error && <p className="sh-form-error" role="alert">{error}</p>}

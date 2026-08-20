@@ -580,7 +580,7 @@ export default function SevenUpClient() {
                 <input
                   id="join-room-code"
                   maxLength={6}
-                  placeholder="ABC123"
+                  placeholder="ROOM CODE"
                   value={joinRoomCode}
                   onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
                 />

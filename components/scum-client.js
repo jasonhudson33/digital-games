@@ -194,7 +194,7 @@ export default function ScumClient() {
                 />
               </label>
               <button type="button" className="scum-primary" disabled={busy} onClick={createRoom}>
-                <Plus size={18} /> Create room
+                <Plus size={18} /> Create a room
               </button>
               <div className="scum-entry-divider"><span>or join a room</span></div>
               <div className="scum-join-row">

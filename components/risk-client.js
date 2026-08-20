@@ -300,7 +300,7 @@ function Setup({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, 
           />
         </label>
         <button type="button" className="risk-primary risk-start" onClick={onCreate} disabled={!ready}>
-          <Users size={18} /> Create room
+          <Users size={18} /> Create a room
         </button>
         <div className="risk-entry-divider"><span>or join a campaign</span></div>
         <div className="risk-join-row">

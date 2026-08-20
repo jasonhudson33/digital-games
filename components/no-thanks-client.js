@@ -258,7 +258,7 @@ function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart
     <div className="nt-seats">{room.players.map((player, index) => <div className="nt-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer player" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Sparkles />}</div>)}</div>
     {isHost && room.players.length < MAX_PLAYERS && <button className="nt-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer player</button>}
     <div className={`nt-ready ${canStart ? "yes" : ""}`}><span>{room.players.length} / {MAX_PLAYERS} seats</span><strong>{canStart ? "Ready to decline" : `Add ${MIN_PLAYERS - room.players.length} more player${MIN_PLAYERS - room.players.length === 1 ? "" : "s"}`}</strong></div>
-    {isHost ? <button className="nt-primary nt-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Deal the cards</button> : <p className="nt-waiting">Waiting for {room.players[0].name} to start…</p>}
+    {isHost ? <button className="nt-primary nt-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="nt-waiting">Waiting for {room.players[0].name} to start…</p>}
     <button className="nt-leave" onClick={onLeave}><DoorOpen /> Leave room</button>
     {error && <p className="nt-form-error">{error}</p>}
   </section>{showRules && <RulesModal onClose={() => setShowRules(false)} />}</main>;

@@ -1187,7 +1187,7 @@ export default function CatanClient() {
           </label>
 
           <button className="catan-primary catan-start" onClick={createRoom}>
-            <MapIcon size={19} /> Create room
+            <MapIcon size={19} /> Create a room
           </button>
 
           <div className="entry-divider"><span>or join a room</span></div>

@@ -151,7 +151,7 @@ function Welcome({ name, setName, joinCode, setJoinCode, busy, error, onCreate, 
           <div className="kb-room-actions">
             <button className="kb-primary" type="button" disabled={busy} onClick={onCreate}><Plus size={18} /> Create a room</button>
             <div className="kb-join">
-              <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && onJoin()} maxLength={5} placeholder="CODE" aria-label="Room code" />
+              <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && onJoin()} maxLength={5} placeholder="ROOM CODE" aria-label="Room code" />
               <button type="button" disabled={busy} onClick={onJoin}><Users size={17} /> Join</button>
             </div>
           </div>
