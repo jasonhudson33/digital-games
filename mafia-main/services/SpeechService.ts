@@ -1,4 +1,22 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+/*
+ * @google/genai is loaded on demand, not at module scope.
+ *
+ * The SDK is a 259 KB client chunk — on its own it made /mafia the heaviest
+ * route in the app at 904 KB — and it is only needed if a host actually turns
+ * on spoken narration. Importing it here meant every player who opened the
+ * lobby paid for it, including the ones who never enable audio.
+ *
+ * The two call sites below are already async, so awaiting the import costs
+ * nothing beyond the first narration.
+ */
+type GenAiModule = typeof import("@google/genai");
+
+let genAiModule: Promise<GenAiModule> | null = null;
+
+function loadGenAi(): Promise<GenAiModule> {
+  genAiModule ??= import("@google/genai");
+  return genAiModule;
+}
 
 const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -103,6 +121,7 @@ export class SpeechService {
       for (const text of GAME_SCRIPTS) {
         if (this.audioCache.has(text)) continue;
 
+        const { GoogleGenAI, Modality } = await loadGenAi();
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-preview-tts",
@@ -190,6 +209,7 @@ export class SpeechService {
     }
 
     try {
+      const { GoogleGenAI, Modality } = await loadGenAi();
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",

@@ -150,7 +150,7 @@ function LifeLobby({ room, me, busy, error, onAdd, onRemove, onStart, onLeave, o
     <div className="life-seats">{room.players.map((player, index) => <article key={player.id} style={{ "--player": player.color }}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer driver" : "Human driver"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemove(player.id)}><X /></button> : <i>✓</i>}</article>)}</div>
     {isHost && room.players.length < 6 && <button className="life-add-bot" disabled={busy} onClick={onAdd}><Bot /> Add computer player</button>}
     <div className={`life-ready ${room.players.length >= 2 ? "yes" : ""}`}><strong>{room.players.length}/6 drivers</strong><span>{room.players.length >= 2 ? "The road is open" : "Add one more player to begin"}</span></div>
-    {isHost ? <button className="life-primary life-start" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Start the journey</button> : <p className="life-wait">Waiting for {room.players[0].name} to start…</p>}
+    {isHost ? <button className="life-primary life-start" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Start game</button> : <p className="life-wait">Waiting for {room.players[0].name} to start…</p>}
     <button className="life-quiet" onClick={onLeave}>Leave room</button>{error && <p className="life-form-error">{error}</p>}
   </section></main>;
 }

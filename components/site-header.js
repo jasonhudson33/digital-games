@@ -2,109 +2,72 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Search } from "lucide-react";
 
-const games = [
-  { name: "All Games", href: "/" },
-  { name: "BANG!", href: "/bang" },
-  { name: "7-Up", href: "/seven-up" },
-  { name: "Catan", href: "/catan" },
-  { name: "Cover Your Assets", href: "/cover-your-assets" },
-  { name: "DOS", href: "/dos" },
-  { name: "Flip 7", href: "/flip-7" },
-  { name: "Hand & Foot", href: "/hand-and-foot" },
-  { name: "Hearts", href: "/hearts" },
-  { name: "Killer Bunnies", href: "/killer-bunnies" },
-  { name: "Update KB Cards", href: "/killer-bunnies/cards" },
-  { name: "Life", href: "/life" },
-  { name: "Mafia", href: "/mafia" },
-  { name: "Monopoly", href: "/monopoly" },
-  { name: "No Thanks!", href: "/no-thanks" },
-  { name: "Pinochle", href: "/pinochle" },
-  { name: "Qwirkle", href: "/qwirkle" },
-  { name: "Risk", href: "/risk" },
-  { name: "Scum", href: "/scum" },
-  { name: "Secret Hitler", href: "/secret-hitler" },
-  { name: "Sequence", href: "/sequence" },
-  { name: "Skull King", href: "/skull-king" },
-  { name: "Splendor", href: "/splendor" },
-  { name: "Spyrium", href: "/spyrium" },
-  { name: "Ticket to Ride", href: "/ticket-to-ride" },
-  { name: "UNO", href: "/uno" },
-];
+import CommandPalette from "./command-palette";
+import { getGame } from "../lib/games";
 
+/*
+ * The header used to carry the whole catalogue: a 26-item flat dropdown that,
+ * on a phone, was a scrolling column inside a scrolling page. A header's job is
+ * to say where you are and let you get somewhere else — not to be the index.
+ *
+ * So: brand, the game you are currently in, and one way to find another.
+ */
 export default function SiteHeader() {
   const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuContainerRef = useRef(null);
-  const menuButtonRef = useRef(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+
+  // Route changes should never leave the palette hanging open.
+  useEffect(() => setPaletteOpen(false), [pathname]);
 
   useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-
-    function closeOnOutsideClick(event) {
-      if (!menuContainerRef.current?.contains(event.target)) {
-        setMenuOpen(false);
+    function onKeyDown(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
       }
     }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
-    function closeOnEscape(event) {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        menuButtonRef.current?.focus();
-      }
-    }
-
-    document.addEventListener("pointerdown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
+  const currentGame = getGame(pathname?.split("/").filter(Boolean)[0] ?? "");
 
   return (
-    <header className="site-header">
-      <div className="site-header-inner" ref={menuContainerRef}>
-        <Link href="/" className="site-brand">
-          Digital Games
-        </Link>
-        <button
-          ref={menuButtonRef}
-          type="button"
-          className="site-menu-toggle"
-          aria-expanded={menuOpen}
-          aria-controls="site-nav"
-          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-        <nav
-          id="site-nav"
-          className={`site-nav ${menuOpen ? "open" : ""}`}
-          aria-label="Game navigation"
-        >
-          {games.map((game) => (
-            <Link
-              key={game.href}
-              href={game.href}
-              className="site-nav-link"
-              aria-current={pathname === game.href ? "page" : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              {game.name}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </header>
+    <>
+      <header className="site-header">
+        <div className="site-header-inner">
+          <Link href="/" className="site-brand">
+            <span className="site-brand-mark" aria-hidden="true">DG</span>
+            Digital Games
+          </Link>
+
+          {currentGame && (
+            <span className="site-current">
+              <span className="site-current-dot" aria-hidden="true" style={{ "--h": currentGame.hue }} />
+              {currentGame.name}
+            </span>
+          )}
+
+          <button
+            type="button"
+            className="site-find"
+            onClick={() => setPaletteOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={paletteOpen}
+          >
+            <Search aria-hidden="true" />
+            <span className="site-find-label">Find game</span>
+            <kbd className="site-find-key">⌘K</kbd>
+          </button>
+        </div>
+      </header>
+
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
+    </>
   );
 }

@@ -129,7 +129,6 @@ export default function KillerBunniesClient() {
     window.history.replaceState(null, "", "/killer-bunnies");
   }
 
-  if (!ready) return <main className="kb-app"><div className="kb-loading">Opening the burrow…</div></main>;
   if (!game) return <Welcome name={playerName} setName={setPlayerName} joinCode={joinCode} setJoinCode={setJoinCode} busy={busy} error={error} onCreate={createRoom} onJoin={joinRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
   if (game.phase === "lobby") return <Lobby game={game} error={error} busy={busy} copied={copied} onCopy={copyInvite} onAction={action} onLeave={leaveRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
 
@@ -151,7 +150,7 @@ function Welcome({ name, setName, joinCode, setJoinCode, busy, error, onCreate, 
           <div className="kb-room-actions">
             <button className="kb-primary" type="button" disabled={busy} onClick={onCreate}><Plus size={18} /> Create a room</button>
             <div className="kb-join">
-              <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && onJoin()} maxLength={5} placeholder="CODE" aria-label="Room code" />
+              <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && onJoin()} maxLength={5} placeholder="ROOM CODE" aria-label="Room code" />
               <button type="button" disabled={busy} onClick={onJoin}><Users size={17} /> Join</button>
             </div>
           </div>

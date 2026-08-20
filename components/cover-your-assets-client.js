@@ -47,40 +47,26 @@ import {
   topSet,
   yieldChallenge,
 } from "../lib/cover-your-assets";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "cover-your-assets-player-id";
 const playerNameKey = "cover-your-assets-player-name";
 const activeRoomKey = "cover-your-assets-active-room";
 
 export default function CoverYourAssetsClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: CoverYourAssetsRoomService,
+    storageKey: "cover-your-assets",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: MAX_PLAYERS,
+  });
   const [selected, setSelected] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    CoverYourAssetsRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return CoverYourAssetsRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const computerToAct = useMemo(() => {
     if (room?.phase !== "playing") return null;
@@ -108,65 +94,6 @@ export default function CoverYourAssetsClient() {
       window.clearTimeout(timer);
     };
   }, [computerToAct?.id, room?.updatedAt, room?.pendingChallenge?.played?.length, playerId]);
-
-  async function createRoom() {
-    if (!name.trim()) return setError("Enter your name first.");
-    setBusy(true);
-    setError("");
-    try {
-      const roomCode = await CoverYourAssetsRoomService.createCode();
-      rememberRoom(await CoverYourAssetsRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode)));
-    } catch (caught) {
-      setError(caught.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) return setError("Enter your name and a room code.");
-    setBusy(true);
-    setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await CoverYourAssetsRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= MAX_PLAYERS) throw new Error("That room is full.");
-        rememberRoom(await CoverYourAssetsRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else {
-        rememberRoom(loaded);
-      }
-    } catch (caught) {
-      setError(caught.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return null;
-    setBusy(true);
-    setError("");
-    try {
-      const next = await CoverYourAssetsRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-      setSelected([]);
-      return next;
-    } catch (caught) {
-      setError(caught.message);
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
@@ -301,7 +228,7 @@ function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart
     <div className="cya-seat-grid">{room.players.map((player, index) => <div className="cya-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer rival" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}</div>
     {isHost && room.players.length < MAX_PLAYERS && <button className="cya-add-computer" disabled={busy} onClick={onAddComputer}><Bot /> Add computer rival</button>}
     <div className={`cya-ready-note ${canStart ? "ready" : ""}`}><strong>{room.players.length} / {MAX_PLAYERS} seats</strong><span>{canStart ? "The table is ready to play" : "Add at least one rival"}</span></div>
-    {isHost ? <button className="cya-primary cya-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Deal the cards</button> : <p className="cya-waiting">Waiting for {room.players[0].name} to deal…</p>}
+    {isHost ? <button className="cya-primary cya-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="cya-waiting">Waiting for {room.players[0].name} to deal…</p>}
     <button className="cya-quiet" onClick={onLeave}>Leave room</button>{error && <p className="cya-form-error">{error}</p>}
   </section></main>;
 }

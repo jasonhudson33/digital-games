@@ -26,6 +26,7 @@ import {
   startGame,
   validPaymentColors,
 } from "../lib/ticket-to-ride";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "ticket-to-ride-player-id";
 const playerNameKey = "ticket-to-ride-player-name";
@@ -48,36 +49,21 @@ const ROUTE_BENDS = new Map([
 ]);
 
 export default function TicketToRideClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: TicketToRideRoomService,
+    storageKey: "ticket-to-ride",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: 5,
+  });
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [openingSelection, setOpeningSelection] = useState([]);
   const [ticketSelection, setTicketSelection] = useState([]);
   const [showTickets, setShowTickets] = useState(true);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    TicketToRideRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return TicketToRideRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const computerToAct = room?.phase === "choosing-destinations"
@@ -105,48 +91,6 @@ export default function TicketToRideClient() {
       window.clearTimeout(timer);
     };
   }, [computerToAct?.id, playerId, room?.phase, room?.updatedAt]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await TicketToRideRoomService.createCode();
-      const next = createLobby({ id: playerId, name: name.trim(), color: PLAYER_COLORS[0] }, roomCode);
-      const saved = await TicketToRideRoomService.save(next);
-      rememberRoom(saved);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await TicketToRideRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 5) throw new Error("That room is full.");
-        const joined = await TicketToRideRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() }));
-        rememberRoom(joined);
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return;
-    setBusy(true); setError("");
-    try {
-      const next = await TicketToRideRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this room and return to the Ticket to Ride home screen? You can rejoin with the room code.")) return;

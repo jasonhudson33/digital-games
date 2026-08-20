@@ -21,43 +21,29 @@ import {
   startGame,
   validateMove,
 } from "../lib/qwirkle";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "qwirkle-player-id";
 const playerNameKey = "qwirkle-player-name";
 const activeRoomKey = "qwirkle-active-room";
 
 export default function QwirkleClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: QwirkleRoomService,
+    storageKey: "qwirkle",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: 4,
+  });
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [staged, setStaged] = useState([]);
   const [exchangeMode, setExchangeMode] = useState(false);
   const [exchangeIds, setExchangeIds] = useState([]);
-  const [busy, setBusy] = useState(false);
   const [thinking, setThinking] = useState(false);
-  const [error, setError] = useState("");
   const [showRules, setShowRules] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    QwirkleRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return QwirkleRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const activePlayer = room ? currentPlayer(room) : null;
@@ -83,46 +69,6 @@ export default function QwirkleClient() {
     }, 700);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [computerToAct?.id, playerId, room?.phase, room?.turnNumber]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await QwirkleRoomService.createCode();
-      rememberRoom(await QwirkleRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode)));
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await QwirkleRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 4) throw new Error("That room is full.");
-        rememberRoom(await QwirkleRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return null;
-    setBusy(true); setError("");
-    try {
-      const next = await QwirkleRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-      return next;
-    } catch (caught) { setError(caught.message); return null; } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;

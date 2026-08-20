@@ -1,3 +1,16 @@
+/* ── Route surface ──────────────────────────────────────────────────────────
+ * This game paints light panels rather than its own page ground, so it pins the
+ * ground explicitly. Without this a dark OS preference would put near-black
+ * behind cream panels — the game is a light room by design.
+ */
+:root {
+  --route-surface: #f1f2f5;
+  --route-ink: #0e1015;
+  --route-muted: rgba(14, 16, 21, 0.62);
+  --route-line: rgba(14, 16, 21, 0.13);
+  --route-chip: #ffffff;
+}
+
 .f7-landing,
 .f7-lobby,
 .f7-game-shell {
@@ -8,7 +21,7 @@
   --f7-blue: #2673e8;
   --f7-cream: #fff8e6;
   color: var(--f7-ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .f7-landing button,
@@ -22,10 +35,10 @@
 .f7-landing { width: min(1200px, calc(100% - 28px)); margin: 0 auto; padding: 30px 0 54px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(310px, .68fr); gap: 20px; }
 .f7-hero, .f7-entry-card, .f7-lobby-card { border: 1px solid rgba(21, 29, 49, .13); border-radius: 30px; box-shadow: 0 28px 70px rgba(22, 30, 50, .14); }
 .f7-hero { position: relative; min-height: 640px; padding: clamp(36px, 6vw, 76px); overflow: hidden; color: white; background: radial-gradient(circle at 80% 20%, rgba(255, 211, 78, .28), transparent 25%), radial-gradient(circle at 12% 78%, rgba(38, 115, 232, .4), transparent 34%), repeating-linear-gradient(-28deg, transparent 0 38px, rgba(255,255,255,.025) 38px 40px), linear-gradient(145deg, #263451 0%, #151d31 58%, #101628 100%); }
-.f7-hero::before { content: "7"; position: absolute; right: -25px; bottom: -170px; color: rgba(255,255,255,.035); font: 1000 38rem/.85 Impact, sans-serif; transform: rotate(6deg); }
+.f7-hero::before { content: "7"; position: absolute; right: -25px; bottom: -170px; color: rgba(255,255,255,.035); font: 1000 38rem/.85 var(--font-poster); transform: rotate(6deg); }
 .f7-hero-copy { position: relative; z-index: 2; max-width: 620px; }
 .f7-hero .f7-kicker { color: var(--f7-yellow); }
-.f7-hero h1 { margin: 18px 0 0; font: 950 clamp(4.1rem, 8vw, 7.4rem)/.78 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; letter-spacing: -.045em; text-transform: uppercase; }
+.f7-hero h1 { margin: 18px 0 0; font: 950 clamp(4.1rem, 8vw, 7.4rem)/.78 var(--font-poster); letter-spacing: -.045em; text-transform: uppercase; }
 .f7-hero h1 em { color: var(--f7-red); font-style: normal; }
 .f7-hero-copy > p:not(.f7-kicker) { max-width: 48ch; margin: 28px 0 0; color: #d7ddeb; font-size: 1.08rem; line-height: 1.65; }
 .f7-facts { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 28px; }
@@ -59,7 +72,7 @@
 .f7-lobby { width: min(900px, calc(100% - 28px)); margin: 0 auto; padding: 34px 0 58px; }
 .f7-lobby-card { padding: clamp(25px, 5vw, 48px); background: rgba(255,253,246,.96); }
 .f7-lobby-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-.f7-lobby-card h1 { margin: 8px 0 5px; font: 950 clamp(2.7rem, 7vw, 5rem)/.9 Impact, sans-serif; letter-spacing: -.025em; text-transform: uppercase; }
+.f7-lobby-card h1 { margin: 8px 0 5px; font: 950 clamp(2.7rem, 7vw, 5rem)/.9 var(--font-poster); letter-spacing: -.025em; text-transform: uppercase; }
 .f7-lobby-card h1 button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; color: var(--f7-red); background: transparent; cursor: pointer; }
 .f7-lobby-card h1 svg { width: 25px; }
 .f7-lobby-card header p:last-child { color: #697285; }
@@ -82,11 +95,11 @@
 .f7-game-shell { width: min(1500px, calc(100% - 20px)); margin: 0 auto; padding: 14px 0 42px; }
 .f7-game-header { display: flex; align-items: center; gap: 9px; padding: 11px 13px; border: 1px solid rgba(21,29,49,.12); border-radius: 18px; background: rgba(255,253,246,.93); box-shadow: 0 10px 30px rgba(21,29,49,.08); }
 .f7-brand-lockup { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-.f7-seven { display: grid; place-items: center; width: 44px; height: 49px; border-radius: 11px; color: white; background: var(--f7-red); font: 950 2.1rem/.9 Impact, sans-serif; transform: rotate(-4deg); }
+.f7-seven { display: grid; place-items: center; width: 44px; height: 49px; border-radius: 11px; color: white; background: var(--f7-red); font: 950 2.1rem/.9 var(--font-poster); transform: rotate(-4deg); }
 .f7-brand-lockup p, .f7-brand-lockup h1 { margin: 0; }
 .f7-brand-lockup p { color: #6f7787; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.f7-brand-lockup h1 { font: 950 1.6rem/.95 Impact, sans-serif; letter-spacing: .02em; text-transform: uppercase; }
-.f7-turn-callout, .f7-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 9px 12px; border-radius: 11px; }
+.f7-brand-lockup h1 { font: 950 1.6rem/.95 var(--font-poster); letter-spacing: .02em; text-transform: uppercase; }
+.f7-turn-callout, .f7-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 9px 12px; border-radius: 11px; }
 .f7-turn-callout { color: #596277; background: #edf0f4; font-size: .78rem; font-weight: 900; }
 .f7-turn-callout.mine { color: white; background: var(--f7-blue); }
 .f7-turn-callout svg, .f7-header-button svg { width: 16px; }
@@ -131,7 +144,7 @@
 .f7-card::after { content: ""; position: absolute; width: 72px; height: 72px; right: -38px; bottom: -38px; border: 2px solid rgba(255,255,255,.18); border-radius: 50%; box-shadow: 0 0 0 9px rgba(255,255,255,.05), 0 0 0 18px rgba(255,255,255,.035); }
 .f7-number-card small { align-self: flex-start; font-size: .6em; font-weight: 950; }
 .f7-number-card small:last-child { align-self: flex-end; transform: rotate(180deg); }
-.f7-number-card strong { font: 950 2.3em/.8 Impact, sans-serif; text-shadow: 0 2px 0 rgba(0,0,0,.12); }
+.f7-number-card strong { font: 950 2.3em/.8 var(--font-poster); text-shadow: 0 2px 0 rgba(0,0,0,.12); }
 .f7-number-card.tone-0 { background: linear-gradient(145deg, #ef4e3d, #bf3027); }
 .f7-number-card.tone-1 { background: linear-gradient(145deg, #f49b35, #d16a21); }
 .f7-number-card.tone-2 { background: linear-gradient(145deg, #ffd34e, #dda51d); color: #1b2941; }
@@ -140,7 +153,7 @@
 .f7-number-card.tone-5 { background: linear-gradient(145deg, #8a62d7, #5a3aa7); }
 .f7-modifier-card { justify-content: center; gap: 4px; background: linear-gradient(145deg, #26334d, #11182a); }
 .f7-modifier-card small { color: var(--f7-yellow); font-size: .42em; font-weight: 900; letter-spacing: .1em; }
-.f7-modifier-card strong { font: 950 1.65em Impact, sans-serif; }
+.f7-modifier-card strong { font: 950 1.65em var(--font-poster); }
 .f7-modifier-card span { font-size: .36em; font-weight: 800; }
 .f7-chance-card { justify-content: center; gap: 2px; color: #15365a; background: linear-gradient(145deg, #eef8ff, #a7d6fa); }
 .f7-chance-card svg { width: 42%; height: auto; }
@@ -148,14 +161,14 @@
 .f7-chance-card span { color: #2972ac; }
 .f7-card-back { justify-content: center; gap: 1px; color: white; background: repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 8px, transparent 8px 16px), linear-gradient(145deg, #ef5947, #ca3028); }
 .f7-card-back span { font-size: 1rem; font-weight: 950; letter-spacing: .08em; }
-.f7-card-back b { font: 950 5.5rem/.8 Impact, sans-serif; }
+.f7-card-back b { font: 950 5.5rem/.8 var(--font-poster); }
 .f7-card-back small { font-size: .65rem; font-weight: 800; }
 
 .f7-table-center { display: grid; grid-template-columns: minmax(180px,.7fr) 230px minmax(230px,1fr); align-items: stretch; gap: 11px; margin-top: 11px; }
 .f7-round-meter, .f7-table-log { padding: 16px; border-radius: 18px; color: #f3f6ff; background: linear-gradient(150deg, #222e49, #121a2c); box-shadow: 0 12px 30px rgba(18,26,44,.17); }
 .f7-round-meter .f7-kicker, .f7-table-log .f7-kicker { color: #aebbd3; }
 .f7-round-meter strong, .f7-round-meter span, .f7-round-meter small { display: block; }
-.f7-round-meter strong { font: 950 3.1rem/.9 Impact, sans-serif; color: var(--f7-yellow); }
+.f7-round-meter strong { font: 950 3.1rem/.9 var(--font-poster); color: var(--f7-yellow); }
 .f7-round-meter span { margin-top: 4px; color: #d5dceb; font-size: .75rem; font-weight: 800; }
 .f7-progress { height: 7px; margin: 16px 0 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
 .f7-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--f7-red), var(--f7-yellow)); }
@@ -182,7 +195,7 @@
 .f7-stay-button small, .f7-flip-button small { font-size: .62rem; font-weight: 700; opacity: .78; }
 
 .f7-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(13,18,31,.76); backdrop-filter: blur(7px); }
-.f7-rules-modal, .f7-round-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
+.f7-rules-modal, .f7-round-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
 .f7-modal-close { position: absolute; top: 15px; right: 15px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 11px; color: #596277; background: #eceef1; cursor: pointer; }
 .f7-modal-close svg { width: 19px; }
 .f7-rules-modal h2, .f7-round-modal h2 { margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.05em; }

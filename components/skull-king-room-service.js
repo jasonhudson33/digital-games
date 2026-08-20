@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const SkullKingRoomService = {
   async create(name) {
     return postJson("/api/skull-king/rooms", { name });
@@ -29,25 +31,12 @@ export const SkullKingRoomService = {
   },
 
   subscribe(roomCode, token, handler) {
-    let stopped = false;
-    let lastUpdatedAt = 0;
-    const poll = async () => {
-      try {
-        const state = await SkullKingRoomService.load(roomCode, token);
-        if (!stopped && state.updatedAt > lastUpdatedAt) {
-          lastUpdatedAt = state.updatedAt;
-          handler(state);
-        }
-      } catch {
-        // A temporary polling failure should not eject a player from the room.
-      }
-    };
-    void poll();
-    const intervalId = window.setInterval(poll, 1200);
-    return () => {
-      stopped = true;
-      window.clearInterval(intervalId);
-    };
+    // Pauses on hidden tabs and backs off while the room is quiet.
+    // See lib/room-poll.js for why 1.2s forever was expensive.
+    return createRoomPoll({
+      load: () => SkullKingRoomService.load(roomCode, token),
+      onState: handler,
+    });
   },
 };
 

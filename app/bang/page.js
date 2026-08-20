@@ -1,10 +1,8 @@
 import BangClient from "../../components/bang-client";
 import "./bang.css";
+import { gameMetadata } from "../../lib/metadata";
 
-export const metadata = {
-  title: "BANG! | Digital Games",
-  description: "Play the western hidden-role card game in a private room with friends or computer players.",
-};
+export const metadata = gameMetadata("bang");
 
 export default function BangPage() {
   return <BangClient />;

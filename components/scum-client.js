@@ -168,9 +168,6 @@ export default function ScumClient() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  if (!isReady) {
-    return <main className="scum-app scum-intro-shell"><div className="scum-room-loading">Setting the table…</div></main>;
-  }
 
   if (!game) {
     return (
@@ -194,7 +191,7 @@ export default function ScumClient() {
                 />
               </label>
               <button type="button" className="scum-primary" disabled={busy} onClick={createRoom}>
-                <Plus size={18} /> Create room
+                <Plus size={18} /> Create a room
               </button>
               <div className="scum-entry-divider"><span>or join a room</span></div>
               <div className="scum-join-row">

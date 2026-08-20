@@ -50,42 +50,28 @@ import {
   useBuilding,
   useEvent,
 } from "../lib/spyrium";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "spyrium-player-id";
 const playerNameKey = "spyrium-player-name";
 const activeRoomKey = "spyrium-active-room";
 
 export default function SpyriumClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: SpyriumRoomService,
+    storageKey: "spyrium",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: 5,
+  });
   const [showRules, setShowRules] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
   const [actionCard, setActionCard] = useState(null);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    SpyriumRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return SpyriumRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
@@ -103,45 +89,6 @@ export default function SpyriumClient() {
   }, [botNeedsAction, actor?.id, playerId, room?.updatedAt]);
 
   useEffect(() => { setSelectedWorker(null); setSelectedCard(null); setActionCard(null); }, [room?.currentPlayerIndex, room?.round]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await SpyriumRoomService.createCode();
-      rememberRoom(await SpyriumRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode)));
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await SpyriumRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 5) throw new Error("That room is full.");
-        rememberRoom(await SpyriumRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return;
-    setBusy(true); setError("");
-    try {
-      const next = await SpyriumRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this industrial concern? You can return later with the same room code.")) return;
@@ -234,7 +181,7 @@ export default function SpyriumClient() {
 }
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
-  return <main className="spyrium-landing"><section className="spyrium-hero"><div className="spyrium-hero-copy"><p className="spyrium-kicker">A Victorian worker-placement game</p><h1>SPYR<span>IUM</span></h1><p>Mine a miraculous crystal. Recruit brilliant minds. Build an industrial empire in the smoke and splendor of an alternate London.</p><div className="spyrium-features"><span><Users /> 2–5 players</span><span><Bot /> Computer rivals</span><span><History /> Six rounds</span></div></div><div className="spyrium-machine" aria-hidden="true"><div className="spyrium-orbit orbit-one" /><div className="spyrium-orbit orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div></section><section className="spyrium-entry-card"><div className="spyrium-entry-seal"><Gem /></div><p className="spyrium-kicker">The Royal Exchange</p><h2>Found your company</h2><p>Create a private room, invite other industrialists, or fill the board with calculating automata.</p><label>Your industrialist name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="e.g. Ada Steam" /></label><button className="spyrium-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="spyrium-divider"><span>or join a concern</span></div><div className="spyrium-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="CODE" /><button disabled={busy} onClick={joinRoom}>Join <ChevronRight /></button></div>{error && <p className="spyrium-form-error">{error}</p>}<a className="spyrium-official-link" href="https://cdn.1j1ju.com/medias/be/9c/01-spyrium-rulebook.pdf" target="_blank" rel="noreferrer"><ScrollText /> Read the rulebook</a></section></main>;
+  return <main className="spyrium-landing"><section className="spyrium-hero"><div className="spyrium-hero-copy"><p className="spyrium-kicker">A Victorian worker-placement game</p><h1>SPYR<span>IUM</span></h1><p>Mine a miraculous crystal. Recruit brilliant minds. Build an industrial empire in the smoke and splendor of an alternate London.</p><div className="spyrium-features"><span><Users /> 2–5 players</span><span><Bot /> Computer rivals</span><span><History /> Six rounds</span></div></div><div className="spyrium-machine" aria-hidden="true"><div className="spyrium-orbit orbit-one" /><div className="spyrium-orbit orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div></section><section className="spyrium-entry-card"><div className="spyrium-entry-seal"><Gem /></div><p className="spyrium-kicker">The Royal Exchange</p><h2>Found your company</h2><p>Create a private room, invite other industrialists, or fill the board with calculating automata.</p><label>Your industrialist name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="e.g. Ada Steam" /></label><button className="spyrium-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="spyrium-divider"><span>or join a concern</span></div><div className="spyrium-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join <ChevronRight /></button></div>{error && <p className="spyrium-form-error">{error}</p>}<a className="spyrium-official-link" href="https://cdn.1j1ju.com/medias/be/9c/01-spyrium-rulebook.pdf" target="_blank" rel="noreferrer"><ScrollText /> Read the rulebook</a></section></main>;
 }
 
 function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave }) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const HandFootRoomService = {
   async create(name) {
     return postJson("/api/hand-and-foot/rooms", { name });
@@ -29,25 +31,12 @@ export const HandFootRoomService = {
   },
 
   subscribe(roomCode, token, handler) {
-    let stopped = false;
-    let lastUpdatedAt = 0;
-    const poll = async () => {
-      try {
-        const state = await HandFootRoomService.load(roomCode, token);
-        if (!stopped && state.updatedAt > lastUpdatedAt) {
-          lastUpdatedAt = state.updatedAt;
-          handler(state);
-        }
-      } catch {
-        // Temporary polling failures should not remove a player from the room.
-      }
-    };
-    void poll();
-    const intervalId = window.setInterval(poll, 1200);
-    return () => {
-      stopped = true;
-      window.clearInterval(intervalId);
-    };
+    // Pauses on hidden tabs and backs off while the room is quiet.
+    // See lib/room-poll.js for why 1.2s forever was expensive.
+    return createRoomPoll({
+      load: () => HandFootRoomService.load(roomCode, token),
+      onState: handler,
+    });
   },
 };
 

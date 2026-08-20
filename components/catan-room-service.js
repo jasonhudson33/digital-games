@@ -1,12 +1,13 @@
 "use client";
 
-import { getConfiguredSupabaseClient, subscribeToRoomState } from "../lib/supabase-room-sync";
+import { getConfiguredSupabaseClient, isSupabaseConfigured, subscribeToRoomState } from "../lib/supabase-room-sync";
 import { migrateCatanRoomState } from "./catan-state-migrations.js";
 
 const channelName = "catan-room-updates";
 
-const supabase = getConfiguredSupabaseClient();
-export const isCatanOnlineSyncEnabled = Boolean(supabase);
+// Whether online sync is available is an env question and stays synchronous;
+// the client itself is built on first use so the SDK is not in the initial load.
+export const isCatanOnlineSyncEnabled = isSupabaseConfigured();
 
 export const CatanRoomService = {
   async createCode() {
@@ -19,6 +20,7 @@ export const CatanRoomService = {
 
   async save(state) {
     const next = migrateCatanRoomState(state);
+    const supabase = await getConfiguredSupabaseClient();
     if (supabase) {
       const { error } = await supabase.from("catan_rooms").upsert({
         code: next.roomCode,
@@ -35,6 +37,7 @@ export const CatanRoomService = {
 
   async update(roomCode, updater) {
     const code = roomCode.trim().toUpperCase();
+    const supabase = await getConfiguredSupabaseClient();
     if (!supabase) {
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const current = (await loadLocalRoom(code)) ?? loadCachedRoom(code);
@@ -83,6 +86,7 @@ export const CatanRoomService = {
   async load(roomCode) {
     const code = roomCode.trim().toUpperCase();
     if (!code) return null;
+    const supabase = await getConfiguredSupabaseClient();
     if (supabase) {
       const { data, error } = await supabase.from("catan_rooms").select("state").eq("code", code).maybeSingle();
       if (error) throw error;
@@ -93,7 +97,6 @@ export const CatanRoomService = {
 
   subscribe(roomCode, handler) {
     return subscribeToRoomState({
-      supabase,
       roomCode,
       table: "catan_rooms",
       channelPrefix: "catan",

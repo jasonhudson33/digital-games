@@ -130,7 +130,6 @@ export default function SecretHitlerClient() {
     window.setTimeout(() => setCopied(false), 1500);
   }
 
-  if (!ready) return <main className="sh-app sh-loading">Preparing the table…</main>;
   if (!game) return <Landing {...{ playerName, setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }} />;
   if (game.phase === "lobby") return <Lobby {...{ game, action, copyInvite, copied, leaveRoom, busy, error, rulesOpen, setRulesOpen }} />;
 
@@ -162,7 +161,7 @@ function Landing({ playerName, setPlayerName, joinCode, setJoinCode, createRoom,
           <button className="sh-primary" type="button" disabled={busy} onClick={createRoom}><Plus size={18} /> Create a room</button>
           <div className="sh-divider"><span>or join an existing table</span></div>
           <div className="sh-join-row">
-            <input aria-label="Room code" value={joinCode} maxLength={5} placeholder="ROOM" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
+            <input aria-label="Room code" value={joinCode} maxLength={5} placeholder="ROOM CODE" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
             <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>
           </div>
           {error && <p className="sh-form-error" role="alert">{error}</p>}

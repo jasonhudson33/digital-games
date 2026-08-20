@@ -256,9 +256,6 @@ export default function HandAndFootClient() {
     ));
   }
 
-  if (!isReady) {
-    return <main className="hf-app hf-intro-shell"><div className="hf-room-loading">Setting the table…</div></main>;
-  }
 
   if (!game) {
     return (
@@ -294,7 +291,7 @@ export default function HandAndFootClient() {
             <p className="hf-seat-note"><Users size={16} /> Your chosen teammate will sit directly across from you in the turn order.</p>
             <div className="hf-entry-divider"><span>or use a shared room</span></div>
             <div className="hf-room-entry">
-              <button type="button" className="hf-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create room</button>
+              <button type="button" className="hf-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create a room</button>
               <div className="hf-join-row">
                 <input
                   value={joinCode}
