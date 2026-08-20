@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const PinochleRoomService = {
   async create(name) {
     return postJson("/api/pinochle/rooms", { name });

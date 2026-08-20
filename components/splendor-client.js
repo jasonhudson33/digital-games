@@ -23,6 +23,7 @@ import {
   takePairTokens,
   tokenCount,
 } from "../lib/splendor";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "splendor-player-id";
 const playerNameKey = "splendor-player-name";
@@ -36,35 +37,20 @@ const cardArt = {
 };
 
 export default function SplendorClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: SplendorRoomService,
+    storageKey: "splendor",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: 4,
+  });
   const [selectedGems, setSelectedGems] = useState([]);
   const [returns, setReturns] = useState({});
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    SplendorRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return SplendorRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
@@ -87,46 +73,6 @@ export default function SplendorClient() {
   useEffect(() => {
     setSelectedGems([]);
   }, [room?.currentPlayerIndex, room?.turnNumber]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await SplendorRoomService.createCode();
-      const saved = await SplendorRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode));
-      rememberRoom(saved);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await SplendorRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 4) throw new Error("That room is full.");
-        rememberRoom(await SplendorRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return;
-    setBusy(true); setError("");
-    try {
-      const next = await SplendorRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this table? You can return later with the same room code.")) return;

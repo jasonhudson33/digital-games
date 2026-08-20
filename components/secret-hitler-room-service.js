@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const SecretHitlerRoomService = {
   create(name) {
     return postJson("/api/secret-hitler/rooms", { name });

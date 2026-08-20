@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const HandFootRoomService = {
   async create(name) {
     return postJson("/api/hand-and-foot/rooms", { name });

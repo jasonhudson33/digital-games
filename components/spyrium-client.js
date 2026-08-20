@@ -50,42 +50,28 @@ import {
   useBuilding,
   useEvent,
 } from "../lib/spyrium";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "spyrium-player-id";
 const playerNameKey = "spyrium-player-name";
 const activeRoomKey = "spyrium-active-room";
 
 export default function SpyriumClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: SpyriumRoomService,
+    storageKey: "spyrium",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: 5,
+  });
   const [showRules, setShowRules] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
   const [actionCard, setActionCard] = useState(null);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    SpyriumRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return SpyriumRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
@@ -103,45 +89,6 @@ export default function SpyriumClient() {
   }, [botNeedsAction, actor?.id, playerId, room?.updatedAt]);
 
   useEffect(() => { setSelectedWorker(null); setSelectedCard(null); setActionCard(null); }, [room?.currentPlayerIndex, room?.round]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await SpyriumRoomService.createCode();
-      rememberRoom(await SpyriumRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode)));
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await SpyriumRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 5) throw new Error("That room is full.");
-        rememberRoom(await SpyriumRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return;
-    setBusy(true); setError("");
-    try {
-      const next = await SpyriumRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this industrial concern? You can return later with the same room code.")) return;

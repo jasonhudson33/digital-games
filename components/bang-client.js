@@ -29,40 +29,26 @@ import {
   useSidKetchum,
   weaponRange,
 } from "../lib/bang";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "bang-player-id";
 const playerNameKey = "bang-player-name";
 const activeRoomKey = "bang-active-room";
 
 export default function BangClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: BangRoomService,
+    storageKey: "bang",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: MAX_PLAYERS,
+  });
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [sidCards, setSidCards] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [showRules, setShowRules] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    BangRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return BangRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current);
-    });
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const botNeedsAction = room?.phase === "playing" && (
@@ -76,46 +62,6 @@ export default function BangClient() {
     const timer = window.setTimeout(() => update((current) => runComputerStep(current)), 560);
     return () => window.clearTimeout(timer);
   }, [botNeedsAction, playerId, room?.pending?.responderId, room?.turnIndex, room?.turnPhase, room?.updatedAt]);
-
-  async function createRoom() {
-    if (!name.trim()) { setError("Enter your name first."); return; }
-    setBusy(true); setError("");
-    try {
-      const roomCode = await BangRoomService.createCode();
-      rememberRoom(await BangRoomService.save(createLobby({ id: playerId, name: name.trim() }, roomCode)));
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) { setError("Enter your name and a room code."); return; }
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await BangRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= MAX_PLAYERS) throw new Error("That room is full.");
-        rememberRoom(await BangRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else rememberRoom(loaded);
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function rememberRoom(next) {
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return null;
-    setBusy(true); setError("");
-    try {
-      const next = await BangRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-      return next;
-    } catch (caught) { setError(caught.message); return null; } finally { setBusy(false); }
-  }
 
   function leaveRoom() {
     localStorage.removeItem(activeRoomKey);

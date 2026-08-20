@@ -33,45 +33,25 @@ import {
   startGame,
   takeCard,
 } from "../lib/no-thanks";
+import { useGameRoom } from "../lib/use-game-room.js";
 
 const playerIdKey = "no-thanks-player-id";
 const playerNameKey = "no-thanks-player-name";
 const activeRoomKey = "no-thanks-active-room";
 
 export default function NoThanksClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
+    busy, setBusy, error, setError, createRoom, joinRoom, update,
+  } = useGameRoom({
+    service: NoThanksRoomService,
+    storageKey: "no-thanks",
+    createLobby: createLobby,
+    addPlayer: addPlayer,
+    maxPlayers: MAX_PLAYERS,
+  });
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(playerIdKey) || crypto.randomUUID();
-    localStorage.setItem(playerIdKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(playerNameKey) || "");
-    const activeCode = localStorage.getItem(activeRoomKey);
-    if (!activeCode) return;
-    NoThanksRoomService.load(activeCode)
-      .then((loaded) => {
-        if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return NoThanksRoomService.subscribe(room.roomCode, (next) => {
-      setRoom((current) =>
-        !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0)
-          ? next
-          : current,
-      );
-    });
-  }, [room?.roomCode]);
 
   const computerToAct = useMemo(() => {
     if (room?.phase !== "playing") return null;
@@ -98,73 +78,6 @@ export default function NoThanksClient() {
       window.clearTimeout(timer);
     };
   }, [computerToAct?.id, room?.updatedAt, playerId]);
-
-  async function createRoom() {
-    if (!name.trim()) return setError("Enter your name first.");
-    setBusy(true);
-    setError("");
-    try {
-      const roomCode = await NoThanksRoomService.createCode();
-      rememberRoom(
-        await NoThanksRoomService.save(
-          createLobby({ id: playerId, name: name.trim() }, roomCode),
-        ),
-      );
-    } catch (caught) {
-      setError(caught.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) return setError("Enter your name and a room code.");
-    setBusy(true);
-    setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await NoThanksRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= MAX_PLAYERS) throw new Error("That room is full.");
-        rememberRoom(
-          await NoThanksRoomService.update(code, (current) =>
-            addPlayer(current, { id: playerId, name: name.trim() }),
-          ),
-        );
-      } else {
-        rememberRoom(loaded);
-      }
-    } catch (caught) {
-      setError(caught.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function rememberRoom(next) {
-    if (!next) return;
-    localStorage.setItem(playerNameKey, name.trim());
-    localStorage.setItem(activeRoomKey, next.roomCode);
-    setRoom(next);
-  }
-
-  async function update(action) {
-    if (!room) return null;
-    setBusy(true);
-    setError("");
-    try {
-      const next = await NoThanksRoomService.update(room.roomCode, action);
-      if (next) setRoom(next);
-      return next;
-    } catch (caught) {
-      setError(caught.message);
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }
 
   function leaveRoom() {
     if (

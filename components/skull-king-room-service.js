@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const SkullKingRoomService = {
   async create(name) {
     return postJson("/api/skull-king/rooms", { name });

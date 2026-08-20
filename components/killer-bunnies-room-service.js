@@ -1,5 +1,7 @@
 "use client";
 
+import { createRoomPoll } from "../lib/room-poll.js";
+
 export const KillerBunniesRoomService = {
   async create(name) {
     return postJson("/api/killer-bunnies/rooms", { name });
