@@ -152,7 +152,7 @@
 .cya-table-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border: 1px solid rgba(23,41,33,.12); border-radius: 20px; background: rgba(255,252,243,.9); box-shadow: 0 12px 34px rgba(32,40,27,.09); }
 .cya-table-header > div:first-child { margin-right: auto; }
 .cya-table-header h1 { font: 600 clamp(1.7rem, 3vw, 2.5rem)/1 var(--font-display); }
-.cya-turn-pill, .cya-icon-button { min-height: 40px; padding: 9px 13px; border-radius: 12px; }
+.cya-turn-pill, .cya-icon-button { min-height: 44px; padding: 9px 13px; border-radius: 12px; }
 .cya-turn-pill { display: flex; align-items: center; gap: 7px; color: #5c675f; background: #ebeae1; font-weight: 800; }
 .cya-turn-pill.mine { color: #fff7e5; background: #b94736; }
 .cya-turn-pill svg, .cya-icon-button svg { width: 16px; }
@@ -254,7 +254,7 @@
 .cya-challenge-actions .cya-primary { color: #60331d; background: #f0c65f; box-shadow: none; }
 
 .cya-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(9,26,20,.78); backdrop-filter: blur(10px); }
-.cya-rules-modal, .cya-round-modal { position: relative; width: min(920px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: clamp(24px, 5vw, 46px); border-radius: 26px; background: #fffaf0; box-shadow: 0 30px 90px rgba(0,0,0,.28); }
+.cya-rules-modal, .cya-round-modal { position: relative; width: min(920px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); overflow-y: auto; padding: clamp(24px, 5vw, 46px); border-radius: 26px; background: #fffaf0; box-shadow: 0 30px 90px rgba(0,0,0,.28); }
 .cya-modal-close { position: absolute; top: 17px; right: 17px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: #ece9df; cursor: pointer; }
 .cya-rules-modal > h1, .cya-round-modal > h1 { font: 600 clamp(2.2rem, 5vw, 4rem)/.98 var(--font-display); }
 .cya-rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 11px; margin-top: 26px; }

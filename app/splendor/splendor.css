@@ -36,7 +36,7 @@
 
 .splendor-landing {
   width: min(1180px, calc(100% - 28px));
-  min-height: calc(100vh - 78px);
+  min-height: calc(100vh - 78px); min-height: calc(100dvh - 78px);
   margin: 0 auto;
   padding: 32px 0 50px;
   display: grid;
@@ -127,7 +127,7 @@
 .splendor-official-link svg { width: 15px; }
 .splendor-form-error { color: #a53c3f !important; font-size: .82rem; font-weight: 700; }
 
-.splendor-lobby { min-height: calc(100vh - 76px); padding: 36px 14px 54px; display: grid; place-items: center; }
+.splendor-lobby { min-height: calc(100vh - 76px); min-height: calc(100dvh - 76px); padding: 36px 14px 54px; display: grid; place-items: center; }
 .splendor-lobby-card { position: relative; width: min(620px, 100%); padding: 46px; border-radius: 34px; text-align: center; background: rgba(255,253,247,.98); }
 .splendor-lobby-seal { width: 72px; height: 72px; margin: -83px auto 24px; border: 7px solid #f4efe4; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--sp-deep); box-shadow: 0 12px 30px rgba(25,61,55,.22); }
 .splendor-lobby-seal svg { width: 30px; }
@@ -158,7 +158,7 @@
 .splendor-turn.mine { color: #fff; background: #1d5d53; }
 .splendor-turn > span { width: 9px; height: 9px; border-radius: 50%; }
 .splendor-turn svg { width: 15px; }
-.splendor-code, .splendor-icon-button, .splendor-leave { min-height: 36px; padding: 7px 11px; border: 1px solid var(--sp-line); border-radius: 11px; display: flex; align-items: center; gap: 6px; color: #59635f; background: #fff; font-size: .72rem; font-weight: 800; cursor: pointer; }
+.splendor-code, .splendor-icon-button, .splendor-leave { min-height: 44px; padding: 7px 11px; border: 1px solid var(--sp-line); border-radius: 11px; display: flex; align-items: center; gap: 6px; color: #59635f; background: #fff; font-size: .72rem; font-weight: 800; cursor: pointer; }
 .splendor-code svg, .splendor-icon-button svg, .splendor-leave svg { width: 15px; height: 15px; }
 .splendor-icon-button { padding: 7px 10px; }
 .splendor-final-banner { margin: 0 0 12px; padding: 10px 16px; border: 1px solid rgba(185,132,46,.25); border-radius: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #78571f; background: #fbf1d7; font-size: .8rem; font-weight: 800; }
@@ -247,7 +247,7 @@
 .splendor-card-cost i { width: 20px; height: 20px; border-width: 2px; border-color: rgba(255,255,255,.55); font-size: .58rem; }
 .splendor-card-status { grid-column: 1 / -1; margin-top: 1px; color: var(--card-muted, rgba(255,255,255,.65)); font-size: .43rem; font-weight: 800; text-transform: uppercase; }
 .splendor-dev-card.affordable .splendor-card-status { color: var(--card-affordable-status, #ffe29a); }
-.splendor-reserve-button { position: absolute; right: 5px; bottom: 5px; min-height: 24px; padding: 4px 6px; border: 1px solid rgba(51,57,54,.15); border-radius: 7px; display: flex; align-items: center; gap: 3px; color: #5f625e; background: rgba(255,255,255,.88); font-size: .48rem; font-weight: 900; cursor: pointer; }
+.splendor-reserve-button { position: absolute; right: 5px; bottom: 5px; min-height: 44px; padding: 4px 6px; border: 1px solid rgba(51,57,54,.15); border-radius: 7px; display: flex; align-items: center; gap: 3px; color: #5f625e; background: rgba(255,255,255,.88); font-size: .48rem; font-weight: 900; cursor: pointer; }
 .splendor-reserve-button svg { width: 10px; }
 .splendor-reserve-button:disabled { opacity: .35; cursor: not-allowed; }
 
@@ -294,7 +294,7 @@
 .splendor-reserved-list { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(120px, 180px)); gap: 9px; }
 
 .splendor-overlay { position: fixed; z-index: 100; inset: 0; padding: 20px; display: grid; place-items: center; background: rgba(12,30,27,.72); backdrop-filter: blur(7px); }
-.splendor-modal, .splendor-results { width: min(680px, 100%); max-height: calc(100vh - 40px); padding: 34px; overflow-y: auto; border: 1px solid rgba(255,255,255,.4); border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.34); text-align: center; }
+.splendor-modal, .splendor-results { width: min(680px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); padding: 34px; overflow-y: auto; border: 1px solid rgba(255,255,255,.4); border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.34); text-align: center; }
 .splendor-modal h2, .splendor-results h2 { margin: 0; font-family: var(--font-ui); font-size: 2rem; }
 .splendor-modal > p:not(.splendor-kicker), .splendor-results > p:not(.splendor-kicker) { color: var(--sp-muted); font-family: var(--font-ui); line-height: 1.55; }
 .splendor-return-grid { margin: 20px 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }

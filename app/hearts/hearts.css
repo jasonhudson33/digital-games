@@ -18,7 +18,7 @@
   --ink: #171a17;
   --felt: #123d32;
   --felt-light: #1a5444;
-  min-height: calc(100vh - 74px);
+  min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px);
   color: var(--ink);
   font-family: var(--font-ui);
 }
@@ -32,7 +32,7 @@
 
 .hearts-intro {
   width: min(1180px, calc(100% - 40px));
-  min-height: calc(100vh - 74px);
+  min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px);
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1.06fr) minmax(390px, 0.94fr);
@@ -336,7 +336,7 @@
 
 /* Game table */
 .hearts-game-shell {
-  min-height: calc(100vh - 74px);
+  min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px);
   padding: 18px;
   color: #f8f4e9;
   background: #091d18;
@@ -381,7 +381,7 @@
 .hearts-gamebar small { margin-top: 3px; color: rgba(248, 244, 233, .58); font-size: .73rem; }
 
 .gamebar-actions button {
-  min-height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -668,7 +668,7 @@
 .pass-callout small { margin-top: 4px; color: #767b73; }
 .pass-callout button {
   width: 100%;
-  min-height: 39px;
+  min-height: 44px;
   margin-top: 12px;
   color: white;
   border: 0;
@@ -749,7 +749,7 @@
 .round-dialog {
   position: relative;
   width: min(520px, 100%);
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px);
   overflow: auto;
   padding: 32px;
   color: #252a25;

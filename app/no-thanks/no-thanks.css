@@ -95,7 +95,7 @@
 .nt-brand-lockup p, .nt-brand-lockup h1 { margin: 0; }
 .nt-brand-lockup p { color: #777181; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .nt-brand-lockup h1 { font: 950 1.55rem/.95 var(--font-poster); letter-spacing: .02em; text-transform: uppercase; }
-.nt-turn-callout, .nt-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 9px 12px; border-radius: 11px; }
+.nt-turn-callout, .nt-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 9px 12px; border-radius: 11px; }
 .nt-turn-callout { color: #676073; background: #eeecf1; font-size: .78rem; font-weight: 900; }
 .nt-turn-callout.mine { color: white; background: var(--nt-violet); }
 .nt-turn-callout svg, .nt-header-button svg { width: 16px; }
@@ -166,7 +166,7 @@
 .nt-pass-button small, .nt-take-button small { font-size: .62rem; font-weight: 700; opacity: .8; }
 
 .nt-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(28,23,45,.78); backdrop-filter: blur(7px); }
-.nt-rules-modal, .nt-results-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf8; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
+.nt-rules-modal, .nt-results-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf8; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
 .nt-modal-close { position: absolute; top: 15px; right: 15px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 11px; color: #696172; background: #efecf1; cursor: pointer; }
 .nt-modal-close svg { width: 19px; }
 .nt-rules-modal h2, .nt-results-modal h2 { margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.05em; }

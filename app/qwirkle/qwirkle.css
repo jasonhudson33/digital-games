@@ -38,7 +38,7 @@
 .qwirkle-mark i:nth-child(5) { background: #3a86ff; }
 .qwirkle-mark i:nth-child(6) { background: #a855f7; }
 
-.qwirkle-landing { width: min(1180px, calc(100% - 28px)); min-height: calc(100vh - 76px); margin: 0 auto; padding: 30px 0 50px; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, .7fr); gap: 22px; align-items: stretch; }
+.qwirkle-landing { width: min(1180px, calc(100% - 28px)); min-height: calc(100vh - 76px); min-height: calc(100dvh - 76px); margin: 0 auto; padding: 30px 0 50px; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, .7fr); gap: 22px; align-items: stretch; }
 .qwirkle-hero, .qwirkle-entry, .qwirkle-lobby-card, .qwirkle-sidebar, .qwirkle-board-panel, .qwirkle-rack { border: 1px solid var(--qw-line); box-shadow: 0 24px 64px rgba(24, 27, 34, .12); }
 .qwirkle-hero { position: relative; min-height: 630px; padding: clamp(38px, 6vw, 74px); overflow: hidden; border-radius: 34px; display: flex; align-items: flex-end; color: white; background: radial-gradient(circle at 75% 15%, rgba(58,134,255,.16), transparent 25%), radial-gradient(circle at 15% 25%, rgba(239,71,111,.11), transparent 30%), linear-gradient(145deg, #242833, #11131a); }
 .qwirkle-hero::before { content: ""; position: absolute; inset: 0; opacity: .16; background-image: linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px); background-size: 58px 58px; mask-image: linear-gradient(to bottom, black, transparent 80%); }
@@ -71,7 +71,7 @@
 .qwirkle-rules-link svg { width: 15px; }
 .qwirkle-form-error { color: #b13e53 !important; font-size: .78rem; font-weight: 800; }
 
-.qwirkle-lobby { min-height: calc(100vh - 76px); padding: 48px 14px; display: grid; place-items: center; }
+.qwirkle-lobby { min-height: calc(100vh - 76px); min-height: calc(100dvh - 76px); padding: 48px 14px; display: grid; place-items: center; }
 .qwirkle-lobby-card { width: min(650px, 100%); padding: 44px; border-radius: 32px; text-align: center; background: rgba(255,253,248,.98); }
 .qwirkle-lobby-card > .qwirkle-mark { width: 55px; height: 55px; margin: 0 auto 20px; }
 .qwirkle-lobby-card h1 { margin: 0; font-size: 2.25rem; letter-spacing: -.04em; }
@@ -90,7 +90,7 @@
 .qwirkle-add-bot { margin: 14px auto 0; border: 0; display: flex; align-items: center; gap: 7px; color: #137b73; background: none; font-size: .8rem; font-weight: 850; cursor: pointer; }
 .qwirkle-add-bot svg { width: 17px; }
 .qwirkle-lobby-actions { margin-top: 21px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.qwirkle-lobby-actions > button:not(.qwirkle-primary) { min-height: 42px; padding: 8px 12px; border: 1px solid var(--qw-line); border-radius: 11px; display: flex; align-items: center; gap: 6px; color: #636771; background: white; font-weight: 750; cursor: pointer; }
+.qwirkle-lobby-actions > button:not(.qwirkle-primary) { min-height: 44px; padding: 8px 12px; border: 1px solid var(--qw-line); border-radius: 11px; display: flex; align-items: center; gap: 6px; color: #636771; background: white; font-weight: 750; cursor: pointer; }
 .qwirkle-lobby-actions > button svg { width: 16px; }
 .qwirkle-lobby-actions > .qwirkle-primary { flex: 1; }
 .qwirkle-lobby-actions p { flex: 1; color: var(--qw-muted); font-size: .8rem; }
@@ -104,7 +104,7 @@
 .qwirkle-turn.mine { color: white; background: #10877d; }
 .qwirkle-turn > span { width: 9px; height: 9px; border-radius: 50%; }
 .qwirkle-turn svg { width: 15px; }
-.qwirkle-table-header > button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--qw-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #61656f; background: white; font-size: .7rem; font-weight: 800; cursor: pointer; }
+.qwirkle-table-header > button { min-height: 44px; padding: 7px 10px; border: 1px solid var(--qw-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #61656f; background: white; font-size: .7rem; font-weight: 800; cursor: pointer; }
 .qwirkle-table-header > button svg { width: 15px; }
 .qwirkle-error { margin: 0 0 11px; padding: 10px 14px; border-radius: 11px; color: #9e3347; background: #f8e2e6; font-size: .77rem; font-weight: 800; }
 .qwirkle-layout { display: grid; grid-template-columns: 245px minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -154,7 +154,7 @@
 .qwirkle-move-status strong { font-size: .76rem; }
 .qwirkle-move-status span { color: rgba(255,255,255,.48); font-size: .58rem; }
 .qwirkle-move-status.ready strong { color: #70e1d6; }
-.qwirkle-move-status > button:not(.qwirkle-primary) { min-height: 40px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,.65); background: rgba(255,255,255,.05); font-size: .65rem; font-weight: 800; cursor: pointer; }
+.qwirkle-move-status > button:not(.qwirkle-primary) { min-height: 44px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,.65); background: rgba(255,255,255,.05); font-size: .65rem; font-weight: 800; cursor: pointer; }
 .qwirkle-move-status > button svg { width: 15px; }
 .qwirkle-move-status .qwirkle-primary { min-height: 40px; font-size: .7rem; }
 
@@ -163,7 +163,7 @@
 .qwirkle-rack-heading h2 { margin: 0; font-size: 1rem; }
 .qwirkle-rack-heading .qwirkle-kicker { margin-bottom: 1px; font-size: .53rem; }
 .qwirkle-rack-actions { display: flex; gap: 7px; }
-.qwirkle-rack-actions > button:not(.qwirkle-primary) { min-height: 37px; padding: 7px 10px; border: 1px solid var(--qw-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #666a73; background: white; font-size: .66rem; font-weight: 800; cursor: pointer; }
+.qwirkle-rack-actions > button:not(.qwirkle-primary) { min-height: 44px; padding: 7px 10px; border: 1px solid var(--qw-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #666a73; background: white; font-size: .66rem; font-weight: 800; cursor: pointer; }
 .qwirkle-rack-actions svg { width: 14px; }
 .qwirkle-rack-actions .qwirkle-primary { min-height: 37px; font-size: .68rem; }
 .qwirkle-hand { margin-top: 10px; display: flex; justify-content: center; gap: 9px; }

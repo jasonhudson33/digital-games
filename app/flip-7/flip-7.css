@@ -99,7 +99,7 @@
 .f7-brand-lockup p, .f7-brand-lockup h1 { margin: 0; }
 .f7-brand-lockup p { color: #6f7787; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .f7-brand-lockup h1 { font: 950 1.6rem/.95 var(--font-poster); letter-spacing: .02em; text-transform: uppercase; }
-.f7-turn-callout, .f7-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 9px 12px; border-radius: 11px; }
+.f7-turn-callout, .f7-header-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 9px 12px; border-radius: 11px; }
 .f7-turn-callout { color: #596277; background: #edf0f4; font-size: .78rem; font-weight: 900; }
 .f7-turn-callout.mine { color: white; background: var(--f7-blue); }
 .f7-turn-callout svg, .f7-header-button svg { width: 16px; }
@@ -195,7 +195,7 @@
 .f7-stay-button small, .f7-flip-button small { font-size: .62rem; font-weight: 700; opacity: .78; }
 
 .f7-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(13,18,31,.76); backdrop-filter: blur(7px); }
-.f7-rules-modal, .f7-round-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
+.f7-rules-modal, .f7-round-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf7; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
 .f7-modal-close { position: absolute; top: 15px; right: 15px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 11px; color: #596277; background: #eceef1; cursor: pointer; }
 .f7-modal-close svg { width: 19px; }
 .f7-rules-modal h2, .f7-round-modal h2 { margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.05em; }

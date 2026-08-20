@@ -20,7 +20,7 @@
 
 @layer base {
   .mafia-route {
-    min-height: 100vh;
+    min-height: 100vh; min-height: 100dvh;
     padding: 32px 16px;
     background:
       radial-gradient(circle at top, rgba(79, 70, 229, 0.12), transparent 28%),
