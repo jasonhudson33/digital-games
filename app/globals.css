@@ -784,6 +784,8 @@
   transform: translateX(3px);
 }
 
+/* Page header used by the seven-up route. */
+.hero {
   display: flex;
   justify-content: space-between;
   gap: 16px;
