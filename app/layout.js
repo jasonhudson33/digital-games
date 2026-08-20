@@ -1,6 +1,7 @@
 import Script from "next/script";
 import { Anton, Inter, Space_Grotesk } from "next/font/google";
 
+import DialogFocusManager from "../components/dialog-focus";
 import SiteHeader from "../components/site-header";
 import "./tokens.css";
 import "./globals.css";
@@ -54,8 +55,17 @@ export default function RootLayout({ children }) {
       className={`${inter.variable} ${spaceGrotesk.variable} ${anton.variable}`}
     >
       <body>
+        {/* First tab stop on every route. Without it a keyboard or switch user
+            walks the whole header before reaching the game. */}
+        <a className="skip-link" href="#main">Skip to content</a>
         <SiteHeader />
-        {children}
+        {/* One wrapper so the skip link has a reliable target on every route.
+            Each page still renders its own <main>; no page CSS selects on
+            body > *, so an extra block-level wrapper is layout-neutral. */}
+        <div id="main" tabIndex={-1}>
+          {children}
+        </div>
+        <DialogFocusManager />
         <Script src="/vendor.cardmeister.full.js" strategy="afterInteractive" />
       </body>
     </html>

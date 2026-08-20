@@ -223,6 +223,31 @@ body {
   background: var(--accent-soft);
 }
 
+/* Visible only when focused — the first tab stop on every page. */
+.skip-link {
+  position: absolute;
+  left: var(--sp-3);
+  top: -60px;
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--step--1);
+  font-weight: 600;
+  transition: top var(--dur) var(--ease);
+}
+
+.skip-link:focus {
+  top: var(--sp-3);
+}
+
+/* The skip target should not draw a focus ring when it receives focus
+   programmatically — the user asked to jump here, not to select it. */
+#main:focus {
+  outline: none;
+}
+
 /* Screen-reader-only, for the labels sighted users get from context. */
 .visually-hidden {
   position: absolute;

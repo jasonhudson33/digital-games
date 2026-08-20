@@ -103,6 +103,7 @@ export default function CommandPalette({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="Find a game"
+        data-focus-managed=""
         ref={panelRef}
         tabIndex={-1}
       >
