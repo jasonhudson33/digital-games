@@ -5,10 +5,16 @@ import {
   KILLER_BUNNIES_CARD_COUNTS,
   buyKillerBunniesShopItem,
   chooseKillerBunniesCarrot,
+  chooseKillerBunniesBlueRollTarget,
   chooseKillerBunniesDefectorTarget,
   chooseKillerBunniesMisfortuneTarget,
   chooseKillerBunniesModifierTarget,
+  chooseKillerBunniesNumber,
+  chooseKillerBunniesPlayerTarget,
+  chooseKillerBunniesRevivedBunny,
+  chooseKillerBunniesRoamingTarget,
   chooseKillerBunniesTarget,
+  chooseKillerBunniesUtilityBunnyTarget,
   chooseInitialKillerBunniesRun,
   createKillerBunniesGame,
   drawKillerBunniesPile,
@@ -18,13 +24,18 @@ import {
   getKillerBunniesExtraRunStatus,
   getKillerBunniesCloverReduction,
   getKillerBunniesShopItemStatus,
+  getKillerBunniesSupplyUnits,
   playSavedKillerBunniesSpecial,
   playTopRun,
   replaceBottomRun,
   resolveKillerBunniesDefense,
+  resolveKillerBunniesAreaWeaponRoll,
+  resolveKillerBunniesBlueCardRoll,
+  resolveKillerBunniesBlueSpecialRoll,
   resolveKillerBunniesDefectorRoll,
   resolveKillerBunniesImmediateCard,
   resolveKillerBunniesManualCard,
+  resolveKillerBunniesRoamingRoll,
   resolveKillerBunniesSpecialChoice,
   runKillerBunniesComputers,
 } from "../lib/killer-bunnies.js";
@@ -463,6 +474,171 @@ test("Lumbering Bunny built-in Clovers contribute to Weapon reduction", () => {
   assert.equal(getKillerBunniesCloverReduction(bunny("Pink Lumbering Bunny", "pink", "pink")), 5);
 });
 
+test("Cabbage and Water use the official card denominations and are spent as units", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(200),
+  });
+  assert.deepEqual([...game.cabbageSupply].map((card) => card.units).sort((a, b) => a - b), [1, 1, 1, 1, 1, 2, 2, 2, 2, 5, 5, 10]);
+  assert.deepEqual([...game.waterSupply].map((card) => card.units).sort((a, b) => a - b), [1, 1, 1, 1, 1, 2, 2, 2, 2, 5, 5, 10]);
+
+  const target = bunny("Well Supplied Bunny", "blue", "supplied-bunny");
+  game.players[1].bunnies = [target];
+  game.players[1].cabbage = [{ id: "cabbage-five", units: 5 }];
+  game.players[1].water = [{ id: "water-five", units: 5 }];
+  game.players[1].feedingObligations = [{
+    id: "feed-three", bunnyId: target.id,
+    card: { id: "feed-three-card", name: "Feed 3", cabbageCost: 3, waterCost: 3 },
+  }];
+  game.currentPlayerIndex = 1;
+  game.phase = "replace";
+  game.players[1].hand = [plainRun("unit-replacement")];
+  game = replaceBottomRun(game, 1, "unit-replacement");
+
+  assert.equal(getKillerBunniesSupplyUnits(game.players[1], "cabbage"), 2);
+  assert.equal(getKillerBunniesSupplyUnits(game.players[1], "water"), 2);
+  assert.equal(game.cabbageDiscard[0].units, 5);
+  assert.equal(game.waterDiscard[0].units, 5);
+});
+
+test("Heavenly Halo blocks weapons, hunger, and Terrible Misfortune", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(201),
+  });
+  const protectedBunny = bunny("Halo Bunny", "yellow", "halo-bunny");
+  protectedBunny.modifiers = [createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(58))];
+  game.players[1].bunnies = [protectedBunny];
+  game.phase = "target";
+  game.pendingAction = { playerIndex: 0, effect: "weapon", card: { id: "halo-weapon", name: "Weapon", kind: "weapon", power: 12 } };
+  game = chooseKillerBunniesTarget(game, 0, 1, protectedBunny.id);
+  assert.equal(game.players[1].bunnies.length, 1);
+  assert.match(game.message, /Halo blocked/);
+
+  game.phase = "immediateTarget";
+  game.pendingAction = { playerIndex: 0, effect: "terribleMisfortune", targetScope: "opponent", card: { id: "misfortune", name: "Terrible Misfortune" } };
+  assert.throws(() => chooseKillerBunniesMisfortuneTarget(game, 0, protectedBunny.id, 1), /vulnerable/);
+});
+
+test("range weapons follow the ordered Bunny Circle and each owner rolls", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }, { name: "Lin" }],
+    random: seededRandom(202),
+  });
+  const circle = [bunny("A", "blue", "circle-a"), bunny("B", "green", "circle-b"), bunny("C", "orange", "circle-c"), bunny("D", "red", "circle-d")];
+  game.players[0].bunnies = [circle[0]];
+  game.players[1].bunnies = [circle[1], circle[3]];
+  game.players[2].bunnies = [circle[2]];
+  game.bunnyCircle = circle.map((entry) => entry.id);
+  game.phase = "target";
+  game.pendingAction = { playerIndex: 0, effect: "weapon", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(131)) };
+
+  game = chooseKillerBunniesTarget(game, 0, 1, circle[1].id);
+  assert.equal(game.phase, "areaWeaponRoll");
+  assert.deepEqual(game.pendingAction.affected.map((entry) => entry.bunnyId).sort(), ["circle-a", "circle-b", "circle-c"]);
+  assert.equal(game.pendingAction.affected.find((entry) => entry.bunnyId === "circle-b").power, 10);
+  assert.ok(game.pendingAction.affected.filter((entry) => entry.bunnyId !== "circle-b").every((entry) => entry.power === 9));
+  while (game.phase === "areaWeaponRoll") {
+    game = resolveKillerBunniesAreaWeaponRoll(game, game.pendingAction.playerIndex, () => 0.99);
+  }
+  assert.equal(game.players.flatMap((player) => player.bunnies).length, 4, "all bunnies survive rolls of 12 against levels 10 and 9");
+});
+
+test("Carrot Top Casino makes the selected bunny owner roll and applies matching dice", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(203),
+  });
+  game = programAllPlayers(game);
+  const cardPlayerIndex = game.currentPlayerIndex;
+  const targetPlayerIndex = (cardPlayerIndex + 1) % 2;
+  const target = bunny("Casino Bunny", "green", "casino-bunny");
+  game.players[cardPlayerIndex].bunnies = [bunny("Required Bunny", "blue", "casino-required")];
+  game.players[targetPlayerIndex].bunnies = [target];
+  game.players[cardPlayerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(66));
+
+  game = playTopRun(game, cardPlayerIndex, seededRandom(204));
+  game = resolveKillerBunniesSpecialChoice(game, cardPlayerIndex, "use", seededRandom(205));
+  game = chooseKillerBunniesBlueRollTarget(game, cardPlayerIndex, targetPlayerIndex, target.id);
+  assert.equal(game.pendingAction.playerIndex, targetPlayerIndex);
+  game = resolveKillerBunniesBlueCardRoll(game, targetPlayerIndex, () => 0);
+  assert.equal(game.players[targetPlayerIndex].bunnies.length, 0, "five matching dice eliminate the target");
+  assert.equal(game.phase, "draw");
+});
+
+test("Bad Karma persists until the chosen player launches a weapon at their own bunny", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(206),
+  });
+  game.phase = "playerTarget";
+  game.pendingAction = { playerIndex: 0, effect: "playerTarget", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(51)) };
+  game = chooseKillerBunniesPlayerTarget(game, 0, 1);
+  assert.equal(game.players[1].badKarma, true);
+
+  const own = bunny("Karma Bunny", "red", "karma-bunny");
+  game.players[1].bunnies = [own];
+  game.phase = "target";
+  game.pendingAction = { playerIndex: 1, effect: "weapon", allowOwnTarget: true, card: { id: "karma-weapon", name: "Weapon", kind: "weapon", power: 1 } };
+  game = chooseKillerBunniesTarget(game, 1, 1, own.id);
+  assert.equal(game.players[1].badKarma, false);
+});
+
+test("Area 51 returns the previous abductee, strips attachments, and abducts one bunny at a time", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(207) });
+  const first = bunny("First Abductee", "blue", "area-first");
+  const second = bunny("Second Abductee", "green", "area-second");
+  second.modifiers = [createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(61))];
+  game.players[0].bunnies = [first];
+  game.players[1].bunnies = [second];
+  game.bunnyCircle = [first.id, second.id];
+  game.phase = "utilityBunnyTarget";
+  game.pendingAction = { playerIndex: 0, effect: "utilityBunnyTarget", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(49)) };
+  game = chooseKillerBunniesUtilityBunnyTarget(game, 0, 1, second.id);
+  assert.equal(game.area51Abducted.bunny.id, second.id);
+  assert.equal(game.area51Abducted.bunny.modifiers.length, 0);
+
+  game.phase = "utilityBunnyTarget";
+  game.pendingAction = { playerIndex: 1, effect: "utilityBunnyTarget", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(50)) };
+  game = chooseKillerBunniesUtilityBunnyTarget(game, 1, 0, first.id);
+  assert.ok(game.players[1].bunnies.some((entry) => entry.id === second.id), "the first abductee returns to its owner");
+  assert.equal(game.area51Abducted.bunny.id, first.id);
+});
+
+test("The Magic Fountain rolls five dice and revives one discarded bunny per match", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(208) });
+  const fountain = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(76));
+  const discarded = bunny("Revived Bunny", "orange", "revived-bunny");
+  game.discardPile.push(discarded);
+  game.phase = "numberChoice";
+  game.pendingAction = { playerIndex: 0, effect: "magicFountain", card: fountain };
+  game = chooseKillerBunniesNumber(game, 0, 1);
+  game = resolveKillerBunniesBlueSpecialRoll(game, 0, () => 0);
+  assert.equal(game.phase, "reviveBunny");
+  assert.equal(game.pendingAction.reviveCount, 1, "revival count is capped by available discarded bunnies");
+  game = chooseKillerBunniesRevivedBunny(game, 0, discarded.id);
+  assert.ok(game.players[0].bunnies.some((entry) => entry.id === discarded.id));
+  assert.equal(game.phase, "draw");
+});
+
+test("Cyber Bunny attacks under the target owner's control and remains roaming", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(209) });
+  const own = bunny("Launch Bunny", "blue", "cyber-launch");
+  const target = bunny("Cyber Target", "green", "cyber-target");
+  game.players[0].bunnies = [own];
+  game.players[1].bunnies = [target];
+  game.bunnyCircle = [own.id, target.id];
+  game.phase = "roamingTarget";
+  game.pendingAction = { playerIndex: 0, effect: "roamingTarget", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(54)) };
+  game = chooseKillerBunniesRoamingTarget(game, 0, 1, target.id);
+  assert.equal(game.pendingAction.playerIndex, 1);
+  game = resolveKillerBunniesRoamingRoll(game, 1, () => 0.99);
+  assert.equal(game.players[1].bunnies.length, 1);
+  assert.equal(game.roamingEffects.length, 1);
+  assert.equal(game.roamingEffects[0].currentBunnyId, own.id, "Cyber Bunny moves clockwise to the next viable bunny");
+  assert.equal(game.phase, "draw");
+});
+
 test("all twenty-two optional official decks are independently modular and use exact numbered-card counts", () => {
   assert.equal(KILLER_BUNNIES_EXPANSIONS.length, 22);
   assert.equal(new Set(KILLER_BUNNIES_EXPANSIONS.map((pack) => pack.id)).size, 22);
@@ -641,20 +817,21 @@ test("documented but unautomated cards pause for a visible guided ruling", () =>
     random: seededRandom(224),
   });
   game = programAllPlayers(game);
-  const badKarma = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(51));
+  const blackCat = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(53));
+  game.players[0].bunnies.push(bunny("Required Bunny", "blue", "manual-required"));
   game.discardPile.push(game.players[0].topRun);
-  game.players[0].topRun = badKarma;
+  game.players[0].topRun = blackCat;
 
   game = playTopRun(game, 0, seededRandom(225));
   assert.equal(game.phase, "manualResolve");
-  assert.equal(game.pendingAction.card.catalogNumber, "0051");
-  assert.match(game.pendingAction.card.ability, /next Weapon/i);
+  assert.equal(game.pendingAction.card.catalogNumber, "0053");
+  assert.match(game.pendingAction.card.ability, /Clover/i);
   assert.ok(game.pendingAction.card.requirements.length > 0);
 
   game = resolveKillerBunniesManualCard(game, 0);
   assert.equal(game.phase, "draw");
   assert.equal(game.pendingAction, null);
-  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0051"), true);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0053"), true);
 });
 
 test("SPECIAL cards may be saved only after reaching TOP RUN and played later as an extra action", () => {

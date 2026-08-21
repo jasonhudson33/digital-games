@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   addComputerPlayer,
+  canPassCard,
   cardScore,
   createDeck,
   createLobby,
@@ -76,6 +77,18 @@ test("a player with no chips cannot pass", () => {
     { id: "p3", name: "Casey", isComputer: false, chips: 11, cards: [] },
   ] });
   assert.equal(passCard(game, "p1"), game);
+});
+
+test("pass eligibility requires the active player to have a chip", () => {
+  const game = playing({ players: [
+    { id: "p1", name: "Avery", isComputer: false, chips: 0, cards: [] },
+    { id: "p2", name: "Blake", isComputer: false, chips: 11, cards: [] },
+    { id: "p3", name: "Casey", isComputer: false, chips: 11, cards: [] },
+  ] });
+  assert.equal(canPassCard(game, "p1"), false);
+  assert.equal(canPassCard(game, "p2"), false);
+  assert.equal(canPassCard({ ...game, players: game.players.map((player) => player.id === "p1" ? { ...player, chips: 1 } : player) }, "p1"), true);
+  assert.equal(canPassCard({ ...game, phase: "finished" }, "p1"), false);
 });
 
 test("taking collects the card and its chips, reveals the next card, and keeps the turn", () => {

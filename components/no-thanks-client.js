@@ -22,6 +22,7 @@ import {
   MIN_PLAYERS,
   addComputerPlayer,
   addPlayer,
+  canPassCard,
   cardScore,
   createLobby,
   currentPlayer,
@@ -129,6 +130,7 @@ export default function NoThanksClient() {
 
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId;
+  const canPass = canPassCard(room, playerId);
   const statusMessage = computerThinking
     ? `${computerToAct?.name} is deciding…`
     : myTurn
@@ -186,11 +188,13 @@ export default function NoThanksClient() {
     {room.phase === "playing" && <section className={`nt-decision-dock ${myTurn ? "ready" : ""}`}>
       <div><p className="nt-kicker">The offer</p><strong>{room.activeCard} points · {room.centerChips} chips</strong><span>Taking keeps the turn and reveals the next card.</span></div>
       <div className="nt-decision-buttons">
-        <button
+        {me.chips > 0 ? <button
           className="nt-pass-button"
-          disabled={busy || !myTurn || me.chips <= 0}
+          disabled={busy || !canPass}
           onClick={() => update((current) => passCard(current, playerId))}
-        ><Ban /> No thanks <small>Pay 1 of {me.chips}</small></button>
+        ><Ban /> No thanks <small>Pay 1 of {me.chips}</small></button> : <div className="nt-must-take" aria-live="polite">
+          <Coins /><span><strong>No chips left</strong><small>Take is required</small></span>
+        </div>}
         <button
           className="nt-take-button"
           disabled={busy || !myTurn}
@@ -220,7 +224,7 @@ function PlayerBoard({ player, isMe, isTurn, finished }) {
       </div>)}
       {!runs.length && <div className="nt-empty-line">No cards collected</div>}
     </div>
-    <footer><span><Coins /> {isMe || finished ? `${player.chips} chips` : "chips hidden"}</span><span>{player.cards.length} card{player.cards.length === 1 ? "" : "s"}</span></footer>
+    <footer><span><Coins /> {player.chips} chip{player.chips === 1 ? "" : "s"}</span><span>{player.cards.length} card{player.cards.length === 1 ? "" : "s"}</span></footer>
   </article>;
 }
 

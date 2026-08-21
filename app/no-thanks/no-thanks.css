@@ -172,6 +172,11 @@
 .nt-take-button { background: linear-gradient(135deg, #ff6d99, #df416f); box-shadow: 0 8px 18px rgba(255,93,143,.23); }
 .nt-pass-button svg, .nt-take-button svg { grid-row: span 2; width: 22px; }
 .nt-pass-button small, .nt-take-button small { font-size: .62rem; font-weight: 700; opacity: .8; }
+.nt-must-take { display: flex; align-items: center; gap: 9px; min-width: 155px; min-height: 56px; padding: 8px 14px; border: 1px solid rgba(219,65,111,.2); border-radius: 13px; color: #9f2f54; background: #fde7ed; }
+.nt-must-take > svg { width: 22px; }
+.nt-must-take span { display: grid; gap: 2px; }
+.nt-must-take strong { font-size: .78rem; }
+.nt-must-take small { font-size: .62rem; font-weight: 750; }
 
 .nt-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(28,23,45,.78); backdrop-filter: blur(7px); }
 .nt-rules-modal, .nt-results-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf8; box-shadow: 0 30px 90px rgba(0,0,0,.32); }
