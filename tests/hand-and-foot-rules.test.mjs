@@ -5,6 +5,7 @@ import {
   HAND_FOOT_DRAW_PILE_SIZE,
   canPlayHandFootCards,
   chooseHandFootBotDiscard,
+  chooseHandFootBotMove,
   chooseHandFootBotPlay,
   createHandFootMatch,
   discardHandFootCard,
@@ -201,6 +202,88 @@ test("a Hand and Foot computer saves a wild when it would not finish a book", ()
   };
 
   assert.deepEqual(chooseHandFootBotPlay(game, 0), [naturalNine.id]);
+});
+
+test("a Hand and Foot computer opens a dirty non-seven meld when it can clear the rest of its pile", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const pair = [card("hand-nine-a", "clubs", 9), card("hand-nine-b", "hearts", 9)];
+  const wild = card("held-wild", "clubs", 2);
+  const discard = card("last-discard", "diamonds", 4);
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [...pair, wild, discard] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: {} }
+      : team),
+  };
+
+  assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set([...pair, wild].map((candidate) => candidate.id)));
+});
+
+test("a Hand and Foot computer does not open a dirty seven meld from a pair", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const pair = [card("hand-seven-a", "clubs", 7), card("hand-seven-b", "hearts", 7)];
+  const wild = card("held-wild", null, "joker");
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    players: base.players.map((player, index) => index === 0
+      ? { ...player, hand: [...pair, wild, card("last-discard", "diamonds", 4)] }
+      : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: {} }
+      : team),
+  };
+
+  assert.deepEqual(chooseHandFootBotPlay(game, 0), []);
+});
+
+test("a Hand and Foot computer spends a wild to finish a book when the draw supply is low", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const naturalNine = card("hand-nine", "hearts", 9);
+  const wild = card("held-wild", "clubs", 2);
+  const unrelated = Array.from({ length: 5 }, (_, index) => card(`unrelated-${index}`, "clubs", index + 4));
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    drawPile: base.drawPile.slice(0, 8),
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [naturalNine, wild, ...unrelated] } : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 9: Array.from({ length: 5 }, (_, index) => card(`laid-nine-${index}`, "diamonds", 9, index)) } }
+      : team),
+  };
+
+  assert.deepEqual(new Set(chooseHandFootBotPlay(game, 0)), new Set([naturalNine.id, wild.id]));
+});
+
+test("a Hand and Foot computer targets a six-card book with a lone wild near round end", () => {
+  const base = createHandFootMatch({ playerCount: 4 });
+  const wild = card("book-wild", null, "joker");
+  const game = {
+    ...base,
+    phase: "playing",
+    currentPlayerIndex: 0,
+    turnStage: "play",
+    drawPile: base.drawPile.slice(0, 8),
+    players: base.players.map((player, index) => index === 0
+      ? { ...player, hand: [wild, card("four", "clubs", 4), card("five", "clubs", 5), card("six", "clubs", 6)] }
+      : player),
+    teams: base.teams.map((team) => team.id === base.players[0].teamId
+      ? { ...team, opened: true, melds: { 9: Array.from({ length: 6 }, (_, index) => card(`laid-nine-${index}`, "diamonds", 9, index)) } }
+      : team),
+  };
+
+  const move = chooseHandFootBotMove(game, 0);
+  assert.deepEqual(move, { cardIds: [wild.id], targetRank: "9" });
+  const played = playHandFootCards(game, 0, move.cardIds, move.targetRank);
+  assert.equal(played.teams[base.players[0].teamId].melds[9].length, 7);
 });
 
 test("a Hand and Foot computer uses a wild to finish a book when needed to reach its foot", () => {

@@ -5,7 +5,7 @@ import {
   BookOpen, Bot, Carrot, Coins, Copy, Dices, DoorOpen, Droplets, Layers3, Library,
   Leaf, PackageOpen, Play, Plus, Rabbit, Shield, Sparkles, Store, Target, Users, X,
 } from "lucide-react";
-import { bankTotal, getKaballasMarket, getKillerBunniesCardPlayStatus, getKillerBunniesCloverReduction, getKillerBunniesExtraRunStatus, getKillerBunniesFeedingStatus, getKillerBunniesPileStatus, getKillerBunniesShopItemStatus, getKillerBunniesSupplyUnits } from "../lib/killer-bunnies";
+import { bankTotal, getKaballasMarket, getKillerBunniesCardPlayStatus, getKillerBunniesCloverCards, getKillerBunniesCloverReduction, getKillerBunniesDefenseUnits, getKillerBunniesExtraRunStatus, getKillerBunniesFeedingStatus, getKillerBunniesPileStatus, getKillerBunniesShopItemStatus, getKillerBunniesSupplyUnits } from "../lib/killer-bunnies";
 import { KILLER_BUNNIES_EXPANSIONS } from "../lib/killer-bunnies-expansions";
 import { KillerBunniesRoomService } from "./killer-bunnies-room-service";
 
@@ -210,7 +210,9 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
   const isSecondRun = yourTurn && (game.runPlaysThisTurn || 0) === 1;
   const isOpeningTurn = yourTurn && game.phase === "setupRun";
   const isTrimTurn = yourTurn && game.phase === "trimHand";
-  const canPlayTop = yourTurn && game.phase === "play" && (!isSecondRun || extraRunStatus.enabled);
+  // The server only returns to `play` after the replacement draw when the
+  // player's two-RUN qualification has survived its authoritative recheck.
+  const canPlayTop = yourTurn && game.phase === "play";
   const isTargeting = yourTurn && game.phase === "target" && !game.pendingAction?.allowOwnTarget;
   const canChooseCarrot = yourTurn && game.phase === "chooseCarrot";
   const savedSpecials = viewer.savedSpecials || [];
@@ -219,6 +221,8 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
   const mustPlaceModifier = game.phase === "modifierTarget" && game.pendingAction?.playerIndex === viewerIndex;
   const defectorPhase = ["defectorTarget", "defectorRoll", "defectorReroll"].includes(game.phase);
   const mustResolveDefector = defectorPhase && game.pendingAction?.playerIndex === viewerIndex;
+  const povertyPokerPhase = ["povertyPokerCall", "povertyPokerAnte", "povertyPokerRoll", "povertyPokerReroll"].includes(game.phase);
+  const mustResolvePovertyPoker = povertyPokerPhase && game.pendingAction?.playerIndex === viewerIndex;
   const areaWeaponPhase = game.phase === "areaWeaponRoll";
   const mustResolveAreaWeapon = areaWeaponPhase && game.pendingAction?.playerIndex === viewerIndex;
   const mustChoosePlayerTarget = game.phase === "playerTarget" && game.pendingAction?.playerIndex === viewerIndex;
@@ -234,6 +238,16 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
   const mustChooseRoamingTarget = game.phase === "roamingTarget" && game.pendingAction?.playerIndex === viewerIndex;
   const roamingRollPhase = game.phase === "roamingRoll";
   const mustResolveRoamingRoll = roamingRollPhase && game.pendingAction?.playerIndex === viewerIndex;
+  const cardDicePhase = game.phase === "cardDiceRoll";
+  const mustResolveCardDice = cardDicePhase && game.pendingAction?.playerIndex === viewerIndex;
+  const auctionPhase = ["auctionTarget", "auctionBid"].includes(game.phase);
+  const mustResolveAuction = auctionPhase && game.pendingAction?.playerIndex === viewerIndex;
+  const bunnyExchangePhase = ["bunnyExchangeGive", "bunnyExchangeTake"].includes(game.phase);
+  const mustResolveBunnyExchange = bunnyExchangePhase && game.pendingAction?.playerIndex === viewerIndex;
+  const everyoneFeedPhase = game.phase === "everyoneFeedTarget";
+  const mustChooseEveryoneFeedBunny = everyoneFeedPhase && game.pendingAction?.playerIndex === viewerIndex;
+  const blackCatPhase = ["blackCatTarget", "blackCatRoll", "blackCatRelocate"].includes(game.phase);
+  const mustResolveBlackCat = blackCatPhase && game.pendingAction?.playerIndex === viewerIndex;
   const openingTopCard = viewer.hand.find((card) => card.id === openingTopId);
   const openingBottomCard = viewer.hand.find((card) => card.id === openingBottomId);
   const topRunStatus = getKillerBunniesCardPlayStatus(viewer, viewer.topRun);
@@ -301,7 +315,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
         </div>
 
         <div className="kb-felt-center">
-          <div className={`kb-turn-message phase-${game.phase}`}><span>{game.phase === "setupRun" ? isOpeningTurn ? "PROGRAM YOUR RUN" : "OPENING SETUP" : mustDefend || mustResolveImmediate || mustPlaceModifier || mustResolveDefector || mustResolveAreaWeapon || mustChoosePlayerTarget || mustChooseUtilityBunny || mustChooseOwnWeaponTarget || mustChooseBlueRollTarget || mustResolveBlueCardRoll || mustResolveBlueSpecial || mustChooseRoamingTarget || mustResolveRoamingRoll ? "ACTION NEEDED" : yourTurn ? "YOUR TURN" : `${game.players[game.currentPlayerIndex]?.name?.toUpperCase() || "GAME"}`}</span><p>{game.message}</p>{game.lastRoll && <b>d{game.lastRoll.sides}: {game.lastRoll.value}</b>}</div>
+          <div className={`kb-turn-message phase-${game.phase}`}><span>{game.phase === "setupRun" ? isOpeningTurn ? "PROGRAM YOUR RUN" : "OPENING SETUP" : mustDefend || mustResolveImmediate || mustPlaceModifier || mustResolveDefector || mustResolvePovertyPoker || mustResolveAreaWeapon || mustChoosePlayerTarget || mustChooseUtilityBunny || mustChooseOwnWeaponTarget || mustChooseBlueRollTarget || mustResolveBlueCardRoll || mustResolveBlueSpecial || mustChooseRoamingTarget || mustResolveRoamingRoll || mustResolveCardDice || mustResolveAuction || mustResolveBunnyExchange || mustChooseEveryoneFeedBunny || mustResolveBlackCat ? "ACTION NEEDED" : yourTurn ? "YOUR TURN" : `${game.players[game.currentPlayerIndex]?.name?.toUpperCase() || "GAME"}`}</span><p>{game.message}</p>{game.lastRoll && <b>d{game.lastRoll.sides}: {game.lastRoll.value}</b>}</div>
 
           {!!game.roamingEffects?.length && <div className="kb-active-expansions" aria-label="Roaming attacks">{game.roamingEffects.map((effect) => <i key={effect.id}><Target size={12} /> {effect.card.name} waits on {game.players.flatMap((player) => player.bunnies).find((bunny) => bunny.id === effect.currentBunnyId)?.name || "the next target"}</i>)}</div>}
 
@@ -336,7 +350,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
       <section className="kb-player-mat">
         <div className="kb-your-stats">
           <div><span className="kb-avatar avatar-0">{viewer.name[0].toUpperCase()}</span><span><strong>{viewer.name}</strong><small>{yourTurn ? "You're up" : `Waiting for ${game.players[game.currentPlayerIndex]?.name}`}</small></span></div>
-          <div className="kb-resource-chips"><span><Coins /> {bankTotal(viewer)}</span><span><Leaf /> {getKillerBunniesSupplyUnits(viewer, "cabbage")}</span><span><Droplets /> {getKillerBunniesSupplyUnits(viewer, "water")}</span><span><Shield /> {viewer.shields}</span>{game.rooneysEmporium && <span><Shield /> {viewer.defenseCards?.reduce((total, card) => total + card.units, 0) || 0} DEF</span>}{game.weilsPawnShop && <span><Rabbit /> {viewer.pawns?.length || 0} pawns</span>}<span><Carrot /> {viewer.carrots.length}</span><span><Sparkles /> {savedSpecials.length}</span></div>
+          <div className="kb-resource-chips"><span><Coins /> {bankTotal(viewer)}</span><span><Leaf /> {getKillerBunniesSupplyUnits(viewer, "cabbage")}</span><span><Droplets /> {getKillerBunniesSupplyUnits(viewer, "water")}</span><span><Shield /> {viewer.shields}</span>{game.rooneysEmporium && <span><Shield /> {getKillerBunniesDefenseUnits(viewer)} DEF</span>}{game.weilsPawnShop && <span><Rabbit /> {viewer.pawns?.length || 0} pawns</span>}<span><Carrot /> {viewer.carrots.length}</span><span><Sparkles /> {savedSpecials.length}</span></div>
         </div>
 
         <FeedingObligations player={viewer} yourTurn={yourTurn} phase={game.phase} />
@@ -368,10 +382,16 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
       {error && <div className="kb-toast" role="alert">{error}</div>}
       {game.phase === "specialChoice" && game.pendingAction?.playerIndex === viewerIndex && <SpecialChoiceDialog card={game.pendingAction.card} busy={busy} onChoice={(choice) => onAction("specialChoice", { choice })} />}
       {mustDefend && <DefenseDialog pending={game.pendingAction} player={viewer} busy={busy} onChoice={(choice) => onAction("resolveDefense", { choice })} />}
-      {game.phase === "manualResolve" && game.pendingAction?.playerIndex === viewerIndex && <ManualResolutionDialog card={game.pendingAction.card} busy={busy} onConfirm={() => onAction("resolveManualCard")} />}
+      {mustResolveCardDice && <CardDiceDialog pending={game.pendingAction} busy={busy} onRoll={(choiceId) => onAction("resolveCardDiceRoll", { choiceId })} />}
+      {auctionPhase && <BunnyAuctionDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseAuctionTarget", { targetPlayerIndex, bunnyId })} onBid={(amount) => onAction("placeAuctionBid", { amount })} />}
+      {bunnyExchangePhase && <BunnyExchangeDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onGive={(bunnyId) => onAction("chooseBunnyExchangeGive", { bunnyId })} onExchange={(targetPlayerIndex, bunnyIds) => onAction("resolveBunnyExchange", { targetPlayerIndex, bunnyIds })} />}
+      {everyoneFeedPhase && <EveryoneFeedDialog pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onChoose={(bunnyId) => onAction("chooseEveryoneFeedBunny", { bunnyId })} />}
+      {blackCatPhase && <BlackCatDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseBlackCatTarget", { targetPlayerIndex, bunnyId })} onRoll={() => onAction("resolveBlackCatRoll")} onPlace={(targetPlayerIndex, bunnyId) => onAction("placeBlackCatClover", { targetPlayerIndex, bunnyId })} onDiscard={() => onAction("discardBlackCatClover")} />}
+      {game.phase === "manualResolve" && game.pendingAction?.playerIndex === viewerIndex && <ManualResolutionDialog pending={game.pendingAction} busy={busy} onRoll={(choiceId) => onAction("resolveCardDiceRoll", { choiceId })} onConfirm={() => onAction("resolveManualCard")} />}
       {mustResolveImmediate && <ImmediateCardDialog pending={game.pendingAction} player={viewer} players={game.players} viewerIndex={viewerIndex} busy={busy} onConfirm={() => onAction("resolveImmediateCard")} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseMisfortuneTarget", { targetPlayerIndex, bunnyId })} />}
       {mustPlaceModifier && <ModifierTargetDialog pending={game.pendingAction} players={game.players} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseModifierTarget", { targetPlayerIndex, bunnyId })} />}
       {defectorPhase && <DefectorDetectorDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseDefectorTarget", { targetPlayerIndex, bunnyId })} onDiscard={() => onAction("discardDefectorDetector")} onRoll={(choice) => onAction("resolveDefectorRoll", { choice })} />}
+      {povertyPokerPhase && <PovertyPokerDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onCall={(stakes) => onAction("callPovertyPoker", { stakes })} onAnte={(selections) => onAction("antePovertyPoker", { selections })} onRoll={(choice) => onAction("resolvePovertyPokerRoll", { choice })} />}
       {areaWeaponPhase && <AreaWeaponDialog pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onRoll={() => onAction("resolveAreaWeaponRoll")} />}
       {mustChoosePlayerTarget && <PlayerTargetDialog pending={game.pendingAction} players={game.players} busy={busy} onTarget={(targetPlayerIndex) => onAction("choosePlayerTarget", { targetPlayerIndex })} />}
       {mustChooseUtilityBunny && <UtilityBunnyTargetDialog pending={game.pendingAction} players={game.players} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseUtilityBunnyTarget", { targetPlayerIndex, bunnyId })} />}
@@ -417,13 +437,100 @@ function DefenseDialog({ pending, player, busy, onChoice }) {
   const cabbageUnits = getKillerBunniesSupplyUnits(player, "cabbage");
   const waterUnits = getKillerBunniesSupplyUnits(player, "water");
   const canFeed = cabbageUnits >= cabbageCost && waterUnits >= waterCost;
-  const defenseUnits = player.defenseCards?.reduce((total, card) => total + card.units, 0) || 0;
+  const defenseUnits = getKillerBunniesDefenseUnits(player);
   const effectivePower = Number.isFinite(pending.effectivePower) ? pending.effectivePower : pending.card.power;
   return <div className="kb-modal-backdrop"><section className="kb-defense-choice" role="dialog" aria-modal="true" aria-labelledby="kb-defense-title"><div className="kb-defense-cards"><GameCard card={pending.card} /><span><Target /> targets</span>{bunny && <div><MiniBunny bunny={bunny} /><b>{bunny.name}</b></div>}</div><div><span className="kb-kicker">{isWeapon ? <><Target size={15} /> Bunny under attack</> : <><Leaf size={15} /> Feeding required</>}</span><h2 id="kb-defense-title">{isWeapon ? "Defend or roll." : "Will you feed your bunny?"}</h2>{isWeapon ? <><p>This weapon succeeds on a d12 roll of <strong>{effectivePower} or lower</strong>.{pending.cloverReduction > 0 && <> Lucky Clovers reduced its printed level from <b>{pending.card.power}</b> by <b>{pending.cloverReduction}</b>. Defense Cards still use the printed level.</>} You have <b>{defenseUnits} Defense units</b>.{player.shields > 0 ? " Your burrow shield will block this attack after the roll." : ""}</p><div className="kb-defense-actions"><button className="kb-primary kb-defense-roll" type="button" disabled={busy} onClick={() => onChoice("roll")}><span>d12</span> Roll the die</button>{gameHasDefense(player) && <button type="button" disabled={busy || defenseUnits < pending.card.power} onClick={() => onChoice("defense")}><Shield size={17} /> Spend {pending.card.power} DEF</button>}</div></> : <><p><strong>{pending.card.name}</strong> requires <b>{cabbageCost} cabbage</b> and <b>{waterCost} water</b>. You currently have {cabbageUnits} cabbage units and {waterUnits} water units.</p><div className={`kb-feed-status ${canFeed ? "ready" : "short"}`}><Leaf /> {canFeed ? "You have enough supplies to feed this bunny." : "You do not have enough supplies to feed this bunny."}</div><div className="kb-defense-actions"><button className="kb-primary" type="button" disabled={busy || !canFeed} onClick={() => onChoice("feed")}><Leaf size={17} /> Feed {cabbageCost} + {waterCost}</button><button type="button" disabled={busy} onClick={() => onChoice("decline")}>{player.shields > 0 ? <><Shield size={17} /> Use burrow shield</> : <>Do not feed</>}</button></div></>}</div></section></div>;
 }
 
-function ManualResolutionDialog({ card, busy, onConfirm }) {
-  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution" role="dialog" aria-modal="true" aria-labelledby="kb-manual-title"><GameCard card={card} /><div><span className="kb-kicker"><BookOpen size={15} /> Guided card ruling</span><h2 id="kb-manual-title">Resolve {card.name}</h2><p className="kb-manual-ability">{card.ability || card.detail}</p><strong>Before playing</strong><ul>{(card.requirements || []).map((requirement) => <li key={requirement}>{requirement}</li>)}</ul><p className="kb-manual-note">This interaction is documented but not fully automated yet. Make the listed choices and state changes with the other players, then continue.</p><div><a href={`/killer-bunnies/cards?card=${card.catalogNumber || ""}`} target="_blank" rel="noreferrer"><Library size={16} /> Open card record</a><button className="kb-primary" type="button" disabled={busy} onClick={onConfirm}><CheckCircleIcon /> Mark resolved</button></div></div></section></div>;
+function CardDiceDialog({ pending, busy, onRoll }) {
+  const card = pending.card;
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-card-dice-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-card-dice-title"><GameCard card={card} /><div><span className="kb-kicker"><Dices size={15} /> Card dice action</span><h2 id="kb-card-dice-title">Roll for {card.name}</h2><p className="kb-manual-ability">{card.ability || card.detail}</p><p className="kb-manual-note">Choose the die or printed group below. The server rolls it and records the result for everyone at the table.</p><div className="kb-card-dice-actions">{pending.diceChoices.map((choice) => <button className="kb-primary" type="button" key={choice.id} disabled={busy} onClick={() => onRoll(choice.id)}><Dices size={18} /> {choice.label}</button>)}</div></div></section></div>;
+}
+
+function ManualResolutionDialog({ pending, busy, onRoll, onConfirm }) {
+  const card = pending.card;
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution" role="dialog" aria-modal="true" aria-labelledby="kb-manual-title"><GameCard card={card} /><div><span className="kb-kicker"><BookOpen size={15} /> Guided card ruling</span><h2 id="kb-manual-title">Resolve {card.name}</h2><p className="kb-manual-ability">{card.ability || card.detail}</p>{pending.diceRolls?.length > 0 && <><strong>Recorded rolls</strong><div className="kb-card-dice-results">{pending.diceRolls.map((roll, index) => <span key={`${roll.choiceId}-${index}`}><b>{roll.label}</b><small>{roll.results.map(formatCardDieResult).join(" · ")}</small></span>)}</div></>}<strong>Before playing</strong><ul>{(card.requirements || []).map((requirement) => <li key={requirement}>{requirement}</li>)}</ul><p className="kb-manual-note">This interaction is documented but not fully automated yet. Apply the displayed rolls and remaining choices with the other players, then continue.</p><div>{pending.diceChoices?.map((choice) => <button type="button" key={choice.id} disabled={busy} onClick={() => onRoll(choice.id)}><Dices size={16} /> Roll again: {choice.label}</button>)}<a href={`/killer-bunnies/cards?card=${card.catalogNumber || ""}`} target="_blank" rel="noreferrer"><Library size={16} /> Open card record</a><button className="kb-primary" type="button" disabled={busy} onClick={onConfirm}><CheckCircleIcon /> Mark resolved</button></div></div></section></div>;
+}
+
+function formatCardDieResult(result) {
+  return `${result.color ? `${result.color[0].toUpperCase()}${result.color.slice(1)} ` : ""}d${result.sides}: ${result.value}`;
+}
+
+function BunnyAuctionDialog({ phase, pending, players, viewerIndex, busy, onTarget, onBid }) {
+  const minimumBid = (pending.currentBid || 0) + 1;
+  const [bid, setBid] = useState(minimumBid);
+  const isController = pending.playerIndex === viewerIndex;
+  const viewerDolla = bankTotal(players[viewerIndex]);
+  const targetPlayer = players[pending.targetPlayerIndex];
+  const targetBunny = targetPlayer?.bunnies.find((bunny) => bunny.id === pending.bunnyId);
+
+  useEffect(() => setBid(minimumBid), [minimumBid, pending.playerIndex]);
+
+  if (phase === "auctionTarget") {
+    return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-auction-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-auction-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Coins size={15} /> Bunny Block Bid</span><h2 id="kb-auction-title">Choose a bunny to auction.</h2><p className="kb-manual-ability">Any bunny in the Bunny Circle may be selected, including one protected by a Heavenly Halo. Attached modifiers travel with the bunny.</p><div className="kb-defector-targets">{players.flatMap((player, playerIndex) => player.bunnies.map((bunny) => <button key={`${player.playerId}-${bunny.id}`} type="button" disabled={busy || !isController} onClick={() => onTarget(playerIndex, bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>Owned by {player.name}</small></span></button>))}</div>{!isController && <p className="kb-manual-note">Waiting for {players[pending.playerIndex]?.name} to choose the auctioned bunny.</p>}</div></section></div>;
+  }
+
+  const highBidder = pending.highestBidderIndex === null ? null : players[pending.highestBidderIndex];
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-auction-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-auction-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Coins size={15} /> Live bunny auction</span><h2 id="kb-auction-title">Who wants {pending.bunnyName}?</h2>{targetBunny && <div className="kb-defector-bunny"><MiniBunny bunny={targetBunny} /><span><b>{targetBunny.name}</b><small>Currently owned by {targetPlayer.name}</small></span></div>}<div className="kb-auction-board"><span><small>Current bid</small><strong>{pending.currentBid}<Coins /></strong><b>{highBidder ? highBidder.name : "No bids yet"}</b></span><span><small>Now bidding</small><strong>{players[pending.playerIndex]?.name}</strong><b>{bankTotal(players[pending.playerIndex])} Dolla available</b></span></div><div className="kb-auction-history">{pending.bidHistory.map((entry, index) => <span key={`${entry.playerIndex}-${index}`}><b>{players[entry.playerIndex].name}</b><small>{entry.action === "pass" ? "passed" : `bid ${entry.amount} Dolla`}</small></span>)}{!pending.bidHistory.length && <p>The card player opens the bidding.</p>}</div>{isController ? <div className="kb-auction-actions"><label>YOUR BID<input type="number" min={minimumBid} max={viewerDolla} step="1" value={bid} onChange={(event) => setBid(Number(event.target.value))} /></label><button className="kb-primary" type="button" disabled={busy || !Number.isInteger(bid) || bid < minimumBid || bid > viewerDolla} onClick={() => onBid(bid)}><Coins size={17} /> Bid {Number.isFinite(bid) ? bid : minimumBid}</button><button type="button" disabled={busy} onClick={() => onBid(null)}><X size={16} /> Pass</button></div> : <p className="kb-manual-note">Waiting for {players[pending.playerIndex]?.name} to raise or pass.</p>}<p className="kb-manual-note">The final winner pays the bid to Kaballa’s discard pile and takes the bunny with its attached cards.</p></div></section></div>;
+}
+
+function BunnyExchangeDialog({ phase, pending, players, viewerIndex, busy, onGive, onExchange }) {
+  const isController = pending.playerIndex === viewerIndex;
+  const [targetPlayerIndex, setTargetPlayerIndex] = useState(null);
+  const [selectedBunnyIds, setSelectedBunnyIds] = useState([]);
+  const targetPlayer = targetPlayerIndex === null ? null : players[targetPlayerIndex];
+  const requiredCount = targetPlayer ? Math.min(2, targetPlayer.bunnies.length) : 0;
+
+  useEffect(() => {
+    setTargetPlayerIndex(null);
+    setSelectedBunnyIds([]);
+  }, [phase, pending.giveBunnyId]);
+
+  const toggleReceivedBunny = (playerIndex, bunnyId) => {
+    if (playerIndex !== targetPlayerIndex) {
+      setTargetPlayerIndex(playerIndex);
+      setSelectedBunnyIds([bunnyId]);
+      return;
+    }
+    setSelectedBunnyIds((current) => current.includes(bunnyId)
+      ? current.filter((id) => id !== bunnyId)
+      : current.length < Math.min(2, players[playerIndex].bunnies.length) ? [...current, bunnyId] : current);
+  };
+
+  if (phase === "bunnyExchangeGive") {
+    const giver = players[pending.playerIndex];
+    return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-exchange-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-exchange-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Rabbit size={15} /> Bunny Exchange</span><h2 id="kb-exchange-title">Choose the bunny you will give.</h2><p className="kb-manual-ability">You choose every bunny in this exchange. Modifiers, Halo cards, and pending feeding obligations remain attached when ownership changes.</p><div className="kb-defector-targets">{giver.bunnies.map((bunny) => <button key={bunny.id} type="button" disabled={busy || !isController} onClick={() => onGive(bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>Give this bunny away</small></span></button>)}</div>{!isController && <p className="kb-manual-note">Waiting for {giver.name} to choose a bunny.</p>}</div></section></div>;
+  }
+
+  const giver = players[pending.playerIndex];
+  const givenBunny = giver.bunnies.find((bunny) => bunny.id === pending.giveBunnyId);
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-exchange-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-exchange-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Rabbit size={15} /> Bunny Exchange</span><h2 id="kb-exchange-title">Choose what you receive.</h2>{givenBunny && <div className="kb-defector-bunny"><MiniBunny bunny={givenBunny} /><span><b>{givenBunny.name}</b><small>Your bunny being given away</small></span></div>}<p className="kb-manual-note">Digital rule variant: select two bunnies from one opponent. If that opponent owns only one bunny, select that bunny for a one-for-one exchange.</p><div className="kb-exchange-opponents">{players.map((player, playerIndex) => playerIndex === pending.playerIndex || !player.bunnies.length ? null : <section key={player.playerId} className={targetPlayerIndex === playerIndex ? "selected" : ""}><header><b>{player.name}</b><small>Select {Math.min(2, player.bunnies.length)} {player.bunnies.length === 1 ? "bunny" : "bunnies"}</small></header><div>{player.bunnies.map((bunny) => <button className={targetPlayerIndex === playerIndex && selectedBunnyIds.includes(bunny.id) ? "selected" : ""} key={bunny.id} type="button" disabled={busy || !isController} onClick={() => toggleReceivedBunny(playerIndex, bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>{selectedBunnyIds.includes(bunny.id) ? "Selected" : "Choose"}</small></span></button>)}</div></section>)}</div>{isController ? <div><button className="kb-primary" type="button" disabled={busy || targetPlayerIndex === null || selectedBunnyIds.length !== requiredCount} onClick={() => onExchange(targetPlayerIndex, selectedBunnyIds)}><Rabbit size={17} /> Complete {requiredCount === 1 ? "1-for-1" : "2-for-1"} exchange</button></div> : <p className="kb-manual-note">Waiting for {giver.name} to select the other side of the exchange.</p>}</div></section></div>;
+}
+
+function EveryoneFeedDialog({ pending, players, viewerIndex, busy, onChoose }) {
+  const chooser = players[pending.playerIndex];
+  const isController = pending.playerIndex === viewerIndex;
+  const cabbageCost = pending.card.cabbageCost || 0;
+  const waterCost = pending.card.waterCost || 0;
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-everyone-feed-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-everyone-feed-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Leaf size={15} /> Everyone Feed A Bunny</span><h2 id="kb-everyone-feed-title">{isController ? "Choose one of your bunnies." : `Waiting for ${chooser.name}.`}</h2><p className="kb-manual-ability">Every opponent of {players[pending.attackingPlayerIndex]?.name} must choose one bunny to feed <b>{cabbageCost} Cabbage</b> and <b>{waterCost} Water</b> by the end of their next turn, or lose that bunny. The card player is excluded.</p><div className="kb-defector-targets">{chooser.bunnies.map((bunny) => <button key={bunny.id} type="button" disabled={busy || !isController} onClick={() => onChoose(bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>{isController ? `Feed ${cabbageCost} Cabbage + ${waterCost} Water` : `${chooser.name} is choosing`}</small></span></button>)}</div><p className="kb-manual-note">After choosing, the obligation remains visible on that player’s mat. Missing supplies may be bought during that player’s next turn before feeding is checked.</p></div></section></div>;
+}
+
+function BlackCatDialog({ phase, pending, players, viewerIndex, busy, onTarget, onRoll, onPlace, onDiscard }) {
+  const isController = pending.playerIndex === viewerIndex;
+  const eligibleTargets = players.flatMap((player, playerIndex) => player.bunnies
+    .filter((bunny) => getKillerBunniesCloverCards(bunny).length)
+    .map((bunny) => ({ player, playerIndex, bunny })));
+
+  if (phase === "blackCatTarget") {
+    return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-black-cat-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-black-cat-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Sparkles size={15} /> Black Cat</span><h2 id="kb-black-cat-title">Choose a bunny carrying Clovers.</h2><p className="kb-manual-ability">Remove every Clover card from one bunny in the Bunny Circle. Other modifiers under that bunny remain in place.</p><div className="kb-defector-targets">{eligibleTargets.map(({ player, playerIndex, bunny }) => <button key={`${player.playerId}-${bunny.id}`} type="button" disabled={busy || !isController} onClick={() => onTarget(playerIndex, bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>{player.name} · {getKillerBunniesCloverCards(bunny).length} Clover card{getKillerBunniesCloverCards(bunny).length === 1 ? "" : "s"}</small></span></button>)}</div></div></section></div>;
+  }
+
+  if (phase === "blackCatRoll") {
+    return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-black-cat-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-black-cat-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Dices size={15} /> Black Cat roll</span><h2 id="kb-black-cat-title">The Clovers are off {pending.bunnyName}.</h2><p className="kb-manual-ability">Roll the Green d12. An odd result lets the card player place each removed Clover beneath any bunny—or discard it. An even result discards every removed Clover.</p><div className="kb-defector-actions">{isController ? <button className="kb-primary" type="button" disabled={busy} onClick={onRoll}><Dices size={18} /> Roll Green d12</button> : <p>Waiting for {players[pending.playerIndex]?.name} to roll.</p>}</div></div></section></div>;
+  }
+
+  const currentClover = pending.clovers?.[0];
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-black-cat-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-black-cat-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Sparkles size={15} /> Odd roll · relocate Clovers</span><h2 id="kb-black-cat-title">Place or discard {currentClover?.name}.</h2><p className="kb-manual-ability">Choose any bunny for this Clover. Repeat separately for the remaining {pending.clovers?.length || 0} Clover card{pending.clovers?.length === 1 ? "" : "s"}.</p><div className="kb-defector-targets">{players.flatMap((player, playerIndex) => player.bunnies.map((bunny) => <button key={`${player.playerId}-${bunny.id}`} type="button" disabled={busy || !isController} onClick={() => onPlace(playerIndex, bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>Place under {player.name}'s bunny</small></span></button>))}</div><div className="kb-defector-actions">{isController ? <button type="button" disabled={busy} onClick={onDiscard}><X size={16} /> Discard this Clover</button> : <p>Waiting for {players[pending.playerIndex]?.name} to place or discard it.</p>}</div></div></section></div>;
 }
 
 function ImmediateCardDialog({ pending, player, players, viewerIndex, busy, onConfirm, onTarget }) {
@@ -447,6 +554,65 @@ function UtilityBunnyTargetDialog({ pending, players, busy, onTarget }) {
   return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-player-target-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-utility-target-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Rabbit size={15} /> Choose a bunny</span><h2 id="kb-utility-target-title">Select the affected bunny.</h2><p className="kb-manual-ability">{pending.card.ability || pending.card.detail}</p><div className="kb-defector-targets">{players.flatMap((player, playerIndex) => player.bunnies.map((bunny) => <button key={`${player.playerId}-${bunny.id}`} type="button" disabled={busy} onClick={() => onTarget(playerIndex, bunny.id)}><MiniBunny bunny={bunny} /><span><b>{bunny.name}</b><small>{player.name}</small></span></button>))}</div></div></section></div>;
 }
 
+function PovertyPokerDialog({ phase, pending, players, viewerIndex, busy, onCall, onAnte, onRoll }) {
+  const emptyStakes = { dolla: 0, cabbage: 0, water: 0, defense: 0, carrots: 0, bunnies: 0, specials: 0, pawns: 0, zodiacs: 0, mysteriousPlaces: 0 };
+  const [stakes, setStakes] = useState(emptyStakes);
+  const [selections, setSelections] = useState({ bunnyIds: [], carrotIds: [], specialIds: [], pawnIds: [], zodiacIds: [], mysteriousPlaceIds: [] });
+  const controller = players[pending.playerIndex];
+  const isController = pending.playerIndex === viewerIndex;
+  const calledStakes = pending.stakes || emptyStakes;
+  const labels = { dolla: "Dolla", cabbage: "Cabbage Units", water: "Water Units", defense: "Defense Units", carrots: "Carrots", bunnies: "Bunnies", specials: "Saved Specials", pawns: "Pawns", zodiacs: "Zodiac cards", mysteriousPlaces: "Mysterious Places" };
+  const availability = controller ? {
+    dolla: bankTotal(controller),
+    cabbage: getKillerBunniesSupplyUnits(controller, "cabbage"),
+    water: getKillerBunniesSupplyUnits(controller, "water"),
+    defense: getKillerBunniesDefenseUnits(controller),
+    carrots: controller.carrots?.length || 0,
+    bunnies: controller.bunnies?.length || 0,
+    specials: controller.savedSpecials?.length || 0,
+    pawns: controller.pawns?.length || 0,
+    zodiacs: controller.zodiacCards?.length || 0,
+    mysteriousPlaces: controller.mysteriousPlaces?.length || 0,
+  } : emptyStakes;
+
+  useEffect(() => {
+    setSelections({ bunnyIds: [], carrotIds: [], specialIds: [], pawnIds: [], zodiacIds: [], mysteriousPlaceIds: [] });
+  }, [phase, pending.playerIndex]);
+
+  function toggleSelection(key, id, required) {
+    setSelections((current) => {
+      const selected = current[key] || [];
+      if (selected.includes(id)) return { ...current, [key]: selected.filter((entry) => entry !== id) };
+      if (selected.length >= required) return current;
+      return { ...current, [key]: [...selected, id] };
+    });
+  }
+
+  const stakeEntries = Object.entries(calledStakes).filter(([, amount]) => amount > 0);
+  const selectionGroups = controller ? [
+    { stake: "bunnies", key: "bunnyIds", values: controller.bunnies || [], label: "bunny" },
+    { stake: "carrots", key: "carrotIds", values: controller.carrots || [], label: "Carrot" },
+    { stake: "specials", key: "specialIds", values: controller.savedSpecials || [], label: "saved Special" },
+    { stake: "pawns", key: "pawnIds", values: controller.pawns || [], label: "Pawn" },
+    { stake: "zodiacs", key: "zodiacIds", values: controller.zodiacCards || [], label: "Zodiac card" },
+    { stake: "mysteriousPlaces", key: "mysteriousPlaceIds", values: controller.mysteriousPlaces || [], label: "Mysterious Place" },
+  ].filter((group) => calledStakes[group.stake] > 0) : [];
+  const anteReady = selectionGroups.every((group) => selections[group.key].length === calledStakes[group.stake]);
+  const callerCanCover = Object.entries(stakes).every(([key, amount]) => amount <= (availability[key] || 0));
+  const hasStake = Object.values(stakes).some((amount) => amount > 0);
+  const highRoll = Math.max(0, ...(pending.contenderIndexes || []).map((index) => pending.scores?.[index] || 0));
+
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-auction-dialog kb-poverty-poker-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-poverty-poker-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Dices size={15} /> Poverty Poker</span>
+    {phase === "povertyPokerCall" && <><h2 id="kb-poverty-poker-title">Call the complete stake.</h2><p className="kb-manual-ability">Combine any supported items. You must cover the full call, and every other player who can cover every listed item must enter.</p><div className="kb-poverty-stake-grid">{Object.keys(emptyStakes).map((key) => <label key={key}><span>{labels[key]} <small>{availability[key]} available</small></span><input type="number" min="0" max={availability[key]} step="1" value={stakes[key]} disabled={busy || !isController} onChange={(event) => setStakes((current) => ({ ...current, [key]: Math.max(0, Number(event.target.value) || 0) }))} /></label>)}</div>{isController ? <button className="kb-primary" type="button" disabled={busy || !hasStake || !callerCanCover} onClick={() => onCall(stakes)}><Coins size={17} /> Call Poverty Poker</button> : <p className="kb-manual-note">Waiting for {controller?.name} to declare the stakes.</p>}</>}
+    {phase === "povertyPokerAnte" && <><h2 id="kb-poverty-poker-title">{isController ? "Choose exactly what you will risk." : `Waiting for ${controller?.name} to ante.`}</h2><PovertyPokerStakeSummary entries={stakeEntries} labels={labels} multiplier={pending.eligiblePlayerIndexes?.length || 1} /><p className="kb-manual-note">Dolla and unit stakes are collected automatically. Each player chooses their own bunnies, Carrots, and face-up cards. Attached modifiers and feeding obligations travel with a gambled bunny.</p>{selectionGroups.map((group) => <div className="kb-poverty-selection" key={group.key}><b>Choose {calledStakes[group.stake]} {group.label}{calledStakes[group.stake] === 1 ? "" : "s"}</b><div className="kb-defector-targets">{group.values.map((item) => { const selected = selections[group.key].includes(item.id); return <button className={selected ? "selected" : ""} key={item.id} type="button" disabled={busy || !isController} onClick={() => toggleSelection(group.key, item.id, calledStakes[group.stake])}>{group.stake === "bunnies" ? <MiniBunny bunny={item} /> : group.stake === "carrots" ? <Carrot /> : group.stake === "pawns" ? <Rabbit /> : <Sparkles />}<span><b>{item.name || (item.label ? `Carrot ${item.label}` : group.label)}</b><small>{selected ? "In your ante" : "Select"}</small></span></button>; })}</div></div>)}{isController && <button className="kb-primary" type="button" disabled={busy || !anteReady} onClick={() => onAnte(selections)}><Coins size={17} /> Place complete ante</button>}</>}
+    {["povertyPokerRoll", "povertyPokerReroll"].includes(phase) && <><h2 id="kb-poverty-poker-title">{phase === "povertyPokerReroll" ? "Keep it—or roll once more." : pending.roundNumber > 1 ? `Tie-break roll ${pending.roundNumber - 1}` : "Everybody eligible rolls."}</h2><PovertyPokerStakeSummary entries={stakeEntries} labels={labels} multiplier={pending.eligiblePlayerIndexes?.length || 1} /><div className="kb-defector-scores">{players.map((player, index) => { const eligible = pending.eligiblePlayerIndexes?.includes(index); const contender = pending.contenderIndexes?.includes(index); const score = pending.scores?.[index]; return <span key={player.playerId} className={`${pending.playerIndex === index ? "rolling" : ""} ${!eligible || !contender ? "out" : ""}`}><b>{player.name}</b><strong>{eligible && Number.isFinite(score) ? score : "—"}</strong><small>{!eligible ? "could not cover stake" : !contender ? "out" : pending.playerIndex === index ? "roll now" : Number.isFinite(score) ? score === highRoll ? "current high" : "rolled" : "waiting"}</small></span>; })}</div>{phase === "povertyPokerReroll" ? <><p className="kb-manual-ability">The card player may keep <b>{pending.scores?.[pending.cardPlayerIndex]}</b> or replace it with one final d12 result.</p><div className="kb-defector-actions">{isController ? <><button type="button" disabled={busy} onClick={() => onRoll("keep")}>Keep roll</button><button className="kb-primary" type="button" disabled={busy} onClick={() => onRoll("reroll")}><Dices size={17} /> Replace with reroll</button></> : <p>Waiting for {controller?.name} to decide.</p>}</div></> : <div className="kb-defector-actions">{isController ? <button className="kb-primary" type="button" disabled={busy} onClick={() => onRoll("roll")}><Dices size={18} /> Roll any d12</button> : <p>Waiting for {controller?.name} to roll.</p>}</div>}</>}
+  </div></section></div>;
+}
+
+function PovertyPokerStakeSummary({ entries, labels, multiplier }) {
+  return <div className="kb-auction-board"><span><small>Stake per player</small><strong>{entries.map(([key, amount]) => `${amount} ${labels[key]}`).join(" + ")}</strong><b>{multiplier} mandatory participant{multiplier === 1 ? "" : "s"}</b></span><span><small>Complete pot</small><strong>{entries.map(([key, amount]) => `${amount * multiplier} ${labels[key]}`).join(" + ")}</strong><b>Highest d12 takes everything</b></span></div>;
+}
+
 function DefectorDetectorDialog({ phase, pending, players, viewerIndex, busy, onTarget, onDiscard, onRoll }) {
   const isController = pending.playerIndex === viewerIndex;
   const targetPlayer = players[pending.targetPlayerIndex];
@@ -459,8 +625,8 @@ function DefectorDetectorDialog({ phase, pending, players, viewerIndex, busy, on
 function AreaWeaponDialog({ pending, players, viewerIndex, busy, onRoll }) {
   const isController = pending.playerIndex === viewerIndex;
   const currentId = pending.rollQueue?.[0];
-  const current = pending.affected.find((entry) => entry.bunnyId === currentId);
-  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-area-weapon-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-area-weapon-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Target size={15} /> Area weapon</span><h2 id="kb-area-weapon-title">The Bunny Circle is under fire.</h2><p className="kb-manual-ability">Each affected bunny resolves its own d12 roll. Lucky Clovers reduce that bunny’s effective Weapon Level.</p><div className="kb-area-targets">{pending.affected.map((entry) => <span key={entry.bunnyId} className={`${entry.bunnyId === currentId ? "rolling" : ""} ${entry.protected ? "protected" : ""} ${entry.eliminated ? "eliminated" : ""}`}><b>{entry.name}</b><strong>{entry.protected ? <Shield /> : entry.roll ?? `≤${entry.power}`}</strong><small>{entry.protected ? "Halo protected" : entry.eliminated ? "eliminated" : entry.roll ? `rolled · effective ${entry.effectivePower}` : `${players[entry.playerIndex]?.name} · distance ${entry.distance}`}</small></span>)}</div><div className="kb-defector-actions">{isController ? <button className="kb-primary" type="button" disabled={busy} onClick={onRoll}><Dices size={18} /> Roll d12 for {current?.name}</button> : <p>Waiting for {players[pending.playerIndex]?.name} to roll for {current?.name}.</p>}</div></div></section></div>;
+  const current = pending.affected.find((entry) => (entry.attackId || entry.bunnyId) === currentId);
+  return <div className="kb-modal-backdrop"><section className="kb-manual-resolution kb-area-weapon-dialog" role="dialog" aria-modal="true" aria-labelledby="kb-area-weapon-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Target size={15} /> Area weapon</span><h2 id="kb-area-weapon-title">The Bunny Circle is under fire.</h2><p className="kb-manual-ability">Each affected bunny resolves its own d12 roll. Lucky Clovers reduce that bunny’s effective Weapon Level. A bunny reached twice by a wraparound weapon rolls twice.</p><div className="kb-area-targets">{pending.affected.map((entry) => <span key={entry.attackId || entry.bunnyId} className={`${(entry.attackId || entry.bunnyId) === currentId ? "rolling" : ""} ${entry.protected ? "protected" : ""} ${entry.eliminated ? "eliminated" : ""}`}><b>{entry.name}</b><strong>{entry.protected ? <Shield /> : entry.roll ?? `≤${entry.power}`}</strong><small>{entry.protected ? "Halo protected" : entry.eliminated ? "eliminated" : entry.roll ? `rolled · effective ${entry.effectivePower}` : `${players[entry.playerIndex]?.name} · distance ${entry.distance}`}</small></span>)}</div><div className="kb-defector-actions">{isController ? <button className="kb-primary" type="button" disabled={busy} onClick={onRoll}><Dices size={18} /> Roll d12 for {current?.name}</button> : <p>Waiting for {players[pending.playerIndex]?.name} to roll for {current?.name}.</p>}</div></div></section></div>;
 }
 
 function BlueCardRollDialog({ pending, players, viewerIndex, busy, onRoll }) {
@@ -487,7 +653,7 @@ function CheckCircleIcon() {
 }
 
 function gameHasDefense(player) {
-  return Array.isArray(player.defenseCards) && player.defenseCards.length > 0;
+  return getKillerBunniesDefenseUnits(player) > 0;
 }
 
 function ExpansionSelector({ game, busy, onAction }) {
@@ -556,7 +722,7 @@ function MiniBunny({ bunny }) {
 
 function GameCard({ card, compact = false, className = "" }) {
   if (card.hidden) return <div className={`kb-playing-card hidden ${compact ? "compact" : ""} ${className}`}><Rabbit /><b>HIDDEN RUN</b></div>;
-  const icon = { bunny: <Rabbit />, weapon: <Target />, chooseCarrot: <Carrot />, feed: <Leaf />, defense: <Shield />, money: <Coins />, modifier: <Sparkles />, special: <Sparkles />, verySpecial: <Sparkles />, market: <Store />, shopMarket: <Store /> }[card.kind] || <Rabbit />;
+  const icon = { bunny: <Rabbit />, weapon: <Target />, chooseCarrot: <Carrot />, feed: <Leaf />, everyoneFeed: <Leaf />, defense: <Shield />, money: <Coins />, modifier: <Sparkles />, special: <Sparkles />, verySpecial: <Sparkles />, market: <Store />, shopMarket: <Store /> }[card.kind] || <Rabbit />;
   return <div className={`kb-playing-card kind-${card.kind} color-${card.color || "cream"} ${compact ? "compact" : ""} ${className}`} title={(card.requirements || []).join(" ")}><span className="kb-card-type">{card.type}{card.catalogNumber ? ` · #${card.catalogNumber}` : ""}</span><div className="kb-card-icon">{icon}</div><strong>{card.name}</strong>{!compact && <p>{card.ability || card.detail}</p>}{!compact && card.requiresBunny && <small className="kb-card-needs-bunny"><Rabbit /> BUNNY REQUIRED</small>}{card.power && <b className="kb-card-stat">≤ {card.power}</b>}</div>;
 }
 

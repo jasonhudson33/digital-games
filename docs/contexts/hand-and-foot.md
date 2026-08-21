@@ -14,6 +14,7 @@ Hand and Foot owns partnership melding, round thresholds, books, and hand-to-foo
 
 - Every player has one **Hand** and one **Foot**.
 - Partners share melds and **Books**, but not private cards.
+- Computer players conserve wild cards early, but may open a dirty non-seven meld from a natural pair when it lets them clear the rest of their active pile. Near round end, they may spend a two or joker to complete a seven-card book, including targeting a six-card meld with a lone wild.
 
 ## Example dialogue
 

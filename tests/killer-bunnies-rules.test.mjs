@@ -3,10 +3,16 @@ import test from "node:test";
 
 import {
   KILLER_BUNNIES_CARD_COUNTS,
+  bankTotal,
   buyKillerBunniesShopItem,
+  callKillerBunniesPovertyPoker,
   chooseKillerBunniesCarrot,
   chooseKillerBunniesBlueRollTarget,
+  chooseKillerBunniesAuctionTarget,
+  chooseKillerBunniesBunnyExchangeGive,
+  chooseKillerBunniesBlackCatTarget,
   chooseKillerBunniesDefectorTarget,
+  chooseKillerBunniesEveryoneFeedBunny,
   chooseKillerBunniesMisfortuneTarget,
   chooseKillerBunniesModifierTarget,
   chooseKillerBunniesNumber,
@@ -26,17 +32,25 @@ import {
   getKillerBunniesShopItemStatus,
   getKillerBunniesSupplyUnits,
   playSavedKillerBunniesSpecial,
+  anteKillerBunniesPovertyPoker,
+  placeKillerBunniesAuctionBid,
   playTopRun,
   replaceBottomRun,
   resolveKillerBunniesDefense,
   resolveKillerBunniesAreaWeaponRoll,
   resolveKillerBunniesBlueCardRoll,
   resolveKillerBunniesBlueSpecialRoll,
+  resolveKillerBunniesBunnyExchange,
+  resolveKillerBunniesBlackCatRoll,
+  resolveKillerBunniesCardDiceRoll,
   resolveKillerBunniesDefectorRoll,
   resolveKillerBunniesImmediateCard,
   resolveKillerBunniesManualCard,
   resolveKillerBunniesRoamingRoll,
+  resolveKillerBunniesPovertyPokerRoll,
   resolveKillerBunniesSpecialChoice,
+  placeKillerBunniesBlackCatClover,
+  discardKillerBunniesBlackCatClover,
   runKillerBunniesComputers,
 } from "../lib/killer-bunnies.js";
 import {
@@ -166,6 +180,17 @@ test("Bunny Triplets recognize color, kind, pawns, grouped bunnies, and specifie
   assert.equal(getKillerBunniesExtraRunStatus({ bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue")] }).enabled, false);
 });
 
+test("Specialty Bunny unit counts use stable card numbers instead of display names", () => {
+  const persistedTriple = {
+    id: "persisted-specialty-triple",
+    number: 225,
+    catalogNumber: "0225",
+    name: "Fabulous Bunnies",
+    kind: "bunny",
+  };
+  assert.match(getKillerBunniesExtraRunStatus({ bunnies: [persistedTriple] }).reason, /specialty/i);
+});
+
 test("a Bunny Triplet plays, replaces, then exposes the second TOP RUN", () => {
   let game = createKillerBunniesGame({
     playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
@@ -200,6 +225,75 @@ test("a Bunny Triplet plays, replaces, then exposes the second TOP RUN", () => {
   game = replaceBottomRun(game, playerIndex, secondReplacement.id);
   assert.notEqual(game.currentPlayerIndex, playerIndex);
   assert.equal(game.runPlaysThisTurn, 0);
+});
+
+test("an official Specialty Bunny Triple completes both RUN plays", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["violet"],
+    random: seededRandom(225),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const player = game.players[playerIndex];
+  player.bunnies = [createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(225))];
+  player.topRun = plainRun("specialty-first-run");
+  player.bottomRun = plainRun("specialty-second-run");
+
+  game = playTopRun(game, playerIndex, seededRandom(226));
+  const replacement = plainRun("specialty-first-replacement");
+  game.mainDeck.push(replacement);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  game = replaceBottomRun(game, playerIndex, replacement.id);
+  assert.equal(game.phase, "play");
+
+  game = playTopRun(game, playerIndex, seededRandom(227));
+  assert.equal(game.runPlaysThisTurn, 2);
+  assert.equal(game.phase, "draw");
+});
+
+test("half-color bunnies use either printed color for Bunny Triplets and a matching Pawn", () => {
+  const yellowTriplet = {
+    bunnies: [
+      createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(331)),
+      createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(333)),
+      createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(334)),
+    ],
+  };
+  assert.match(getKillerBunniesExtraRunStatus(yellowTriplet).reason, /three yellow/i);
+
+  const bluePawnTriplet = {
+    bunnies: [
+      createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(332)),
+      createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(335)),
+    ],
+    pawns: [{ name: "Blue Pawn", color: "blue" }],
+  };
+  assert.match(getKillerBunniesExtraRunStatus(bluePawnTriplet).reason, /blue pawn/i);
+});
+
+test("a real half-color Bunny Triplet unlocks the second RUN after replacement", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(131),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  game.players[playerIndex].bunnies = [331, 333, 334]
+    .map((number) => createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(number)));
+  game.players[playerIndex].topRun = plainRun("first-real-triplet-run");
+  game.players[playerIndex].bottomRun = plainRun("second-real-triplet-run");
+
+  game = playTopRun(game, playerIndex, seededRandom(132));
+  const replacement = plainRun("real-triplet-replacement");
+  game.mainDeck.push(replacement);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  game = replaceBottomRun(game, playerIndex, replacement.id);
+
+  assert.equal(game.phase, "play");
+  assert.equal(game.currentPlayerIndex, playerIndex);
+  assert.equal(game.players[playerIndex].topRun.id, "second-real-triplet-run");
+  assert.match(game.message, /second top run/i);
 });
 
 test("losing the Bunny Triplet before replacement cancels the second RUN", () => {
@@ -474,6 +568,69 @@ test("Lumbering Bunny built-in Clovers contribute to Weapon reduction", () => {
   assert.equal(getKillerBunniesCloverReduction(bunny("Pink Lumbering Bunny", "pink", "pink")), 5);
 });
 
+test("Black Cat 0053 removes every Clover card from one bunny and an odd Green roll may relocate them", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(53),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const targetPlayerIndex = (playerIndex + 1) % game.players.length;
+  const recipient = bunny("Recipient Bunny", "green", "black-cat-recipient");
+  const target = bunny("Clover Target", "blue", "black-cat-target");
+  const halo = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(58));
+  const single = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(61));
+  const triple = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(63));
+  target.modifiers = [single, halo, triple];
+  game.players[playerIndex].bunnies = [recipient];
+  game.players[targetPlayerIndex].bunnies = [target];
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(53));
+
+  game = playTopRun(game, playerIndex, seededRandom(54));
+  assert.equal(game.phase, "blackCatTarget");
+  game = chooseKillerBunniesBlackCatTarget(game, playerIndex, targetPlayerIndex, target.id);
+  assert.equal(game.phase, "blackCatRoll");
+  assert.deepEqual(target.modifiers.map((card) => card.catalogNumber), ["0061", "0058", "0063"]);
+  assert.deepEqual(game.players[targetPlayerIndex].bunnies[0].modifiers.map((card) => card.catalogNumber), ["0058"]);
+
+  game = resolveKillerBunniesBlackCatRoll(game, playerIndex, () => 0); // Green d12 = 1, odd
+  assert.equal(game.phase, "blackCatRelocate");
+  assert.equal(game.pendingAction.clovers.length, 2);
+  game = placeKillerBunniesBlackCatClover(game, playerIndex, playerIndex, recipient.id);
+  game = discardKillerBunniesBlackCatClover(game, playerIndex);
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[targetPlayerIndex].bunnies[0].modifiers.length, 1);
+  assert.equal(game.players[targetPlayerIndex].bunnies[0].modifiers[0].catalogNumber, "0058");
+  assert.equal(game.players[playerIndex].bunnies[0].modifiers.length, 1);
+  assert.equal(game.discardPile.filter((card) => ["0053", "0063"].includes(card.catalogNumber)).length, 2);
+});
+
+test("Black Cat discards all removed Clovers after an even Green roll", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(55),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const targetPlayerIndex = (playerIndex + 1) % game.players.length;
+  const target = bunny("Even Roll Clover Target", "violet", "black-cat-even-target");
+  target.modifiers = [
+    createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(61)),
+    createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(62)),
+  ];
+  game.players[targetPlayerIndex].bunnies = [target];
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(53));
+
+  game = playTopRun(game, playerIndex, seededRandom(56));
+  game = chooseKillerBunniesBlackCatTarget(game, playerIndex, targetPlayerIndex, target.id);
+  game = resolveKillerBunniesBlackCatRoll(game, playerIndex, () => 0.1); // Green d12 = 2, even
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[targetPlayerIndex].bunnies[0].modifiers.length, 0);
+  assert.equal(game.discardPile.filter((card) => ["0053", "0061", "0062"].includes(card.catalogNumber)).length, 3);
+});
+
 test("Cabbage and Water use the official card denominations and are spent as units", () => {
   let game = createKillerBunniesGame({
     playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
@@ -637,6 +794,95 @@ test("Cyber Bunny attacks under the target owner's control and remains roaming",
   assert.equal(game.roamingEffects.length, 1);
   assert.equal(game.roamingEffects[0].currentBunnyId, own.id, "Cyber Bunny moves clockwise to the next viable bunny");
   assert.equal(game.phase, "draw");
+});
+
+test("Red free-supply Specials draw Cabbage, Water, and Defense Cards from their shops", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["red", "violet"],
+    random: seededRandom(210),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const player = game.players[playerIndex];
+  const cabbageBefore = player.cabbage.length;
+  const waterBefore = player.water.length;
+  player.topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(198));
+
+  game = playTopRun(game, playerIndex, seededRandom(211));
+  game = resolveKillerBunniesSpecialChoice(game, playerIndex, "use", seededRandom(212));
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[playerIndex].cabbage.length, cabbageBefore + 1);
+  assert.equal(game.players[playerIndex].water.length, waterBefore + 1);
+
+  game.phase = "play";
+  game.currentPlayerIndex = playerIndex;
+  game.runPlaysThisTurn = 0;
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(199));
+  const defenseBefore = game.players[playerIndex].defenseCards.length;
+  const shopBefore = game.rooneysEmporium.defenseSupply.length;
+  game = playTopRun(game, playerIndex, seededRandom(213));
+  game = resolveKillerBunniesSpecialChoice(game, playerIndex, "use", seededRandom(214));
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[playerIndex].defenseCards.length, defenseBefore + 2);
+  assert.equal(game.rooneysEmporium.defenseSupply.length, shopBefore - 2);
+
+  for (const [cardNumber, resource, amount] of [[473, "cabbage", 2], [474, "water", 2]]) {
+    game.phase = "play";
+    game.currentPlayerIndex = playerIndex;
+    game.runPlaysThisTurn = 0;
+    const before = game.players[playerIndex][resource].length;
+    game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(cardNumber));
+    game = playTopRun(game, playerIndex, seededRandom(cardNumber));
+    game = resolveKillerBunniesSpecialChoice(game, playerIndex, "use", seededRandom(cardNumber + 1));
+    assert.equal(game.phase, "draw");
+    assert.equal(game.players[playerIndex][resource].length, before + amount);
+  }
+
+  game.phase = "play";
+  game.currentPlayerIndex = playerIndex;
+  game.runPlaysThisTurn = 0;
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(359));
+  const repeatedDefenseBefore = game.players[playerIndex].defenseCards.length;
+  game = playTopRun(game, playerIndex, seededRandom(359));
+  game = resolveKillerBunniesSpecialChoice(game, playerIndex, "use", seededRandom(360));
+  assert.equal(game.players[playerIndex].defenseCards.length, repeatedDefenseBefore + 2);
+});
+
+test("Red and Violet range weapons queue every affected Bunny Circle target", () => {
+  const makeRangeGame = () => {
+    const game = createKillerBunniesGame({
+      playerSeeds: [{ name: "Ada" }, { name: "Grace" }, { name: "Lin" }],
+      expansionIds: ["red", "violet"],
+      random: seededRandom(215),
+    });
+    const circle = Array.from({ length: 6 }, (_, index) => bunny(`Range ${index}`, "blue", `range-${index}`));
+    game.players[0].bunnies = [circle[0], circle[3]];
+    game.players[1].bunnies = [circle[1], circle[4]];
+    game.players[2].bunnies = [circle[2], circle[5]];
+    game.bunnyCircle = circle.map((entry) => entry.id);
+    return { game, circle };
+  };
+
+  for (const [cardNumber, expected, expectedRolls] of [
+    [182, new Map([["range-1", 11], ["range-3", 9], ["range-5", 9]]), 5],
+    [236, new Map([["range-1", 10], ["range-0", 9], ["range-2", 9]]), 3],
+    [237, new Map([["range-0", 12], ["range-1", 12], ["range-2", 12], ["range-3", 12], ["range-4", 12], ["range-5", 12]]), 6],
+  ]) {
+    let { game, circle } = makeRangeGame();
+    game.phase = "target";
+    game.pendingAction = { playerIndex: 0, effect: "weapon", card: createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(cardNumber)) };
+    game = chooseKillerBunniesTarget(game, 0, 1, circle[1].id);
+    assert.equal(game.phase, "areaWeaponRoll", `#${cardNumber} should enter multi-target resolution`);
+    const actual = new Map(game.pendingAction.affected.map((entry) => [entry.bunnyId, entry.power]));
+    assert.deepEqual(actual, expected, `#${cardNumber} should apply its printed range levels`);
+    let rollCount = 0;
+    while (game.phase === "areaWeaponRoll") {
+      game = resolveKillerBunniesAreaWeaponRoll(game, game.pendingAction.playerIndex, () => 0.99);
+      rollCount += 1;
+    }
+    assert.equal(rollCount, expectedRolls, `#${cardNumber} should resolve every printed hit`);
+  }
 });
 
 test("all twenty-two optional official decks are independently modular and use exact numbered-card counts", () => {
@@ -817,21 +1063,320 @@ test("documented but unautomated cards pause for a visible guided ruling", () =>
     random: seededRandom(224),
   });
   game = programAllPlayers(game);
-  const blackCat = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(53));
+  const guidedCard = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(71));
   game.players[0].bunnies.push(bunny("Required Bunny", "blue", "manual-required"));
   game.discardPile.push(game.players[0].topRun);
-  game.players[0].topRun = blackCat;
+  game.players[0].topRun = guidedCard;
 
   game = playTopRun(game, 0, seededRandom(225));
+  game = resolveKillerBunniesSpecialChoice(game, 0, "use", seededRandom(225));
   assert.equal(game.phase, "manualResolve");
-  assert.equal(game.pendingAction.card.catalogNumber, "0053");
-  assert.match(game.pendingAction.card.ability, /Clover/i);
+  assert.equal(game.pendingAction.card.catalogNumber, "0071");
+  assert.match(game.pendingAction.card.ability, /half price/i);
   assert.ok(game.pendingAction.card.requirements.length > 0);
 
   game = resolveKillerBunniesManualCard(game, 0);
   assert.equal(game.phase, "draw");
   assert.equal(game.pendingAction, null);
-  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0053"), true);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0071"), true);
+});
+
+test("Poverty Poker pools a combined stake from every eligible player and resolves rerolls and ties", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }, { name: "Linus" }],
+    expansionIds: ["orange", "green"],
+    random: seededRandom(240),
+  });
+  game = programAllPlayers(game);
+  const callerIndex = game.currentPlayerIndex;
+  const eligibleIndex = (callerIndex + 1) % 3;
+  const ineligibleIndex = (callerIndex + 2) % 3;
+  const poker = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(65));
+
+  for (const [index, player] of game.players.entries()) {
+    player.bank = [{ id: `bank-${index}`, value: index === ineligibleIndex ? 1 : 5 }];
+    player.dollaCredit = 0;
+    player.cabbage = [{ id: `cabbage-${index}`, units: 2 }];
+    player.water = [{ id: `water-${index}`, units: 1 }];
+    player.resourceCredits = { cabbage: 0, water: 0 };
+    player.defenseCards = [{ id: `defense-${index}`, units: 3 }];
+    player.pawns = [{ id: `pawn-${index}`, name: `Pawn ${index}`, color: "blue" }];
+    player.savedSpecials = [{ id: `special-${index}`, name: `Special ${index}`, type: "SPECIAL" }];
+    player.carrots = [{ id: `carrot-${index}`, label: index + 1 }];
+    player.bunnies = [bunny(`Poker Bunny ${index}`, "blue", `poker-bunny-${index}`)];
+  }
+  game.players[eligibleIndex].feedingObligations = [{
+    id: "traveling-feed",
+    bunnyId: `poker-bunny-${eligibleIndex}`,
+    card: { id: "feed-card", name: "Feed The Bunny" },
+    cabbageCost: 1,
+    waterCost: 1,
+  }];
+  game.discardPile.push(game.players[callerIndex].topRun);
+  game.players[callerIndex].topRun = poker;
+
+  game = playTopRun(game, callerIndex, seededRandom(241));
+  assert.equal(game.phase, "povertyPokerCall");
+  assert.throws(() => callKillerBunniesPovertyPoker(game, callerIndex, { dolla: 6 }), /cannot cover/i);
+
+  const stakes = { dolla: 2, cabbage: 2, water: 1, defense: 3, carrots: 1, bunnies: 1, specials: 1, pawns: 1 };
+  game = callKillerBunniesPovertyPoker(game, callerIndex, stakes);
+  assert.equal(game.phase, "povertyPokerAnte");
+  assert.deepEqual(game.pendingAction.eligiblePlayerIndexes, [callerIndex, eligibleIndex]);
+  assert.equal(game.pendingAction.playerIndex, callerIndex);
+
+  const selectionFor = (index) => ({
+    bunnyIds: [`poker-bunny-${index}`],
+    carrotIds: [`carrot-${index}`],
+    specialIds: [`special-${index}`],
+    pawnIds: [`pawn-${index}`],
+  });
+  game = anteKillerBunniesPovertyPoker(game, callerIndex, selectionFor(callerIndex));
+  assert.equal(game.pendingAction.playerIndex, eligibleIndex);
+  game = anteKillerBunniesPovertyPoker(game, eligibleIndex, selectionFor(eligibleIndex));
+  assert.equal(game.phase, "povertyPokerRoll");
+  assert.equal(game.pendingAction.pot.dolla, 4);
+  assert.equal(game.pendingAction.pot.cabbage, 4);
+  assert.equal(game.pendingAction.pot.water, 2);
+  assert.equal(game.pendingAction.pot.defense, 6);
+
+  game = resolveKillerBunniesPovertyPokerRoll(game, callerIndex, "roll", () => 0.25); // 4
+  game = resolveKillerBunniesPovertyPokerRoll(game, eligibleIndex, "roll", () => 0.75); // 10
+  assert.equal(game.phase, "povertyPokerReroll");
+  game = resolveKillerBunniesPovertyPokerRoll(game, callerIndex, "reroll", () => 0.75); // replacement 10
+  assert.equal(game.phase, "povertyPokerRoll");
+  assert.deepEqual(game.pendingAction.contenderIndexes, [callerIndex, eligibleIndex]);
+
+  game = resolveKillerBunniesPovertyPokerRoll(game, callerIndex, "roll", () => 0.25); // 4
+  game = resolveKillerBunniesPovertyPokerRoll(game, eligibleIndex, "roll", () => 0.9); // 11
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.pendingAction, null);
+  assert.equal(bankTotal(game.players[eligibleIndex]), 7);
+  assert.equal(getKillerBunniesSupplyUnits(game.players[eligibleIndex], "cabbage"), 4);
+  assert.equal(getKillerBunniesSupplyUnits(game.players[eligibleIndex], "water"), 2);
+  assert.equal(game.players[eligibleIndex].defenseCredit, 6);
+  assert.equal(game.players[eligibleIndex].bunnies.length, 2);
+  assert.equal(game.players[eligibleIndex].carrots.length, 2);
+  assert.equal(game.players[eligibleIndex].savedSpecials.length, 2);
+  assert.equal(game.players[eligibleIndex].pawns.length, 2);
+  assert.equal(game.players[eligibleIndex].feedingObligations.some((entry) => entry.id === "traveling-feed"), true);
+  assert.equal(game.players[ineligibleIndex].bunnies.length, 1);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0065"), true);
+});
+
+test("Carrot Thief offers the available numbered dice and steals the matching Carrot", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["violet"],
+    random: seededRandom(226),
+  });
+  game = programAllPlayers(game);
+  const thief = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(136));
+  const stolenCarrot = game.carrotMarket.find((card) => card.label === "6");
+  game.carrotMarket = game.carrotMarket.filter((card) => card.id !== stolenCarrot.id);
+  game.players[1].carrots.push(stolenCarrot);
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = thief;
+
+  game = playTopRun(game, 0, seededRandom(227));
+  assert.equal(game.phase, "cardDiceRoll");
+  assert.deepEqual(game.pendingAction.diceChoices.map((choice) => choice.id), ["orange-d12", "clear-d20"]);
+
+  game = resolveKillerBunniesCardDiceRoll(game, 0, "orange-d12", () => 5 / 12);
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[0].carrots.some((card) => card.label === "6"), true);
+  assert.equal(game.players[1].carrots.some((card) => card.label === "6"), false);
+  assert.deepEqual(game.lastRoll, { value: 6, sides: 12, color: "orange", label: "Carrot Thief" });
+
+  let closedMarketGame = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["violet"],
+    random: seededRandom(230),
+  });
+  closedMarketGame = programAllPlayers(closedMarketGame);
+  closedMarketGame.kaballasMarket.isOpen = false;
+  closedMarketGame.discardPile.push(closedMarketGame.players[0].topRun);
+  closedMarketGame.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(136));
+  closedMarketGame = playTopRun(closedMarketGame, 0, seededRandom(231));
+  closedMarketGame = resolveKillerBunniesCardDiceRoll(closedMarketGame, 0, "clear-d20", () => 16 / 20);
+  assert.equal(closedMarketGame.players[0].carrots.some((card) => card.label === "17"), true);
+  assert.deepEqual(closedMarketGame.lastRoll, { value: 17, sides: 20, color: "clear", label: "Carrot Thief" });
+
+  let noVioletGame = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(232),
+  });
+  noVioletGame = programAllPlayers(noVioletGame);
+  noVioletGame.discardPile.push(noVioletGame.players[0].topRun);
+  noVioletGame.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(136));
+  noVioletGame = playTopRun(noVioletGame, 0, seededRandom(233));
+  assert.deepEqual(noVioletGame.pendingAction.diceChoices.map((choice) => choice.id), ["orange-d12"]);
+});
+
+test("Bunny Block Bid auctions a selected bunny in turn order and pays Kaballa", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }, { name: "Lin" }],
+    random: seededRandom(234),
+  });
+  game = programAllPlayers(game);
+  const auctionCard = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(135));
+  const auctionedBunny = bunny("Halo Auction Bunny", "green", "halo-auction-bunny");
+  auctionedBunny.modifiers = [{ id: "auction-halo", name: "The Heavenly Halo", cloverValue: 0 }];
+  game.players[0].bunnies.push(bunny("Ada Bid Bunny", "blue", "ada-bid-bunny"));
+  game.players[1].bunnies.push(auctionedBunny);
+  game.players[1].feedingObligations.push({
+    id: "auction-feed",
+    bunnyId: auctionedBunny.id,
+    card: { id: "auction-feed-card", name: "Feed The Bunny" },
+    cabbageCost: 1,
+    waterCost: 1,
+  });
+  game.bunnyCircle = ["ada-bid-bunny", auctionedBunny.id];
+  for (const player of game.players) {
+    player.bank = [];
+    player.dollaCredit = 0;
+  }
+  game.players[0].bank.push({ id: "ada-dolla", kind: "money", value: 10, name: "Kaballa Dolla – 10" });
+  game.players[1].bank.push({ id: "grace-dolla", kind: "money", value: 5, name: "Kaballa Dolla – 5" });
+  game.players[2].bank.push({ id: "lin-dolla", kind: "money", value: 10, name: "Kaballa Dolla – 10" });
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = auctionCard;
+
+  game = playTopRun(game, 0, seededRandom(235));
+  assert.equal(game.phase, "auctionTarget");
+  game = chooseKillerBunniesAuctionTarget(game, 0, 1, auctionedBunny.id);
+  assert.equal(game.phase, "auctionBid");
+  assert.equal(game.pendingAction.playerIndex, 0, "the card player bids first");
+
+  game = placeKillerBunniesAuctionBid(game, 0, 2);
+  assert.equal(game.pendingAction.playerIndex, 1);
+  game = placeKillerBunniesAuctionBid(game, 1, 4);
+  assert.equal(game.pendingAction.playerIndex, 2);
+  game = placeKillerBunniesAuctionBid(game, 2, 6);
+  assert.equal(game.pendingAction.playerIndex, 0);
+  game = placeKillerBunniesAuctionBid(game, 0, null);
+  assert.equal(game.pendingAction.playerIndex, 1);
+  game = placeKillerBunniesAuctionBid(game, 1, null);
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[1].bunnies.some((entry) => entry.id === auctionedBunny.id), false);
+  assert.equal(game.players[2].bunnies.some((entry) => entry.id === auctionedBunny.id), true);
+  assert.equal(game.players[2].bunnies.find((entry) => entry.id === auctionedBunny.id).modifiers[0].id, "auction-halo");
+  assert.equal(game.players[1].feedingObligations.length, 0);
+  assert.equal(game.players[2].feedingObligations[0].bunnyId, auctionedBunny.id);
+  assert.deepEqual(game.bunnyCircle, ["ada-bid-bunny", auctionedBunny.id]);
+  assert.equal(bankTotal(game.players[2]), 4, "change from the winning 10 Dolla card remains available");
+  assert.equal(game.discardPile.some((card) => card.id === "lin-dolla"), true);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0135"), true);
+});
+
+test("Bunny Block Bid leaves the bunny in place when every player passes", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(236),
+  });
+  game = programAllPlayers(game);
+  const target = bunny("Unsold Bunny", "yellow", "unsold-bunny");
+  game.players[0].bunnies.push(bunny("Required Bunny", "blue", "required-auction-bunny"));
+  game.players[1].bunnies.push(target);
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(135));
+
+  game = playTopRun(game, 0, seededRandom(237));
+  game = chooseKillerBunniesAuctionTarget(game, 0, 1, target.id);
+  game = placeKillerBunniesAuctionBid(game, 0, null);
+  game = placeKillerBunniesAuctionBid(game, 1, null);
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[1].bunnies.some((entry) => entry.id === target.id), true);
+  assert.match(game.message, /no bids/i);
+});
+
+test("Bunny Exchange trades one selected bunny for two selected opposing bunnies", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["violet"],
+    random: seededRandom(238),
+  });
+  game = programAllPlayers(game);
+  const given = bunny("Given Bunny", "blue", "exchange-given");
+  given.modifiers = [{ id: "given-clover", name: "Lucky Clover", cloverValue: 1 }];
+  const takenOne = bunny("Taken One", "green", "exchange-taken-one");
+  const takenTwo = bunny("Taken Two", "orange", "exchange-taken-two");
+  takenTwo.modifiers = [{ id: "taken-halo", name: "The Heavenly Halo", cloverValue: 0 }];
+  game.players[0].bunnies = [given];
+  game.players[1].bunnies = [takenOne, takenTwo];
+  game.players[0].feedingObligations = [{ id: "give-feed", bunnyId: given.id, card: { id: "give-feed-card", name: "Feed" } }];
+  game.players[1].feedingObligations = [{ id: "take-feed", bunnyId: takenOne.id, card: { id: "take-feed-card", name: "Feed" } }];
+  game.bunnyCircle = [given.id, takenOne.id, takenTwo.id];
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(240));
+
+  game = playTopRun(game, 0, seededRandom(239));
+  assert.equal(game.phase, "bunnyExchangeGive");
+  game = chooseKillerBunniesBunnyExchangeGive(game, 0, given.id);
+  assert.equal(game.phase, "bunnyExchangeTake");
+  game = resolveKillerBunniesBunnyExchange(game, 0, 1, [takenOne.id, takenTwo.id]);
+
+  assert.equal(game.phase, "draw");
+  assert.deepEqual(game.players[0].bunnies.map((entry) => entry.id).sort(), [takenOne.id, takenTwo.id].sort());
+  assert.deepEqual(game.players[1].bunnies.map((entry) => entry.id), [given.id]);
+  assert.equal(game.players[0].bunnies.find((entry) => entry.id === takenTwo.id).modifiers[0].id, "taken-halo");
+  assert.equal(game.players[1].bunnies[0].modifiers[0].id, "given-clover");
+  assert.equal(game.players[0].feedingObligations[0].bunnyId, takenOne.id);
+  assert.equal(game.players[1].feedingObligations[0].bunnyId, given.id);
+  assert.deepEqual(game.bunnyCircle, [given.id, takenOne.id, takenTwo.id]);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0240"), true);
+});
+
+test("Bunny Exchange falls back to a one-for-one swap when the opponent has one bunny", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["violet"],
+    random: seededRandom(240),
+  });
+  game = programAllPlayers(game);
+  const given = bunny("Solo Give", "violet", "solo-give");
+  const received = bunny("Solo Receive", "yellow", "solo-receive");
+  game.players[0].bunnies = [given];
+  game.players[1].bunnies = [received];
+  game.bunnyCircle = [given.id, received.id];
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(240));
+
+  game = playTopRun(game, 0, seededRandom(241));
+  game = chooseKillerBunniesBunnyExchangeGive(game, 0, given.id);
+  game = resolveKillerBunniesBunnyExchange(game, 0, 1, [received.id]);
+
+  assert.deepEqual(game.players[0].bunnies.map((entry) => entry.id), [received.id]);
+  assert.deepEqual(game.players[1].bunnies.map((entry) => entry.id), [given.id]);
+  assert.match(game.message, /one bunny for one bunny/i);
+});
+
+test("guided cards with explicit dice instructions provide a reusable table dice roll", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(228),
+  });
+  game = programAllPlayers(game);
+  const russianRoulette = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(143));
+  game.players[0].bunnies.push(bunny("Ada Bunny", "blue", "ada-roulette"));
+  game.players[1].bunnies.push(bunny("Grace Bunny", "green", "grace-roulette"));
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = russianRoulette;
+
+  game = playTopRun(game, 0, seededRandom(229));
+  assert.equal(game.phase, "cardDiceRoll");
+  assert.deepEqual(game.pendingAction.diceChoices[0].dice, [{ sides: 12, color: null }]);
+
+  game = resolveKillerBunniesCardDiceRoll(game, 0, game.pendingAction.diceChoices[0].id, () => 0.5);
+  assert.equal(game.phase, "manualResolve");
+  assert.equal(game.pendingAction.diceRolls[0].results[0].value, 7);
+
+  game = resolveKillerBunniesCardDiceRoll(game, 0, game.pendingAction.diceChoices[0].id, () => 0);
+  assert.equal(game.phase, "manualResolve");
+  assert.equal(game.pendingAction.diceRolls[1].results[0].value, 1);
 });
 
 test("SPECIAL cards may be saved only after reaching TOP RUN and played later as an extra action", () => {
@@ -1011,6 +1556,46 @@ test("a bunny that is not fed leaves only when its owner's turn ends", () => {
   assert.equal(game.players[1].feedingObligations.length, 0);
   assert.ok(!game.players[1].bunnies.some((entry) => entry.id === bunny.id));
   assert.ok(game.discardPile.some((card) => card.id === feeding.id));
+});
+
+test("Everyone Feed A Bunny 0231 makes every opponent choose one bunny and excludes its player", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Attacker" }, { name: "Left" }, { name: "Right" }],
+    expansionIds: ["violet"],
+    random: seededRandom(231),
+  });
+  game = programAllPlayers(game);
+  const attackerIndex = game.currentPlayerIndex;
+  const opponentIndexes = game.players.map((_, index) => index).filter((index) => index !== attackerIndex);
+  game.players[attackerIndex].bunnies = [bunny("Attacker Bunny", "red", "attacker-bunny")];
+  for (const index of opponentIndexes) {
+    game.players[index].bunnies = [
+      bunny(`${game.players[index].name} First Bunny`, "blue", `${index}-first-bunny`),
+      bunny(`${game.players[index].name} Second Bunny`, "green", `${index}-second-bunny`),
+    ];
+  }
+  const everyoneFeed = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(231));
+  game.players[attackerIndex].topRun = everyoneFeed;
+
+  game = playTopRun(game, attackerIndex, seededRandom(232));
+  assert.equal(game.phase, "everyoneFeedTarget");
+  assert.equal(game.pendingAction.playerIndex, opponentIndexes[0]);
+  assert.equal(game.pendingAction.attackingPlayerIndex, attackerIndex);
+
+  for (const opponentIndex of opponentIndexes) {
+    const chosen = game.players[opponentIndex].bunnies[1];
+    assert.equal(game.pendingAction.playerIndex, opponentIndex);
+    game = chooseKillerBunniesEveryoneFeedBunny(game, opponentIndex, chosen.id);
+    assert.equal(game.players[opponentIndex].feedingObligations.length, 1);
+    assert.equal(game.players[opponentIndex].feedingObligations[0].bunnyId, chosen.id);
+    assert.equal(game.players[opponentIndex].feedingObligations[0].cabbageCost, 3);
+    assert.equal(game.players[opponentIndex].feedingObligations[0].waterCost, 3);
+  }
+
+  assert.equal(game.phase, "draw");
+  assert.equal(game.currentPlayerIndex, attackerIndex);
+  assert.equal(game.players[attackerIndex].feedingObligations.length, 0);
+  assert.equal(game.discardPile.filter((card) => card.id === everyoneFeed.id).length, 1);
 });
 
 test("computer players can complete the hunt without deadlocking", () => {

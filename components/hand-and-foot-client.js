@@ -7,7 +7,7 @@ import {
   activeCardsFor,
   canPlayHandFootCards,
   chooseHandFootBotDiscard,
-  chooseHandFootBotPlay,
+  chooseHandFootBotMove,
   createHandFootMatch,
   discardHandFootCard,
   drawHandFootCards,
@@ -102,10 +102,10 @@ export default function HandAndFootClient() {
           let attempts = 0;
           while (next.phase === "playing" && attempts < 12) {
             attempts += 1;
-            const playIds = chooseHandFootBotPlay(next, botIndex);
-            if (!playIds.length) break;
+            const move = chooseHandFootBotMove(next, botIndex);
+            if (!move?.cardIds.length) break;
             try {
-              next = playHandFootCards(next, botIndex, playIds);
+              next = playHandFootCards(next, botIndex, move.cardIds, move.targetRank);
             } catch {
               break;
             }

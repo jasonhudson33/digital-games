@@ -124,7 +124,7 @@ function resolutionLabel(value) {
 }
 
 function abilitySourceLabel(value) {
-  return ({ publisher: "Publisher ruling summarized", community: "Community card page cross-check", "cross-checked": "Publisher/community ruling cross-checked", "family-rule": "Verified card-family rule" })[value] || value;
+  return ({ publisher: "Publisher ruling summarized", community: "Community card page cross-check", "cross-checked": "Publisher/community ruling cross-checked", "family-rule": "Verified card-family rule", "digital-override": "Digital-game rule variant" })[value] || value;
 }
 
 function categoryLabel(value) {
