@@ -1,3 +1,5 @@
+import { gameCountWords } from "../lib/games";
+
 /*
  * The core use case here is phones around a table, but there was no manifest,
  * so nobody could add the app to a home screen and the browser chrome clashed
@@ -7,7 +9,7 @@ export default function manifest() {
   return {
     name: "Digital Games",
     short_name: "Digital Games",
-    description: "Twenty-six party games, playable in your browser.",
+    description: `${gameCountWords()} party games, playable in your browser.`,
     start_url: "/",
     display: "standalone",
     orientation: "any",

@@ -7,6 +7,7 @@ import { siteUrl } from "../lib/metadata";
 import "./tokens.css";
 import "./globals.css";
 import "./table.css";
+import { gameCountWords } from "../lib/games";
 
 /*
  * Fonts are declared once, here.
@@ -51,7 +52,7 @@ export const metadata = {
     default: "Digital Games",
     template: "%s",
   },
-  description: "Twenty-six party games, playable in your browser.",
+  description: `${gameCountWords()} party games, playable in your browser.`,
   applicationName: "Digital Games",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
@@ -61,7 +62,7 @@ export const metadata = {
     type: "website",
     siteName: "Digital Games",
     title: "Digital Games",
-    description: "Twenty-six party games, playable in your browser.",
+    description: `${gameCountWords()} party games, playable in your browser.`,
   },
 };
 

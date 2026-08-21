@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { shuffled } from "../lib/shuffle.js";
 import {
   ArrowRightLeft,
   Anchor,
@@ -279,14 +280,6 @@ function midpointForEdge(board, edge) {
   return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
 }
 
-function shuffled(items) {
-  const next = [...items];
-  for (let index = next.length - 1; index > 0; index -= 1) {
-    const swap = Math.floor(Math.random() * (index + 1));
-    [next[index], next[swap]] = [next[swap], next[index]];
-  }
-  return next;
-}
 
 function emptyResources() {
   return { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0, paper: 0, cloth: 0, coin: 0 };

@@ -1,0 +1,33 @@
+{
+  // Type checking for the JavaScript, which `tsc --noEmit` alone never did.
+  //
+  // The base tsconfig sets "strict": true and "allowJs": true but not
+  // "checkJs", so TypeScript parsed the ~35,000 lines of game engines, clients
+  // and route handlers purely for inference and reported nothing in them. A
+  // deliberate `@type {number}` on a string in lib/games.js exited 0. `npm run
+  // lint` is an alias for the same command, so neither script was checking any
+  // JavaScript at all.
+  //
+  // Turning "checkJs" on across the whole tree today produces 8,576 errors
+  // (5,062 of them just missing parameter types), which is not a change anyone
+  // can review. So this is a ratchet instead: every file listed here is fully
+  // type-checked and `npm run check` fails if that regresses. Add files as they
+  // get annotated; never remove one.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "noEmit": true
+  },
+  "include": [
+    "lib/api.js",
+    "lib/client-room-route.js",
+    "lib/games.js",
+    "lib/metadata.js",
+    "lib/random.js",
+    "lib/recent-games.js",
+    "lib/room-cache.js",
+    "lib/room-poll.js",
+    "lib/shuffle.js",
+    "lib/supabase-server-room-store.js"
+  ]
+}

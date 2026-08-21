@@ -1,6 +1,8 @@
 "use client";
 
+import { ROOM_CODE_ALPHABET, randomString } from "../lib/random";
 import { getConfiguredSupabaseClient, isSupabaseConfigured, subscribeToRoomState } from "../lib/supabase-room-sync";
+import { asRoomError, isOffline, readCachedRoom, writeCachedRoom } from "../lib/room-cache";
 import { migrateCatanRoomState } from "./catan-state-migrations.js";
 
 const channelName = "catan-room-updates";
@@ -12,7 +14,7 @@ export const isCatanOnlineSyncEnabled = isSupabaseConfigured();
 export const CatanRoomService = {
   async createCode() {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const code = Array.from({ length: 5 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+      const code = randomString(5, ROOM_CODE_ALPHABET);
       if (!(await CatanRoomService.load(code))) return code;
     }
     throw new Error("Could not create a unique room code. Try again.");
@@ -40,7 +42,7 @@ export const CatanRoomService = {
     const supabase = await getConfiguredSupabaseClient();
     if (!supabase) {
       for (let attempt = 0; attempt < 4; attempt += 1) {
-        const current = (await loadLocalRoom(code)) ?? loadCachedRoom(code);
+        const current = await loadRoomOrCache(code, loadLocalRoom, loadCachedRoom);
         if (!current) return null;
         const updated = updater(current);
         if (updated === current) return current;
@@ -92,7 +94,7 @@ export const CatanRoomService = {
       if (error) throw error;
       return data?.state ? migrateCatanRoomState(data.state) : null;
     }
-    return (await loadLocalRoom(code)) ?? loadCachedRoom(code);
+    return await loadRoomOrCache(code, loadLocalRoom, loadCachedRoom);
   },
 
   subscribe(roomCode, handler) {
@@ -109,12 +111,11 @@ export const CatanRoomService = {
 };
 
 function loadCachedRoom(code) {
-  const cached = localStorage.getItem(`catan:${code}`);
-  return cached ? migrateCatanRoomState(JSON.parse(cached)) : null;
+  return readCachedRoom(`catan:${code}`, (state) => migrateCatanRoomState(state));
 }
 
 function cacheRoom(state) {
-  localStorage.setItem(`catan:${state.roomCode}`, JSON.stringify(state));
+  writeCachedRoom(`catan:${state.roomCode}`, state);
   if (!("BroadcastChannel" in window)) return;
   const channel = new BroadcastChannel(channelName);
   channel.postMessage(state);
@@ -140,5 +141,23 @@ async function loadLocalRoom(code) {
     return data.state ? migrateCatanRoomState(data.state) : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * The server copy, or the local mirror when the server cannot be reached.
+ *
+ * Falling back on an offline error is what lets a dropped connection keep a
+ * game playable. Rethrowing when there is no mirror is what stops "your wifi
+ * died" being reported as "that room does not exist".
+ */
+async function loadRoomOrCache(code, fetchRoom, readCache) {
+  try {
+    return (await fetchRoom(code)) ?? readCache(code);
+  } catch (error) {
+    if (!isOffline(error)) throw error;
+    const cached = readCache(code);
+    if (cached) return cached;
+    throw error;
   }
 }

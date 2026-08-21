@@ -8,6 +8,7 @@ import GameTile, { monogram } from "./game-tile";
 import {
   GAMES,
   KINDS,
+  gameCountWords,
   gameHref,
   getGame,
   lengthBucket,
@@ -128,7 +129,7 @@ export default function GameHub() {
   return (
     <main className="hub-shell">
       <section className="hub-hero">
-        <p className="hub-eyebrow">Twenty-six games, one table</p>
+        <p className="hub-eyebrow">{gameCountWords()} games, one table</p>
         <h1>Who&rsquo;s playing tonight?</h1>
         <p className="hub-copy">
           Tell us how many of you there are and how long you&rsquo;ve got. We&rsquo;ll show you what fits.

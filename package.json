@@ -9,11 +9,12 @@
     "test": "npm run test:root && npm run test:monopoly",
     "test:root": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:monopoly": "node monopoly/scripts/game-rules.test.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck:js",
     "check": "npm test && npm run typecheck && npm run validate && npm run build",
     "start": "next start",
     "lint": "npm run typecheck",
-    "validate": "node scripts/validate-frontend.mjs"
+    "validate": "node scripts/validate-frontend.mjs",
+    "typecheck:js": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

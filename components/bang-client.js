@@ -195,7 +195,15 @@ function RulesModal({ onClose }) {
 }
 
 function FinishedModal({ room, me, onLeave }) {
+  const isDraw = room.winner === "draw";
   const winners = room.winner === "sheriff" ? ["sheriff", "deputy"] : [room.winner];
-  const won = winners.includes(me.role);
-  return <div className="bang-overlay"><section className="bang-finished"><span>★</span><p className="bang-kicker">The dust settles</p><h1>{won ? "You win the showdown" : `${room.winner === "sheriff" ? "The law" : `The ${ROLE_LABELS[room.winner]}s`} wins`}</h1><p>Every identity is now revealed.</p><div>{room.players.map((player) => <article key={player.id}><strong>{player.name}</strong><span>{player.character.name}</span><b>{ROLE_LABELS[player.role]}</b></article>)}</div><button className="bang-primary" onClick={onLeave}>Back to the saloon</button></section></div>;
+  const won = !isDraw && winners.includes(me.role);
+  // A stalemated round ends with winner "draw"; without this branch the heading
+  // read "The undefineds wins".
+  const heading = isDraw
+    ? "The standoff ends in a draw"
+    : won
+      ? "You win the showdown"
+      : `${room.winner === "sheriff" ? "The law" : `The ${ROLE_LABELS[room.winner]}s`} wins`;
+  return <div className="bang-overlay"><section className="bang-finished"><span>{isDraw ? "=" : "★"}</span><p className="bang-kicker">The dust settles</p><h1>{heading}</h1><p>{isDraw ? "Nobody could land a shot. Every identity is now revealed." : "Every identity is now revealed."}</p><div>{room.players.map((player) => <article key={player.id}><strong>{player.name}</strong><span>{player.character.name}</span><b>{ROLE_LABELS[player.role]}</b></article>)}</div><button className="bang-primary" onClick={onLeave}>Back to the saloon</button></section></div>;
 }
