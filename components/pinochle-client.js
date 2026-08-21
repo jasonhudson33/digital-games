@@ -11,7 +11,26 @@ import {
   pinochleRankLabel,
   pinochleTeamName,
 } from "../lib/pinochle";
+import { PHONE_TABLE, WIDE_TABLE, backFan, seatLayout } from "../lib/pinochle-seats";
 import { PinochleRoomService } from "./pinochle-room-service";
+
+/* Every position is emitted twice, as a percentage of each design box, and the
+ * stylesheet picks the pair that matches the plate it is actually drawing. A
+ * phone renders a smaller plate on a portrait felt, so it needs its own solution
+ * rather than a scaled copy of the desktop one — scaling the desktop answer down
+ * is what slid a card under somebody's name. Solving both here rather than from a
+ * measured viewport keeps the server and client markup identical. */
+const SHAPES = [
+  { key: "", shape: WIDE_TABLE },
+  { key: "-n", shape: PHONE_TABLE },
+];
+
+const at = (key, prefix, spot, shape) => ({
+  [`--${prefix}-x${key}`]: `${((spot.x / shape.box.width) * 100).toFixed(2)}%`,
+  [`--${prefix}-y${key}`]: `${((spot.y / shape.box.height) * 100).toFixed(2)}%`,
+});
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 const PLAYER_NAME_KEY = "pinochle-player-name";
 
@@ -316,37 +335,9 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
       )}
 
       <section className="pn-table">
-        <div className="pn-player-rail">
-          {game.players.map((player, index) => (
-            <div className={`pn-player-chip ${index === game.currentPlayerIndex ? "active" : ""} ${index === viewerIndex ? "viewer" : ""}`} key={player.playerId}>
-              <span>{player.isComputer ? <Bot size={15} /> : player.name[0].toUpperCase()}</span>
-              <div><strong>{player.name}</strong><small>{player.handCount} cards · {player.tricksWon || 0} tricks</small></div>
-              {index === game.highBidderIndex && <Crown size={15} className="pn-bid-crown" />}
-              {game.playerCount === 5 && game.contractPlayerIndexes?.includes(index) && <em className="pn-contract-badge">Bid team</em>}
-            </div>
-          ))}
-        </div>
+        <PinochleTable game={game} viewerIndex={viewerIndex} showingCompletedTrick={showingCompletedTrick} />
 
-        <div className="pn-table-center">
-          <div className="pn-round-meta">
-            {game.playerCount === 2
-              ? <span>Stock <strong>{game.stockCount}</strong></span>
-              : <span>Bid <strong>{game.highBid ?? "—"}</strong></span>}
-            <span>Trump <strong className={game.trump === "hearts" || game.trump === "diamonds" ? "red" : ""}>{game.trump ? PINOCHLE_SUIT_SYMBOLS[game.trump] : "—"}</strong></span>
-            <span>Trick <strong>{showingCompletedTrick ? game.trickNumber : game.trickNumber + 1}</strong></span>
-          </div>
-          {game.bidHistory?.length > 0 && (
-            <div className="pn-bid-history" aria-label="Bid history">
-              <span>Auction</span>
-              {game.bidHistory.map((bid, index) => (
-                <span className={bid.amount === null ? "pass" : "bid"} key={`${bid.playerIndex}-${index}`}>
-                  {game.players[bid.playerIndex].name}: {bid.amount ?? "pass"}
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="pn-message" role="status">{game.message}</p>
-          {showingCompletedTrick && <span className="pn-trick-label">Completed trick · {game.players[game.lastTrick.winnerPlayerIndex].name} won</span>}
+        <div className="pn-table-side">
           {game.playerCount === 2 && game.stockCount > 0 && game.stockTrumpCard && (
             <div className="pn-stock" aria-label={`${game.stockCount} cards remain in the draw stock; ${formatPinochleCard(game.stockTrumpCard)} is face up`}>
               <div className="pn-card-back"><span>P</span></div>
@@ -354,36 +345,9 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
               <small>{game.stockCount} cards · trump card</small>
             </div>
           )}
-          <div className="pn-trick-area">
-            {visibleTrick.length ? visibleTrick.map((play) => (
-              <div className={`pn-played-card ${showingCompletedTrick && play.playerIndex === game.lastTrick.winnerPlayerIndex ? "winner" : ""}`} key={`${play.playerIndex}-${play.card.id}`}>
-                <PinochleCard card={play.card} /><small>{game.players[play.playerIndex].name}</small>
-              </div>
-            )) : <div className="pn-empty-trick"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></div>}
-          </div>
+          <p className="pn-message" role="status">{game.message}</p>
           <TurnControls game={game} busy={busy} yourTurn={yourTurn} minimumBid={minimumBid} bidAmount={bidAmount} setBidAmount={setBidAmount} selectedIds={selectedIds} availableMelds={availableMelds} onAction={onAction} />
         </div>
-
-        {game.melds?.length > 0 && (
-          <aside className="pn-meld-panel">
-            <span className="pn-panel-label">Public meld on the table</span>
-            {game.players.map((player, index) => (
-              <section className={`pn-meld-player ${index === viewerIndex ? "viewer" : ""}`} key={player.playerId}>
-                <header><span>{player.name}</span><strong>{game.melds[index].total}</strong></header>
-                {game.melds[index].items.length
-                  ? game.melds[index].items.map((item) => (
-                      <div className="pn-meld-item" key={item.name}>
-                        <div><span>{item.name}</span><b>{item.points}</b></div>
-                        <div className="pn-meld-cards">
-                          {item.cards.map((card) => <span className={card.suit === "hearts" || card.suit === "diamonds" ? "red" : ""} key={`${item.name}-${card.id}`}>{formatPinochleCard(card)}</span>)}
-                        </div>
-                      </div>
-                    ))
-                  : <small>No meld</small>}
-              </section>
-            ))}
-          </aside>
-        )}
       </section>
 
       <section className="pn-hand-zone">
@@ -415,6 +379,140 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
       {showResults && <ResultsDialog game={game} busy={busy} onAction={onAction} onLeave={onLeave} />}
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
+  );
+}
+
+/*
+ * The table, with everybody in a chair.
+ *
+ * What this replaced: a vertical list of players down one side, a row of played
+ * cards in the middle captioned with names in 12px, and a separate panel listing
+ * the same people's meld. A player's name was printed in sixteen places, and 29%
+ * of a 1218x518 felt carried anything at all.
+ *
+ * Position now answers "who played that" — the question a trick-taking game asks
+ * most often — by looking rather than by reading.
+ */
+function PinochleTable({ game, viewerIndex, showingCompletedTrick }) {
+  const solved = SHAPES.map((entry) => ({ ...entry, layout: seatLayout(game.playerCount, viewerIndex, entry.shape) }));
+  const layout = solved[0].layout;
+  const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
+  const winnerIndex = showingCompletedTrick ? game.lastTrick?.winnerPlayerIndex : null;
+  const viewerTeam = game.players[viewerIndex]?.teamId;
+  const lastBid = new Map();
+  for (const bid of game.bidHistory ?? []) lastBid.set(bid.playerIndex, bid.amount);
+
+  return (
+    <div className="pn-felt-table">
+      <div className="pn-felt" aria-hidden="true" />
+
+      {/* Two separate marks rather than one stacked block: on a phone the ring of
+          cards closes to within a card's width of the middle, so only the trump
+          suit can stay there and the bid line moves to the foot of the felt. */}
+      <b className={`pn-felt-trump ${game.trump === "hearts" || game.trump === "diamonds" ? "red" : ""}`} aria-hidden="true">
+        {game.trump ? PINOCHLE_SUIT_SYMBOLS[game.trump] : "\u2014"}
+      </b>
+      <small className="pn-felt-meta" aria-hidden="true">
+        {game.playerCount === 2 ? `Stock ${game.stockCount}` : `Bid ${game.highBid ?? "\u2014"}`}
+        {" \u00b7 Trick "}
+        {showingCompletedTrick ? game.trickNumber : game.trickNumber + 1}
+      </small>
+
+      {layout.map((spot) => {
+        const card = played.get(spot.index);
+        if (!card) return null;
+        const won = winnerIndex === spot.index;
+        return (
+          <div
+            className={`pn-seat-card ${won ? "won" : ""} ${showingCompletedTrick ? "gathered" : ""}`}
+            key={`${spot.index}-${card.id}`}
+            style={{
+              /* A finished trick gathers on whoever took it, so the sweep says
+                 where it went — which the old "Completed trick · X won" label had
+                 to say in words, and only until the phase changed. */
+              ...Object.assign({}, ...solved.map(({ key, shape, layout: solution }) => {
+                const resting = showingCompletedTrick ? solution.find((seat) => seat.index === winnerIndex) : null;
+                return at(key, "card", (resting ?? solution[spot.index]).played, shape);
+              })),
+              "--tilt": `${(((spot.index * 7) % 9) - 4)}deg`,
+              zIndex: won ? 3 : 2,
+            }}
+          >
+            <PinochleCard card={card} />
+          </div>
+        );
+      })}
+
+      {layout.map((spot) => {
+        const player = game.players[spot.index];
+        const isTurn = spot.index === game.currentPlayerIndex && game.phase !== "trick-complete";
+        const partner = game.partnershipGame && player.teamId === viewerTeam && !spot.isViewer;
+        const meld = game.melds?.[spot.index];
+        const bid = lastBid.get(spot.index);
+        const bidding = game.phase === "bidding" && lastBid.has(spot.index);
+        return (
+          <div
+            className={`pn-seat ${spot.side} ${spot.half} ${isTurn ? "turn" : ""} ${spot.isViewer ? "self" : ""} ${partner ? "mate" : ""}`}
+            key={player.playerId}
+            style={Object.assign({}, ...solved.map(({ key, shape, layout: solution }) => at(key, "seat", solution[spot.index].seat, shape)))}
+          >
+            {!spot.isViewer && (
+              <span className="pn-seat-fan" aria-hidden="true">
+                {backFan(player.handCount).map((back, index) => (
+                  <i key={index} style={{ "--a": `${back.angle}deg`, "--o": `${back.offset}px` }} />
+                ))}
+              </span>
+            )}
+
+            <div className="pn-seat-plate">
+              <span className="pn-seat-avatar">{player.isComputer ? <Bot size={15} /> : player.name[0].toUpperCase()}</span>
+              <div className="pn-seat-who">
+                <strong title={player.name}>{player.name}{spot.isViewer ? <span> (you)</span> : null}</strong>
+                {/* Not the hand count as well: every hand in Pinochle holds the same
+                    number of cards, so it only repeated the trick number in the
+                    middle of the felt — and it was crowding the names. */}
+                <small>{plural(player.tricksWon || 0, "trick")}</small>
+              </div>
+              {/* Two marks at most, and they take their room from the plate rather
+                  than sitting on top of the name — which is what a third one did.
+                  Partnership is carried by the plate itself instead. */}
+              <span className="pn-seat-marks">
+                {spot.index === game.dealerIndex && <em className="pn-mark deal" title="Dealer">D</em>}
+                {spot.index === game.highBidderIndex && game.highBid !== null && (
+                  <em className="pn-mark bid" title={`Took the contract at ${game.highBid}`}>{game.highBid}</em>
+                )}
+              </span>
+            </div>
+
+            {/* The auction runs round the table the way play does, rather than as
+                a wrapping row of chips that has to be read in order. */}
+            {bidding && <span className={`pn-seat-bid ${bid === null ? "pass" : ""}`}>{bid === null ? "pass" : bid}</span>}
+
+            {/* Meld belongs to a player, so it lives on their seat. The totals are
+                always visible above; the cards open on demand. */}
+            {meld?.items?.length > 0 && (
+              <details className="pn-seat-meld">
+                <summary>{meld.total} meld</summary>
+                <div>
+                  {meld.items.map((item) => (
+                    <p key={item.name}>
+                      <span>{item.name}</span><b>{item.points}</b>
+                      <em>
+                        {item.cards.map((card) => (
+                          <i className={card.suit === "hearts" || card.suit === "diamonds" ? "red" : ""} key={card.id}>
+                            {formatPinochleCard(card)}
+                          </i>
+                        ))}
+                      </em>
+                    </p>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
