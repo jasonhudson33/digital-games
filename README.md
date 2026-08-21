@@ -1,7 +1,6 @@
 # Digital Games
 
-A single Next.js application containing UNO, DOS, Qwirkle, No Thanks!, Spyrium, Cover Your Assets, Splendor, Killer Bunnies, Secret Hitler, Sequence, Ticket to Ride,
-Pinochle, Risk, Skull King, Hand and Foot, Scum, Seven Up, Hearts, Mafia, Monopoly, and Catan.
+A single Next.js application containing 26 games: 7-Up, BANG!, Catan, Cover Your Assets, Dominion, DOS, Flip 7, Hand and Foot, Hearts, Killer Bunnies, Life, Mafia, Monopoly, No Thanks!, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Ticket to Ride, UNO, and Viticulture.
 
 ## Development
 

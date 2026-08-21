@@ -362,3 +362,55 @@ test("a computer industrialist always performs a legal action", () => {
   assert.notEqual(next, game);
   assert.ok(playerMarketWorkers(next, "bot-1") > 0 || next.players[botIndex].phase === "activation");
 });
+
+test("a worker whose neighbouring cards are gone can still be withdrawn", () => {
+  // Regression: withdrawal was validated against the cards still adjacent to
+  // the worker, so buying both neighbours stranded it — its owner could not
+  // withdraw (no live card) and could not pass (board not empty). The seat was
+  // stuck for good, computer or human.
+  const game = gameWith(2);
+  const actor = currentPlayer(game);
+  const placed = placeWorker(game, actor.id, "v-0-1");
+  const worker = Object.values(placed.workerSlots).flat().find((item) => item.playerId === actor.id);
+  assert.ok(worker, "the worker is on the board");
+
+  // Hand the turn back to that player, in the activation phase, with both of
+  // the cards beside their worker already bought.
+  const stranded = {
+    ...placed,
+    currentPlayerIndex: placed.players.findIndex((player) => player.id === actor.id),
+    market: placed.market.map((card, index) => ([1, 4].includes(index) ? null : card)),
+    players: placed.players.map((player) => (
+      player.id === actor.id ? { ...player, phase: "activation", passed: false } : player
+    )),
+  };
+
+  assert.deepEqual(workerAdjacentCardIndexes(stranded, "v-0-1", worker), [], "no live card remains beside the worker");
+  assert.equal(pass(stranded, actor.id), stranded, "passing is still refused while a worker is on the board");
+
+  const withdrawn = gainMoney(stranded, actor.id, worker.id, 1);
+  assert.notEqual(withdrawn, stranded, "withdrawing the worker must remain possible");
+  assert.equal(playerMarketWorkers(withdrawn, actor.id), 0);
+});
+
+test("all-computer games always reach an end", () => {
+  // The market/bot combination could produce a state where runComputerTurn
+  // returned the game unchanged forever.
+  for (let players = 2; players <= 5; players += 1) {
+    let game = createLobby({ id: "p1", name: "P1" }, "TEST1", 1);
+    for (let index = 1; index < players; index += 1) game = addComputerPlayer(game);
+    game.players[0].isComputer = true;
+    let seed = players * 7919;
+    const rng = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    game = startGame(game, rng);
+
+    let steps = 0;
+    while (game.phase === "playing" && steps < 5000) {
+      const next = runComputerTurn(game, rng);
+      assert.notEqual(next, game, `${players}-player game stalled at step ${steps}`);
+      game = next;
+      steps += 1;
+    }
+    assert.equal(game.phase, "finished", `${players}-player game did not finish`);
+  }
+});

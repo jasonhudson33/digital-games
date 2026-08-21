@@ -91,3 +91,65 @@ test("length buckets split at 20 and 40 minutes", () => {
 test("getGame returns null rather than throwing for an unknown slug", () => {
   assert.equal(getGame("not-a-game"), null);
 });
+
+/*
+ * The tests above check the catalogue against itself. That is what let four
+ * entries drift away from the code they describe — the hub's player-count
+ * chips are built straight from `players`, so a wrong range offers people a
+ * game that then refuses to deal. These check it against the engines.
+ */
+test("advertised player counts match what each engine will actually start", async () => {
+  const engines = [
+    { slug: "seven-up", load: async () => { const m = await import("../lib/game.js"); return { min: m.SevenUpGame.MIN_PLAYERS, max: m.SevenUpGame.MAX_PLAYERS }; } },
+    { slug: "uno", load: async () => await import("../lib/uno.js") },
+    { slug: "dos", load: async () => await import("../lib/dos.js") },
+    { slug: "flip-7", load: async () => await import("../lib/flip-7.js") },
+    { slug: "bang", load: async () => await import("../lib/bang.js") },
+    { slug: "no-thanks", load: async () => await import("../lib/no-thanks.js") },
+    { slug: "cover-your-assets", load: async () => await import("../lib/cover-your-assets.js") },
+    { slug: "secret-hitler", load: async () => { const m = await import("../lib/secret-hitler.js"); return { min: m.SECRET_HITLER_MIN_PLAYERS, max: m.SECRET_HITLER_MAX_PLAYERS }; } },
+    { slug: "scum", load: async () => { const m = await import("../lib/scum-rooms.js"); return { min: m.SCUM_MIN_PLAYERS, max: m.SCUM_MAX_PLAYERS }; } },
+  ];
+
+  for (const engine of engines) {
+    const game = getGame(engine.slug);
+    assert.ok(game, `${engine.slug} is missing from the catalogue`);
+    const loaded = await engine.load();
+    const min = loaded.min ?? loaded.MIN_PLAYERS;
+    const max = loaded.max ?? loaded.MAX_PLAYERS;
+    assert.equal(game.players[0], min, `${engine.slug}: catalogue min ${game.players[0]} vs engine ${min}`);
+    assert.equal(game.players[1], max, `${engine.slug}: catalogue max ${game.players[1]} vs engine ${max}`);
+  }
+});
+
+test("Sequence only offers seat counts it can actually deal", async () => {
+  const { VALID_PLAYER_COUNTS } = await import("../lib/sequence.js");
+  const sequence = getGame("sequence");
+  for (let count = sequence.players[0]; count <= sequence.players[1]; count += 1) {
+    assert.equal(
+      supportsPlayerCount(sequence, count),
+      VALID_PLAYER_COUNTS.includes(count),
+      `Sequence with ${count} players: catalogue and engine disagree`,
+    );
+  }
+});
+
+test("Hand and Foot only offers even partnership counts", async () => {
+  const { HAND_FOOT_MAX_PLAYERS } = await import("../lib/hand-and-foot.js");
+  const handAndFoot = getGame("hand-and-foot");
+  assert.equal(handAndFoot.players[1], HAND_FOOT_MAX_PLAYERS);
+  assert.equal(supportsPlayerCount(handAndFoot, 5), false);
+  assert.equal(supportsPlayerCount(handAndFoot, 6), true);
+  assert.equal(supportsPlayerCount(handAndFoot, 3), false);
+});
+
+test("every catalogue entry has a route, and every route a catalogue entry", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+  const routes = readdirSync("app", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== "api" && existsSync(`app/${entry.name}/page.js`))
+    .map((entry) => entry.name);
+  const slugs = GAMES.map((game) => game.slug);
+
+  assert.deepEqual(slugs.filter((slug) => !routes.includes(slug)), [], "catalogue entries with no page");
+  assert.deepEqual(routes.filter((route) => !slugs.includes(route)), [], "pages with no catalogue entry");
+});

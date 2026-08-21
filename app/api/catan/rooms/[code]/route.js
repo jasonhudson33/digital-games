@@ -1,6 +1,10 @@
-import { createLocalRoomHandlers } from "../../../../../lib/local-room-route.js";
+import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
+import { catanRoomStore } from "../../../../../lib/catan-room-store.js";
 
-const handlers = createLocalRoomHandlers("__catanRooms");
+const handlers = createClientRoomRoute({
+  store: catanRoomStore,
+  label: "Catan",
+});
 
 export const GET = handlers.GET;
 export const PUT = handlers.PUT;

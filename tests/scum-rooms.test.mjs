@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getLegalScumPlays } from "../lib/scum.js";
 import {
+  SCUM_MAX_NAME,
+  SCUM_MAX_PLAYERS,
   addScumComputer,
   createScumRoom,
   getScumRoom,
@@ -46,4 +48,25 @@ test("only the host can add computer seats", async () => {
     addScumComputer({ roomCode: created.state.roomCode, token: joined.token }),
     /Only the host/
   );
+});
+
+test("a Scum room stops seating players at its advertised maximum", async () => {
+  // Join checked only that the game had not started, so a room seated 40
+  // players and dealt them in — against a catalogue that says 3-10 and a table
+  // that cannot draw more than ten seats.
+  const created = await createScumRoom({ name: "Host" });
+  const roomCode = created.state.roomCode;
+  for (let index = 2; index <= SCUM_MAX_PLAYERS; index += 1) {
+    await joinScumRoom({ roomCode, name: `P${index}` });
+  }
+  await assert.rejects(() => joinScumRoom({ roomCode, name: "one too many" }), /room is full/);
+  await assert.rejects(
+    () => addScumComputer({ roomCode, token: created.token }),
+    /room is full/,
+  );
+});
+
+test("display names are bounded", async () => {
+  const created = await createScumRoom({ name: "x".repeat(5000) });
+  assert.ok(created.state.players[0].name.length <= SCUM_MAX_NAME);
 });

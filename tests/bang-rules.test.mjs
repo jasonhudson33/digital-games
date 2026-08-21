@@ -9,6 +9,7 @@ import {
   distanceBetween,
   playCard,
   respondWithCard,
+  STALEMATE_TURNS,
   runComputerStep,
   startGame,
   weaponRange,
@@ -163,4 +164,63 @@ test("computer Outlaws keep offensive cards and finish a late-game standoff", ()
   game = startGame(game, rng);
   for (let step = 0; step < 1500 && game.phase === "playing"; step += 1) game = runComputerStep(game, rng);
   assert.equal(game.phase, "finished");
+});
+
+test("a round nobody can win ends in a draw instead of running forever", () => {
+  // Reachable position: the last Outlaw holds BANG! cards but its weapon range
+  // is shorter than the distance to every survivor, so no shot can ever land.
+  // The engine had no draw, so play continued indefinitely — 400,000 computer
+  // steps without a life changing hands — and the host client kept writing the
+  // full state to the room API every 560 ms the whole time.
+  const mulberry = (seed) => () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const rng = mulberry(1 * 7919 + 5 * 104729);
+
+  let game = createLobby({ id: "p1", name: "P1" }, "TEST1", 1);
+  for (let index = 1; index < 5; index += 1) game = addComputerPlayer(game);
+  game.players[0].isComputer = true;
+  game = startGame(game, rng);
+
+  let steps = 0;
+  while (game.phase === "playing" && steps < 40000) {
+    game = runComputerStep(game, rng);
+    steps += 1;
+  }
+
+  assert.equal(game.phase, "finished", "the round must terminate");
+  assert.equal(game.winner, "draw");
+  assert.ok(game.quietTurns >= STALEMATE_TURNS);
+});
+
+test("the draw rule never cuts a game that is still making progress short", () => {
+  // The bound is 60 quiet turns; a real game's longest measured quiet stretch
+  // was 21. Every decided game must stay decided.
+  const mulberry = (seed) => () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  let decided = 0;
+  for (let players = 4; players <= 7; players += 1) {
+    for (let seed = 1; seed <= 6; seed += 1) {
+      const rng = mulberry(seed * 7919 + players * 104729);
+      let game = createLobby({ id: "p1", name: "P1" }, "TEST1", 1);
+      for (let index = 1; index < players; index += 1) game = addComputerPlayer(game);
+      game.players[0].isComputer = true;
+      game = startGame(game, rng);
+      let steps = 0;
+      while (game.phase === "playing" && steps < 40000) {
+        game = runComputerStep(game, rng);
+        steps += 1;
+      }
+      assert.equal(game.phase, "finished", `${players}p/seed${seed} never ended`);
+      if (game.winner !== "draw") decided += 1;
+    }
+  }
+  assert.ok(decided >= 20, `expected most games to be decided on the table, got ${decided}`);
 });

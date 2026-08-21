@@ -1,14 +1,18 @@
 "use client";
 
 import { subscribeToRoomState } from "../lib/supabase-room-sync";
+import { asRoomError, isOffline, readCachedRoom, writeCachedRoom } from "../lib/room-cache";
+import { ROOM_CODE_ALPHABET, randomString } from "../lib/random";
 
 export function createCardGameRoomService(gameKey, gameName) {
   const channelName = `${gameKey}-room-updates`;
   const service = {
     async createCode() {
-      const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      // For these games the room code is the whole of the access control: the
+      // room API has no token, so anyone who can guess a code can read every
+      // hand in it. Math.random is not a defence against guessing.
       for (let attempt = 0; attempt < 20; attempt += 1) {
-        const code = Array.from({ length: 5 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+        const code = randomString(5, ROOM_CODE_ALPHABET);
         if (!(await service.load(code))) return code;
       }
       throw new Error("Could not create a unique room code. Try again.");
@@ -22,7 +26,7 @@ export function createCardGameRoomService(gameKey, gameName) {
     async update(roomCode, updater) {
       const code = normalizeCode(roomCode);
       for (let attempt = 0; attempt < 4; attempt += 1) {
-        const current = (await loadRoom(code)) ?? loadCachedRoom(code);
+        const current = await loadRoomOrCache(code, loadRoom, loadCachedRoom);
         if (!current) return null;
         const updated = updater(current);
         if (!updated || updated === current) return current;
@@ -38,7 +42,7 @@ export function createCardGameRoomService(gameKey, gameName) {
     async load(roomCode) {
       const code = normalizeCode(roomCode);
       if (!code) return null;
-      return (await loadRoom(code)) ?? loadCachedRoom(code);
+      return await loadRoomOrCache(code, loadRoom, loadCachedRoom);
     },
     subscribe(roomCode, handler) {
       return subscribeToRoomState({
@@ -60,12 +64,11 @@ export function createCardGameRoomService(gameKey, gameName) {
   }
 
   function loadCachedRoom(code) {
-    const cached = localStorage.getItem(`${gameKey}:${code}`);
-    return cached ? JSON.parse(cached) : null;
+    return readCachedRoom(`${gameKey}:${code}`);
   }
 
   function cacheRoom(state) {
-    localStorage.setItem(`${gameKey}:${state.roomCode}`, JSON.stringify(state));
+    writeCachedRoom(`${gameKey}:${state.roomCode}`, state);
     if (!("BroadcastChannel" in window)) return;
     const channel = new BroadcastChannel(channelName);
     channel.postMessage(state);
@@ -91,8 +94,7 @@ export function createCardGameRoomService(gameKey, gameName) {
       if (!response.ok) throw new Error(payload.error || `Could not load the ${gameName} room.`);
       return payload.state ?? null;
     } catch (error) {
-      if (error instanceof TypeError) return null;
-      throw error;
+      throw asRoomError(error);
     }
   }
 
@@ -102,4 +104,22 @@ export function createCardGameRoomService(gameKey, gameName) {
   }
 
   return service;
+}
+
+/**
+ * The server copy, or the local mirror when the server cannot be reached.
+ *
+ * Falling back on an offline error is what lets a dropped connection keep a
+ * game playable. Rethrowing when there is no mirror is what stops "your wifi
+ * died" being reported as "that room does not exist".
+ */
+async function loadRoomOrCache(code, fetchRoom, readCache) {
+  try {
+    return (await fetchRoom(code)) ?? readCache(code);
+  } catch (error) {
+    if (!isOffline(error)) throw error;
+    const cached = readCache(code);
+    if (cached) return cached;
+    throw error;
+  }
 }

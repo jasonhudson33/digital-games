@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { shuffleInPlace } from "../lib/shuffle.js";
 import {
   SUITS,
   capitalize,
@@ -906,7 +907,7 @@ function createLocalGame(players, dealerIndex) {
       deck.push({ suit, rank });
     }
   }
-  shuffle(deck);
+  shuffleInPlace(deck);
   const playerStates = players.map((player) => ({
     ...player,
     hand: [],
@@ -1141,12 +1142,6 @@ function getHandContext({ mode, localGame, overlayState, roomState }) {
   };
 }
 
-function shuffle(array) {
-  for (let index = array.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
-  }
-}
 
 function rankCode(rank) {
   if (rank === 1) return "A";
