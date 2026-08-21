@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bot, Check, Copy, Crown, Eye, EyeOff, LogOut, Map as MapIcon, Plus, Ticket, TrainFront, Users, X } from "lucide-react";
 import { TicketToRideRoomService } from "./ticket-to-ride-room-service";
 import { landPath, lakePaths } from "../lib/ticket-to-ride-map.js";
-import { BOARD_H, BOARD_W, CAR_H, COLOR_GLYPH, carLayout } from "../lib/ticket-to-ride-board.js";
+import { BOARD_H, BOARD_W, CAR_H, COLOR_GLYPH, carLayout, solveBends } from "../lib/ticket-to-ride-board.js";
 import { useMapView } from "./ui/use-map-view";
 import {
   CITIES,
@@ -50,6 +50,14 @@ const ROUTE_BENDS = new Map([
   [pairKey("montreal", "newYork"), 3],
   [pairKey("charleston", "miami"), 3],
 ]);
+
+/* Bends are solved once from the static city and route tables — see solveBends.
+ * Without them, routes leaving a city on close bearings share track, and
+ * Los Angeles to El Paso runs through Phoenix. */
+const CITY_POINTS = Object.fromEntries(
+  Object.entries(CITIES).map(([id, city]) => [id, { x: city.x * 10, y: city.y * 6 }]),
+);
+const ROUTE_BEND = solveBends(CITY_POINTS, ROUTES);
 
 export default function TicketToRideClient() {
   const {
@@ -279,6 +287,7 @@ function RouteGraphic({ route, owner, selected, interactive, blocked, onClick })
     { x: to.x * 10, y: to.y * 6 },
     route.length,
     route.lane ?? 0,
+    ROUTE_BEND.get(route.id) ?? 0,
   );
   const stroke = owner?.color ?? TRAIN_COLOR_INFO[route.color].hex;
   const glyph = COLOR_GLYPH[route.color];
@@ -293,14 +302,9 @@ function RouteGraphic({ route, owner, selected, interactive, blocked, onClick })
     onKeyDown={interactive ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); } } : undefined}
     aria-label={`${from.name} to ${to.name}, ${route.length} ${TRAIN_COLOR_INFO[route.color].label}${owner ? `, claimed by ${owner.name}` : ""}`}
   >
-    {/* A fat invisible line so the whole track is tappable, not just the cars. */}
-    <line
-      className="route-hit"
-      x1={cars[0].x - Math.cos((cars[0].angle * Math.PI) / 180) * cars[0].length}
-      y1={cars[0].y - Math.sin((cars[0].angle * Math.PI) / 180) * cars[0].length}
-      x2={cars[cars.length - 1].x + Math.cos((cars[0].angle * Math.PI) / 180) * cars[0].length}
-      y2={cars[cars.length - 1].y + Math.sin((cars[0].angle * Math.PI) / 180) * cars[0].length}
-    />
+    {/* A fat invisible polyline through the cars, so the whole track is
+        tappable and it follows the bend rather than cutting the corner. */}
+    <polyline className="route-hit" points={cars.map((car) => `${car.x.toFixed(1)},${car.y.toFixed(1)}`).join(" ")} />
     {cars.map((car, index) => <g key={index} transform={`translate(${car.x.toFixed(1)} ${car.y.toFixed(1)}) rotate(${car.angle.toFixed(1)})`}>
       {owner
         ? <ClaimedTrainPiece color={stroke} length={car.length} />
