@@ -46,6 +46,8 @@ import {
   territoriesForPlayer,
 } from "../lib/risk";
 import { RISK_BORDER_REGIONS, buildRiskTerritoryBorderSegments } from "../lib/risk-map-borders";
+import { EMBLEM_PATHS, emblemFor, inkFor, plateFor } from "../lib/risk-emblems";
+import { useBoardZoom } from "./ui/use-board-zoom";
 import { RiskRoomService } from "./risk-room-service";
 
 const playerIdStorageKey = "risk-player-id";
@@ -100,28 +102,53 @@ function Dice({ value, tone, rolling = false, delay = false }) {
   );
 }
 
+/*
+ * Only the crossings get a line.
+ *
+ * All 83 adjacencies used to be drawn as dashed lines over the top of the board.
+ * Sixty-nine of them restate what a shared border already says, which left the
+ * map under a web of lines carrying no information. These are the fourteen a
+ * player genuinely cannot infer from the drawing.
+ */
+const SEA_ROUTES = MAP_CONNECTIONS.filter(
+  ([fromId, toId]) => TERRITORIES[fromId].continent !== TERRITORIES[toId].continent,
+);
+
 function MapConnection({ fromId, toId, game }) {
   const from = TERRITORIES[fromId];
   const to = TERRITORIES[toId];
   const sharedOwner = game.territories[fromId].ownerId === game.territories[toId].ownerId;
-  const className = sharedOwner ? "owned" : "contested";
+  const className = `risk-route ${sharedOwner ? "owned" : "contested"}`;
+
+  const ax = from.x * 10;
+  const ay = from.y * 6.5;
+  const bx = to.x * 10;
+  const by = to.y * 6.5;
+
+  /* Alaska and Kamchatka meet round the back of the world. Drawn as a single
+   * line it ran the full width of the board and read as a border across the
+   * northern hemisphere, so each end leaves its own edge instead. */
   if ([fromId, toId].includes("alaska") && [fromId, toId].includes("kamchatka")) {
+    const left = ax < bx ? [ax, ay] : [bx, by];
+    const right = ax < bx ? [bx, by] : [ax, ay];
     return (
-      <g className={`risk-route ${className}`}>
-        <line x1={0} y1={from.y * 6.5} x2={from.x * 10} y2={from.y * 6.5} />
-        <line x1={to.x * 10} y1={to.y * 6.5} x2={1000} y2={to.y * 6.5} />
+      <g className={className}>
+        <path d={`M${left[0]} ${left[1]} L2 ${left[1]}`} />
+        <path d={`M${right[0]} ${right[1]} L998 ${right[1]}`} />
       </g>
     );
   }
-  return (
-    <line
-      className={`risk-route ${className}`}
-      x1={from.x * 10}
-      y1={from.y * 6.5}
-      x2={to.x * 10}
-      y2={to.y * 6.5}
-    />
-  );
+
+  /* A shallow bow, so a crossing reads as going over water rather than as a
+   * chord cutting through whatever continent lies between. */
+  const nx = -(by - ay);
+  const ny = bx - ax;
+  const length = Math.hypot(nx, ny) || 1;
+  const bow = Math.min(24, length * 0.13);
+  const cx = (ax + bx) / 2 + (nx / length) * bow;
+  const cy = (ay + by) / 2 + (ny / length) * bow;
+
+  return <path className={className} d={`M${ax} ${ay} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${bx} ${by}`} />;
 }
 
 function RiskTerritoryBorders({ className }) {
@@ -148,9 +175,21 @@ function RiskTerritoryBorders({ className }) {
 
 function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory, onTerritoryWheel }) {
   const playerId = viewerPlayerId;
+  const zoom = useBoardZoom();
+  const held = new Set(game.players.flatMap((player) => controlledContinents(game.territories, player.id)));
+
   return (
-    <div className="risk-map" aria-label="World territory map">
-      <svg className="risk-map-art" viewBox="0 0 1000 650" role="presentation">
+    <div className="risk-map-frame">
+    <div
+      className={`risk-map ${zoom.zoomed ? "zoomed" : ""}`}
+      aria-label="World territory map"
+      ref={zoom.frameRef}
+      {...zoom.handlers}
+    >
+    {/* The territories are HTML buttons over the SVG, so both have to move
+        together — hence one wrapper carrying the transform. */}
+    <div className="risk-map-stage" style={zoom.style}>
+      <svg className="risk-map-art" viewBox="0 0 1000 650" preserveAspectRatio="none" role="presentation">
         <defs>
           <pattern id="ocean-lines" width="44" height="44" patternUnits="userSpaceOnUse">
             <path d="M0 22 Q11 15 22 22 T44 22" fill="none" stroke="rgba(255,255,255,.055)" strokeWidth="2" />
@@ -181,7 +220,7 @@ function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory,
           <RiskTerritoryBorders className="risk-territory-boundaries" />
         </g>
         <g className="risk-routes">
-          {MAP_CONNECTIONS.map(([fromId, toId]) => (
+          {SEA_ROUTES.map(([fromId, toId]) => (
             <MapConnection key={`${fromId}-${toId}`} fromId={fromId} toId={toId} game={game} />
           ))}
         </g>
@@ -217,18 +256,40 @@ function WorldMap({ game, viewerPlayerId, selectedFrom, selectedTo, onTerritory,
           <button
             type="button"
             key={id}
-            className={`risk-territory ${isOwned ? "player-owned" : ""} ${isSelected ? "selected" : ""} ${isTarget ? "targeted" : ""} ${canBeTarget ? "attackable" : ""} ${isAttackLocked ? "attack-locked" : ""} ${labelEdge} ${labelAbove ? "label-above" : ""}`}
-            style={{ "--map-x": territory.x, "--map-y": territory.y, "--owner": owner.color }}
-            onClick={() => onTerritory(id)}
+            className={`risk-territory ${isOwned ? "player-owned" : ""} ${isSelected ? "selected" : ""} ${isTarget ? "targeted" : ""} ${canBeTarget ? "attackable" : ""} ${isAttackLocked ? "attack-locked" : ""} ${labelEdge} ${labelAbove ? "label-above" : ""} ${held.has(territory.continent) ? "continent-held" : ""}`}
+            style={{
+              "--map-x": territory.x,
+              "--map-y": territory.y,
+              "--owner": owner.color,
+              /* The army count used to be white on the owner colour, which was
+                 1.76:1 on the human player's gold. Ink is picked per colour. */
+              "--owner-ink": inkFor(owner.color),
+              "--owner-plate": plateFor(owner.color),
+              "--continent": CONTINENTS[territory.continent].color,
+            }}
+            onClick={() => { if (zoom.wasDragged()) return; onTerritory(id); }}
             onWheel={(event) => onTerritoryWheel?.(event, id)}
             aria-label={`${territory.name}, ${state.armies} armies, controlled by ${owner.name}${isAttackLocked ? ", cannot attack without at least 2 armies" : ""}`}
             aria-pressed={isSelected || isTarget}
           >
             <span className="territory-name">{territory.name}</span>
-            <strong>{state.armies}</strong>
+            <span className="territory-badge">
+              <svg viewBox="-6 -6 12 12" aria-hidden="true" className="territory-emblem">
+                <path d={EMBLEM_PATHS[emblemFor(owner.color, PLAYER_STYLES)]} />
+              </svg>
+              <strong>{state.armies}</strong>
+            </span>
           </button>
         );
       })}
+    </div>
+    </div>
+
+    <div className="risk-map-zoom" role="group" aria-label="Zoom the map">
+      <button type="button" onClick={zoom.zoomOut} aria-label="Zoom out" disabled={!zoom.zoomed}>&minus;</button>
+      <button type="button" onClick={zoom.reset} aria-label="Fit the whole board" disabled={!zoom.zoomed}>Fit</button>
+      <button type="button" onClick={zoom.zoomIn} aria-label="Zoom in">+</button>
+    </div>
     </div>
   );
 }
@@ -363,13 +424,17 @@ function Lobby({ game, playerId, onAddComputer, onRemoveComputer, onStart, onCol
                 <button
                   type="button"
                   key={style.name}
-                  aria-label={`Choose ${style.name}`}
+                  aria-label={`Choose ${style.name}, marked with a ${style.emblem}`}
                   aria-pressed={viewer?.color === style.color}
                   className={viewer?.color === style.color ? "selected" : ""}
                   disabled={taken}
                   onClick={() => onColor(style)}
-                  style={{ "--swatch": style.color }}
-                />
+                  style={{ "--swatch": style.color, "--swatch-ink": inkFor(style.color) }}
+                >
+                  <svg viewBox="-6 -6 12 12" aria-hidden="true">
+                    <path d={EMBLEM_PATHS[style.emblem]} />
+                  </svg>
+                </button>
               );
             })}
           </div>
@@ -892,9 +957,25 @@ export default function RiskClient() {
             onTerritoryWheel={adjustArmyCountWithWheel}
           />
           <div className="risk-map-legend">
-            {Object.entries(CONTINENTS).map(([id, continent]) => (
-              <span key={id}><i style={{ background: continent.color }} />{continent.name}<b>+{continent.bonus}</b></span>
-            ))}
+            {/* These swatches used to key a colour scheme the board did not
+                have. They now match the ring drawn round each territory, and a
+                continent held outright says who holds it — which is the
+                question that actually decides the game. */}
+            {Object.entries(CONTINENTS).map(([id, continent]) => {
+              const holder = game.players.find((player) =>
+                continent.territories.every((territoryId) => game.territories[territoryId].ownerId === player.id));
+              return (
+                <span key={id} className={holder ? "held" : ""}>
+                  <i style={{ background: continent.color }} />
+                  {continent.name}
+                  <b>+{continent.bonus}</b>
+                  {holder && <em style={{ "--owner": holder.color }}>{holder.name}</em>}
+                </span>
+              );
+            })}
+            {/* The map image is CC BY-SA, so the credit stays for as long as
+                the image does. Both go when the board is drawn from local
+                coordinates instead of fetched at runtime. */}
             <a href="https://commons.wikimedia.org/wiki/File:Equirectangular_projection_world_map_without_borders.svg" target="_blank" rel="noreferrer">Land: Ebrahim / CC BY-SA</a>
           </div>
         </div>

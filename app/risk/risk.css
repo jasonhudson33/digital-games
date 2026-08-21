@@ -120,6 +120,47 @@
 .thinking-dots i { width: 6px; height: 6px; border-radius: 50%; background: #497b76; animation: risk-thinking .9s infinite alternate; }
 .thinking-dots i:nth-child(2) { animation-delay: .15s; }.thinking-dots i:nth-child(3) { animation-delay: .3s; }
 
+/* ── Board frame ──────────────────────────────────────────────────────────────
+ * The zoom transform goes on .risk-map-stage, which holds both the SVG map and
+ * the territory buttons, so the two cannot slide apart. .risk-map clips it.
+ */
+
+.risk-map-frame { display: block; }
+
+.risk-map-stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.risk-map.zoomed { cursor: grab; touch-action: none; }
+.risk-map.zoomed:active { cursor: grabbing; }
+
+.risk-map-zoom {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.risk-map-zoom button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid rgba(46,60,52,.2);
+  border-radius: 8px;
+  color: #24352c;
+  background: rgba(255,255,255,.62);
+  font-family: var(--font-ui);
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.risk-map-zoom button:hover:not(:disabled) { background: #fff; }
+.risk-map-zoom button:disabled { opacity: .42; cursor: default; }
+
 .risk-map {
   position: relative;
   min-height: 520px;
@@ -135,8 +176,8 @@
 .risk-territory-border-halo,.risk-territory-boundaries { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
 .risk-territory-border-halo { stroke: rgba(255,247,207,.64); stroke-width: 3.7; }
 .risk-territory-boundaries { stroke: rgba(37,52,44,.88); stroke-width: 1.75; }
-.risk-route { stroke: rgba(246,239,208,.26); stroke-width: 1.5; stroke-dasharray: 5 7; vector-effect: non-scaling-stroke; }
-.risk-route.owned { stroke: rgba(255,249,218,.14); }.risk-route.contested { stroke: rgba(255,231,154,.48); }
+.risk-route { fill: none; stroke: rgba(246,239,208,.5); stroke-width: 1.8; stroke-dasharray: 5 7; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.risk-route.owned { stroke: rgba(255,249,218,.3); }.risk-route.contested { stroke: rgba(255,231,154,.72); }
 .map-labels text { fill: rgba(33,35,27,.3); font-family: var(--font-ui); font-size: 17px; font-weight: 800; letter-spacing: 3px; text-anchor: middle; text-transform: uppercase; }
 .compass circle { fill: rgba(5,28,36,.18); stroke: rgba(240,226,183,.36); stroke-width: 1; }.compass path { fill: rgba(240,226,183,.58); }.compass text { fill: rgba(240,226,183,.62); font-size: 12px; font-weight: 900; text-anchor: middle; }
 
@@ -154,14 +195,47 @@
   padding: 0;
   border: 2px solid rgba(255,248,220,.72);
   border-radius: 50%;
-  color: #fffdf0;
+  color: var(--owner-ink, #fffdf0);
   background: var(--owner);
   box-shadow: inset 0 2px 4px rgba(255,255,255,.26), inset 0 -5px 8px rgba(17,22,20,.2), 0 4px 10px rgba(4,23,29,.42);
   cursor: pointer;
   transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
 }
 .risk-territory:hover { z-index: 5; transform: translate(-50%, -50%) scale(1.08); filter: brightness(1.12); }
-.risk-territory strong { font-family: var(--font-ui); font-size: clamp(.7rem, 1.05vw, .92rem); text-shadow: 0 1px 2px rgba(0,0,0,.42); }
+/* ── Ownership badge ─────────────────────────────────────────────────────────
+ * Colour alone used to carry ownership, and four of the six player colours
+ * collapsed into each other under common colour blindness. The emblem is the
+ * second channel; --owner-ink is chosen per colour so the count stays legible
+ * whoever holds the territory.
+ */
+
+.territory-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 3px;
+  border-radius: 6px;
+  /* The count sits on a plate rather than straight on the owner colour, so its
+     contrast does not depend on which colour the player picked — a mid-luminance
+     colour takes no legible ink at all. Worst case is now 15:1. */
+  color: var(--owner-ink, #0f1618);
+  background: var(--owner-plate, rgba(255,253,245,.86));
+  box-shadow: 0 1px 2px rgba(6,20,25,.3);
+}
+
+.territory-emblem { width: 9px; height: 9px; flex: none; opacity: .72; }
+.territory-emblem path { fill: currentColor; }
+
+.risk-territory strong {
+  font-family: var(--font-ui);
+  font-size: clamp(.7rem, 1.05vw, .92rem);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A continent one player holds outright is the thing that decides the game, so
+   it gets a ring the eye can find without counting. */
+.risk-territory { box-shadow: inset 0 2px 4px rgba(255,255,255,.26), inset 0 -5px 8px rgba(17,22,20,.2), 0 4px 10px rgba(4,23,29,.42), 0 0 0 2px var(--continent, transparent); }
+.risk-territory.continent-held { box-shadow: inset 0 2px 4px rgba(255,255,255,.26), inset 0 -5px 8px rgba(17,22,20,.2), 0 4px 10px rgba(4,23,29,.42), 0 0 0 3px var(--continent), 0 0 12px var(--continent); }
 .territory-name { position: absolute; top: calc(100% + 2px); left: 50%; width: max-content; max-width: 112px; transform: translateX(-50%); padding: 2px 3px; border-radius: 4px; color: #f8f2d9; background: rgba(5,30,38,.78); font-size: clamp(.38rem, .54vw, .52rem); font-weight: 800; line-height: 1.1; text-shadow: 0 1px 2px #0a2933; white-space: nowrap; }
 .risk-territory.label-above .territory-name { top:auto;bottom:calc(100% + 2px); }
 .risk-territory.label-edge-left .territory-name { left:0;transform:none; }
@@ -288,6 +362,12 @@
 }
 
 @media (max-width: 720px) {
+  /* A phone gets a taller board. The territories are placed as a percentage of
+     the box, so proportioning it 1000:900 instead of 1000:650 spreads them
+     vertically without moving a single coordinate — which, with 24px targets,
+     leaves a third fewer overlapping pairs than the old 22px on the wide box. */
+  .risk-map { aspect-ratio: 1000 / 900; }
+
   .risk-page { padding: 9px 7px 28px; }
   .risk-game-header { grid-template-columns: 1fr auto; gap: 8px; }
   .risk-round { display: none; }
@@ -298,7 +378,12 @@
   .player-emblem { width:27px;height:27px; }.player-counts { min-width:0;padding:3px 1px; }.player-counts b { font-size:.85rem; }.player-counts span { font-size:.31rem; }.continent-crown { top:4px;right:4px; }
   .risk-player-card > div:nth-child(2) strong { font-size: .68rem; }.risk-player-card > div:nth-child(2) span { font-size: .46rem; }
   .risk-board-toolbar { grid-template-columns: 34px 1fr auto; padding: 7px 9px; }.risk-board-toolbar p { grid-column: 1/-1; padding: 6px 0 0; border-left: 0; border-top: 1px solid rgba(40,53,46,.12); }.phase-medallion { width: 32px; height: 32px; }
-  .risk-territory { --territory-size: 22px; border-width: 1px; }
+  /* 22px was under the 24px minimum for a touch target, and at that size nine
+     pairs of territories physically overlapped. The zoom control is what makes
+     the smaller ones reachable; this keeps the tap itself legal. */
+  .risk-territory { --territory-size: 24px; border-width: 1px; }
+  .territory-emblem { width: 7px; height: 7px; }
+  .territory-badge { padding: 0 2px; }
   .risk-territory strong { font-size: .82rem; }.territory-name { max-width: 61px; overflow: hidden; font-size: .4rem; text-overflow: ellipsis; }
   .risk-map-legend { gap: 5px 8px; font-size: .49rem; }
   .risk-map-legend a { width:100%;margin-left:0;text-align:center; }
@@ -312,3 +397,27 @@
 @media (prefers-reduced-motion: reduce) {
   .risk-page * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* ── Legend ──────────────────────────────────────────────────────────────────
+ * The continent swatch keys the ring drawn round each territory. When one player
+ * holds a whole continent the entry says so, because that is the number the next
+ * turn turns on.
+ */
+
+.risk-map-legend span.held { border-radius: 5px; background: rgba(255,255,255,.5); box-shadow: 0 0 0 1px rgba(60,72,58,.16); }
+.risk-map-legend em {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #fffdf5;
+  background: var(--owner);
+  font-size: .92em;
+  font-style: normal;
+  font-weight: 800;
+}
+
+/* ── Colour picker ───────────────────────────────────────────────────────── */
+
+.risk-color-picker button svg { width: 54%; height: 54%; }
+.risk-color-picker button svg path { fill: var(--swatch-ink, #0f1618); opacity: .8; }
+.risk-color-picker button { display: grid; place-items: center; }
