@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Check, Copy, Crown, Eye, EyeOff, LogOut, Map as MapIcon, Plus, Ticket, TrainFront, Users, X } from "lucide-react";
 import { TicketToRideRoomService } from "./ticket-to-ride-room-service";
+import { landPath, lakePaths } from "../lib/ticket-to-ride-map.js";
+import { BOARD_H, BOARD_W, CAR_H, COLOR_GLYPH, carLayout } from "../lib/ticket-to-ride-board.js";
+import { useMapView } from "./ui/use-map-view";
 import {
   CITIES,
   PLAYER_COLORS,
@@ -151,7 +154,17 @@ export default function TicketToRideClient() {
 
         <section className="ttr-board-card" aria-label="Rail map of North America">
           <GameBoard room={room} myTurn={myTurn && room.drawsThisTurn === 0 && !pendingChoices} selectedRouteId={selectedRouteId} onSelectRoute={setSelectedRouteId} />
-          <div className="ttr-map-legend"><span><i className="open" /> Open route</span><span><i className="owned" /> Claimed route</span><span>Each railway box = 1 card</span><a href="https://commons.wikimedia.org/wiki/File:BlankMap-USA-states-Canada-provinces.svg" target="_blank" rel="noreferrer">Map: Lokal Profil / public domain</a></div>
+          <div className="ttr-map-legend">
+            <span><i className="open" /> Open route</span>
+            <span><i className="owned" /> Claimed route</span>
+            <span>Each car = 1 card</span>
+            <span className="ttr-legend-key">
+              {Object.entries(COLOR_GLYPH).map(([color, d]) => <i key={color} title={TRAIN_COLOR_INFO[color].label}>
+                <svg viewBox="-6 -6 12 12" aria-hidden="true"><rect x="-6" y="-6" width="12" height="12" rx="2.5" fill={TRAIN_COLOR_INFO[color].hex} /><path d={d} /></svg>
+                <b>{TRAIN_COLOR_INFO[color].label}</b>
+              </i>)}
+            </span>
+          </div>
         </section>
 
         <aside className="ttr-market-panel">
@@ -200,76 +213,135 @@ function DestinationChoice({ title, subtitle, choices, selected, setSelected, mi
 }
 
 function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute }) {
-  return <svg className="ttr-map" viewBox="0 0 1000 610" role="img" aria-label="Cities and train routes across North America">
-    <defs>
-      <linearGradient id="ttr-paper" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#aac9cc" /><stop offset="1" stopColor="#789fa6" /></linearGradient>
-      <filter id="ttr-shadow"><feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity=".26" /></filter>
-      <filter id="ttr-grain"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" seed="12" /><feColorMatrix type="saturate" values="0" /></filter>
-    </defs>
-    <rect width="1000" height="610" rx="26" fill="url(#ttr-paper)" />
-    <svg className="ttr-real-geography" x="0" y="0" width="1000" height="610" viewBox="900 700 1340 1044" preserveAspectRatio="none">
-      <image className="ttr-real-map-image" x="0" y="0" width="2289" height="1744" href="https://upload.wikimedia.org/wikipedia/commons/d/d4/BlankMap-USA-states-Canada-provinces.svg" />
+  const map = useMapView(BOARD_W, BOARD_H);
+  const lakes = lakePaths();
+
+  return <div className="ttr-map-frame">
+    <svg
+      ref={map.svgRef}
+      className={`ttr-map ${map.zoomed ? "zoomed" : ""}`}
+      viewBox={map.viewBox}
+      role="img"
+      aria-label="Cities and train routes across North America"
+      {...map.handlers}
+    >
+      <defs>
+        <linearGradient id="ttr-sea" x1="0" y1="0" x2="0" y2="1">
+          <stop stopColor="#8fb4bd" /><stop offset="1" stopColor="#6f97a3" />
+        </linearGradient>
+        <linearGradient id="ttr-land" x1="0" y1="0" x2=".3" y2="1">
+          <stop stopColor="#e5dec0" /><stop offset="1" stopColor="#cfc59d" />
+        </linearGradient>
+        <filter id="ttr-shadow"><feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity=".26" /></filter>
+      </defs>
+
+      <rect className="ttr-sea" x="0" y="0" width={BOARD_W} height={BOARD_H} rx="26" fill="url(#ttr-sea)" />
+      <g className="ttr-geography" aria-hidden="true">
+        {/* shallow-water band, so the coast reads at a glance */}
+        <path className="ttr-shelf" d={landPath()} />
+        <path className="ttr-land" d={landPath()} fill="url(#ttr-land)" />
+        {lakes.map((lake) => <path key={lake.name} className="ttr-lake" d={lake.d} />)}
+      </g>
+      <rect className="ttr-board-frame" x="7" y="7" width={BOARD_W - 14} height={BOARD_H - 14} rx="21" />
+
+      {ROUTES.map((route) => {
+        const available = isRouteAvailable(room, currentPlayer(room)?.id, route.id);
+        return <RouteGraphic
+          key={route.id}
+          route={route}
+          owner={room.claimedRoutes[route.id] ? room.players.find((player) => player.id === room.claimedRoutes[route.id]) : null}
+          selected={selectedRouteId === route.id}
+          interactive={myTurn && available}
+          blocked={!available && !room.claimedRoutes[route.id]}
+          onClick={() => { if (map.wasDragged()) return; if (myTurn && available) onSelectRoute(route.id); }}
+        />;
+      })}
+
+      {Object.entries(CITIES).map(([id, city]) => <g className="ttr-city" key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}>
+        <circle r="7" /><circle r="3" />
+        <text x={city.labelX ?? 0} y={city.labelY ?? 20} textAnchor={city.labelAnchor ?? "middle"}>{city.name}</text>
+      </g>)}
     </svg>
-    <rect className="ttr-map-wash" x="0" y="0" width="1000" height="610" rx="26" />
-    <g className="ttr-terrain-art" aria-hidden="true">
-      <path d="M80 102 C145 96 181 150 224 202 C258 242 282 282 315 330 C278 366 227 397 165 417 C128 350 96 280 80 102Z" />
-      <path d="M742 245 C785 264 812 305 845 353 C817 379 788 396 759 410 C731 354 717 304 742 245Z" />
-      <path className="plains" d="M370 136 C485 120 622 148 694 229 C678 316 636 397 562 459 C469 445 390 382 348 296Z" />
-    </g>
-    <rect className="ttr-paper-grain" x="0" y="0" width="1000" height="610" rx="26" filter="url(#ttr-grain)" />
-    <rect className="ttr-board-frame" x="7" y="7" width="986" height="596" rx="21" />
-    {ROUTES.map((route) => {
-      const available = isRouteAvailable(room, currentPlayer(room)?.id, route.id);
-      return <RouteGraphic key={route.id} route={route} owner={room.claimedRoutes[route.id] ? room.players.find((player) => player.id === room.claimedRoutes[route.id]) : null} selected={selectedRouteId === route.id} interactive={myTurn && available} blocked={!available && !room.claimedRoutes[route.id]} onClick={() => myTurn && available && onSelectRoute(route.id)} />;
-    })}
-    {Object.entries(CITIES).map(([id, city]) => <g className="ttr-city" key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}><circle r="7" /><circle r="3" /><text x={city.labelX ?? 0} y={city.labelY ?? 20} textAnchor={city.labelAnchor ?? "middle"}>{city.name}</text></g>)}
-  </svg>;
+
+    <div className="ttr-map-zoom" role="group" aria-label="Zoom the map">
+      <button type="button" onClick={map.zoomOut} aria-label="Zoom out">&minus;</button>
+      <button type="button" onClick={map.reset} aria-label="Fit the whole map">Fit</button>
+      <button type="button" onClick={map.zoomIn} aria-label="Zoom in">+</button>
+    </div>
+  </div>;
 }
 
 function RouteGraphic({ route, owner, selected, interactive, blocked, onClick }) {
-  const from = CITIES[route.from]; const to = CITIES[route.to];
-  const baseStart = { x: from.x * 10, y: from.y * 6 };
-  const baseEnd = { x: to.x * 10, y: to.y * 6 };
-  const dx = baseEnd.x - baseStart.x; const dy = baseEnd.y - baseStart.y; const length = Math.hypot(dx, dy);
-  const normal = { x: -dy / length, y: dx / length };
-  const laneOffset = (route.lane ?? 0) * 9.5;
-  const start = { x: baseStart.x + normal.x * laneOffset, y: baseStart.y + normal.y * laneOffset };
-  const end = { x: baseEnd.x + normal.x * laneOffset, y: baseEnd.y + normal.y * laneOffset };
-  const bend = ROUTE_BENDS.get(route.parallelGroup) ?? 0;
-  const control = {
-    x: (start.x + end.x) / 2 + normal.x * bend * 2,
-    y: (start.y + end.y) / 2 + normal.y * bend * 2,
-  };
-  const path = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${control.x.toFixed(1)} ${control.y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
-  const trackStart = .18; const trackEnd = .82;
+  const from = CITIES[route.from];
+  const to = CITIES[route.to];
+  const cars = carLayout(
+    { x: from.x * 10, y: from.y * 6 },
+    { x: to.x * 10, y: to.y * 6 },
+    route.length,
+    route.lane ?? 0,
+  );
   const stroke = owner?.color ?? TRAIN_COLOR_INFO[route.color].hex;
-  return <g className={`ttr-route ${interactive ? "interactive" : ""} ${owner ? "claimed" : ""} ${selected ? "selected" : ""} ${blocked ? "blocked" : ""}`} onClick={onClick} role={interactive ? "button" : undefined} aria-label={`${CITIES[route.from].name} to ${CITIES[route.to].name}, ${route.length} ${route.color}`}>
-    <path className="route-hit" d={path} fill="none" />
-    {Array.from({ length: route.length }, (_, index) => {
-      const position = route.length === 1
-        ? .5
-        : trackStart + index * ((trackEnd - trackStart) / (route.length - 1));
-      const section = fixedRouteSection(start, control, end, position);
-      return <g key={index} transform={`translate(${section.x} ${section.y}) rotate(${section.angle})`}>
-        {owner ? <ClaimedTrainPiece color={stroke} /> : <>
-          <line className="route-segment-shadow" x1="-10" y1="0" x2="10" y2="0" />
-          <line className="route-segment-underlay" x1="-10" y1="0" x2="10" y2="0" />
-          <line className="route-segment" x1="-10" y1="0" x2="10" y2="0" stroke={stroke} />
-          <line className="route-segment-highlight" x1="-10" y1="0" x2="10" y2="0" />
-        </>}
-      </g>;
-    })}
+  const glyph = COLOR_GLYPH[route.color];
+  const classes = ["ttr-route", interactive && "interactive", owner && "claimed", selected && "selected", blocked && "blocked"]
+    .filter(Boolean).join(" ");
+
+  return <g
+    className={classes}
+    onClick={onClick}
+    role={interactive ? "button" : undefined}
+    tabIndex={interactive ? 0 : undefined}
+    onKeyDown={interactive ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); } } : undefined}
+    aria-label={`${from.name} to ${to.name}, ${route.length} ${TRAIN_COLOR_INFO[route.color].label}${owner ? `, claimed by ${owner.name}` : ""}`}
+  >
+    {/* A fat invisible line so the whole track is tappable, not just the cars. */}
+    <line
+      className="route-hit"
+      x1={cars[0].x - Math.cos((cars[0].angle * Math.PI) / 180) * cars[0].length}
+      y1={cars[0].y - Math.sin((cars[0].angle * Math.PI) / 180) * cars[0].length}
+      x2={cars[cars.length - 1].x + Math.cos((cars[0].angle * Math.PI) / 180) * cars[0].length}
+      y2={cars[cars.length - 1].y + Math.sin((cars[0].angle * Math.PI) / 180) * cars[0].length}
+    />
+    {cars.map((car, index) => <g key={index} transform={`translate(${car.x.toFixed(1)} ${car.y.toFixed(1)}) rotate(${car.angle.toFixed(1)})`}>
+      {owner
+        ? <ClaimedTrainPiece color={stroke} length={car.length} />
+        : <>
+            <rect
+              className="ttr-car"
+              x={(-car.length / 2).toFixed(1)}
+              y={-CAR_H / 2}
+              width={car.length.toFixed(1)}
+              height={CAR_H}
+              rx="2.6"
+              fill={stroke}
+            />
+            {/* Shape as well as colour: the whole mechanic is matching a route to
+                cards of its colour, and colour alone excludes anyone who cannot
+                separate the reds from the greens. Grey takes any card and carries
+                no glyph — the absence is the information. */}
+            {glyph && car.length > 13 && <path className="ttr-car-glyph" d={glyph} />}
+          </>}
+    </g>)}
   </g>;
 }
 
-function ClaimedTrainPiece({ color }) {
+function ClaimedTrainPiece({ color, length = 16 }) {
+  /*
+   * A claimed car keeps the same footprint as the open car it replaces, so a
+   * route does not change shape when someone takes it. The previous version
+   * scaled a fixed 16-unit locomotive drawing along the track, which stretched
+   * its wheels into ovals on long routes and squashed the whole thing on short
+   * ones. Here only the body is sized; the wheels are drawn at a fixed radius
+   * and placed relative to the ends.
+   */
+  const half = length / 2;
+  const wheel = Math.min(1.6, length / 9);
+  const inset = Math.min(half - wheel - 0.6, 4.2);
   return <g className="ttr-played-train">
-    <path className="ttr-played-train-shadow" d="M-8 2.5V-2.5H2V-4H6L8-1.5V2.5Z" />
-    <path className="ttr-played-train-body" fill={color} d="M-8 2.5V-2.5H2V-4H6L8-1.5V2.5Z" />
-    <rect className="ttr-played-train-window" x="3.2" y="-3" width="2.2" height="1.7" rx=".35" />
-    <path className="ttr-played-train-detail" d="M-6-1.2H.4M-5.5.6H2.2" />
-    <circle className="ttr-played-train-wheel" cx="-4.5" cy="2.6" r="1.4" />
-    <circle className="ttr-played-train-wheel" cx="4.8" cy="2.6" r="1.4" />
+    <rect className="ttr-played-train-body" x={-half} y="-5.5" width={length} height="11" rx="2.6" fill={color} />
+    <rect className="ttr-played-train-window" x={half - Math.min(5.4, length * 0.32)} y="-3.4" width={Math.min(3.4, length * 0.2)} height="2.6" rx=".5" />
+    <path className="ttr-played-train-detail" d={`M${-half + 1.8} -1.1H${half - 2.2}`} />
+    <circle className="ttr-played-train-wheel" cx={-inset} cy="4.4" r={wheel} />
+    <circle className="ttr-played-train-wheel" cx={inset} cy="4.4" r={wheel} />
   </g>;
 }
 

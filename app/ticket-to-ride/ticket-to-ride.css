@@ -91,182 +91,115 @@
 @media (max-width: 760px) {
   .ttr-hero { grid-template-columns: 1fr; }.ttr-hero-copy { padding: 48px 24px 30px; }.ttr-hero-art { min-height: 260px; }.ttr-big-train { width: 130px; height: 130px; }.ttr-station-card { margin-top: 0; grid-template-columns: 1fr; border-radius: 0; }.ttr-or { grid-column: 1; }.ttr-landing { padding-bottom: 20px; }
   .ttr-choice-grid { grid-template-columns: 1fr; }.ttr-choice-grid > button { min-height: 180px; }.ttr-code-display { display: grid; justify-content: center; gap: 6px; }.ttr-code-display > span { font-size: 1.6rem; }
-  .ttr-game-shell { padding: 10px; }.ttr-table-header { flex-wrap: wrap; }.ttr-turn-pill { order: 3; width: 100%; margin: 0; justify-content: center; }.ttr-table-grid { display: flex; flex-direction: column; }.ttr-board-card { order: 1; width: 100%; overflow-x: auto; }.ttr-map { width: 760px; max-width: none; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }.ttr-score-table { overflow-x: auto; }.ttr-score-table > div { min-width: 570px; }.ttr-overlay .ttr-choice-card { padding: 22px 14px; }
+  .ttr-game-shell { padding: 10px; }.ttr-table-header { flex-wrap: wrap; }.ttr-turn-pill { order: 3; width: 100%; margin: 0; justify-content: center; }.ttr-table-grid { display: flex; flex-direction: column; }.ttr-board-card { order: 1; width: 100%; }.ttr-map { width: 100%; }.ttr-map-legend { font-size: .58rem; gap: 9px; }.ttr-legend-key { width: 100%; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }.ttr-score-table { overflow-x: auto; }.ttr-score-table > div { min-width: 570px; }.ttr-overlay .ttr-choice-card { padding: 22px 14px; }
 }
 
-/* Geographic board */
-.ttr-real-geography {
-  overflow: hidden;
-}
+/* ── Board ────────────────────────────────────────────────────────────────────
+ * The map is drawn from lib/ticket-to-ride-map.js in the cities' own coordinate
+ * space, so it lines up by construction. It replaced a hotlinked Wikimedia SVG
+ * that was stretched with preserveAspectRatio="none" under a hand-placed grid —
+ * and that failed to load anyway, leaving the board blank behind the routes.
+ */
 
-.ttr-real-map-image {
-  opacity: .86;
-  filter: sepia(.34) saturate(.68) hue-rotate(346deg) brightness(1.04) contrast(.94);
-}
+.ttr-map-frame { position: relative; }
+.ttr-map { display: block; width: 100%; height: auto; touch-action: none; }
+.ttr-map.zoomed { cursor: grab; }
+.ttr-map.zoomed:active { cursor: grabbing; }
 
-.ttr-map-wash {
-  fill: #dbc899;
-  opacity: .14;
-  pointer-events: none;
-}
-
-.ttr-usa {
-  fill: url(#ttr-us-fill);
-  stroke: #776f56;
-  stroke-width: 2.5;
-  filter: url(#ttr-shadow);
-}
-
-.ttr-canada {
-  fill: url(#ttr-canada-fill);
-  stroke: #6e7864;
-  stroke-width: 2.5;
-  filter: url(#ttr-shadow);
-}
-
-.ttr-mexico {
-  fill: #c9b58b;
-  stroke: #87775d;
-  stroke-width: 2;
-  opacity: .88;
-}
-
-.ttr-state-lines,
-.ttr-province-lines {
+.ttr-shelf {
   fill: none;
-  stroke: #7e765e;
-  stroke-width: 1;
-  opacity: .23;
-}
-
-.ttr-province-lines {
-  stroke: #68745f;
-}
-
-.ttr-hudson-bay,
-.ttr-great-lakes path {
-  fill: #91b3b2;
-  stroke: #668e90;
-  stroke-width: 1.5;
-}
-
-.ttr-country-label {
-  fill: #586458;
-  font: 800 22px var(--font-ui);
-  letter-spacing: .28em;
-  opacity: .24;
-  text-anchor: middle;
-}
-
-.ttr-country-label.usa-label {
-  fill: #6d6048;
-  font-size: 24px;
-}
-
-.ttr-route.blocked:not(.claimed) {
-  opacity: .45;
-}
-
-.ttr-canada-terrain .boreal {
-  fill: #739375;
-  opacity: .17;
-}
-
-.ttr-canada-terrain .canadian-rockies {
-  fill: #8e8269;
-  opacity: .18;
-}
-
-.ttr-terrain .pacific-forest,
-.ttr-terrain .eastern-forest {
-  fill: #668b64;
-  opacity: .14;
-}
-
-.ttr-terrain .southwest-desert {
-  fill: #c27c4f;
-  opacity: .15;
-}
-
-.ttr-terrain .great-plains {
-  fill: #cfb65e;
-  opacity: .13;
-}
-
-.ttr-terrain .rockies path,
-.ttr-terrain .appalachians path {
-  fill: none;
-  stroke: #776952;
-  stroke-linecap: round;
+  stroke: #a8c4cb;
+  stroke-width: 13;
   stroke-linejoin: round;
-  stroke-width: 4;
-  opacity: .25;
+  opacity: .55;
 }
 
-.ttr-terrain .appalachians path {
-  stroke-width: 3;
-  opacity: .2;
+.ttr-land { stroke: #9c9070; stroke-width: 2; stroke-linejoin: round; }
+.ttr-lake { fill: #a9c6ce; stroke: #b6a98a; stroke-width: 1; opacity: .9; }
+
+/* ── Train cars ──────────────────────────────────────────────────────────────
+ * Cars are sized to the gap between the two cities (see carLayout). They used to
+ * be a fixed 20 units wherever they landed, which put centre-to-centre spacing
+ * anywhere between 27 and 93 units.
+ */
+
+.ttr-car {
+  stroke: #3d4a42;
+  stroke-width: 1.1;
+  filter: drop-shadow(0 1.5px 1px #37463d44);
 }
 
-.ttr-terrain .mississippi,
-.ttr-terrain .missouri-river {
-  fill: none;
-  stroke: #65999f;
-  stroke-linecap: round;
-  stroke-width: 3;
-  opacity: .48;
+.ttr-car-glyph { fill: #12181a; opacity: .5; pointer-events: none; }
+.ttr-route.claimed .ttr-car-glyph { display: none; }
+
+.route-hit { fill: none; stroke: transparent; stroke-width: 22; }
+.ttr-route.interactive { cursor: pointer; }
+.ttr-route.interactive:hover .ttr-car,
+.ttr-route.selected .ttr-car {
+  stroke: #fffbe9;
+  stroke-width: 2.2;
+}
+.ttr-route.selected .ttr-car { filter: drop-shadow(0 0 5px #fff4c8); }
+.ttr-route.blocked { opacity: .45; }
+.ttr-route:focus { outline: none; }
+.ttr-route:focus-visible .ttr-car { stroke: #1b52ff; stroke-width: 2.6; }
+
+/* ── Zoom control ────────────────────────────────────────────────────────── */
+
+.ttr-map-zoom {
+  /* A row under the map rather than an overlay on it. The board is short and
+     wide, so at phone widths every corner has a city in it — bottom-right sat on
+     Miami, bottom-left on Los Angeles, Phoenix and El Paso. */
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #0d2933;
 }
 
-.ttr-terrain .missouri-river {
-  stroke-width: 2;
+.ttr-map-zoom button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 9px;
+  border: 1px solid #ffffff26;
+  border-radius: 6px;
+  color: #f0e6c8;
+  background: #ffffff14;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
-.ttr-region-label {
-  fill: #625b4e;
-  font: 700 9px var(--font-ui);
-  letter-spacing: .18em;
-  opacity: .28;
-  text-anchor: middle;
+.ttr-map-zoom button:hover { background: #ffffff26; }
+
+/* ── Colour key ──────────────────────────────────────────────────────────── */
+
+.ttr-legend-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
 }
 
-.route-segment {
-  stroke-linejoin: round;
+.ttr-legend-key i {
+  /* The base legend styles every `i` as a 24x5 colour bar; these entries are a
+     swatch plus a label, so they have to opt out of all of it. */
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-style: normal;
+  white-space: nowrap;
 }
 
-.route-segment-underlay {
-  fill: none;
-  stroke: #eee5c9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 15;
-  opacity: .92;
-}
-
-.ttr-route:not(.claimed) .route-segment {
-  stroke-dasharray: none;
-}
-
-/* Classic board treatment: high-contrast boxed routes over a faded atlas. */
-.ttr-map-wash {
-  opacity: .08;
-}
-
-.ttr-paper-grain {
-  opacity: .055;
-  mix-blend-mode: multiply;
-  pointer-events: none;
-}
-
-.ttr-terrain-art {
-  fill: #557d67;
-  opacity: .11;
-  pointer-events: none;
-}
-
-.ttr-terrain-art .plains {
-  fill: #c3a653;
-  opacity: .42;
-}
+.ttr-legend-key svg { flex: none; width: 14px; height: 14px; }
+.ttr-legend-key svg rect { stroke: #3d4a42; stroke-width: 1; }
+.ttr-legend-key svg path { fill: #12181a; opacity: .55; }
+.ttr-legend-key b { font-size: .6rem; font-weight: 700; letter-spacing: .01em; }
 
 .ttr-board-frame {
   fill: none;
@@ -351,12 +284,6 @@
   filter: drop-shadow(0 1.5px 1px #1721298c);
 }
 
-.ttr-played-train-shadow {
-  fill: #2b302f;
-  stroke: #f8eed0;
-  stroke-width: 2.8;
-  stroke-linejoin: round;
-}
 
 .ttr-played-train-body {
   stroke: #202a2b;
