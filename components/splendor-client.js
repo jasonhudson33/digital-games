@@ -29,11 +29,11 @@ const playerIdKey = "splendor-player-id";
 const playerNameKey = "splendor-player-name";
 const activeRoomKey = "splendor-active-room";
 const cardArt = {
-  white: "/splendor/cards/white.png",
-  blue: "/splendor/cards/blue.png",
-  green: "/splendor/cards/green.png",
-  red: "/splendor/cards/red.png",
-  black: "/splendor/cards/black.png",
+  white: "/splendor/cards/white.webp",
+  blue: "/splendor/cards/blue.webp",
+  green: "/splendor/cards/green.webp",
+  red: "/splendor/cards/red.webp",
+  black: "/splendor/cards/black.webp",
 };
 
 export default function SplendorClient() {
@@ -90,8 +90,39 @@ export default function SplendorClient() {
   if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update(addComputerPlayer)} onRemoveComputer={(id) => update((current) => removeComputerPlayer(current, id))} onStart={() => update(startGame)} onLeave={leaveRoom} />;
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
+  const leadScore = Math.max(...room.players.map((player) => player.score));
   const availableColors = GEM_COLORS.filter((color) => room.bank[color] > 0);
   const requiredDifferent = Math.min(3, availableColors.length);
+
+  /*
+   * Both ways of taking gems now work the same: click to build a selection, then
+   * confirm. Taking two of one colour used to be a separate one-click chip that
+   * appeared and vanished as piles ran down; clicking the same gem twice is the
+   * same gesture as clicking three different ones.
+   */
+  const distinct = [...new Set(selectedGems)];
+  const pair = selectedGems.length === 2 && distinct.length === 1 ? distinct[0] : null;
+
+  function pickGem(color) {
+    setSelectedGems((current) => {
+      const already = current.filter((item) => item === color).length;
+      // second click on the same gem asks for the pair, third clears it
+      if (already === 1 && current.length === 1 && room.bank[color] >= 4) return [color, color];
+      if (already > 0) return current.filter((item) => item !== color);
+      if (current.length >= requiredDifferent || current.some((item) => current.filter((x) => x === item).length > 1)) return current;
+      return [...current, color];
+    });
+  }
+
+  const take = (() => {
+    if (pair) return { legal: room.bank[pair] >= 4, pair, label: `Take 2 ${GEM_INFO[pair].name.toLowerCase()}` };
+    if (!selectedGems.length) return { legal: false, label: requiredDifferent === 0 ? "The bank is empty" : `Pick ${requiredDifferent} gems` };
+    if (selectedGems.length < requiredDifferent) {
+      const left = requiredDifferent - selectedGems.length;
+      return { legal: false, label: `Pick ${left} more gem${left === 1 ? "" : "s"}` };
+    }
+    return { legal: true, label: `Take ${selectedGems.map((color) => GEM_INFO[color].name.toLowerCase()).join(", ")}` };
+  })();
 
   return <main className="splendor-game-shell">
     <header className="splendor-table-header">
@@ -108,23 +139,25 @@ export default function SplendorClient() {
     <div className="splendor-layout">
       <aside className="splendor-sidebar">
         <div className="splendor-panel-title"><Users /><span><small>Trading houses</small>Players</span></div>
-        <div className="splendor-player-list">{room.players.map((player, index) => <PlayerSummary key={player.id} player={player} active={actor?.id === player.id && room.phase !== "finished"} isMe={player.id === playerId} isHost={index === 0} winner={room.winners.includes(player.id)} />)}</div>
+        <div className="splendor-player-list">{room.players.map((player, index) => <PlayerSummary key={player.id} player={player} active={actor?.id === player.id && room.phase !== "finished"} isMe={player.id === playerId} isHost={index === 0} winner={room.winners.includes(player.id)} leading={player.score === leadScore && leadScore > 0} />)}</div>
         <div className="splendor-log"><div className="splendor-panel-title"><ScrollText /><span><small>Latest moves</small>Ledger</span></div>{room.log.slice(0, 6).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div>
       </aside>
 
       <section className="splendor-board">
-        <div className="splendor-nobles"><div className="splendor-row-label"><Crown /><span><small>Attract patrons</small>Nobles</span></div><div className="splendor-noble-list">{room.nobles.map((noble) => <NobleTile key={noble.id} noble={noble} />)}</div></div>
+        <PlayerStrip player={me} prestige={me.score} tokens={tokenCount(me)} />
+        <div className="splendor-nobles"><div className="splendor-row-label"><Crown /><span><small>Attract patrons</small>Nobles</span></div><div className="splendor-noble-list">{room.nobles.map((noble) => <NobleTile key={noble.id} noble={noble} player={me} />)}</div></div>
         {[3, 2, 1].map((level) => <div className="splendor-market-row" key={level}>
           <Deck level={level} count={room.decks[level].length} disabled={!myTurn || busy || me.reserved.length >= 3} onReserve={() => update((current) => reserveCard(current, playerId, { kind: "deck", level }))} />
-          <div className="splendor-development-list">{room.market[level].map((card, index) => <DevelopmentCard key={card.id} card={card} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "market", level, index }, card)} onReserve={() => update((current) => reserveCard(current, playerId, { kind: "market", level, index }))} canReserve={myTurn && me.reserved.length < 3} />)}</div>
+          <div className="splendor-development-list">{room.market[level].map((card, index) => <DevelopmentCard key={card.id} card={card} player={me} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "market", level, index }, card)} onReserve={() => update((current) => reserveCard(current, playerId, { kind: "market", level, index }))} canReserve={myTurn && me.reserved.length < 3} />)}</div>
         </div>)}
       </section>
 
       <aside className="splendor-bank">
         <div className="splendor-panel-title"><Landmark /><span><small>Shared supply</small>Gem bank</span></div>
-        <p className="splendor-bank-help">{myTurn ? selectedGems.length ? `Choose ${requiredDifferent - selectedGems.length} more different gem${requiredDifferent - selectedGems.length === 1 ? "" : "s"}, or change your selection.` : "Take three different gems, or two of one color when four remain." : "The bank is ready for the active merchant."}</p>
-        <div className="splendor-token-bank">{GEM_COLORS.map((color) => <BankToken key={color} color={color} count={room.bank[color]} selected={selectedGems.includes(color)} disabled={!myTurn || busy || room.bank[color] === 0} pairDisabled={!myTurn || busy || room.bank[color] < 4} onToggle={() => setSelectedGems((current) => current.includes(color) ? current.filter((item) => item !== color) : current.length < requiredDifferent ? [...current, color] : current)} onPair={() => update((current) => takePairTokens(current, playerId, color))} />)}<BankToken color="gold" count={room.bank.gold} disabled pairDisabled /> </div>
-        <button className="splendor-primary splendor-take" disabled={!myTurn || busy || selectedGems.length !== requiredDifferent || requiredDifferent === 0} onClick={() => update((current) => takeDifferentTokens(current, playerId, selectedGems))}><Gem /> Take selected gems</button>
+        <p className="splendor-bank-help">{myTurn ? "Click three different gems — or the same gem twice to take two of it, when four or more remain." : "The bank is ready for the active merchant."}</p>
+        <div className="splendor-token-bank">{GEM_COLORS.map((color) => <BankToken key={color} color={color} count={room.bank[color]} picked={selectedGems.filter((item) => item === color).length} disabled={!myTurn || busy || room.bank[color] === 0} onPick={() => pickGem(color)} />)}<BankToken color="gold" count={room.bank.gold} picked={0} disabled note="Gold comes with a reservation" /></div>
+        <button className="splendor-primary splendor-take" disabled={!myTurn || busy || !take.legal} onClick={() => update((current) => (take.pair ? takePairTokens(current, playerId, take.pair) : takeDifferentTokens(current, playerId, selectedGems)))}><Gem /> {take.label}</button>
+        {selectedGems.length > 0 && <button className="splendor-quiet splendor-clear" onClick={() => setSelectedGems([])}>Clear selection</button>}
         <div className="splendor-action-note"><Sparkles /><p><strong>{myTurn ? "Choose one action" : `${actor?.name} is at the market`}</strong><span>{myTurn ? "Gather gems, buy one development, or reserve one for later." : "You can inspect every cost while you wait."}</span></p></div>
       </aside>
     </div>
@@ -132,7 +165,7 @@ export default function SplendorClient() {
     <section className="splendor-tableau">
       <div className="splendor-tableau-heading"><div><p className="splendor-kicker">Your trading house</p><h2>{me.score} prestige · {tokenCount(me)} tokens</h2></div><div className="splendor-player-token-strip">{[...GEM_COLORS, "gold"].map((color) => <MiniGem key={color} color={color} count={me.tokens[color]} />)}</div></div>
       <div className="splendor-bonus-grid">{GEM_COLORS.map((color) => <div className={`splendor-bonus-stack ${color}`} key={color}><span className="splendor-bonus-gem"><Gem /></span><strong>{me.bonuses[color]}</strong><small>{GEM_INFO[color].name} bonus</small><em>{me.developments.filter((card) => card.bonus === color).reduce((sum, card) => sum + card.points, 0)} prestige</em></div>)}</div>
-      <div className="splendor-reserved"><div><LockKeyhole /><span><strong>Reserved developments</strong><small>Private to you · {me.reserved.length}/3</small></span></div>{me.reserved.length ? <div className="splendor-reserved-list">{me.reserved.map((card, index) => <DevelopmentCard key={card.id} card={card} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "reserved", index }, card)} reserved />)}</div> : <p>Reserve a face-up card—or draw blindly from a deck—to secure it and take one gold.</p>}</div>
+      <div className="splendor-reserved"><div><LockKeyhole /><span><strong>Reserved developments</strong><small>Private to you · {me.reserved.length}/3</small></span></div>{me.reserved.length ? <div className="splendor-reserved-list">{me.reserved.map((card, index) => <DevelopmentCard key={card.id} card={card} player={me} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "reserved", index }, card)} reserved />)}</div> : <p>Reserve a face-up card—or draw blindly from a deck—to secure it and take one gold.</p>}</div>
     </section>
 
     {room.pendingReturn?.playerId === playerId && <ReturnModal player={me} count={room.pendingReturn.count} selected={returns} setSelected={setReturns} busy={busy} onConfirm={() => { update((current) => returnTokens(current, playerId, returns)); setReturns({}); }} />}
@@ -140,6 +173,42 @@ export default function SplendorClient() {
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
+}
+
+/**
+ * Your engine, pinned to the top of the board.
+ *
+ * Splendor is one question repeated: does this cost fit what I have? The answer
+ * lived in a band underneath the market, so checking it meant scrolling away
+ * from the card and back — 1,138px each way on a phone. Eleven numbers is a
+ * strip, not a section, so it sits above the market and stays there.
+ *
+ * Each gem shows bonus and tokens together, because that is how a cost is paid:
+ * the bonus first, and tokens for the rest.
+ */
+function PlayerStrip({ player, prestige, tokens }) {
+  return <div className="splendor-strip">
+    <div className="splendor-strip-score">
+      <strong>{prestige}</strong>
+      <small>prestige</small>
+    </div>
+    <div className="splendor-strip-gems">
+      {GEM_COLORS.map((color) => <span className={`splendor-strip-gem ${color}`} key={color}>
+        <b title={`${GEM_INFO[color].name} bonus`}>{player.bonuses[color]}</b>
+        <i title={`${GEM_INFO[color].name} tokens`}>{player.tokens[color]}</i>
+        <small>{GEM_INFO[color].name}</small>
+      </span>)}
+      <span className="splendor-strip-gem gold">
+        <b className="splendor-strip-nobonus" aria-hidden="true">&middot;</b>
+        <i title="Gold tokens">{player.tokens.gold}</i>
+        <small>Gold</small>
+      </span>
+    </div>
+    <div className={`splendor-strip-total ${tokens > 10 ? "over" : tokens === 10 ? "full" : ""}`}>
+      <strong>{tokens}<span>/10</span></strong>
+      <small>tokens</small>
+    </div>
+  </div>;
 }
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
@@ -151,24 +220,118 @@ function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart
   return <main className="splendor-lobby"><section className="splendor-lobby-card"><div className="splendor-lobby-seal"><Gem /></div><p className="splendor-kicker">Your private guild hall</p><h1>The table is ready</h1><button className="splendor-room-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><span>{room.roomCode}</span><small><Copy /> Copy invite code</small></button><div className="splendor-lobby-players">{room.players.map((player, index) => <div key={player.id} className="occupied"><span className="splendor-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}</strong><small>{index === 0 ? "Host" : player.isComputer ? "Computer merchant" : "Ready to trade"}</small></p>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}{Array.from({ length: 4 - room.players.length }, (_, index) => <div className="empty" key={index}><span className="splendor-avatar"><Users /></span><p><strong>Open seat</strong><small>Invite a friend or add a rival</small></p></div>)}</div>{isHost && room.players.length < 4 && <button className="splendor-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer merchant</button>}{isHost ? <button className="splendor-primary splendor-start" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Open the market</button> : <p className="splendor-waiting">Waiting for {room.players[0].name} to open the market…</p>}<button className="splendor-quiet" onClick={onLeave}><LogOut /> Leave room</button>{room.players.length < 2 && isHost && <p className="splendor-waiting">Invite at least one merchant or add a computer to begin.</p>}{error && <p className="splendor-form-error">{error}</p>}</section></main>;
 }
 
-function PlayerSummary({ player, active, isMe, isHost, winner }) {
-  return <div className={`splendor-player ${active ? "active" : ""} ${winner ? "winner" : ""}`}><span className="splendor-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{tokenCount(player)} tokens · {player.reserved.length} reserved</small><div className="splendor-mini-bonuses">{GEM_COLORS.map((color) => <i key={color} className={color}>{player.bonuses[color]}</i>)}</div></div><b>{player.score}<small>PP</small></b>{isHost && <Crown className="splendor-host" />}</div>;
+function PlayerSummary({ player, active, isMe, isHost, winner, leading }) {
+  /* Within four of fifteen is the point at which somebody else's next turn can
+     start the last round. That is the number that should change your move, and
+     nothing on the board used to say it. */
+  const threat = player.score >= 11 && player.score < 15;
+  return <div className={`splendor-player ${active ? "active" : ""} ${winner ? "winner" : ""} ${threat ? "threat" : ""} ${leading ? "leading" : ""}`}><span className="splendor-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{tokenCount(player)} tokens · {player.reserved.length} reserved</small><div className="splendor-mini-bonuses">{GEM_COLORS.map((color) => <i key={color} className={color}>{player.bonuses[color]}</i>)}</div></div><b>{player.score}<small>PP</small>{threat && <em title={`${15 - player.score} prestige from the final round`}>{15 - player.score} to go</em>}</b>{isHost && <Crown className="splendor-host" />}</div>;
 }
 
-function BankToken({ color, count, selected, disabled, pairDisabled, onToggle, onPair }) {
-  return <div className={`splendor-bank-token ${color} ${selected ? "selected" : ""} ${count === 0 ? "empty" : ""}`}><button disabled={disabled} onClick={onToggle} aria-label={`Select ${GEM_INFO[color].name}`}><span><Gem /></span><strong>{count}</strong><small>{GEM_INFO[color].name}</small>{selected && <Check className="splendor-selected-check" />}</button>{color !== "gold" && <button className="splendor-pair" disabled={pairDisabled} onClick={onPair}>Take 2</button>}</div>;
+/*
+ * One gem, one target. The old tile carried a second 29x13px "Take 2" chip that
+ * fell under the 24px minimum, overlapped its own label on a phone, and appeared
+ * or vanished depending on how many were left in the pile.
+ */
+function BankToken({ color, count, picked, disabled, onPick, note }) {
+  const label = note
+    ? `${GEM_INFO[color].name}, ${count} in the bank. ${note}.`
+    : `${GEM_INFO[color].name}, ${count} in the bank${picked ? `, ${picked} picked` : ""}`;
+  return <div className={`splendor-bank-token ${color} ${picked ? "selected" : ""} ${count === 0 ? "empty" : ""}`}>
+    <button disabled={disabled} onClick={onPick} aria-label={label} title={note ?? undefined}>
+      <span><Gem /></span>
+      <strong>{count}</strong>
+      <small>{GEM_INFO[color].name}</small>
+      {picked > 0 && <em className="splendor-picked">{picked === 2 ? <>&times;2</> : <Check />}</em>}
+    </button>
+  </div>;
 }
 
 function MiniGem({ color, count }) { return <span className={`splendor-mini-gem ${color}`} title={GEM_INFO[color].name}><Gem />{count}</span>; }
 
-function DevelopmentCard({ card, affordable, disabled, onBuy, onReserve, canReserve, reserved }) {
-  const paymentHint = affordable ? "Affordable now" : "Development";
-  return <article className={`splendor-dev-card level-${card.level} bonus-${card.bonus} ${affordable ? "affordable" : ""} ${onReserve ? "reservable" : ""}`}><button className="splendor-card-main" disabled={disabled} onClick={onBuy} aria-label={`Buy ${GEM_INFO[card.bonus].name} development`}><span className="splendor-card-points">{card.points || <em>—</em>}</span><span className="splendor-card-bonus"><Gem /><small>{GEM_INFO[card.bonus].name}</small></span><span className="splendor-card-scene"><img className="splendor-card-art" src={cardArt[card.bonus]} alt="" /></span><span className="splendor-card-cost">{Object.entries(card.cost).map(([color, count]) => <i className={color} key={color}>{count}</i>)}</span><span className="splendor-card-status">{reserved ? "Reserved · click to buy" : paymentHint}</span></button>{onReserve && <button className="splendor-reserve-button" disabled={!canReserve || disabled} onClick={onReserve}><LockKeyhole /> Reserve</button>}</article>;
+/**
+ * A development, priced against the player looking at it.
+ *
+ * The whole game is one subtraction — this card's cost, less the permanent
+ * bonuses you have built, checked against the tokens in front of you — and the
+ * board used to leave every part of it to the player. `paymentForCard` has
+ * always returned exactly that breakdown; it was imported here and never called.
+ *
+ * So each cost is now drawn in up to three parts: what your bonuses cover (an
+ * empty setting, because you pay nothing for it), what you would hand over in
+ * tokens, and the gold that makes up the difference. The status line says what
+ * is missing rather than the word "Development".
+ */
+function DevelopmentCard({ card, player, affordable, disabled, onBuy, onReserve, canReserve, reserved }) {
+  const payment = player ? paymentForCard(player, card) : null;
+  const shortfall = payment && !payment.affordable
+    ? GEM_COLORS
+      .map((color) => ({ color, need: Math.max(0, Number(card.cost[color] || 0) - player.bonuses[color] - player.tokens[color]) }))
+      .filter((item) => item.need > 0)
+    : [];
+
+  const parts = GEM_COLORS.flatMap((color) => {
+    const total = Number(card.cost[color] || 0);
+    if (!total) return [];
+    const covered = player ? Math.min(total, player.bonuses[color]) : 0;
+    const paid = payment ? payment.colored[color] : total;
+    return [
+      covered > 0 && { key: `${color}-bonus`, color, count: covered, covered: true },
+      (paid > 0 || !player) && { key: color, color, count: player ? paid : total },
+    ].filter(Boolean);
+  });
+  const goldNeeded = payment?.affordable ? payment.gold : 0;
+
+  const status = reserved && !affordable ? "Reserved"
+    : reserved ? "Reserved · buy now"
+    : affordable ? (goldNeeded ? `Buy · ${goldNeeded} gold` : "Buy")
+    : shortfall.length === 1 ? `Need ${shortfall[0].need} ${GEM_INFO[shortfall[0].color].name.toLowerCase()}`
+    : shortfall.length ? `Need ${shortfall.map((item) => `${item.need}${GEM_INFO[item.color].short}`).join(" ")}`
+    : "Development";
+
+  const label = `${GEM_INFO[card.bonus].name} development, ${card.points} prestige, costing `
+    + Object.entries(card.cost).map(([color, count]) => `${count} ${GEM_INFO[color].name.toLowerCase()}`).join(", ")
+    + (affordable ? ". You can afford this." : `. ${status}.`);
+
+  return <article className={`splendor-dev-card level-${card.level} bonus-${card.bonus} ${affordable ? "affordable" : "unaffordable"} ${onReserve ? "reservable" : ""}`}>
+    <button className="splendor-card-main" disabled={disabled || !affordable} onClick={onBuy} aria-label={label}>
+      <span className="splendor-card-points">{card.points || <em>—</em>}</span>
+      <span className="splendor-card-bonus"><Gem /><small>{GEM_INFO[card.bonus].name}</small></span>
+      <span className="splendor-card-scene"><img className="splendor-card-art" src={cardArt[card.bonus]} alt="" width="300" height="152" loading="lazy" decoding="async" /></span>
+      <span className="splendor-card-cost">
+        {parts.map((part) => <i className={`${part.color} ${part.covered ? "covered" : ""}`} key={part.key}>{part.count}</i>)}
+        {goldNeeded > 0 && <i className="gold" key="gold">{goldNeeded}</i>}
+      </span>
+      <span className="splendor-card-status">{status}</span>
+    </button>
+    {onReserve && <button className="splendor-reserve-button" disabled={!canReserve || disabled} onClick={onReserve}><LockKeyhole /> Reserve</button>}
+  </article>;
 }
 
 function Deck({ level, count, disabled, onReserve }) { return <button className={`splendor-deck level-${level}`} disabled={disabled || count === 0} onClick={onReserve}><span>{Array.from({ length: level }, (_, index) => <Gem key={index} />)}</span><strong>Level {level}</strong><small>{count} cards</small><em><LockKeyhole /> Reserve blind</em></button>; }
 
-function NobleTile({ noble }) { return <div className="splendor-noble"><Crown /><strong>{noble.name}</strong><span>{Object.entries(noble.requirements).map(([color, count]) => <i className={color} key={color}>{count}</i>)}</span><small>3 prestige</small></div>; }
+/*
+ * A noble is 3 prestige and often decides the game, and the tile used to print
+ * its price and stop there — whether you were at 2/3 or 0/3 on each colour was
+ * something you worked out by scrolling to your bonuses and counting.
+ */
+function NobleTile({ noble, player }) {
+  const needs = Object.entries(noble.requirements).map(([color, count]) => ({
+    color,
+    count,
+    have: player ? Math.min(count, player.bonuses[color]) : 0,
+  }));
+  const short = needs.reduce((sum, need) => sum + (need.count - need.have), 0);
+  const state = !player ? "" : short === 0 ? "earned" : short <= 2 ? "close" : "";
+  return <div className={`splendor-noble ${state}`}>
+    <Crown />
+    <strong>{noble.name}</strong>
+    <span>{needs.map((need) => <i className={`${need.color} ${player && need.have >= need.count ? "met" : ""}`} key={need.color}>
+      {player ? `${need.have}/${need.count}` : need.count}
+    </i>)}</span>
+    <small>{!player ? "3 prestige" : short === 0 ? "Ready to visit" : `3 prestige · ${short} more card${short === 1 ? "" : "s"}`}</small>
+  </div>;
+}
 
 function ReturnModal({ player, count, selected, setSelected, busy, onConfirm }) {
   const total = Object.values(selected).reduce((sum, amount) => sum + Number(amount || 0), 0);
