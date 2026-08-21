@@ -3,7 +3,8 @@ import test from "node:test";
 
 import {
   GEM_COLORS, GEM_INFO, addComputerPlayer, createDevelopmentDecks, createLobby,
-  currentPlayer, hasLegalMove, passTurn, purchaseCard, runComputerTurn, startGame,
+  currentPlayer, hasLegalMove, passTurn, paymentForCard, purchaseCard,
+  runComputerTurn, startGame,
 } from "../lib/splendor.js";
 
 /*
@@ -211,4 +212,45 @@ test("every gem has a distinct letter, so the board works in greyscale", () => {
   const marks = Object.values(GEM_INFO).map((gem) => gem.short);
   assert.equal(new Set(marks).size, marks.length);
   for (const mark of marks) assert.match(mark, /^[A-Z]$/);
+});
+
+
+/* ── the cost discs add up ────────────────────────────────────────────────── */
+
+test("what a card shows always sums to what it costs", () => {
+  /*
+   * A cost is drawn as three kinds of disc — covered by a bonus, paid in tokens,
+   * still missing — and if they ever fail to add up to the printed cost the
+   * board is lying about the price. Swept across a wide range of holdings
+   * rather than one hand.
+   */
+  let state = 424242;
+  const rng = () => { state = (state * 1103515245 + 12345) & 0x7fffffff; return state / 0x7fffffff; };
+
+  for (let trial = 0; trial < 400; trial += 1) {
+    const player = {
+      bonuses: Object.fromEntries(GEM_COLORS.map((color) => [color, Math.floor(rng() * 8)])),
+      tokens: { ...Object.fromEntries(GEM_COLORS.map((color) => [color, Math.floor(rng() * 6)])), gold: Math.floor(rng() * 6) },
+    };
+    const card = all[Math.floor(rng() * all.length)];
+    const payment = paymentForCard(player, card);
+
+    for (const color of GEM_COLORS) {
+      const total = Number(card.cost[color] || 0);
+      const covered = Math.min(total, player.bonuses[color]);
+      const paid = payment.colored[color];
+      const missing = Math.max(0, total - player.bonuses[color] - player.tokens[color]);
+      assert.equal(
+        covered + paid + missing,
+        total,
+        `${card.id} ${color}: shows ${covered}+${paid}+${missing}, costs ${total}`,
+      );
+      assert.ok(paid <= player.tokens[color], `${card.id} ${color}: would pay tokens the player does not hold`);
+    }
+
+    // A card is affordable exactly when gold covers everything tokens could not.
+    const shortfall = GEM_COLORS.reduce((sum, color) =>
+      sum + Math.max(0, Number(card.cost[color] || 0) - player.bonuses[color] - player.tokens[color]), 0);
+    assert.equal(payment.affordable, shortfall <= player.tokens.gold, `${card.id}: affordability disagrees with the discs`);
+  }
 });

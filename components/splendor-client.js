@@ -257,10 +257,12 @@ function MiniGem({ color, count }) { return <span className={`splendor-mini-gem 
  * board used to leave every part of it to the player. `paymentForCard` has
  * always returned exactly that breakdown; it was imported here and never called.
  *
- * So each cost is now drawn in up to three parts: what your bonuses cover (an
- * empty setting, because you pay nothing for it), what you would hand over in
- * tokens, and the gold that makes up the difference. The status line says what
- * is missing rather than the word "Development".
+ * So each cost is now drawn as discs in the order it is paid: what your bonuses
+ * cover (a dashed setting, because you pay nothing for it), what you would hand
+ * over in tokens, the gold that makes up the difference, and — when you cannot
+ * afford it — a hollow disc for each gem you are still short. A colour and a
+ * number is read at a glance; the sentence this replaced had to be parsed, and
+ * it repeated what the row above it already showed.
  */
 function DevelopmentCard({ card, player, affordable, disabled, onBuy, onReserve, canReserve, reserved }) {
   const payment = player ? paymentForCard(player, card) : null;
@@ -270,28 +272,37 @@ function DevelopmentCard({ card, player, affordable, disabled, onBuy, onReserve,
       .filter((item) => item.need > 0)
     : [];
 
+  /*
+   * One row of discs, in the order a cost is actually paid: what your bonuses
+   * cover for free, what you hand over in tokens, what gold makes up, and — when
+   * you cannot afford it — what you are still missing.
+   */
   const parts = GEM_COLORS.flatMap((color) => {
     const total = Number(card.cost[color] || 0);
     if (!total) return [];
-    const covered = player ? Math.min(total, player.bonuses[color]) : 0;
-    const paid = payment ? payment.colored[color] : total;
+    if (!player) return [{ key: color, color, count: total }];
+    const covered = Math.min(total, player.bonuses[color]);
+    const paid = payment.colored[color];
+    const missing = shortfall.find((item) => item.color === color)?.need ?? 0;
     return [
-      covered > 0 && { key: `${color}-bonus`, color, count: covered, covered: true },
-      (paid > 0 || !player) && { key: color, color, count: player ? paid : total },
+      covered > 0 && { key: `${color}-bonus`, color, count: covered, kind: "covered" },
+      paid > 0 && { key: color, color, count: paid },
+      missing > 0 && { key: `${color}-short`, color, count: missing, kind: "missing" },
     ].filter(Boolean);
   });
   const goldNeeded = payment?.affordable ? payment.gold : 0;
 
   const status = reserved && !affordable ? "Reserved"
     : reserved ? "Reserved · buy now"
-    : affordable ? (goldNeeded ? `Buy · ${goldNeeded} gold` : "Buy")
-    : shortfall.length === 1 ? `Need ${shortfall[0].need} ${GEM_INFO[shortfall[0].color].name.toLowerCase()}`
-    : shortfall.length ? `Need ${shortfall.map((item) => `${item.need}${GEM_INFO[item.color].short}`).join(" ")}`
+    : affordable ? "Buy"
+    : shortfall.length ? "Short"
     : "Development";
 
   const label = `${GEM_INFO[card.bonus].name} development, ${card.points} prestige, costing `
     + Object.entries(card.cost).map(([color, count]) => `${count} ${GEM_INFO[color].name.toLowerCase()}`).join(", ")
-    + (affordable ? ". You can afford this." : `. ${status}.`);
+    + (affordable
+      ? `. You can afford this${goldNeeded ? `, using ${goldNeeded} gold` : ""}.`
+      : `. You still need ${shortfall.map((item) => `${item.need} ${GEM_INFO[item.color].name.toLowerCase()}`).join(" and ")}.`);
 
   return <article className={`splendor-dev-card level-${card.level} bonus-${card.bonus} ${affordable ? "affordable" : "unaffordable"} ${onReserve ? "reservable" : ""}`}>
     <button className="splendor-card-main" disabled={disabled || !affordable} onClick={onBuy} aria-label={label}>
@@ -299,7 +310,7 @@ function DevelopmentCard({ card, player, affordable, disabled, onBuy, onReserve,
       <span className="splendor-card-bonus"><Gem /><small>{GEM_INFO[card.bonus].name}</small></span>
       <span className="splendor-card-scene"><img className="splendor-card-art" src={cardArt[card.bonus]} alt="" width="300" height="152" loading="lazy" decoding="async" /></span>
       <span className="splendor-card-cost">
-        {parts.map((part) => <i className={`${part.color} ${part.covered ? "covered" : ""}`} key={part.key}>{part.count}</i>)}
+        {parts.map((part) => <i className={`${part.color} ${part.kind ?? ""}`} key={part.key}>{part.count}</i>)}
         {goldNeeded > 0 && <i className="gold" key="gold">{goldNeeded}</i>}
       </span>
       <span className="splendor-card-status">{status}</span>
