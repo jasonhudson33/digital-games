@@ -11,6 +11,7 @@ import {
   PLAYER_COLORS,
   ROUTES,
   ROUTE_POINTS,
+  TRAIN_COLORS,
   TRAIN_COLOR_INFO,
   addComputerPlayer,
   addPlayer,
@@ -58,6 +59,22 @@ const CITY_POINTS = Object.fromEntries(
   Object.entries(CITIES).map(([id, city]) => [id, { x: city.x * 10, y: city.y * 6 }]),
 );
 const ROUTE_BEND = solveBends(CITY_POINTS, ROUTES);
+
+/* A locomotive is every colour at once, and the card has to say so on sight.
+ * It used to be one more shade of purple, a card apart from the purple card by
+ * about as much as the purple card is from itself. Hard stops rather than a
+ * blend: eight bands read as eight colours, where a smooth rainbow reads as a
+ * single decorative gradient. */
+const wildGradientId = "ttr-wild-key";
+const WILD_BANDS = TRAIN_COLORS.flatMap((color, index) => {
+  const hex = TRAIN_COLOR_INFO[color].hex;
+  const start = index / TRAIN_COLORS.length;
+  const end = (index + 1) / TRAIN_COLORS.length;
+  return [
+    <stop key={`${color}-a`} offset={start} stopColor={hex} />,
+    <stop key={`${color}-b`} offset={end} stopColor={hex} />,
+  ];
+});
 
 export default function TicketToRideClient() {
   const {
@@ -168,7 +185,11 @@ export default function TicketToRideClient() {
             <span>Each car = 1 card</span>
             <span className="ttr-legend-key">
               {Object.entries(COLOR_GLYPH).map(([color, d]) => <i key={color} title={TRAIN_COLOR_INFO[color].label}>
-                <svg viewBox="-6 -6 12 12" aria-hidden="true"><rect x="-6" y="-6" width="12" height="12" rx="2.5" fill={TRAIN_COLOR_INFO[color].hex} /><path d={d} /></svg>
+                <svg viewBox="-6 -6 12 12" aria-hidden="true">
+                  {color === "locomotive" && <defs><linearGradient id={wildGradientId} x1="0" y1="0" x2="1" y2="1">{WILD_BANDS}</linearGradient></defs>}
+                  <rect x="-6" y="-6" width="12" height="12" rx="2.5" fill={color === "locomotive" ? `url(#${wildGradientId})` : TRAIN_COLOR_INFO[color].hex} />
+                  <path d={d} />
+                </svg>
                 <b>{TRAIN_COLOR_INFO[color].label}</b>
               </i>)}
             </span>
@@ -188,11 +209,18 @@ export default function TicketToRideClient() {
         </aside>
       </div>
 
+      {/* The player's own case is a fixed strip along the bottom of the table
+          rather than a block below it, so their cards and tickets are on screen
+          beside the map instead of a scroll away. */}
       <section className="ttr-hand-panel">
-        <div className="ttr-hand-heading"><div><p className="ttr-kicker">Your conductor's case</p><h2>Train cards</h2></div><span>{me.cards.length} cards</span></div>
-        <GroupedHand cards={me.cards} />
-        <div className="ttr-destination-header"><h2><Ticket size={18} /> Your destinations</h2><button onClick={() => setShowTickets((shown) => !shown)}>{showTickets ? <EyeOff size={16} /> : <Eye size={16} />}{showTickets ? "Hide" : "Show"}</button></div>
-        {showTickets && <div className="ttr-ticket-list">{me.destinations.map((item) => <DestinationCard key={item.id} destination={item} completed={hasConnection(room, playerId, item.from, item.to)} />)}</div>}
+        <div className="ttr-hand-cards">
+          <div className="ttr-hand-heading"><h2><TrainFront size={16} /> Your train cards</h2><span>{me.cards.length} in hand</span></div>
+          <GroupedHand cards={me.cards} />
+        </div>
+        <div className="ttr-hand-tickets">
+          <div className="ttr-destination-header"><h2><Ticket size={16} /> Your destinations</h2><button onClick={() => setShowTickets((shown) => !shown)}>{showTickets ? <EyeOff size={15} /> : <Eye size={15} />}{showTickets ? "Hide" : "Show"}</button></div>
+          {showTickets && <div className="ttr-ticket-list">{me.destinations.map((item) => <DestinationCard key={item.id} destination={item} completed={hasConnection(room, playerId, item.from, item.to)} />)}</div>}
+        </div>
       </section>
 
       {selectedRoute && !room.claimedRoutes[selectedRoute.id] && <ClaimPanel route={selectedRoute} colors={paymentColors} busy={busy} onClose={() => setSelectedRouteId(null)} onClaim={(color) => { update((current) => claimRoute(current, playerId, selectedRoute.id, color)); setSelectedRouteId(null); }} />}
@@ -372,7 +400,8 @@ function fixedRouteSection(start, control, end, position) {
 
 function TrainCard({ card, compact = false, disabled, onClick }) {
   const info = TRAIN_COLOR_INFO[card.color];
-  return <button className={`ttr-train-card ${compact ? "compact" : ""}`} style={{ "--card-color": info.hex, "--card-ink": info.ink }} disabled={disabled} onClick={onClick}><span className="ttr-card-stripes" /><small>{info.label}</small><TrainFront /><b>{card.color === "locomotive" ? "WILD" : "RAIL"}</b></button>;
+  const wild = card.color === "locomotive";
+  return <button className={`ttr-train-card ${compact ? "compact" : ""} ${wild ? "wild" : ""}`} style={{ "--card-color": info.hex, "--card-ink": info.ink }} disabled={disabled} onClick={onClick}><span className="ttr-card-stripes" /><small>{info.label}</small><TrainFront /><b>{wild ? "WILD" : "RAIL"}</b></button>;
 }
 
 function DrawDeck({ type, count, disabled, onClick }) {

@@ -16,6 +16,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * @param {number} width  board width in user units
  * @param {number} height board height in user units
  */
+/**
+ * Does anything above this element have room to scroll vertically?
+ *
+ * @param {Element} element
+ * @returns {boolean}
+ */
+function canScrollVertically(element) {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const overflow = window.getComputedStyle(node).overflowY;
+    if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight + 1) return true;
+  }
+  const page = document.scrollingElement ?? document.documentElement;
+  return page.scrollHeight > page.clientHeight + 1;
+}
+
 export function useMapView(width, height) {
   const [view, setView] = useState({ x: 0, y: 0, w: width, h: height });
   const svgRef = useRef(null);
@@ -73,11 +88,18 @@ export function useMapView(width, height) {
 
   // Wheel zoom has to be a non-passive native listener; React's onWheel is
   // passive, so preventDefault there does not stop the page scrolling.
+  //
+  // A plain wheel only zooms when there is nothing for it to scroll. On a table
+  // that fits the window that is always, and the map behaves like a map; but
+  // when the layout does scroll — a narrow window, a short one — swallowing the
+  // wheel stranded the player, because the cards they were scrolling towards
+  // were below a map that answered every scroll by zooming.
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return undefined;
     function onWheel(event) {
       if (!event.ctrlKey && Math.abs(event.deltaY) < 2) return;
+      if (!event.ctrlKey && canScrollVertically(svg)) return;
       event.preventDefault();
       zoomAbout(event.deltaY < 0 ? 1.12 : 1 / 1.12, toUser(event));
     }
