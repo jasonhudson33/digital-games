@@ -5,17 +5,26 @@ import {
   KILLER_BUNNIES_CARD_COUNTS,
   buyKillerBunniesShopItem,
   chooseKillerBunniesCarrot,
+  chooseKillerBunniesDefectorTarget,
+  chooseKillerBunniesMisfortuneTarget,
+  chooseKillerBunniesModifierTarget,
   chooseKillerBunniesTarget,
   chooseInitialKillerBunniesRun,
   createKillerBunniesGame,
   drawKillerBunniesPile,
+  discardKillerBunniesDefectorDetector,
   getKillerBunniesPileStatus,
   getKillerBunniesCardPlayStatus,
+  getKillerBunniesExtraRunStatus,
+  getKillerBunniesCloverReduction,
   getKillerBunniesShopItemStatus,
   playSavedKillerBunniesSpecial,
   playTopRun,
   replaceBottomRun,
   resolveKillerBunniesDefense,
+  resolveKillerBunniesDefectorRoll,
+  resolveKillerBunniesImmediateCard,
+  resolveKillerBunniesManualCard,
   resolveKillerBunniesSpecialChoice,
   runKillerBunniesComputers,
 } from "../lib/killer-bunnies.js";
@@ -119,6 +128,154 @@ test("opening RUN setup begins at a random seat and proceeds around the table", 
   assert.equal(game.currentPlayerIndex, 1);
 });
 
+test("Bunny Triplets recognize color, kind, pawns, grouped bunnies, and specified bunnies", () => {
+  assert.match(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue"), bunny("Blue Three", "blue")],
+  }).reason, /three blue/i);
+
+  assert.match(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Congenial Bunny – Blue", "blue"), bunny("Congenial Bunny – Green", "green"), bunny("Congenial Bunny – Orange", "orange")],
+  }).reason, /three congenial/i);
+
+  assert.match(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue")],
+    pawns: [{ name: "Blue Pawn", color: "blue" }],
+  }).reason, /blue pawn/i);
+
+  assert.equal(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Specialty Bunny – Single (Solo)"), bunny("Specialty Bunny – Double (Pair)")],
+  }).enabled, true);
+  assert.equal(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue"), bunny("Free Agent")],
+  }).enabled, true);
+  assert.equal(getKillerBunniesExtraRunStatus({
+    bunnies: [bunny("Green One", "green"), bunny("Green Two", "green"), bunny("Robot Bunny – Red", "red")],
+  }).enabled, true);
+  assert.equal(getKillerBunniesExtraRunStatus({ bunnies: [bunny("Super Congenial Bunny – Violet", "violet")] }).enabled, true);
+  assert.equal(getKillerBunniesExtraRunStatus({ bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue")] }).enabled, false);
+});
+
+test("a Bunny Triplet plays, replaces, then exposes the second TOP RUN", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(13),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const player = game.players[playerIndex];
+  player.bunnies = [bunny("Blue Gleeful Bunny", "blue"), bunny("Blue Timid Bunny", "blue")];
+  player.topRun = bunny("Blue Sinister Bunny", "blue", "first-run-bunny");
+  player.bottomRun = plainRun("second-run");
+
+  game = playTopRun(game, playerIndex, seededRandom(14));
+  assert.equal(game.runPlaysThisTurn, 1);
+  assert.equal(game.phase, "draw");
+  assert.equal(getKillerBunniesExtraRunStatus(game.players[playerIndex]).enabled, true);
+
+  const firstReplacement = plainRun("first-replacement");
+  game.mainDeck.push(firstReplacement);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  game = replaceBottomRun(game, playerIndex, firstReplacement.id);
+  assert.equal(game.phase, "play");
+  assert.equal(game.currentPlayerIndex, playerIndex);
+  assert.equal(game.players[playerIndex].topRun.id, "second-run");
+  assert.match(game.message, /second top run/i);
+
+  game = playTopRun(game, playerIndex, seededRandom(15));
+  assert.equal(game.runPlaysThisTurn, 2);
+  const secondReplacement = plainRun("second-replacement");
+  game.mainDeck.push(secondReplacement);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  game = replaceBottomRun(game, playerIndex, secondReplacement.id);
+  assert.notEqual(game.currentPlayerIndex, playerIndex);
+  assert.equal(game.runPlaysThisTurn, 0);
+});
+
+test("losing the Bunny Triplet before replacement cancels the second RUN", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(16),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const player = game.players[playerIndex];
+  player.bunnies = [bunny("Blue One", "blue"), bunny("Blue Two", "blue"), bunny("Blue Three", "blue")];
+  player.topRun = plainRun("first-run");
+  player.bottomRun = plainRun("would-be-second-run");
+
+  game = playTopRun(game, playerIndex, seededRandom(17));
+  const misfortune = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(83));
+  game.mainDeck.push(misfortune);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  assert.equal(game.phase, "immediateTarget");
+  game = chooseKillerBunniesMisfortuneTarget(game, playerIndex, player.bunnies[0].id);
+
+  const replacement = plainRun("replacement-after-misfortune");
+  game.mainDeck.push(replacement);
+  game = drawKillerBunniesPile(game, playerIndex, "main");
+  game = replaceBottomRun(game, playerIndex, replacement.id);
+  assert.notEqual(game.currentPlayerIndex, playerIndex);
+  assert.equal(game.runPlaysThisTurn, 0);
+});
+
+test("PLAY IMMEDIATELY cards resolve on draw instead of entering a player's hand", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(14),
+  });
+  game.phase = "draw";
+  game.currentPlayerIndex = 0;
+  const misfortune = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(83));
+  const firstBunny = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(1));
+  const secondBunny = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(2));
+  game.players[0].bunnies = [firstBunny, secondBunny];
+  game.mainDeck.push(misfortune);
+
+  game = drawKillerBunniesPile(game, 0, "main", {}, seededRandom(15));
+
+  assert.equal(game.players[0].hand.some((card) => card.id === misfortune.id), false);
+  assert.equal(game.pendingAction?.card.id, misfortune.id);
+  assert.equal(game.phase, "immediateTarget");
+
+  game = chooseKillerBunniesMisfortuneTarget(game, 0, secondBunny.id);
+  assert.deepEqual(game.players[0].bunnies.map((bunny) => bunny.id), [firstBunny.id]);
+  assert.ok(game.discardPile.some((card) => card.id === misfortune.id));
+  assert.equal(game.phase, "draw");
+});
+
+test("non-Misfortune PLAY IMMEDIATELY cards expose their action before replacement draw", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(16),
+  });
+  game.phase = "draw";
+  game.currentPlayerIndex = 0;
+  const immediateCard = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(207));
+  game.mainDeck.push(immediateCard);
+
+  game = drawKillerBunniesPile(game, 0, "main", {}, seededRandom(17));
+  assert.equal(game.phase, "immediateResolve");
+  assert.equal(game.pendingAction.card.id, immediateCard.id);
+  assert.match(game.pendingAction.card.ability, /first-time player/i);
+  assert.equal(game.players[0].hand.some((card) => card.id === immediateCard.id), false);
+
+  game = resolveKillerBunniesImmediateCard(game, 0);
+  assert.equal(game.phase, "draw");
+  assert.ok(game.discardPile.some((card) => card.id === immediateCard.id));
+});
+
+test("opening deals never offer PLAY IMMEDIATELY cards as RUN choices", () => {
+  const expansionIds = KILLER_BUNNIES_EXPANSIONS.map((expansion) => expansion.id);
+  for (let seed = 1; seed <= 24; seed += 1) {
+    const game = createKillerBunniesGame({
+      playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+      expansionIds,
+      random: seededRandom(seed),
+    });
+    assert.equal(game.players.flatMap((player) => player.hand).some((card) => card.type === "PLAY IMMEDIATELY"), false);
+  }
+});
+
 test("market RUN cards can close the store while Choose A Carrot still works", () => {
   let game = createKillerBunniesGame({
     playerSeeds: [{ name: "Ada" }, { name: "Bot", isComputer: true }],
@@ -140,6 +297,170 @@ test("market RUN cards can close the store while Choose A Carrot still works", (
   game = chooseKillerBunniesCarrot(game, 0, carrotId);
   assert.equal(game.players[0].carrots.length, 1);
   assert.equal(game.kaballasMarket.isOpen, false);
+});
+
+test("Choose A Carrot is playable without a bunny, while weapons and feeding cards are not", () => {
+  const player = { bunnies: [] };
+  assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(16))).enabled, true);
+  assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(31))).enabled, false);
+  assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(24))).enabled, false);
+});
+
+test("a Bunny Modifier may be attached to any bunny and remains under that bunny", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(18),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const targetPlayerIndex = (playerIndex + 1) % game.players.length;
+  const targetBunny = bunny("Target Bunny", "orange", "modifier-target");
+  const clover = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(62));
+  game.players[targetPlayerIndex].bunnies.push(targetBunny);
+  game.players[playerIndex].bunnies = [];
+  game.players[playerIndex].topRun = clover;
+
+  game = playTopRun(game, playerIndex, seededRandom(19));
+  assert.equal(game.phase, "modifierTarget");
+  assert.equal(game.pendingAction.card.kind, "modifier");
+  game = chooseKillerBunniesModifierTarget(game, playerIndex, targetPlayerIndex, targetBunny.id);
+
+  const attached = game.players[targetPlayerIndex].bunnies[0].modifiers;
+  assert.equal(attached.length, 1);
+  assert.equal(attached[0].id, clover.id);
+  assert.equal(getKillerBunniesCloverReduction(game.players[targetPlayerIndex].bunnies[0]), 2);
+  assert.equal(game.phase, "draw");
+  assert.equal(game.discardPile.some((card) => card.id === clover.id), false);
+});
+
+test("Defector Detector may be discarded instead of placed on a bunny", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(181),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const detector = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(55));
+  game.players[playerIndex].bunnies = [bunny("Detector Bunny", "blue", "detector-own")];
+  game.players[playerIndex].topRun = detector;
+
+  game = playTopRun(game, playerIndex, seededRandom(182));
+  assert.equal(game.phase, "defectorTarget");
+  game = discardKillerBunniesDefectorDetector(game, playerIndex);
+
+  assert.equal(game.phase, "draw");
+  assert.ok(game.discardPile.some((card) => card.id === detector.id));
+});
+
+test("Defector Detector lets every player roll and gives its player one optional replacement roll", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }, { name: "Linus" }],
+    random: seededRandom(183),
+  });
+  game = programAllPlayers(game);
+  const cardPlayerIndex = game.currentPlayerIndex;
+  const ownerIndex = (cardPlayerIndex + 1) % game.players.length;
+  const otherIndex = (cardPlayerIndex + 2) % game.players.length;
+  const target = bunny("Defecting Bunny", "green", "defecting-bunny");
+  target.modifiers = [createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(61))];
+  game.players[cardPlayerIndex].bunnies = [bunny("Required Bunny", "blue", "required-bunny")];
+  game.players[ownerIndex].bunnies = [target];
+  game.players[ownerIndex].feedingObligations = [{ id: "traveling-feed", bunnyId: target.id, card: { id: "feed" } }];
+  game.players[cardPlayerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(55));
+
+  game = playTopRun(game, cardPlayerIndex, seededRandom(184));
+  game = chooseKillerBunniesDefectorTarget(game, cardPlayerIndex, ownerIndex, target.id);
+  assert.deepEqual(game.pendingAction.rollQueue, [cardPlayerIndex, ownerIndex, otherIndex]);
+  game = resolveKillerBunniesDefectorRoll(game, cardPlayerIndex, "roll", () => 0.1); // 2
+  game = resolveKillerBunniesDefectorRoll(game, ownerIndex, "roll", () => 0.6); // 8
+  game = resolveKillerBunniesDefectorRoll(game, otherIndex, "roll", () => 0.4); // 5
+
+  assert.equal(game.phase, "defectorReroll");
+  assert.equal(game.pendingAction.playerIndex, cardPlayerIndex);
+  game = resolveKillerBunniesDefectorRoll(game, cardPlayerIndex, "reroll", () => 0.9); // 11
+
+  const transferred = game.players[cardPlayerIndex].bunnies.find((entry) => entry.id === target.id);
+  assert.ok(transferred);
+  assert.equal(transferred.modifiers.length, 1, "attached modifiers travel with a defecting bunny");
+  assert.ok(game.players[cardPlayerIndex].feedingObligations.some((entry) => entry.bunnyId === target.id));
+  assert.equal(game.players[ownerIndex].feedingObligations.length, 0);
+  assert.equal(game.phase, "draw");
+  assert.ok(game.discardPile.some((card) => card.catalogNumber === "0055"));
+});
+
+test("Defector Detector repeats tied high rolls until one player wins", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(185),
+  });
+  game = programAllPlayers(game);
+  const cardPlayerIndex = game.currentPlayerIndex;
+  const ownerIndex = (cardPlayerIndex + 1) % game.players.length;
+  const target = bunny("Tie Bunny", "orange", "tie-bunny");
+  game.players[cardPlayerIndex].bunnies = [bunny("Required Bunny", "blue", "tie-required")];
+  game.players[ownerIndex].bunnies = [target];
+  game.players[cardPlayerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(55));
+
+  game = playTopRun(game, cardPlayerIndex, seededRandom(186));
+  game = chooseKillerBunniesDefectorTarget(game, cardPlayerIndex, ownerIndex, target.id);
+  game = resolveKillerBunniesDefectorRoll(game, cardPlayerIndex, "roll", () => 0.75); // 10
+  game = resolveKillerBunniesDefectorRoll(game, ownerIndex, "roll", () => 0.75); // 10
+  assert.equal(game.phase, "defectorRoll");
+  assert.equal(game.pendingAction.roundNumber, 2);
+  game = resolveKillerBunniesDefectorRoll(game, cardPlayerIndex, "roll", () => 0.25); // 4
+  game = resolveKillerBunniesDefectorRoll(game, ownerIndex, "roll", () => 0.25); // 4
+  assert.equal(game.pendingAction.roundNumber, 3);
+  game = resolveKillerBunniesDefectorRoll(game, cardPlayerIndex, "roll", () => 0.45); // 6
+  game = resolveKillerBunniesDefectorRoll(game, ownerIndex, "roll", () => 0.6); // 8
+
+  assert.ok(game.players[ownerIndex].bunnies.some((entry) => entry.id === target.id));
+  assert.equal(game.phase, "draw");
+});
+
+test("stacked Lucky Clovers lower the weapon level and leave with an eliminated bunny", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(20),
+  });
+  const target = bunny("Clover Bunny", "blue", "clover-bunny");
+  target.modifiers = [
+    createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(61)),
+    createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(62)),
+  ];
+  game.players[1].bunnies = [target];
+  const weapon = { id: "weapon-nine", kind: "weapon", type: "RUN", name: "Weapon Level 9", power: 9 };
+  game.phase = "target";
+  game.currentPlayerIndex = 0;
+  game.pendingAction = { playerIndex: 0, effect: "weapon", card: weapon };
+
+  game = chooseKillerBunniesTarget(game, 0, 1, target.id);
+  assert.equal(game.pendingAction.cloverReduction, 3);
+  assert.equal(game.pendingAction.effectivePower, 6);
+  game.players[1].defenseCards = [{ id: "def-seven", units: 7 }];
+  assert.throws(
+    () => resolveKillerBunniesDefense(game, 1, "defense"),
+    /need 9 Defense units/,
+    "Clovers do not reduce the printed Weapon Level required for Defense Cards",
+  );
+  game = resolveKillerBunniesDefense(game, 1, "roll", () => 0.5);
+  assert.equal(game.lastRoll.value, 7);
+  assert.equal(game.players[1].bunnies.length, 1);
+
+  const lethalWeapon = { id: "weapon-twelve", kind: "weapon", type: "RUN", name: "Weapon Level 12", power: 12 };
+  game.phase = "target";
+  game.currentPlayerIndex = 0;
+  game.pendingAction = { playerIndex: 0, effect: "weapon", card: lethalWeapon };
+  game = chooseKillerBunniesTarget(game, 0, 1, target.id);
+  game = resolveKillerBunniesDefense(game, 1, "roll", () => 0);
+  assert.equal(game.players[1].bunnies.length, 0);
+  assert.ok(game.discardPile.some((card) => card.catalogNumber === "0061"));
+  assert.ok(game.discardPile.some((card) => card.catalogNumber === "0062"));
+});
+
+test("Lumbering Bunny built-in Clovers contribute to Weapon reduction", () => {
+  assert.equal(getKillerBunniesCloverReduction(bunny("Half Red Lumbering Bunny", "red", "half-red")), 1);
+  assert.equal(getKillerBunniesCloverReduction(bunny("Red Lumbering Bunny", "red", "red")), 3);
+  assert.equal(getKillerBunniesCloverReduction(bunny("Pink Lumbering Bunny", "pink", "pink")), 5);
 });
 
 test("all twenty-two optional official decks are independently modular and use exact numbered-card counts", () => {
@@ -283,7 +604,6 @@ test("aggressive RUN cards require a living bunny and are discarded without reso
   const aggressiveCards = [
     { id: "needs-bunny-weapon", kind: "weapon", type: "RUN", name: "Test Weapon", power: 8 },
     { id: "needs-bunny-feed", kind: "feed", type: "RUN", name: "Test Feed", cabbageCost: 1, waterCost: 1 },
-    { id: "needs-bunny-carrot", kind: "chooseCarrot", type: "RUN", name: "Test Carrot Grab" },
   ];
 
   for (const card of aggressiveCards) {
@@ -310,9 +630,31 @@ test("aggressive RUN cards require a living bunny and are discarded without reso
 
 test("aggressive RUN cards become playable once their owner has a living bunny", () => {
   const player = { bunnies: [{ id: "living-bunny" }] };
-  for (const kind of ["weapon", "feed", "chooseCarrot"]) {
+  for (const kind of ["weapon", "feed"]) {
     assert.equal(getKillerBunniesCardPlayStatus(player, { kind, name: kind }).enabled, true);
   }
+});
+
+test("documented but unautomated cards pause for a visible guided ruling", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    random: seededRandom(224),
+  });
+  game = programAllPlayers(game);
+  const badKarma = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(51));
+  game.discardPile.push(game.players[0].topRun);
+  game.players[0].topRun = badKarma;
+
+  game = playTopRun(game, 0, seededRandom(225));
+  assert.equal(game.phase, "manualResolve");
+  assert.equal(game.pendingAction.card.catalogNumber, "0051");
+  assert.match(game.pendingAction.card.ability, /next Weapon/i);
+  assert.ok(game.pendingAction.card.requirements.length > 0);
+
+  game = resolveKillerBunniesManualCard(game, 0);
+  assert.equal(game.phase, "draw");
+  assert.equal(game.pendingAction, null);
+  assert.equal(game.discardPile.some((card) => card.catalogNumber === "0051"), true);
 });
 
 test("SPECIAL cards may be saved only after reaching TOP RUN and played later as an extra action", () => {
@@ -343,6 +685,7 @@ test("SPECIAL cards may be saved only after reaching TOP RUN and played later as
 
   const programmedTopId = game.players[0].topRun.id;
   game.phase = "play";
+  game.runPlaysThisTurn = 0;
   game = playSavedKillerBunniesSpecial(game, 0, special.id, seededRandom(27));
   assert.equal(game.phase, "play");
   assert.equal(game.currentPlayerIndex, 0);
@@ -531,4 +874,12 @@ function programAllPlayers(initialGame) {
     game = chooseInitialKillerBunniesRun(game, game.currentPlayerIndex, top.id, bottom.id);
   }
   return game;
+}
+
+function bunny(name, color = null, id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-")) {
+  return { id, kind: "bunny", type: "RUN", name, color };
+}
+
+function plainRun(id) {
+  return { id, kind: "action", type: "RUN", name: id, effectImplemented: true };
 }

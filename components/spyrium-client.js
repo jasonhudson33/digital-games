@@ -31,7 +31,6 @@ import {
   activationCost,
   addComputerPlayer,
   addPlayer,
-  adjacentCardIndexes,
   beginActivation,
   canUseBuilding,
   chooseBonus,
@@ -49,6 +48,7 @@ import {
   techniqueEndScore,
   useBuilding,
   useEvent,
+  workerAdjacentCardIndexes,
 } from "../lib/spyrium";
 import { useGameRoom } from "../lib/use-game-room.js";
 
@@ -109,7 +109,7 @@ export default function SpyriumClient() {
   }
 
   function selectCard(index) {
-    if (!selectedWorker || !adjacentCardIndexes(selectedWorker.slotId).includes(index) || !room.market[index]) return;
+    if (!selectedWorker || !workerAdjacentCardIndexes(room, selectedWorker.slotId, selectedWorker).includes(index)) return;
     setSelectedCard(selectedCard === index ? null : index);
   }
 
@@ -209,7 +209,7 @@ function Market({ room, me, myTurn, busy, selectedWorker, selectedCard, onPlace,
     if (slot.id.startsWith("h")) return { gridRow: row * 2 + 1, gridColumn: column * 2 + 2 };
     return { gridRow: row * 2 + 2, gridColumn: column * 2 + 1 };
   };
-  return <div className="spyrium-market-grid">{room.market.map((card, index) => <MarketCard key={card?.id || `empty-${index}`} card={card} index={index} selected={selectedCard === index} adjacent={Boolean(selectedWorker && adjacentCardIndexes(selectedWorker.slotId).includes(index))} onClick={() => onCard(index)} />)}{slots.map((slot) => <WorkerSlot key={slot.id} slot={slot} workers={room.workerSlots[slot.id]} players={room.players} style={position(slot)} disabled={!myTurn || busy || me.phase !== "placement" || me.activeWorkers < 1 || !slot.cards.some((index) => room.market[index])} onPlace={() => onPlace(slot.id)} onWorker={(worker) => onWorker(worker, slot.id)} selectedWorker={selectedWorker} />)}</div>;
+  return <div className="spyrium-market-grid">{room.market.map((card, index) => <MarketCard key={card?.id || `empty-${index}`} card={card} index={index} selected={selectedCard === index} adjacent={Boolean(selectedWorker && workerAdjacentCardIndexes(room, selectedWorker.slotId, selectedWorker).includes(index))} onClick={() => onCard(index)} />)}{slots.map((slot) => <WorkerSlot key={slot.id} slot={slot} workers={room.workerSlots[slot.id]} players={room.players} style={position(slot)} disabled={!myTurn || busy || me.phase !== "placement" || me.activeWorkers < 1 || !slot.cards.some((index) => room.market[index])} onPlace={() => onPlace(slot.id)} onWorker={(worker) => onWorker(worker, slot.id)} selectedWorker={selectedWorker} />)}</div>;
 }
 
 function CardIcon({ type }) { return type === "building" ? <Factory /> : type === "technique" ? <FlaskConical /> : <UserRound />; }
@@ -217,7 +217,8 @@ function Symbol({ name }) { return <i title={name}>{name === "mine" ? <Gem /> : 
 
 function MarketCard({ card, index, selected, adjacent, onClick }) {
   if (!card) return <div className="spyrium-market-card empty" style={{ gridArea: `${Math.floor(index / 3) * 2 + 1} / ${(index % 3) * 2 + 1}` }}><span>Sold</span></div>;
-  return <button className={`spyrium-market-card ${card.type} ${selected ? "selected" : ""} ${adjacent ? "adjacent" : ""}`} style={{ gridArea: `${Math.floor(index / 3) * 2 + 1} / ${(index % 3) * 2 + 1}` }} onClick={onClick}><div className="spyrium-card-top"><span><CardIcon type={card.type} /><small>{card.type}</small></span><b>£{card.price}</b></div><div className="spyrium-card-art"><div className="spyrium-gears" /><CardIcon type={card.type} /></div><h3>{card.name}</h3><p>{card.description}</p><footer>{card.symbols?.length ? <span>{card.symbols.map((symbol) => <Symbol key={symbol} name={symbol} />)}</span> : <span />}{card.points > 0 && <b><Crown /> {card.points}</b>}{card.tokens?.length > 0 && <em>{card.tokens.map((token, tokenIndex) => <i key={tokenIndex}>{token}</i>)}</em>}</footer></button>;
+  const art = card.art || `/spyrium/cards/${card.period.toLowerCase()}-${card.slug}.png`;
+  return <button className={`spyrium-market-card ${card.type} ${selected ? "selected" : ""} ${adjacent ? "adjacent" : ""}`} style={{ gridArea: `${Math.floor(index / 3) * 2 + 1} / ${(index % 3) * 2 + 1}` }} onClick={onClick}><div className="spyrium-card-top"><span><CardIcon type={card.type} /><small>{card.type}</small></span><b>£{card.price}</b></div><div className="spyrium-card-art"><img src={art} alt="" draggable="false" /></div><h3>{card.name}</h3><p>{card.description}</p><footer>{card.symbols?.length ? <span>{card.symbols.map((symbol) => <Symbol key={symbol} name={symbol} />)}</span> : <span />}{card.points > 0 && <b><Crown /> {card.points}</b>}{card.tokens?.length > 0 && <em>{card.tokens.map((token, tokenIndex) => <i key={tokenIndex}>{token}</i>)}</em>}</footer></button>;
 }
 
 function WorkerSlot({ slot, workers, players, style, disabled, onPlace, onWorker, selectedWorker }) {

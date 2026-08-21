@@ -51,13 +51,17 @@ export const metadata = {
     default: "Digital Games",
     template: "%s",
   },
-  description: "Twenty-four party games, playable in your browser.",
+  description: "Twenty-six party games, playable in your browser.",
   applicationName: "Digital Games",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: "/icon.svg",
+  },
   openGraph: {
     type: "website",
     siteName: "Digital Games",
     title: "Digital Games",
-    description: "Twenty-four party games, playable in your browser.",
+    description: "Twenty-six party games, playable in your browser.",
   },
 };
 

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
+  RESIDENCE_VALUES,
   activationCost,
   activateMarketCard,
   addComputerPlayer,
@@ -20,6 +22,7 @@ import {
   runComputerTurn,
   startGame,
   useBuilding,
+  workerAdjacentCardIndexes,
 } from "../lib/spyrium.js";
 
 const person = (id, name) => ({ id, name });
@@ -31,6 +34,20 @@ function lobbyWith(count = 2) {
 }
 
 function gameWith(count = 2) { return startGame(lobbyWith(count), () => 0.42); }
+
+function advanceRound(game) {
+  const actorIndex = game.currentPlayerIndex;
+  const prepared = {
+    ...game,
+    workerSlots: Object.fromEntries(marketSlots().map((slot) => [slot.id, []])),
+    players: game.players.map((player, index) => ({
+      ...player,
+      phase: "activation",
+      passed: index !== actorIndex,
+    })),
+  };
+  return pass(prepared, prepared.players[actorIndex].id);
+}
 
 function activationState() {
   const game = gameWith(2);
@@ -56,6 +73,39 @@ test("period decks contain the tabletop card distribution", () => {
   assert.equal(cards.filter((card) => card.type === "building").length, 35);
   assert.equal(cards.filter((card) => card.type === "character").length, 17);
   assert.equal(cards.filter((card) => card.type === "technique").length, 7);
+});
+
+test("every unique period card has generated artwork", () => {
+  const cards = Object.values(createPeriodDecks(() => 0.2)).flat();
+  const designs = new Map(cards.map((card) => [`${card.period}-${card.slug}`, card]));
+
+  assert.equal(designs.size, 39);
+  for (const card of designs.values()) {
+    assert.match(card.art, /^\/spyrium\/cards\/[abc]-[a-z-]+\.png$/);
+    assert.equal(existsSync(new URL(`../public${card.art}`, import.meta.url)), true, `Missing artwork for ${card.name}`);
+  }
+});
+
+test("six rounds deal 27 A cards, 18 B cards, and every C card", () => {
+  let game = gameWith(2);
+  const dealt = { A: [], B: [], C: [] };
+
+  for (let round = 1; round <= 6; round += 1) {
+    dealt[game.period].push(...game.market.map((card) => card.id));
+    if (round < 6) game = advanceRound(game);
+  }
+
+  assert.equal(dealt.A.length, 27);
+  assert.equal(dealt.B.length, 18);
+  assert.equal(dealt.C.length, 9);
+  assert.equal(new Set(dealt.A).size, 27);
+  assert.equal(new Set(dealt.B).size, 18);
+  assert.equal(new Set(dealt.C).size, 9);
+  assert.deepEqual(Object.fromEntries(Object.entries(game.decks).map(([period, cards]) => [period, cards.length])), { A: 3, B: 2, C: 0 });
+});
+
+test("the residence track skips six", () => {
+  assert.deepEqual(RESIDENCE_VALUES, [2, 3, 4, 5, 7]);
 });
 
 test("rooms support two to five human or computer industrialists", () => {
@@ -121,6 +171,94 @@ test("activation cost includes all other adjacent workers", () => {
   const cost = activationCost(crowded, ownerId, worker.id, cardIndex);
   assert.equal(cost.congestion, 2);
   assert.equal(cost.total, crowded.market[cardIndex].price + 2 + (crowded.market[cardIndex].type === "building" ? 0 : 0));
+});
+
+test("workers on vertical lines gain adjacency only across the same market row", () => {
+  const base = gameWith(2);
+  const buyerIndex = base.currentPlayerIndex;
+  const waitingIndex = (buyerIndex + 1) % base.players.length;
+  const buyer = base.players[buyerIndex];
+  const waiting = base.players[waitingIndex];
+  const buyerSlot = "v-0-1";
+  const waitingSlot = "h-0-0";
+  const buyerWorker = { id: "buyer-worker", playerId: buyer.id };
+  const waitingWorker = { id: "waiting-worker", playerId: waiting.id };
+  const removable = {
+    id: "removable-building",
+    period: "A",
+    slug: "removable-building",
+    name: "Removable Building",
+    type: "building",
+    price: 0,
+    symbols: ["factory"],
+    points: 0,
+    description: "Test building.",
+    actions: [],
+    tokens: [],
+  };
+  const prepared = {
+    ...base,
+    market: base.market.map((card, index) => index === 1 ? removable : card),
+    workerSlots: {
+      ...base.workerSlots,
+      [buyerSlot]: [buyerWorker],
+      [waitingSlot]: [waitingWorker],
+    },
+    players: base.players.map((player) => ({ ...player, phase: "activation", money: 30 })),
+  };
+
+  const removed = activateMarketCard(prepared, buyer.id, buyerWorker.id, 1);
+
+  assert.equal(removed.market[1], null);
+  assert.equal(currentPlayer(removed).id, waiting.id);
+  assert.deepEqual(removed.workerSlots[waitingSlot][0].cardIndexes, [0, 2]);
+  assert.deepEqual(workerAdjacentCardIndexes(removed, waitingSlot, removed.workerSlots[waitingSlot][0]), [0, 2]);
+  assert.ok(activationCost(removed, waiting.id, waitingWorker.id, 2));
+  assert.equal(activationCost(removed, waiting.id, waitingWorker.id, 4), null);
+});
+
+test("workers on horizontal lines gain adjacency only across the same market column", () => {
+  const base = gameWith(2);
+  const buyerIndex = base.currentPlayerIndex;
+  const waitingIndex = (buyerIndex + 1) % base.players.length;
+  const buyer = base.players[buyerIndex];
+  const waiting = base.players[waitingIndex];
+  const buyerSlot = "h-1-0";
+  const waitingSlot = "v-0-0";
+  const buyerWorker = { id: "buyer-worker", playerId: buyer.id };
+  const waitingWorker = { id: "waiting-worker", playerId: waiting.id };
+  const removable = {
+    id: "removable-building",
+    period: "A",
+    slug: "removable-building",
+    name: "Removable Building",
+    type: "building",
+    price: 0,
+    symbols: ["factory"],
+    points: 0,
+    description: "Test building.",
+    actions: [],
+    tokens: [],
+  };
+  const prepared = {
+    ...base,
+    market: base.market.map((card, index) => index === 3 ? removable : card),
+    workerSlots: {
+      ...base.workerSlots,
+      [buyerSlot]: [buyerWorker],
+      [waitingSlot]: [waitingWorker],
+    },
+    players: base.players.map((player) => ({ ...player, phase: "activation", money: 30 })),
+  };
+
+  const removed = activateMarketCard(prepared, buyer.id, buyerWorker.id, 3);
+
+  assert.equal(removed.market[3], null);
+  assert.equal(currentPlayer(removed).id, waiting.id);
+  assert.deepEqual(removed.workerSlots[waitingSlot][0].cardIndexes, [0, 6]);
+  assert.deepEqual(workerAdjacentCardIndexes(removed, waitingSlot, removed.workerSlots[waitingSlot][0]), [0, 6]);
+  assert.ok(activationCost(removed, waiting.id, waitingWorker.id, 6));
+  assert.equal(activationCost(removed, waiting.id, waitingWorker.id, 4), null);
 });
 
 test("withdrawing earns congestion money and removes the worker", () => {

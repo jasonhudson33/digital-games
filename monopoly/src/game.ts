@@ -4,6 +4,7 @@ import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRule
 import { CardDeck, DiceRoll, GameState, LogEntry, Player, PlayerColor, PlayerPiece } from './types';
 
 const playerColors: PlayerColor[] = ['red', 'blue', 'green', 'gold'];
+export const MAX_MONOPOLY_PLAYERS = 8;
 export const playerPieces: PlayerPiece[] = [
   'car',
   'ship',
@@ -331,6 +332,7 @@ export const makePlayer = (id: string, name: string, color: PlayerColor, piece: 
 
 export const joinPlayer = (state: GameState, playerId: string, name: string, piece?: PlayerPiece): GameState => {
   if (state.players.some((player) => player.id === playerId)) return state;
+  if (state.players.length >= MAX_MONOPOLY_PLAYERS) return state;
   const used = new Set(state.players.map((player) => player.color));
   const usedPieces = new Set(state.players.map((player) => player.piece));
   const color = playerColors.find((candidate) => !used.has(candidate)) ?? playerColors[state.players.length % playerColors.length];
@@ -348,7 +350,7 @@ export const addLocalPlayer = (state: GameState): GameState => {
 };
 
 export const addComputerPlayer = (state: GameState): GameState => {
-  if (state.phase !== 'lobby') return state;
+  if (state.phase !== 'lobby' || state.players.length >= MAX_MONOPOLY_PLAYERS) return state;
   const computerNumber = state.players.filter((player) => player.isComputer).length + 1;
   const computerId = `computer-${makeId()}`;
   const next = joinPlayer(state, computerId, `Computer ${computerNumber}`);
@@ -370,6 +372,7 @@ export const setHouseRules = (state: GameState, enabled: boolean): GameState => 
 };
 
 export const startGame = (state: GameState, rng: () => number = Math.random): GameState => {
+  if (state.players.length > MAX_MONOPOLY_PLAYERS) return state;
   const startingPlayerIndex = Math.floor(rng() * state.players.length);
   return touch({
     ...state,

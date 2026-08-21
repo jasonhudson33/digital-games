@@ -7,7 +7,7 @@ export default function manifest() {
   return {
     name: "Digital Games",
     short_name: "Digital Games",
-    description: "Twenty-four party games, playable in your browser.",
+    description: "Twenty-six party games, playable in your browser.",
     start_url: "/",
     display: "standalone",
     orientation: "any",

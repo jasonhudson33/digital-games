@@ -1,9 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export function getConfiguredSupabaseClient(): SupabaseClient | null;
+export function getConfiguredSupabaseClient(): Promise<SupabaseClient | null>;
+
+export function isSupabaseConfigured(): boolean;
 
 export function subscribeToRoomState<T extends { roomCode: string; updatedAt: number }>(options: {
-  supabase: SupabaseClient | null;
   roomCode: string;
   table: string;
   channelPrefix: string;

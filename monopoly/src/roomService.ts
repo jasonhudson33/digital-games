@@ -1,4 +1,4 @@
-import { getConfiguredSupabaseClient, subscribeToRoomState } from '../../lib/supabase-room-sync';
+import { getConfiguredSupabaseClient, isSupabaseConfigured, subscribeToRoomState } from '../../lib/supabase-room-sync';
 import { migrateMonopolyRoomState } from './stateMigrations';
 import { GameState } from './types';
 
@@ -6,12 +6,12 @@ type Handler = (state: GameState) => void;
 type Updater = (state: GameState) => GameState;
 
 const channelName = 'monopoly-room-updates';
-const supabase = getConfiguredSupabaseClient();
 
-export const isOnlineSyncEnabled = Boolean(supabase);
+export const isOnlineSyncEnabled = isSupabaseConfigured();
 
 export const RoomService = {
   async save(state: GameState) {
+    const supabase = await getConfiguredSupabaseClient();
     if (!supabase) {
       await saveLocalRoom(state);
       cacheRoom(state);
@@ -29,6 +29,7 @@ export const RoomService = {
 
   async update(roomCode: string, updater: Updater): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
+    const supabase = await getConfiguredSupabaseClient();
     if (!supabase) {
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
@@ -83,6 +84,7 @@ export const RoomService = {
 
   async load(roomCode: string): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
+    const supabase = await getConfiguredSupabaseClient();
     if (supabase) {
       const { data, error } = await supabase.from('monopoly_rooms').select('state').eq('code', code).maybeSingle();
       if (error) throw error;
@@ -97,7 +99,6 @@ export const RoomService = {
 
   subscribe(roomCode: string, handler: Handler) {
     return subscribeToRoomState({
-      supabase,
       roomCode,
       table: 'monopoly_rooms',
       channelPrefix: 'monopoly',

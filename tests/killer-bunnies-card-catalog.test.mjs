@@ -49,6 +49,26 @@ test("every catalog record includes a current generated behavior summary", () =>
   }
 });
 
+test("every numbered card exposes an ability, play requirements, source, and automation status", () => {
+  for (const card of KILLER_BUNNIES_CARD_CATALOG) {
+    assert.ok(card.ability.length > 12, `Card ${card.catalogNumber} needs an ability summary.`);
+    assert.ok(Array.isArray(card.requirements) && card.requirements.length > 0, `Card ${card.catalogNumber} needs play requirements.`);
+    assert.ok(["automatic", "guided", "manual", "not-played"].includes(card.resolutionStatus), `Card ${card.catalogNumber} needs a resolution status.`);
+    assert.match(card.rulesSourceUrl, /^https:\/\/killerbunnies\.com\/pages\//);
+    assert.doesNotMatch(`${card.ability} ${card.detail}`, /unknown ability|exact effect still requires|resolve the choices, targets/i);
+  }
+});
+
+test("official Blue and Yellow rulings replace generic action descriptions", () => {
+  assert.match(getKillerBunniesCatalogCard(49).ability, /abduct/i);
+  assert.equal(getKillerBunniesCatalogCard(49).requiresBunny, true);
+  assert.match(getKillerBunniesCatalogCard(68).ability, /two Cabbage Cards/i);
+  assert.match(getKillerBunniesCatalogCard(68).requirements.join(" "), /market must be open/i);
+  assert.match(getKillerBunniesCatalogCard(80).ability, /cancel/i);
+  assert.match(getKillerBunniesCatalogCard(145).requirements.join(" "), /saved/i);
+  assert.match(getKillerBunniesCatalogCard(152).ability, /redirect/i);
+});
+
 test("title-derived metadata captures common digital-game card families", () => {
   assert.equal(getKillerBunniesCatalogCard(1).kind, "bunny");
   assert.equal(getKillerBunniesCatalogCard(280).kind, "chooseCarrot");
@@ -59,6 +79,10 @@ test("title-derived metadata captures common digital-game card families", () => 
   assert.equal(getKillerBunniesCatalogCard(287).power, 13);
   assert.equal(getKillerBunniesCatalogCard(320).kind, "money");
   assert.equal(getKillerBunniesCatalogCard(320).value, 1);
+  assert.equal(getKillerBunniesCatalogCard(57).kind, "bunny");
+  assert.equal(getKillerBunniesCatalogCard(191).kind, "bunny");
+  assert.equal(getKillerBunniesCatalogCard(1269).kind, "bunny");
+  assert.equal(getKillerBunniesCatalogCard(1399).kind, "bunny");
 });
 
 test("the publisher checklist typo is normalized to the missing sequential number 1122", () => {
@@ -77,5 +101,6 @@ test("printed SPECIAL and VERY SPECIAL types are keyed by CIN instead of guessed
   assert.equal(getKillerBunniesCatalogCard(152).type, "VERY SPECIAL");
   assert.equal(getKillerBunniesCatalogCard(203).type, "VERY SPECIAL");
   assert.equal(getKillerBunniesCatalogCard(1349).type, "SPECIAL");
+  assert.equal(getKillerBunniesCatalogCard(1365).type, "VERY SPECIAL");
   assert.equal(getKillerBunniesCatalogCard(1469).type, "SPECIAL");
 });

@@ -52,6 +52,7 @@ import {
   finishManagementStage,
   getPlayerLiquidationValue,
   joinPlayer,
+  MAX_MONOPOLY_PLAYERS,
   makeId,
   makeInitialState,
   mortgageProperty,
@@ -236,6 +237,10 @@ export default function App() {
       }
       return;
     }
+    if (existing.players.length >= MAX_MONOPOLY_PLAYERS) {
+      setError(`Room ${code} is full. Monopoly supports up to ${MAX_MONOPOLY_PLAYERS} players.`);
+      return;
+    }
     if (existing.players.some((player) => getPlayerPiece(player) === selectedPiece)) {
       setError(`${pieceLabel(selectedPiece)} is already taken in room ${code}. Choose a different piece.`);
       return;
@@ -265,6 +270,7 @@ export default function App() {
   const me = game?.players.find((player) => player.id === playerId);
   const winner = game?.phase === 'gameOver' ? game.players.find((player) => !player.bankrupt) : null;
   const isHost = game?.hostId === playerId;
+  const lobbyIsFull = Boolean(game && game.players.length >= MAX_MONOPOLY_PLAYERS);
   const isMyTurn = activePlayer?.id === playerId;
   const canControlTurn = !activePlayer?.isComputer && (isMyTurn || Boolean(isHost && activePlayer?.id.startsWith('local-')));
   const canAcknowledgeCard =
@@ -633,13 +639,25 @@ export default function App() {
                     <small>Bank fees from Chance and Community Chest build a Free Parking jackpot.</small>
                   </span>
                 </label>
-                <button disabled={!isHost} onClick={() => updateGame(addLocalPlayer)}>
+                <div className={`lobby-capacity${lobbyIsFull ? ' full' : ''}`} aria-live="polite">
+                  <strong>{game.players.length} / {MAX_MONOPOLY_PLAYERS} players</strong>
+                  <span>
+                    {lobbyIsFull
+                      ? 'Room full'
+                      : `${MAX_MONOPOLY_PLAYERS - game.players.length} ${MAX_MONOPOLY_PLAYERS - game.players.length === 1 ? 'seat' : 'seats'} available`}
+                  </span>
+                </div>
+                <button disabled={!isHost || lobbyIsFull} onClick={() => updateGame(addLocalPlayer)}>
                   <Users size={18} /> Add player
                 </button>
-                <button disabled={!isHost} onClick={() => updateGame(addComputerPlayer)}>
+                <button disabled={!isHost || lobbyIsFull} onClick={() => updateGame(addComputerPlayer)}>
                   <Bot size={18} /> Add computer
                 </button>
-                <button className="primary full" disabled={!isHost || game.players.length < 2} onClick={() => updateGame(startGame)}>
+                <button
+                  className="primary full"
+                  disabled={!isHost || game.players.length < 2 || game.players.length > MAX_MONOPOLY_PLAYERS}
+                  onClick={() => updateGame(startGame)}
+                >
                   <Play size={18} /> Start game
                 </button>
               </div>

@@ -13,8 +13,11 @@ const vite = await createServer({
 
 const {
   acknowledgeCard,
+  addComputerPlayer,
   addLocalPlayer,
   computerPropertyValue,
+  joinPlayer,
+  MAX_MONOPOLY_PLAYERS,
   makeInitialState,
   restartGame,
   rollDice,
@@ -48,6 +51,24 @@ const rollSevenAndDrawBackThree = (state) => {
     Date.now = originalNow;
   }
 };
+
+test('Monopoly rooms are capped at eight players', () => {
+  let game = makeInitialState('host', 'Host', 'FULL8', 'car');
+  for (let playerNumber = 2; playerNumber <= MAX_MONOPOLY_PLAYERS; playerNumber += 1) {
+    game = joinPlayer(game, `player-${playerNumber}`, `Player ${playerNumber}`);
+  }
+
+  assert.equal(game.players.length, MAX_MONOPOLY_PLAYERS);
+  assert.equal(joinPlayer(game, 'player-9', 'Player 9'), game);
+  assert.equal(addLocalPlayer(game), game);
+  assert.equal(addComputerPlayer(game), game);
+
+  const overCapacity = {
+    ...game,
+    players: [...game.players, { ...game.players[0], id: 'legacy-player-9', name: 'Legacy Player 9' }]
+  };
+  assert.equal(startGame(overCapacity), overCapacity);
+});
 
 test('going back three to Community Chest draws and queues its card without passing GO', () => {
   const result = rollSevenAndDrawBackThree(makeGameAt(29));
