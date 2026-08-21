@@ -242,9 +242,6 @@
 .pn-seat-card { position: absolute; left: var(--card-x); top: var(--card-y); translate: -50% -50%; rotate: var(--tilt); transition: left .34s ease, top .34s ease, rotate .34s ease; }
 .pn-seat-card .pn-card { width: 62px; height: 86px; }
 .pn-seat-card.won .pn-card { outline: 2px solid #f0c653; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(240,198,83,.18), 0 6px 14px rgba(10,26,20,.34); }
-/* The whole trick slides to whoever took it, which says where it went better
-   than the label this replaced. */
-.pn-seat-card.gathered { rotate: calc(var(--tilt) * 2.4); }
 
 @media (prefers-reduced-motion: reduce) { .pn-seat-card { transition: none; } }
 

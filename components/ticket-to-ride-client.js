@@ -90,6 +90,7 @@ export default function TicketToRideClient() {
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [openingSelection, setOpeningSelection] = useState([]);
   const [ticketSelection, setTicketSelection] = useState([]);
+  const [selectedDestinationId, setSelectedDestinationId] = useState(null);
   const [showTickets, setShowTickets] = useState(true);
   const [computerThinking, setComputerThinking] = useState(false);
 
@@ -124,6 +125,7 @@ export default function TicketToRideClient() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this room and return to the Ticket to Ride home screen? You can rejoin with the room code.")) return;
     localStorage.removeItem(activeRoomKey);
     setSelectedRouteId(null);
+    setSelectedDestinationId(null);
     setOpeningSelection([]);
     setTicketSelection([]);
     setRoom(null);
@@ -149,6 +151,10 @@ export default function TicketToRideClient() {
   const selectedRoute = ROUTES.find((route) => route.id === selectedRouteId);
   const paymentColors = selectedRoute ? validPaymentColors(room, playerId, selectedRoute.id) : [];
   const pendingChoices = room.pendingDestinationChoice?.playerId === playerId ? room.pendingDestinationChoice.choices : null;
+  const selectedDestination = me.destinations.find((destination) => destination.id === selectedDestinationId) ?? null;
+  const selectedDestinationCompleted = selectedDestination
+    ? hasConnection(room, playerId, selectedDestination.from, selectedDestination.to)
+    : false;
 
   return (
     <main className="ttr-game-shell">
@@ -178,7 +184,7 @@ export default function TicketToRideClient() {
         </aside>
 
         <section className="ttr-board-card" aria-label="Rail map of North America">
-          <GameBoard room={room} myTurn={myTurn && room.drawsThisTurn === 0 && !pendingChoices} selectedRouteId={selectedRouteId} onSelectRoute={setSelectedRouteId} />
+          <GameBoard room={room} myTurn={myTurn && room.drawsThisTurn === 0 && !pendingChoices} selectedRouteId={selectedRouteId} onSelectRoute={setSelectedRouteId} highlightedDestination={selectedDestination} destinationCompleted={selectedDestinationCompleted} />
           <div className="ttr-map-legend">
             <span><i className="open" /> Open route</span>
             <span><i className="owned" /> Claimed route</span>
@@ -218,8 +224,11 @@ export default function TicketToRideClient() {
           <GroupedHand cards={me.cards} />
         </div>
         <div className="ttr-hand-tickets">
-          <div className="ttr-destination-header"><h2><Ticket size={16} /> Your destinations</h2><button onClick={() => setShowTickets((shown) => !shown)}>{showTickets ? <EyeOff size={15} /> : <Eye size={15} />}{showTickets ? "Hide" : "Show"}</button></div>
-          {showTickets && <div className="ttr-ticket-list">{me.destinations.map((item) => <DestinationCard key={item.id} destination={item} completed={hasConnection(room, playerId, item.from, item.to)} />)}</div>}
+          <div className="ttr-destination-header"><h2><Ticket size={16} /> Your destinations</h2><button onClick={() => { if (showTickets) setSelectedDestinationId(null); setShowTickets((shown) => !shown); }}>{showTickets ? <EyeOff size={15} /> : <Eye size={15} />}{showTickets ? "Hide" : "Show"}</button></div>
+          {showTickets && <div className="ttr-ticket-list">{me.destinations.map((item) => {
+            const completed = hasConnection(room, playerId, item.from, item.to);
+            return <DestinationCard key={item.id} destination={item} completed={completed} selected={item.id === selectedDestinationId} onSelect={() => setSelectedDestinationId((current) => current === item.id ? null : item.id)} />;
+          })}</div>}
         </div>
       </section>
 
@@ -248,9 +257,13 @@ function DestinationChoice({ title, subtitle, choices, selected, setSelected, mi
   return modal ? <div className="ttr-overlay">{content}</div> : <main className="ttr-choice-shell">{content}</main>;
 }
 
-function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute }) {
+function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlightedDestination, destinationCompleted }) {
   const map = useMapView(BOARD_W, BOARD_H);
   const lakes = lakePaths();
+  const destinationState = destinationCompleted ? "complete" : "incomplete";
+  const highlightedCityIds = highlightedDestination
+    ? new Set([highlightedDestination.from, highlightedDestination.to])
+    : null;
 
   return <div className="ttr-map-frame">
     <svg
@@ -258,7 +271,9 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute }) {
       className={`ttr-map ${map.zoomed ? "zoomed" : ""}`}
       viewBox={map.viewBox}
       role="img"
-      aria-label="Cities and train routes across North America"
+      aria-label={highlightedDestination
+        ? `${CITIES[highlightedDestination.from].name} and ${CITIES[highlightedDestination.to].name} highlighted ${destinationCompleted ? "green for a completed destination" : "red for an incomplete destination"}`
+        : "Cities and train routes across North America"}
       {...map.handlers}
     >
       <defs>
@@ -293,10 +308,14 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute }) {
         />;
       })}
 
-      {Object.entries(CITIES).map(([id, city]) => <g className="ttr-city" key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}>
+      {Object.entries(CITIES).map(([id, city]) => {
+        const highlighted = highlightedCityIds?.has(id);
+        return <g className={`ttr-city ${highlighted ? `destination-${destinationState}` : ""}`} data-city-id={id} data-destination-state={highlighted ? destinationState : undefined} key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}>
         <circle r="7" /><circle r="3" />
+        {highlighted && <circle className="ttr-city-highlight" r="14" />}
         <text x={city.labelX ?? 0} y={city.labelY ?? 20} textAnchor={city.labelAnchor ?? "middle"}>{city.name}</text>
-      </g>)}
+      </g>;
+      })}
     </svg>
 
     <div className="ttr-map-zoom" role="group" aria-label="Zoom the map">
@@ -423,8 +442,8 @@ function GroupedHand({ cards }) {
   return <div className="ttr-grouped-hand">{grouped.length ? grouped.map((group) => <div key={group.color} className="ttr-hand-stack"><TrainCard card={{ id: group.color, color: group.color }} disabled /><span>{group.count}</span></div>) : <p className="ttr-empty-hand">No train cards in hand.</p>}</div>;
 }
 
-function DestinationCard({ destination, completed }) {
-  return <article className={`ttr-destination-card ${completed ? "complete" : ""}`}><div><Ticket /><span><strong>{destinationLabel(destination)}</strong><small>{completed ? "Route connected" : "Not connected yet"}</small></span></div><b>{destination.points}<small>pts</small></b>{completed && <Check className="ttr-done" />}</article>;
+function DestinationCard({ destination, completed, selected, onSelect }) {
+  return <button type="button" className={`ttr-destination-card ${completed ? "complete" : ""} ${selected ? "selected" : ""}`} onClick={onSelect} aria-pressed={selected} aria-label={`${destinationLabel(destination)}, ${completed ? "completed" : "not completed"}. ${selected ? "Remove city highlight" : "Highlight cities on map"}.`}><div><Ticket /><span><strong>{destinationLabel(destination)}</strong><small>{completed ? "Route connected" : "Not connected yet"}</small></span></div><b>{destination.points}<small>pts</small></b>{completed && <Check className="ttr-done" />}</button>;
 }
 
 function ClaimPanel({ route, colors, busy, onClose, onClaim }) {

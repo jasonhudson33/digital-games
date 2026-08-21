@@ -424,16 +424,12 @@ function PinochleTable({ game, viewerIndex, showingCompletedTrick }) {
         const won = winnerIndex === spot.index;
         return (
           <div
-            className={`pn-seat-card ${won ? "won" : ""} ${showingCompletedTrick ? "gathered" : ""}`}
+            className={`pn-seat-card ${won ? "won" : ""}`}
             key={`${spot.index}-${card.id}`}
             style={{
-              /* A finished trick gathers on whoever took it, so the sweep says
-                 where it went — which the old "Completed trick · X won" label had
-                 to say in words, and only until the phase changed. */
-              ...Object.assign({}, ...solved.map(({ key, shape, layout: solution }) => {
-                const resting = showingCompletedTrick ? solution.find((seat) => seat.index === winnerIndex) : null;
-                return at(key, "card", (resting ?? solution[spot.index]).played, shape);
-              })),
+              ...Object.assign({}, ...solved.map(({ key, shape, layout: solution }) => (
+                at(key, "card", solution[spot.index].played, shape)
+              ))),
               "--tilt": `${(((spot.index * 7) % 9) - 4)}deg`,
               zIndex: won ? 3 : 2,
             }}

@@ -251,3 +251,84 @@
 @media (prefers-reduced-motion: reduce) {
   .life-spinner-wheel,.life-choice-grid button,.life-career-grid button { transition-duration: .01ms; }
 }
+
+/* Code-native tabletop. The supplied board photo is reference material only;
+ * roads, terrain, spaces, landmarks, and labels are all drawn here. */
+.life-board-wrap { background:#b9d889; }
+.life-illustrated-board {
+  width:100%;
+  min-width:900px;
+  height:auto;
+  aspect-ratio:1000 / 1140;
+  border:8px solid #284d32;
+  border-radius:18px;
+  background:
+    radial-gradient(ellipse at 53% 50%,rgba(228,245,171,.9) 0 16%,transparent 34%),
+    radial-gradient(circle at 16% 23%,rgba(64,127,58,.28),transparent 18%),
+    radial-gradient(circle at 84% 72%,rgba(44,113,49,.24),transparent 20%),
+    linear-gradient(145deg,#9bce66 0%,#c1df78 43%,#86bd59 100%);
+  box-shadow:0 14px 30px rgba(27,61,31,.25),inset 0 0 55px rgba(42,96,44,.25);
+}
+.life-illustrated-board::before {
+  content:"";
+  position:absolute;
+  z-index:0;
+  inset:0;
+  background:
+    radial-gradient(circle at 3% 4%,#174f2d 0 1.2%,transparent 1.35%),
+    radial-gradient(circle at 7% 3%,#2d703a 0 1.4%,transparent 1.55%),
+    radial-gradient(circle at 12% 5%,#205d30 0 1.5%,transparent 1.65%),
+    radial-gradient(circle at 96% 3%,#184f2c 0 1.4%,transparent 1.55%),
+    radial-gradient(circle at 92% 6%,#347840 0 1.5%,transparent 1.65%),
+    radial-gradient(circle at 3% 96%,#184f2c 0 1.5%,transparent 1.65%),
+    radial-gradient(circle at 8% 98%,#347840 0 1.35%,transparent 1.5%),
+    radial-gradient(circle at 97% 96%,#205d30 0 1.7%,transparent 1.85%),
+    radial-gradient(circle at 91% 98%,#347840 0 1.4%,transparent 1.55%);
+  background-size:100% 100%;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.18);
+  pointer-events:none;
+}
+.life-illustrated-board::after { content:none; }
+.life-board-map { position:absolute; z-index:1; inset:0; width:100%; height:100%; overflow:visible; }
+.life-map-road-shadow,.life-map-road,.life-map-road-center { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.life-map-road-shadow { stroke:rgba(48,73,42,.47); stroke-width:7.2; filter:url(#life-road-shadow); }
+.life-map-road { stroke:#f7e6bd; stroke-width:5.8; }
+.life-map-road.college { stroke:#e6d8f4; }
+.life-map-road.career { stroke:#f2c4d6; }
+.life-map-road.shared { stroke:#f5dc9a; }
+.life-map-road-center { stroke:rgba(117,89,51,.32); stroke-width:.25; stroke-dasharray:1.1 1.3; }
+.life-map-label { position:absolute; z-index:5; padding:4px 8px; border:2px solid rgba(255,255,255,.72); border-radius:6px; color:#fff; background:#0c6e59; box-shadow:0 3px 7px rgba(37,73,43,.22); font-size:.54rem; font-weight:900; letter-spacing:.09em; line-height:1; }
+.life-map-label.start-label { left:45.6%; top:20.6%; background:#e15d42; }
+.life-map-label.college-label { left:18%; top:3.3%; background:#7257a8; transform:rotate(-8deg); }
+.life-map-label.career-label { left:73%; top:3.3%; background:#c95178; transform:rotate(6deg); }
+.life-map-label.merge-label { left:30%; top:28.3%; color:#5d4427; background:#f8dd76; transform:translateX(-50%); }
+.life-board-title { position:absolute; z-index:2; left:54%; top:70%; width:190px; transform:translate(-50%,-50%) rotate(-4deg); text-align:center; color:#174b3d; filter:drop-shadow(0 2px rgba(255,255,255,.45)); }
+.life-board-title small { display:block; margin-bottom:3px; font-size:.48rem; font-weight:900; letter-spacing:.18em; }
+.life-board-title strong { display:flex; justify-content:center; gap:2px; font:900 2.5rem/1 var(--font-display); letter-spacing:-.08em; }
+.life-board-title i { width:39px; height:43px; display:grid; place-items:center; color:#fff; background:#ef6d64; font-style:normal; box-shadow:0 3px 0 rgba(32,76,51,.2); }
+.life-board-title i:nth-child(2) { background:#3c91c9; }.life-board-title i:nth-child(3) { background:#65af5e; }.life-board-title i:nth-child(4) { background:#f3b535; }
+.life-scenery { position:absolute; z-index:2; display:grid; justify-items:center; gap:2px; color:#28533e; text-align:center; filter:drop-shadow(0 3px 2px rgba(34,78,42,.17)); }
+.life-scenery span { font-size:2rem; }.life-scenery b { padding:2px 5px; border-radius:4px; background:rgba(255,250,219,.8); font-size:.46rem; text-transform:uppercase; }
+.life-campus { left:4.5%; top:7%; }.life-city { right:3.5%; top:28%; }.life-homes { left:36%; top:57%; }.life-retirement { right:24%; top:24%; }
+.life-lake { position:absolute; z-index:0; border:5px solid rgba(230,247,184,.7); background:linear-gradient(155deg,#5bb8c6,#238baf); box-shadow:inset 9px 9px 15px rgba(255,255,255,.15),0 4px 8px rgba(39,84,64,.15); }
+.lake-one { left:45%; top:34%; width:16%; height:11%; border-radius:58% 42% 61% 39%; transform:rotate(-9deg); }.lake-two { right:8%; top:64%; width:12%; height:9%; border-radius:42% 58% 39% 61%; transform:rotate(17deg); }
+.life-illustrated-board .life-board-spinner { left:55%; top:51.5%; width:202px; height:202px; }
+.life-illustrated-board .life-board-spinner .life-spinner { width:202px; min-height:202px; }
+.life-spin-result { position:absolute; z-index:12; left:55%; top:61.5%; min-width:170px; padding:7px 10px; transform:translateX(-50%); display:grid; gap:1px; border:1px solid rgba(255,255,255,.55); border-radius:11px; text-align:center; color:#fff; background:rgba(8,74,61,.9); box-shadow:0 5px 12px rgba(0,0,0,.18); backdrop-filter:blur(4px); }
+.life-spin-result b { font-size:.65rem; }.life-spin-result span { color:rgba(255,255,255,.78); font-size:.52rem; }
+.life-route-space { position:absolute; z-index:7; left:var(--x); top:var(--y); width:20px; height:15px; transform:translate(-50%,-50%) rotate(var(--tilt)); }
+.life-route-dot { position:absolute; inset:0; display:grid; place-items:center; border:1.5px solid rgba(255,255,255,.94); border-radius:3px; color:#6d4d2d; background:#f2a16f; box-shadow:0 1px 3px rgba(51,65,39,.32); font-size:.37rem; font-weight:900; line-height:1; }
+.life-route-space.type-payday .life-route-dot { color:#fff; background:#319d68; }.life-route-space.type-life .life-route-dot { color:#5e4a17; background:#f5d849; }.life-route-space.type-career .life-route-dot,.life-route-space.type-tax .life-route-dot,.life-route-space.type-night-school .life-route-dot { color:#fff; background:#4a91c3; }.life-route-space.type-baby .life-route-dot,.life-route-space.type-twins .life-route-dot { color:#fff; background:#d980a5; }
+.life-route-space.milestone { z-index:8; width:34px; height:34px; }
+.life-route-space.milestone .life-route-dot { inset:0; border:3px solid #fff7d9; border-radius:50%; color:#fff; background:#dd493f; font-size:.85rem; box-shadow:0 3px 8px rgba(0,0,0,.3); }
+.life-route-space.type-start .life-route-dot { background:#087262; }.life-route-space.type-retire .life-route-dot { background:#7257d4; }
+.life-route-space>small { position:absolute; left:50%; top:37px; min-width:max-content; max-width:120px; padding:3px 6px; transform:translateX(-50%) rotate(calc(var(--tilt) * -1)); border-radius:999px; color:#fff; background:rgba(11,58,45,.9); font-size:.43rem; font-weight:900; line-height:1; text-transform:uppercase; box-shadow:0 2px 5px rgba(0,0,0,.2); }
+.life-route-space.active .life-route-dot { animation:life-active-space 1.3s ease-in-out infinite; }
+.life-route-space.occupied { z-index:14; }
+.life-route-space .life-cars { z-index:4; left:50%; top:50%; bottom:auto; transform:translate(-50%,-50%) rotate(calc(var(--tilt) * -1)); }
+.life-route-space .life-cars i { width:27px; height:14px; }
+@keyframes life-active-space { 50% { box-shadow:0 0 0 8px rgba(255,242,82,.45),0 3px 8px rgba(0,0,0,.3); } }
+
+@media (max-width:680px) {
+  .life-illustrated-board { min-width:820px; height:auto; }
+}

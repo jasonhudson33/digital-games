@@ -126,7 +126,7 @@
    grid squeezing three tickets into the space for two and clipping the text
    inside them. */
 .ttr-ticket-list { margin-top: 7px; min-height: 0; max-height: 86px; display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); grid-auto-rows: min-content; gap: 6px; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
-.ttr-destination-card { position: relative; padding: 5px 9px; display: flex; justify-content: space-between; align-items: center; overflow: hidden; border: 1px dashed #8a7653; border-radius: 5px; color: #2e3a3c; background: #e4d8ba; line-height: 1.2; }.ttr-destination-card > b { line-height: 1.1; }.ttr-destination-card > div { min-width: 0; display: flex; gap: 8px; align-items: center; }.ttr-destination-card > div > svg { flex: none; width: 15px; height: 15px; }.ttr-destination-card span { min-width: 0; display: grid; }.ttr-destination-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .68rem; }.ttr-destination-card small { color: #7d745f; font-size: .55rem; }.ttr-destination-card > b { display: grid; color: #a03a32; font-size: .95rem; text-align: right; }.ttr-destination-card > b small { font-size: .46rem; text-transform: uppercase; }.ttr-destination-card.complete { border-color: #4c8d60; background: #d4dfc0; }.ttr-done { position: absolute; top: -8px; right: -6px; width: 28px; height: 28px; padding: 7px; border-radius: 50%; color: var(--ttr-white); background: #4e8e62; }
+.ttr-destination-card { position: relative; width: 100%; padding: 5px 9px; display: flex; justify-content: space-between; align-items: center; overflow: hidden; border: 1px dashed #8a7653; border-radius: 5px; color: #2e3a3c; background: #e4d8ba; font: inherit; line-height: 1.2; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }.ttr-destination-card:hover { transform: translateY(-1px); }.ttr-destination-card:focus-visible { outline: 3px solid #f2d376; outline-offset: 2px; }.ttr-destination-card > b { line-height: 1.1; }.ttr-destination-card > div { min-width: 0; display: flex; gap: 8px; align-items: center; }.ttr-destination-card > div > svg { flex: none; width: 15px; height: 15px; }.ttr-destination-card span { min-width: 0; display: grid; }.ttr-destination-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .68rem; }.ttr-destination-card small { color: #7d745f; font-size: .55rem; }.ttr-destination-card > b { display: grid; color: #a03a32; font-size: .95rem; text-align: right; }.ttr-destination-card > b small { font-size: .46rem; text-transform: uppercase; }.ttr-destination-card.selected { border-style: solid; border-color: #bd4037; box-shadow: inset 0 0 0 2px #fff4dc, 0 0 0 2px #bd4037; }.ttr-destination-card.complete { border-color: #4c8d60; background: #d4dfc0; }.ttr-destination-card.complete.selected { border-color: #33794d; box-shadow: inset 0 0 0 2px #f4f8df, 0 0 0 2px #33794d; }.ttr-done { position: absolute; top: -8px; right: -6px; width: 28px; height: 28px; padding: 7px; border-radius: 50%; color: var(--ttr-white); background: #4e8e62; }
 
 /* ── The locomotive ──────────────────────────────────────────────────────────
  * A locomotive is every colour at once, so the card is banded in all eight
@@ -336,6 +336,28 @@
   stroke-width: 3px;
   font: 800 9px var(--font-ui);
   letter-spacing: .01em;
+}
+
+.ttr-city-highlight {
+  fill: transparent;
+  stroke-width: 6;
+  pointer-events: none;
+  animation: ttr-city-pulse 1.25s ease-in-out infinite;
+}
+
+.ttr-city.destination-incomplete circle:first-child { fill: #ffd0c8; stroke: #9f2f2a; }
+.ttr-city.destination-incomplete circle:nth-child(2) { fill: #d83d34; }
+.ttr-city.destination-incomplete .ttr-city-highlight { stroke: #e04539; filter: drop-shadow(0 0 5px #e04539); }
+.ttr-city.destination-complete circle:first-child { fill: #c5efc8; stroke: #286d43; }
+.ttr-city.destination-complete circle:nth-child(2) { fill: #329257; }
+.ttr-city.destination-complete .ttr-city-highlight { stroke: #36a961; filter: drop-shadow(0 0 5px #36a961); }
+
+@keyframes ttr-city-pulse {
+  50% { opacity: .5; stroke-width: 10; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ttr-city-highlight { animation: none; }
 }
 
 .route-hit {

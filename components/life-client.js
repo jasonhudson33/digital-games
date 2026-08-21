@@ -155,42 +155,51 @@ function LifeLobby({ room, me, busy, error, onAdd, onRemove, onStart, onLeave, o
   </section></main>;
 }
 
-function Board({ room, spinner }) {
-  const occupied = useMemo(() => room.players.reduce((map, player) => { (map[player.position] ||= []).push(player); return map; }, {}), [room.players]);
-  return <div className="life-board-wrap"><div className="life-board" aria-label="Life game board">
-    <div className="life-road-run road-bottom" /><div className="life-road-turn turn-bottom" /><div className="life-road-run road-low" /><div className="life-road-turn turn-low" /><div className="life-road-run road-high" /><div className="life-road-turn turn-high" /><div className="life-road-run road-top" />
-    <div className="life-scenery life-scenery-town" aria-hidden="true"><span>🏙️</span><b>First big break</b></div>
-    <div className="life-scenery life-scenery-college" aria-hidden="true"><span>🏫</span><b>College hill</b></div>
-    <div className="life-scenery life-scenery-home" aria-hidden="true"><span>🏡</span><b>Home sweet home</b></div>
-    <div className="life-scenery life-scenery-lake" aria-hidden="true"><span>⛵</span><b>Adventure lake</b></div>
-    <div className="life-scenery life-scenery-mountain" aria-hidden="true"><span>🏔️</span><b>High hopes</b></div>
-    <div className="life-scenery life-scenery-retire" aria-hidden="true"><span>🌴</span><b>Retirement</b></div>
-    <div className="life-board-spinner">{spinner}</div>
-    {BOARD.map((space) => { const point = LIFE_BOARD_POSITIONS[space.index]; return <div key={space.index} title={`${space.index + 1}. ${space.label}`} aria-label={`${space.index + 1}. ${space.label}`} className={`life-space type-${space.type}`} style={{ "--x": `${point.x}%`, "--y": `${point.y}%`, "--tilt": `${point.tilt}deg` }}><span className="life-space-number">{space.index + 1}</span><span className="life-space-icon">{space.icon}</span><small>{space.label}</small>{occupied[space.index] && <div className="life-cars">{occupied[space.index].map((player, carIndex) => <i key={player.id} style={{ "--car": player.color, "--car-index": carIndex }} title={player.name} />)}</div>}</div>; })}
-  </div><div className="life-board-legend"><span><i className="payday" /> Payday</span><span><i className="life" /> LIFE moment</span><span><i className="stop" /> Stop & choose</span><span><i className="action" /> Adventure</span></div></div>;
+function routePath(points) {
+  return points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
 }
 
-const LIFE_BOARD_POSITIONS = buildLifeBoardPositions();
-
-function buildLifeBoardPositions() {
-  const points = [];
-  const addLine = (count, fromX, toX, fromY, toY, wave = 0) => {
-    for (let index = 0; index < count; index += 1) {
-      const progress = count === 1 ? 0 : index / (count - 1);
-      const x = fromX + (toX - fromX) * progress;
-      const y = fromY + (toY - fromY) * progress + Math.sin(progress * Math.PI) * wave;
-      const direction = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-      points.push({ x, y, tilt: direction + (index % 2 ? 2 : -2) });
-    }
-  };
-  addLine(10, 6.5, 93, 88, 88, -1.1);
-  addLine(4, 93, 93, 81.5, 62, 1);
-  addLine(9, 83.5, 7, 62, 62, 1.2);
-  addLine(4, 7, 7, 55.3, 35, -1);
-  addLine(9, 16.5, 93, 35, 35, -1.1);
-  addLine(4, 93, 93, 28.5, 10, 1);
-  addLine(14, 86.5, 6.5, 10, 10, 1);
-  return points;
+function Board({ room, spinner }) {
+  const occupied = useMemo(() => room.players.reduce((map, player) => { (map[player.position] ||= []).push(player); return map; }, {}), [room.players]);
+  const activePlayer = room.players[room.currentPlayerIndex];
+  const collegeRoute = routePath(BOARD.slice(0, 8));
+  const sharedRoute = routePath(BOARD.slice(7));
+  const careerRoute = routePath([
+    BOARD[0],
+    { x: 62, y: 9 },
+    { x: 80, y: 8 },
+    { x: 91, y: 15 },
+    { x: 87, y: 24 },
+    { x: 68, y: 29 },
+    { x: 47, y: 28 },
+    BOARD[7],
+  ]);
+  return <div className="life-board-wrap"><div className="life-board life-illustrated-board" aria-label="Illustrated Life board with College and Career paths from Start to Retirement">
+    <svg className="life-board-map" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <filter id="life-road-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" floodColor="#315236" floodOpacity=".34" /></filter>
+      </defs>
+      {[collegeRoute, careerRoute, sharedRoute].map((path, index) => <path key={`shadow-${index}`} className="life-map-road-shadow" d={path} />)}
+      <path className="life-map-road college" d={collegeRoute} />
+      <path className="life-map-road career" d={careerRoute} />
+      <path className="life-map-road shared" d={sharedRoute} />
+      {[collegeRoute, careerRoute, sharedRoute].map((path, index) => <path key={`center-${index}`} className="life-map-road-center" d={path} />)}
+    </svg>
+    <div className="life-map-label start-label">START</div>
+    <div className="life-map-label college-label">COLLEGE PATH</div>
+    <div className="life-map-label career-label">CAREER PATH</div>
+    <div className="life-map-label merge-label">PATHS MERGE</div>
+    <div className="life-board-title"><small>THE GAME OF</small><strong><i>L</i><i>I</i><i>F</i><i>E</i></strong></div>
+    <div className="life-scenery life-campus" aria-hidden="true"><span>🎓</span><b>College</b></div>
+    <div className="life-scenery life-city" aria-hidden="true"><span>🏙️</span><b>Career city</b></div>
+    <div className="life-scenery life-homes" aria-hidden="true"><span>🏡</span><b>Family lane</b></div>
+    <div className="life-scenery life-retirement" aria-hidden="true"><span>🌴</span><b>Retirement</b></div>
+    <div className="life-lake lake-one" aria-hidden="true" />
+    <div className="life-lake lake-two" aria-hidden="true" />
+    <div className="life-board-spinner">{spinner}</div>
+    {room.lastSpin && <div className="life-spin-result"><b>{room.players.find((player) => player.id === room.lastSpin.playerId)?.name} spun {room.lastSpin.number}</b><span>{Number.isFinite(room.lastSpin.moved) ? `${room.lastSpin.moved} space${room.lastSpin.moved === 1 ? "" : "s"}${room.lastSpin.stoppedAtMandatory ? " · stopped at a milestone" : ""}` : "Movement resolved"}</span></div>}
+    {BOARD.map((space) => { const milestone = ["start", "job", "marriage", "house", "career-change", "retire"].includes(space.type); const playersHere = occupied[space.index] || []; return <div key={space.index} title={`${space.index + 1}. ${space.label}${Number.isFinite(space.amount) ? ` · ${money(space.amount)}` : ""}`} aria-label={`${space.index + 1}. ${space.label}`} className={`life-route-space type-${space.type} ${milestone ? "milestone" : ""} ${playersHere.length ? "occupied" : ""} ${activePlayer?.position === space.index ? "active" : ""}`} style={{ "--x": `${space.x}%`, "--y": `${space.y}%`, "--tilt": `${space.tilt}deg` }}><span className="life-route-dot">{milestone ? space.icon : space.index + 1}</span>{milestone && <small>{space.label}</small>}{playersHere.length > 0 && <div className="life-cars">{playersHere.map((player, carIndex) => <i key={player.id} style={{ "--car": player.color, "--car-index": carIndex }} title={player.name} />)}</div>}</div>; })}
+  </div><div className="life-board-legend"><span><i className="payday" /> Payday</span><span><i className="life" /> LIFE moment</span><span><i className="stop" /> Stop & choose</span><span><i className="action" /> Adventure</span></div></div>;
 }
 
 function Spinner({ value, spinning, disabled, onSpin }) {
