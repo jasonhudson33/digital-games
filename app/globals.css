@@ -786,6 +786,13 @@
   transform: translateX(3px);
 }
 
+/* Page shell used by the seven-up route and its room lobby. */
+.page-shell {
+  width: min(var(--page-max), calc(100% - var(--page-gutter) * 2));
+  margin: 0 auto;
+  padding: var(--sp-6) 0 var(--sp-8);
+}
+
 /* Page header used by the seven-up route. */
 .hero {
   display: flex;

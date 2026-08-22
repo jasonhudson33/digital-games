@@ -38,7 +38,7 @@ const initialRoom = {
 };
 
 export default function SevenUpClient() {
-  const [mode, setMode] = useState("local");
+  const [mode, setMode] = useState("room");
   const [playerCount, setPlayerCount] = useState(4);
   const [playerConfigs, setPlayerConfigs] = useState(() => buildPlayerConfigs(4));
   const [localGame, setLocalGame] = useState(null);
@@ -216,7 +216,7 @@ export default function SevenUpClient() {
     }
     try {
       const payload = await postJson("/api/create-room", {
-        players: playerConfigs,
+        players: [{ playerType: "human", name: createName }],
         name: createName,
       });
       const nextRoom = {
@@ -242,35 +242,38 @@ export default function SevenUpClient() {
       return;
     }
     try {
-      const payload = await fetchJson(`/api/room?code=${encodeURIComponent(joinRoomCode.trim().toUpperCase())}`);
-      setRoom((previous) => ({
-        ...previous,
-        roomCode: joinRoomCode.trim().toUpperCase(),
-        joinPreview: payload,
-      }));
-    } catch (nextError) {
-      setError(nextError.message);
-    }
-  }
-
-  async function joinSeat(seatId) {
-    clearError();
-    try {
       const payload = await postJson("/api/join-room", {
-        roomCode: room.roomCode,
-        seatId,
+        roomCode: joinRoomCode.trim().toUpperCase(),
         name: joinName,
       });
       const nextRoom = {
-        ...room,
+        roomCode: joinRoomCode.trim().toUpperCase(),
         token: payload.playerToken,
         seatId: payload.viewerSeatId,
-        state: payload.roomState || room.state,
+        state: payload.roomState || null,
         joinPreview: null,
       };
       persistRoomToken(nextRoom.roomCode, nextRoom.token);
       setRoom(nextRoom);
       updateUrl(nextRoom.roomCode, "");
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  }
+
+  async function addComputer() {
+    try {
+      const state = await postJson("/api/add-computer", { roomCode: room.roomCode, token: room.token });
+      setRoom((previous) => ({ ...previous, state }));
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  }
+
+  async function removeComputer(seatId) {
+    try {
+      const state = await postJson("/api/remove-computer", { roomCode: room.roomCode, token: room.token, seatId });
+      setRoom((previous) => ({ ...previous, state }));
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -429,11 +432,8 @@ export default function SevenUpClient() {
     updateUrl("", "");
   }
 
-  const roomPreview = room.state || room.joinPreview;
   const roomPlayers = room.state?.players || [];
-  const humanPlayers = roomPlayers.filter((player) => player.playerType === "human");
-  const openHumanSeats = humanPlayers.filter((player) => !player.claimed);
-  const roomReadyToDeal = Boolean(room.state && room.state.status === "waiting" && openHumanSeats.length === 0);
+  const roomReadyToDeal = Boolean(room.state && room.state.status === "waiting" && roomPlayers.length >= 3);
   const hideSetupPanel =
     (mode === "local" && Boolean(localGame)) ||
     (mode === "room" && Boolean(room.roomCode));
@@ -540,7 +540,7 @@ export default function SevenUpClient() {
               <p className="eyebrow">Card Game</p>
               <h1>7-up</h1>
               <p className="subtitle">
-                Play against computers on this device, or create a shared room and play with other people from anywhere.
+                Create a private room, invite friends, or add computer players and deal a game of 7-Up.
               </p>
             </div>
             <button className="secondary-button" onClick={resetAll} type="button">
@@ -549,7 +549,7 @@ export default function SevenUpClient() {
           </header>
 
           <main className="layout">
-            {!hideSetupPanel ? (
+            {mode === "local" && !hideSetupPanel ? (
               <section className="panel control-panel">
                 <h2>Setup</h2>
                 <form className="setup-form" onSubmit={handleSubmit}>
@@ -639,12 +639,12 @@ export default function SevenUpClient() {
             ) : null}
 
             <section className="panel room-panel">
-              <h2>Room Play</h2>
+              <h2>7-Up Room</h2>
               {!room.roomCode ? (
                 <div className="room-create-panel">
                   <p className="preview-title">Start a new room</p>
                   <p className="hand-help">
-                    Use the player setup on the left, then create a room to get a share link for everyone else.
+                    Create a room, then add computers or share the room code so friends can join.
                   </p>
                   <label htmlFor="create-name">Your name</label>
                   <input
@@ -681,32 +681,9 @@ export default function SevenUpClient() {
                   />
 
                   <button className="secondary-button" type="submit">
-                    Load room
+                    Join room
                   </button>
                 </form>
-              ) : null}
-
-              {roomPreview && !room.token ? (
-                <div className="room-join-preview">
-                  <p className="preview-title">Open seats in room {roomPreview.roomCode}</p>
-                  {roomPreview.players
-                    .filter((player) => player.playerType === "human")
-                    .map((player) => (
-                      <div className="join-seat-row" key={player.seatId}>
-                        <span>
-                          {player.label} {player.claimed ? "(taken)" : ""}
-                        </span>
-                        <button
-                          className="secondary-button"
-                          type="button"
-                          disabled={player.claimed}
-                          onClick={() => joinSeat(player.seatId)}
-                        >
-                          {player.claimed ? "Taken" : "Join seat"}
-                        </button>
-                      </div>
-                    ))}
-                </div>
               ) : null}
 
               {room.roomCode ? (
@@ -720,10 +697,26 @@ export default function SevenUpClient() {
                     <div className="room-link">{roomUrl}</div>
                   </div>
                   <div className="room-meta">
-                    <span className="meta-label">Seat privacy</span>
-                    <div>This device keeps its seat privately. Share the room link, not your private seat token.</div>
+                    <span className="meta-label">Players</span>
+                    <div className="room-roster">
+                      {roomPlayers.map((player) => (
+                        <div className="join-seat-row" key={player.seatId}>
+                          <span>{player.displayName} {player.playerType === "computer" ? "(computer)" : ""}</span>
+                          {room.state?.hostControls && player.playerType === "computer" ? (
+                            <button className="secondary-button" type="button" onClick={() => removeComputer(player.seatId)}>
+                              Remove
+                            </button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="turn-actions">
+                    {room.state?.hostControls && room.state.status === "waiting" ? (
+                      <button className="secondary-button" type="button" disabled={roomPlayers.length >= 7} onClick={addComputer}>
+                        Add computer
+                      </button>
+                    ) : null}
                     <button
                       className="primary-button"
                       type="button"
@@ -739,8 +732,8 @@ export default function SevenUpClient() {
                   {room.state?.status === "waiting" ? (
                     <div className="hand-help">
                       {roomReadyToDeal
-                        ? "All human players have joined. Deal cards when everyone is ready."
-                        : `${openHumanSeats.length} human seat${openHumanSeats.length === 1 ? "" : "s"} still need to join before dealing.`}
+                        ? "The room is ready. Deal cards when everyone has joined."
+                        : `Add ${3 - roomPlayers.length} more player${3 - roomPlayers.length === 1 ? "" : "s"} before dealing.`}
                     </div>
                   ) : null}
                 </div>

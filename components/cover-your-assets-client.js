@@ -211,8 +211,12 @@ function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, b
       <div><p className="cya-kicker">Open the vault</p><h2>Join a private table</h2><p>Create a room for friends, then fill any open chairs with computer players.</p></div>
       <label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label>
       <button className="cya-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button>
-      <div className="cya-or"><span>or join one</span></div>
-      <div className="cya-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div>
+      <div className="cya-or"><span>or join a game</span></div>
+      <div className="cya-join">
+        <label htmlFor="cya-room-code">Room code</label>
+        <input id="cya-room-code" aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} placeholder="ROOM CODE" />
+        <button type="button" disabled={busy} onClick={joinRoom}>Join game</button>
+      </div>
       <button className="cya-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Read the rules</button>
       {error && <p className="cya-form-error">{error}</p>}
     </section>

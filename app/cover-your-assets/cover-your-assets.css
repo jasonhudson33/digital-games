@@ -129,7 +129,9 @@
 .cya-or { display: flex; align-items: center; gap: 10px; margin: 23px 0; color: #848980; font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
 .cya-or::before, .cya-or::after { content: ""; flex: 1; height: 1px; background: rgba(23,41,33,.13); }
 .cya-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.cya-join button { padding: 0 20px; border: 0; border-radius: 13px; color: white; background: var(--cya-red); font-weight: 800; cursor: pointer; }
+.cya-join label { grid-column: 1 / -1; margin: 0; color: #4d5e55; font-size: .82rem; }
+.cya-join button { min-height: 48px; padding: 0 20px; border: 0; border-radius: 13px; color: white; background: var(--cya-red); font-weight: 800; cursor: pointer; }
+.cya-join button:disabled { cursor: not-allowed; opacity: .55; }
 .cya-rules-link { padding: 10px 0; color: #5b665f; background: transparent; }
 .cya-entry-card > .cya-rules-link { width: 100%; margin-top: 14px; }
 .cya-rules-link svg { width: 17px; }

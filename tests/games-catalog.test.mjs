@@ -104,6 +104,7 @@ test("advertised player counts match what each engine will actually start", asyn
     { slug: "uno", load: async () => await import("../lib/uno.js") },
     { slug: "dos", load: async () => await import("../lib/dos.js") },
     { slug: "flip-7", load: async () => await import("../lib/flip-7.js") },
+    { slug: "five-crowns", load: async () => await import("../lib/five-crowns.js") },
     { slug: "bang", load: async () => await import("../lib/bang.js") },
     { slug: "no-thanks", load: async () => await import("../lib/no-thanks.js") },
     { slug: "cover-your-assets", load: async () => await import("../lib/cover-your-assets.js") },
