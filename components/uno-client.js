@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bot, Trophy, Users } from "lucide-react";
 
 import { ColorGameCard, CardBack, cardName } from "./color-game-card";
-import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
+import { Seat, SeatedTable } from "./ui/seated-table";
 import { UnoRoomService } from "./uno-room-service";
 import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
 import {
@@ -199,7 +199,6 @@ export default function UnoClient() {
  */
 function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
   const viewerIndex = room.players.findIndex((player) => player.id === viewerId);
-  const lastPlayerIndex = room.lastPlayerId ? room.players.findIndex((player) => player.id === room.lastPlayerId) : -1;
   const top = topDiscard(room);
 
   return (
@@ -207,10 +206,11 @@ function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
       count={room.players.length}
       viewerIndex={viewerIndex < 0 ? 0 : viewerIndex}
       className="uno-felt"
-      middle={(
-        <b className={`tbl-felt-mark uno-mid is-${room.activeColor || "wild"}`} title={`${room.deck.length} left in the draw pile`}>
-          {room.deck.length}
-        </b>
+      middle={top && (
+        <div className="tbl-felt-discard">
+          <ColorGameCard card={cardFace(room, top)} dark={darkSide} small />
+          <span className="tbl-felt-discard-count" title={`${room.deck.length} left in the draw pile`}>{room.deck.length}</span>
+        </div>
       )}
       foot={(
         <small className="tbl-felt-meta">
@@ -220,14 +220,8 @@ function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
         </small>
       )}
     >
-      {({ layout, seatStyle, cardStyle }) => (
+      {({ layout, seatStyle }) => (
         <>
-          {lastPlayerIndex >= 0 && top && (
-            <PlayedCard style={cardStyle(lastPlayerIndex)}>
-              <ColorGameCard card={cardFace(room, top)} dark={darkSide} small />
-            </PlayedCard>
-          )}
-
           {layout.map((spot) => {
             const player = room.players[spot.index];
             return (

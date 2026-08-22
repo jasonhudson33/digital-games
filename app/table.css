@@ -963,6 +963,21 @@
 .tbl-card.is-wild .tbl-card-corner { color: #fff; }
 .tbl-card.is-wild .tbl-card-face { color: #202536; }
 
+/* The face's number/symbol sits on the light "shine" oval (see .tbl-card::before),
+   not on the saturated background — white text there reads as nearly invisible,
+   so every hue that keeps white corner text needs a dark face color to stay
+   legible against that oval. Corners stay white since they sit on the saturated
+   part of the card. */
+.tbl-card.is-red .tbl-card-face,
+.tbl-card.is-green .tbl-card-face,
+.tbl-card.is-blue .tbl-card-face,
+.tbl-card.is-pink .tbl-card-face,
+.tbl-card.is-teal .tbl-card-face,
+.tbl-card.is-orange .tbl-card-face,
+.tbl-card.is-purple .tbl-card-face {
+  color: #202536;
+}
+
 .tbl-card.is-small {
   width: 70px;
   height: 96px;
@@ -1725,6 +1740,18 @@
 /* Whose turn it is belongs on the seat, not in a sentence elsewhere. */
 .tbl-chair.turn .tbl-chair-plate { border-color: var(--felt-accent); background: var(--felt-plate-lit); box-shadow: 0 0 0 2px color-mix(in srgb, var(--felt-accent) 50%, transparent), 0 6px 18px rgba(6, 24, 18, .45); }
 .tbl-chair.self .tbl-chair-plate { border-color: rgba(240, 222, 180, .55); box-shadow: inset 3px 0 0 rgba(240, 222, 180, .75), 0 5px 14px rgba(6, 24, 18, .4); }
+/* `.self` and `.mate` are equal specificity to `.turn` and were declared after
+   it, so a viewer's own seat (or a teammate's) silently lost its turn glow the
+   moment it became their turn — the later same-specificity rule always won.
+   These compound selectors outrank either alone regardless of source order,
+   and keep the identity cue (the inset stripe) alongside the turn glow rather
+   than losing one to the other. */
+.tbl-chair.turn.self .tbl-chair-plate,
+.tbl-chair.turn.mate .tbl-chair-plate {
+  border-color: var(--felt-accent);
+  background: var(--felt-plate-lit);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--felt-accent) 50%, transparent), inset 3px 0 0 rgba(240, 222, 180, .75), 0 6px 18px rgba(6, 24, 18, .45);
+}
 /* Which side of the table someone is on, said on the plate rather than by a
    badge — one less thing competing with the name on a 92px plate. */
 .tbl-chair.mate .tbl-chair-avatar { background: linear-gradient(#a9d3bb, #79b295); }
@@ -1796,6 +1823,35 @@
   font-size: calc(24 * var(--px));
   line-height: 1;
   pointer-events: none;
+}
+
+/* The card actually in play, at the middle of the felt — not shrunk to
+   trick-card size the way a played card in front of a seat is, because this
+   one has to be read at a glance to know what's legal to follow. Uses the
+   same fixed-size "small" card the hand already draws, just centered. */
+.tbl-felt-discard {
+  position: absolute;
+  left: 50%; top: 50%;
+  translate: -50% -50%;
+  z-index: 5;
+}
+
+.tbl-felt-discard .tbl-card { pointer-events: none; }
+
+.tbl-felt-discard-count {
+  position: absolute;
+  right: -9px;
+  bottom: -9px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--felt-edge);
+  border-radius: 50%;
+  background: rgba(6, 28, 20, .85);
+  color: #f4e3ba;
+  font-size: .66rem;
+  font-weight: 800;
 }
 
 .tbl-felt-meta {
