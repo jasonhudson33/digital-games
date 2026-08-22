@@ -32,7 +32,7 @@
   --ttr-ink: #233035;
 }
 
-.ttr-landing, .ttr-lobby-shell, .ttr-choice-shell, .ttr-game-shell { font-family: var(--font-ui); }
+.ttr-landing, .ttr-lobby-shell, .ttr-game-shell { font-family: var(--font-ui); }
 .ttr-landing { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); color: var(--ttr-cream); background: #132f40; }
 .ttr-kicker { margin: 0 0 8px; color: #b1843c; font-size: .7rem; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
 .ttr-hero { position: relative; min-height: 460px; display: grid; grid-template-columns: 1.05fr .95fr; overflow: hidden; background: radial-gradient(circle at 75% 22%, #e0a949 0 8%, transparent 8.5%), linear-gradient(150deg, var(--ttr-teal), #173748 55%, #102938); }
@@ -62,15 +62,13 @@
 .ttr-join-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }.ttr-join-row input { letter-spacing: .16em; font-weight: 900; text-transform: uppercase; }.ttr-join-row button { padding: 0 22px; border: 1px solid var(--ttr-teal); border-radius: 7px; color: var(--ttr-white); background: var(--ttr-teal); font-weight: 800; cursor: pointer; }
 .ttr-form-error { grid-column: 1 / -1; padding: 10px 12px; border-radius: 6px; color: #8f2d26 !important; background: #f4d8d2; font-size: .85rem; }
 
-.ttr-lobby-shell, .ttr-choice-shell { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); padding: 48px 16px; display: grid; place-items: center; color: var(--ttr-ink); background: radial-gradient(circle at 15% 10%, #e1c78566, transparent 22%), linear-gradient(140deg, #1b4253 0 44%, #d0c5a5 44% 100%); }
-.ttr-lobby-card, .ttr-choice-card { width: min(620px, 100%); padding: clamp(28px, 5vw, 52px); border: 1px solid #b9a987; border-radius: 13px; background: #f8f1df; box-shadow: 0 28px 80px #071d2780; text-align: center; }
-.ttr-lobby-card h1, .ttr-choice-card h1, .ttr-final-card h1 { margin: 0 0 10px; font: 700 clamp(2rem, 5vw, 3.4rem)/1.05 var(--font-display); color: #193a49; }
+.ttr-lobby-shell { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); padding: 48px 16px; display: grid; place-items: center; color: var(--ttr-ink); background: radial-gradient(circle at 15% 10%, #e1c78566, transparent 22%), linear-gradient(140deg, #1b4253 0 44%, #d0c5a5 44% 100%); }
+.ttr-lobby-card { width: min(620px, 100%); padding: clamp(28px, 5vw, 52px); border: 1px solid #b9a987; border-radius: 13px; background: #f8f1df; box-shadow: 0 28px 80px #071d2780; text-align: center; }
+.ttr-lobby-card h1, .ttr-final-card h1 { margin: 0 0 10px; font: 700 clamp(2rem, 5vw, 3.4rem)/1.05 var(--font-display); color: #193a49; }
 .ttr-code-display { width: 100%; margin: 20px 0 24px; padding: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px dashed #9b8152; border-radius: 8px; color: #1a3c4b; background: #ebe0c4; cursor: pointer; }.ttr-code-display > span { font-size: 2rem; font-weight: 950; letter-spacing: .25em; }.ttr-code-display small { display: flex; gap: 6px; align-items: center; }
 .ttr-lobby-players { display: grid; gap: 8px; text-align: left; }.ttr-lobby-players > div { min-height: 57px; padding: 10px 14px; display: grid; grid-template-columns: 38px 1fr auto; gap: 8px; align-items: center; border: 1px solid #d5c9ae; border-radius: 8px; background: #fffaf0; }.ttr-lobby-players svg { width: 25px; }.ttr-lobby-players span { display: grid; }.ttr-lobby-players small { color: #817967; }.ttr-lobby-players > div > svg:last-child { width: 18px; color: #4b9161; }.ttr-lobby-players .empty { opacity: .52; border-style: dashed; }
 .ttr-add-computer { width: 100%; min-height: 43px; margin-top: 12px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #927b4e; border-radius: 7px; color: #244653; background: #eee2c5; font-weight: 850; cursor: pointer; }.ttr-add-computer:hover { background: #e6d5ad; }.ttr-add-computer:disabled { opacity: .5; cursor: not-allowed; }.ttr-remove-computer { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid #c8aa9e; border-radius: 50%; color: #9e3e36; background: #fff5eb; cursor: pointer; }.ttr-remove-computer:hover { color: var(--ttr-white); background: #ac4037; }.ttr-remove-computer svg { width: 16px; height: 16px; }
 .ttr-start { width: 100%; margin-top: 22px; }.ttr-quiet { margin-top: 18px; border: 0; color: #6b675f; background: none; text-decoration: underline; cursor: pointer; }.ttr-waiting-copy { color: #716b5e; line-height: 1.55; }.ttr-waiting-train { width: 70px; height: 70px; margin-bottom: 14px; color: #b34238; }.ttr-ready-list { display: grid; gap: 8px; margin-top: 24px; text-align: left; }.ttr-ready-list span { padding: 12px; display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; border-radius: 7px; background: #ebe3ce; }.ttr-ready-list i { width: 10px; height: 10px; border-radius: 50%; }.ttr-ready-list b { color: #8f6742; font-size: .75rem; }.ttr-ready-list .ready b { color: #397c50; }
-
-.ttr-choice-card { width: min(980px, 100%); }.ttr-choice-card > p:not(.ttr-kicker) { color: #6f695b; }.ttr-choice-grid { margin: 28px 0 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }.ttr-choice-grid > button { position: relative; min-height: 240px; padding: 25px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #b2a381; border-radius: 8px; color: #26383d; background: radial-gradient(circle at 50% 15%, #fffdf7, #e8dcc0); cursor: pointer; transition: transform .15s, border .15s; }.ttr-choice-grid > button::before, .ttr-choice-grid > button::after { content: ""; position: absolute; left: -7px; right: -7px; height: 12px; background: repeating-linear-gradient(90deg, #af3f36 0 18px, #f2e8d1 18px 28px); }.ttr-choice-grid > button::before { top: 0; }.ttr-choice-grid > button::after { bottom: 0; }.ttr-choice-grid > button:hover { transform: translateY(-3px); }.ttr-choice-grid > button.selected { border-color: var(--ttr-green); box-shadow: 0 0 0 4px #31805a33; }.ttr-choice-grid svg { margin-bottom: 12px; color: #a73b33; }.ttr-choice-grid i { margin: 6px; color: #857b67; font: italic 1rem var(--font-ui); }.ttr-ticket-points { position: absolute; top: 22px; right: 15px; display: grid; color: #a33830; font-size: 1.55rem; font-weight: 950; }.ttr-ticket-points small { font-size: .55rem; text-transform: uppercase; }.ttr-checkmark { position: absolute; bottom: 22px; right: 14px; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid #a99d83; border-radius: 50%; }.selected .ttr-checkmark { color: var(--ttr-white); border-color: var(--ttr-green); background: var(--ttr-green); }.ttr-checkmark svg { width: 17px; margin: 0; }.ttr-confirm { min-width: 260px; }.ttr-minimum { display: block; margin-top: 14px; color: #7c7566; }
 
 /* ── The table ───────────────────────────────────────────────────────────────
  * One screen, no page scroll: the map, both side panels and the player's own
@@ -163,7 +161,7 @@
 
 /* Clear of the hand strip: the cards you are choosing to spend are in it. */
 .ttr-claim-panel { position: fixed; z-index: 70; right: 18px; bottom: 148px; width: min(410px, calc(100% - 36px)); padding: 22px; border: 1px solid #c0a86d; border-radius: 10px; color: #27383c; background: #f2ead7; box-shadow: 0 25px 60px #07141dbb; }.ttr-claim-panel h2 { margin: 0; font: 700 1.35rem var(--font-ui); }.ttr-close { position: absolute; top: 8px; right: 10px; border: 0; color: #526269; background: none; font-size: 1.8rem; cursor: pointer; }.ttr-claim-facts { margin: 13px 0; display: flex; gap: 6px; flex-wrap: wrap; }.ttr-claim-facts span { padding: 5px 8px; display: flex; gap: 5px; align-items: center; border-radius: 999px; color: #5c574b; background: #ddd1b5; font-size: .68rem; font-weight: 800; }.ttr-claim-panel p:not(.ttr-kicker) { color: #6f695b; font-size: .78rem; }.ttr-payment-options { display: flex; flex-wrap: wrap; gap: 7px; }.ttr-payment-options button { padding: 8px 11px; display: flex; gap: 7px; align-items: center; border: 1px solid #a99d80; border-radius: 6px; background: #fffaf0; font-weight: 800; cursor: pointer; }.ttr-payment-options i { width: 15px; height: 15px; border: 2px solid #fff8; border-radius: 50%; background: var(--pay-color); box-shadow: 0 0 0 1px #0003; }.ttr-cannot-claim { padding: 10px; border-radius: 6px; color: #8d302a !important; background: #ead1c8; }
-.ttr-overlay { position: fixed; z-index: 100; inset: 0; padding: 20px; display: grid; place-items: center; overflow-y: auto; background: #071922db; backdrop-filter: blur(5px); }.ttr-overlay .ttr-choice-card { padding: 30px; }.ttr-final-card { width: min(760px, 100%); padding: 34px; border: 1px solid #bba265; border-radius: 12px; color: #27363a; background: #f5edd9; box-shadow: 0 30px 90px #000a; text-align: center; }.ttr-final-card > svg { width: 55px; height: 55px; color: #c09031; }.ttr-score-table { margin: 25px 0 14px; border: 1px solid #cbbd9d; border-radius: 7px; overflow: hidden; text-align: left; }.ttr-score-table > div { min-height: 44px; padding: 8px 12px; display: grid; grid-template-columns: 1.5fr repeat(4, .65fr); gap: 8px; align-items: center; border-bottom: 1px solid #d7ccb4; font-size: .75rem; }.ttr-score-table > div:last-child { border: 0; }.ttr-score-table .heading { color: #776e5c; background: #e4d8bc; font-size: .6rem; font-weight: 900; text-transform: uppercase; }.ttr-score-table .winner { background: #e8dfb2; }.ttr-score-table span:first-child { display: flex; gap: 7px; align-items: center; font-weight: 800; }.ttr-score-table i { width: 10px; height: 10px; border-radius: 50%; }.ttr-score-table strong { color: #a13b33; font-size: 1rem; }.ttr-final-note { color: #766f60; font-size: .72rem; line-height: 1.5; }.ttr-choice-card > .ttr-quiet { display: inline-flex; align-items: center; gap: 6px; }.ttr-final-leave { min-height: 42px; padding: 9px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #9f8c69; border-radius: 6px; color: #594f43; background: #eee2c9; font-weight: 800; cursor: pointer; }.ttr-final-leave:hover { color: var(--ttr-white); border-color: #9f3b34; background: #a9443b; }
+.ttr-overlay { position: fixed; z-index: 100; inset: 0; padding: 20px; display: grid; place-items: center; overflow-y: auto; background: #071922db; backdrop-filter: blur(5px); }.ttr-final-card { width: min(760px, 100%); padding: 34px; border: 1px solid #bba265; border-radius: 12px; color: #27363a; background: #f5edd9; box-shadow: 0 30px 90px #000a; text-align: center; }.ttr-final-card > svg { width: 55px; height: 55px; color: #c09031; }.ttr-score-table { margin: 25px 0 14px; border: 1px solid #cbbd9d; border-radius: 7px; overflow: hidden; text-align: left; }.ttr-score-table > div { min-height: 44px; padding: 8px 12px; display: grid; grid-template-columns: 1.5fr repeat(4, .65fr); gap: 8px; align-items: center; border-bottom: 1px solid #d7ccb4; font-size: .75rem; }.ttr-score-table > div:last-child { border: 0; }.ttr-score-table .heading { color: #776e5c; background: #e4d8bc; font-size: .6rem; font-weight: 900; text-transform: uppercase; }.ttr-score-table .winner { background: #e8dfb2; }.ttr-score-table span:first-child { display: flex; gap: 7px; align-items: center; font-weight: 800; }.ttr-score-table i { width: 10px; height: 10px; border-radius: 50%; }.ttr-score-table strong { color: #a13b33; font-size: 1rem; }.ttr-final-note { color: #766f60; font-size: .72rem; line-height: 1.5; }.ttr-final-leave { min-height: 42px; padding: 9px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #9f8c69; border-radius: 6px; color: #594f43; background: #eee2c9; font-weight: 800; cursor: pointer; }.ttr-final-leave:hover { color: var(--ttr-white); border-color: #9f3b34; background: #a9443b; }
 
 @media (max-width: 1100px) {
   /* The market becomes a strip across the bottom of the grid: an auto row under
@@ -176,7 +174,7 @@
 }
 @media (max-width: 760px) {
   .ttr-hero { grid-template-columns: 1fr; }.ttr-hero-copy { padding: 48px 24px 30px; }.ttr-hero-art { min-height: 260px; }.ttr-big-train { width: 130px; height: 130px; }.ttr-station-card { margin-top: 0; grid-template-columns: 1fr; border-radius: 0; }.ttr-or { grid-column: 1; }.ttr-landing { padding-bottom: 20px; }
-  .ttr-choice-grid { grid-template-columns: 1fr; }.ttr-choice-grid > button { min-height: 180px; }.ttr-code-display { display: grid; justify-content: center; gap: 6px; }.ttr-code-display > span { font-size: 1.6rem; }
+  .ttr-code-display { display: grid; justify-content: center; gap: 6px; }.ttr-code-display > span { font-size: 1.6rem; }
   /* Phones go back to a scrolling page: a whole table will not fit one screen,
      and squeezing it in makes every card unreadable. What does not come back is
      the map eating the scroll — see the map's own phone rules at the end of
@@ -184,7 +182,7 @@
   .ttr-game-shell { height: auto; min-height: calc(100vh - var(--header-h) - 1px); min-height: calc(100dvh - var(--header-h) - 1px); display: block; padding: 10px; overflow: visible; }.ttr-table-header { flex-wrap: wrap; margin-bottom: 10px; }.ttr-turn-pill { order: 3; width: 100%; margin: 0; justify-content: center; }.ttr-table-grid { display: flex; flex-direction: column; }.ttr-board-card { order: 1; width: 100%; }
   .ttr-players-panel, .ttr-market-panel { overflow: visible; }
   .ttr-hand-panel { margin-top: 10px; display: block; }.ttr-hand-tickets { margin-top: 12px; padding: 12px 0 0; border-left: 0; border-top: 1px solid #ffffff17; }.ttr-ticket-list { max-height: none; overflow: visible; }
-  .ttr-claim-panel { bottom: 14px; }.ttr-legend-key { width: 100%; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }.ttr-score-table { overflow-x: auto; }.ttr-score-table > div { min-width: 570px; }.ttr-overlay .ttr-choice-card { padding: 22px 14px; }
+  .ttr-claim-panel { bottom: 14px; }.ttr-legend-key { width: 100%; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }.ttr-score-table { overflow-x: auto; }.ttr-score-table > div { min-width: 570px; }
 }
 
 /* ── Board ────────────────────────────────────────────────────────────────────
@@ -562,4 +560,217 @@
   .ttr-map-legend { gap: 3px 9px; font-size: .58rem; }
   .ttr-map-zoom { position: static; justify-content: flex-end; padding: 6px 8px; border-radius: 0; background: #0d2933; box-shadow: none; }
   .ttr-map-zoom button { min-width: 40px; min-height: 40px; }
+}
+
+/* ── Choosing destinations ───────────────────────────────────────────────────
+ * Both ticket decisions in this game — the opening deal and a mid-game draw —
+ * used to happen on a screen with no map: three city pairs as text, and nothing
+ * to say whether Duluth to El Paso crosses the board you have already built or
+ * the corner you have never been near. Both now happen beside the board, with
+ * every ticket on offer drawn across it.
+ */
+
+/* Cities and the ticket's own colour. A candidate ticket colours its cities
+   inline (there are three at once, so they cannot share one palette); the
+   green/red states below are a ticket you already hold, where there is only ever
+   one on the map and the colour carries a meaning of its own. */
+.ttr-destination-link { pointer-events: none; }
+.ttr-destination-link.dim { opacity: .2; }
+
+.ttr-destination-link-halo {
+  fill: none;
+  stroke: #fff6e0;
+  stroke-width: 7.5;
+  stroke-linecap: round;
+  opacity: .6;
+}
+
+.ttr-destination-link-line {
+  fill: none;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-dasharray: 9 7;
+}
+
+/* A ticket you have decided to keep stops being a proposal and becomes a plan. */
+.ttr-destination-link.picked .ttr-destination-link-line { stroke-width: 5; stroke-dasharray: none; }
+
+.ttr-destination-pip { stroke: #fff6e0; stroke-width: 1.6; }
+.ttr-destination-pip-label { fill: #fff8ea; font: 900 10px var(--font-ui); }
+
+/* ── The opening picker ──────────────────────────────────────────────────── */
+
+.ttr-picker-shell {
+  height: calc(100vh - var(--header-h) - 1px);
+  height: calc(100dvh - var(--header-h) - 1px);
+  min-height: 540px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow: hidden;
+  color: #e9e5d6;
+  font-family: var(--font-ui);
+  background: linear-gradient(145deg, #132e3c, #0c202b);
+}
+
+.ttr-picker-header {
+  flex: none;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  align-items: center;
+}
+
+.ttr-picker-header h1 { margin: 0; font: 700 1.7rem var(--font-display); color: #fff4d7; }
+.ttr-picker-header .ttr-kicker { margin: 0 0 2px; color: #b59a5d; }
+.ttr-picker-sub { max-width: 620px; margin: 0; color: #a9b6b3; font-size: .78rem; line-height: 1.5; }
+.ttr-picker-leave { margin: 0 0 0 auto; display: inline-flex; gap: 6px; align-items: center; color: #b3bfbc; }
+
+.ttr-picker-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 12px;
+}
+
+.ttr-picker-side {
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #ffffff16;
+  border-radius: 10px;
+  background: #183744;
+  box-shadow: 0 14px 35px #06141c66;
+}
+
+.ttr-picker-side h2 { margin: 0 0 12px; display: flex; gap: 7px; align-items: center; color: #f2e7c9; font: 700 1rem var(--font-ui); }
+.ttr-picker-tickets { display: grid; gap: 9px; }
+.ttr-picker-hint { margin: 12px 0 0; color: #9aa8a5; font-size: .68rem; line-height: 1.5; }
+.ttr-picker-side .ttr-ready-list { margin-top: 16px; }
+.ttr-picker-side .ttr-ready-list span { padding: 9px 11px; color: #26383c; font-size: .78rem; }
+.ttr-picker-confirm { width: 100%; margin-top: auto; }
+.ttr-picker-side .ttr-minimum { display: block; margin-top: 8px; color: #93a09d; font-size: .68rem; text-align: center; }
+
+/* ── A ticket on offer ───────────────────────────────────────────────────── */
+
+.ttr-choice-ticket {
+  position: relative;
+  width: 100%;
+  padding: 10px 11px;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px dashed #8a7653;
+  border-radius: 7px;
+  color: #2e3a3c;
+  background: #e4d8ba;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.ttr-choice-ticket:hover { transform: translateY(-1px); }
+.ttr-choice-ticket.static { cursor: default; }
+.ttr-choice-ticket.static:hover { transform: none; }
+.ttr-choice-ticket:focus-visible { outline: 3px solid #f2d376; outline-offset: 2px; }
+.ttr-choice-ticket.selected { border-style: solid; border-color: var(--ticket-ink); box-shadow: inset 0 0 0 2px #fff6e2, 0 0 0 2px var(--ticket-ink); }
+.ttr-choice-swatch { align-self: stretch; min-height: 32px; border-radius: 3px; background: var(--ticket-ink); }
+.ttr-choice-route { min-width: 0; display: grid; }
+.ttr-choice-route strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; line-height: 1.25; }
+.ttr-choice-route i { color: #7d745f; font-size: .58rem; font-style: italic; }
+.ttr-choice-ticket > b { display: grid; color: #a03a32; font-size: 1.1rem; line-height: 1; text-align: right; }
+.ttr-choice-ticket > b small { color: #8a7f68; font-size: .45rem; font-weight: 700; text-transform: uppercase; }
+
+.ttr-pick-mark {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #f6ecd4;
+  border-radius: 50%;
+  color: var(--ttr-white);
+  background: var(--ticket-ink);
+  opacity: 0;
+  transform: scale(.5);
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.ttr-choice-ticket.selected .ttr-pick-mark { opacity: 1; transform: none; }
+
+/* ── The mid-game draw ───────────────────────────────────────────────────────
+ * Docked in the same corner the claim panel uses, clear of the hand strip, so
+ * the map — and the routes on it you are judging these tickets against — stays
+ * where it was.
+ */
+.ttr-ticket-dock {
+  /* Narrow, and over the market column rather than the middle of the table: the
+     whole reason it is not a modal is that the map has to stay readable behind
+     it, which a 620px card parked on the eastern seaboard does not manage. */
+  position: fixed;
+  z-index: 80;
+  right: 18px;
+  bottom: 148px;
+  width: min(320px, calc(100% - 36px));
+  padding: 16px;
+  border: 1px solid #c0a86d;
+  border-radius: 10px;
+  color: #27383c;
+  background: #f2ead7;
+  box-shadow: 0 25px 60px #07141dbb;
+}
+
+.ttr-ticket-dock h2 { margin: 0; font: 700 1.15rem var(--font-ui); }
+.ttr-dock-hint { margin: 4px 0 11px; color: #6f695b; font-size: .72rem; line-height: 1.45; }
+.ttr-dock-tickets { display: grid; gap: 8px; }
+.ttr-dock-actions { margin-top: 12px; display: grid; gap: 7px; justify-items: stretch; }
+.ttr-dock-actions small { color: #7c7566; font-size: .68rem; text-align: center; }
+.ttr-dock-actions .ttr-primary { min-height: 42px; }
+
+@media (max-width: 1100px) {
+  .ttr-picker-grid { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+
+@media (max-width: 760px) {
+  /* Same bargain the table makes on a phone: the page scrolls, and the map keeps
+     its own height at the top of it rather than being squeezed into a third of
+     a screen it shares with three tickets. */
+  .ttr-picker-shell { height: auto; min-height: 0; display: block; padding: 10px; overflow: visible; }
+  .ttr-picker-header { margin-bottom: 10px; }
+  .ttr-picker-sub { font-size: .74rem; }
+  .ttr-picker-leave { margin-left: 0; }
+  /* The table's phone rules give every board card `order: 1` to lift it above
+     the panels it shares a column with; here the board is already first and
+     that would sink it below the tickets. */
+  .ttr-picker-grid { display: flex; flex-direction: column; }
+  .ttr-picker-grid .ttr-board-card { order: 0; }
+  .ttr-picker-side { overflow: visible; }
+  .ttr-picker-confirm { margin-top: 14px; }
+
+  /* The dock spans the bottom of the screen, where a thumb is — and gives up
+     every spare pixel it can, because whatever it takes it takes from the map
+     it exists to keep visible. */
+  .ttr-ticket-dock { right: 8px; left: 8px; bottom: 8px; width: auto; max-height: 62vh; overflow-y: auto; padding: 12px; }
+  .ttr-ticket-dock .ttr-kicker { margin-bottom: 3px; font-size: .58rem; }
+  .ttr-ticket-dock h2 { font-size: 1rem; }
+  .ttr-dock-hint { margin: 3px 0 9px; font-size: .68rem; }
+  .ttr-dock-tickets { gap: 6px; }
+  .ttr-dock-tickets .ttr-choice-ticket { padding: 7px 9px; }
+  .ttr-dock-tickets .ttr-choice-route strong { font-size: .78rem; }
+  .ttr-dock-actions { margin-top: 9px; }
 }

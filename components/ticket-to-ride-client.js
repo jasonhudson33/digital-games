@@ -65,6 +65,12 @@ const ROUTE_BEND = solveBends(CITY_POINTS, ROUTES);
  * about as much as the purple card is from itself. Hard stops rather than a
  * blend: eight bands read as eight colours, where a smooth rainbow reads as a
  * single decorative gradient. */
+/* Tickets you are being asked to choose between are drawn on the map at the same
+ * time, so each one needs an identity of its own: the swatch on the card and the
+ * line across the continent are the same colour. Three at a time is the most the
+ * game ever deals, so three inks is the whole palette. */
+const CHOICE_INKS = ["#c0392b", "#1f6f9c", "#2e7d4f"];
+
 const wildGradientId = "ttr-wild-key";
 const WILD_BANDS = TRAIN_COLORS.flatMap((color, index) => {
   const hex = TRAIN_COLOR_INFO[color].hex;
@@ -75,6 +81,30 @@ const WILD_BANDS = TRAIN_COLORS.flatMap((color, index) => {
     <stop key={`${color}-b`} offset={end} stopColor={hex} />,
   ];
 });
+
+/**
+ * The tickets on offer, described for the map.
+ *
+ * Hovering (or focusing) one card fades the other lines rather than hiding them,
+ * so the one you are reading stands out without the others' geography vanishing
+ * from under it.
+ *
+ * @param {Array} choices  destination tickets being offered
+ * @param {string[]} selected  ids the player has picked so far
+ * @param {string|null} hovered  id of the card under the pointer, if any
+ */
+function choiceHighlights(choices, selected, hovered) {
+  return choices.map((destination, index) => ({
+    id: destination.id,
+    from: destination.from,
+    to: destination.to,
+    points: destination.points,
+    color: CHOICE_INKS[index % CHOICE_INKS.length],
+    state: "candidate",
+    picked: selected.includes(destination.id),
+    dim: Boolean(hovered) && hovered !== destination.id,
+  }));
+}
 
 export default function TicketToRideClient() {
   const {
@@ -91,6 +121,7 @@ export default function TicketToRideClient() {
   const [openingSelection, setOpeningSelection] = useState([]);
   const [ticketSelection, setTicketSelection] = useState([]);
   const [selectedDestinationId, setSelectedDestinationId] = useState(null);
+  const [hoveredChoiceId, setHoveredChoiceId] = useState(null);
   const [showTickets, setShowTickets] = useState(true);
   const [computerThinking, setComputerThinking] = useState(false);
 
@@ -128,6 +159,7 @@ export default function TicketToRideClient() {
     setSelectedDestinationId(null);
     setOpeningSelection([]);
     setTicketSelection([]);
+    setHoveredChoiceId(null);
     setRoom(null);
   }
 
@@ -140,7 +172,20 @@ export default function TicketToRideClient() {
   }
 
   if (room.phase === "choosing-destinations" && me.pendingDestinations.length) {
-    return <DestinationChoice title="Choose your opening journeys" subtitle="Keep at least two. Unfinished journeys lose points at the end of the game." choices={me.pendingDestinations} selected={openingSelection} setSelected={setOpeningSelection} minimum={2} busy={busy} onConfirm={() => update((current) => chooseOpeningDestinations(current, playerId, openingSelection))} onLeave={leaveRoom} />;
+    return <DestinationPicker
+      room={room}
+      title="Choose your opening journeys"
+      subtitle="Keep at least two. Each ticket is drawn on the map in its own colour — an unfinished journey costs you its points at the end of the game."
+      choices={me.pendingDestinations}
+      selected={openingSelection}
+      setSelected={setOpeningSelection}
+      hovered={hoveredChoiceId}
+      setHovered={setHoveredChoiceId}
+      minimum={2}
+      busy={busy}
+      onConfirm={() => { setHoveredChoiceId(null); update((current) => chooseOpeningDestinations(current, playerId, openingSelection)); }}
+      onLeave={leaveRoom}
+    />;
   }
 
   if (room.phase === "choosing-destinations") {
@@ -155,6 +200,23 @@ export default function TicketToRideClient() {
   const selectedDestinationCompleted = selectedDestination
     ? hasConnection(room, playerId, selectedDestination.from, selectedDestination.to)
     : false;
+  /* Tickets being offered win the map over a ticket you are already holding:
+     the offer is the decision in front of you, and it is the one that needs the
+     board to answer it. */
+  const boardHighlights = pendingChoices
+    ? choiceHighlights(pendingChoices, ticketSelection, hoveredChoiceId)
+    : selectedDestination
+      ? [{
+          id: selectedDestination.id,
+          from: selectedDestination.from,
+          to: selectedDestination.to,
+          points: selectedDestination.points,
+          color: selectedDestinationCompleted ? "#2f8b53" : "#cd4030",
+          state: selectedDestinationCompleted ? "complete" : "incomplete",
+          picked: true,
+          dim: false,
+        }]
+      : [];
 
   return (
     <main className="ttr-game-shell">
@@ -184,7 +246,7 @@ export default function TicketToRideClient() {
         </aside>
 
         <section className="ttr-board-card" aria-label="Rail map of North America">
-          <GameBoard room={room} myTurn={myTurn && room.drawsThisTurn === 0 && !pendingChoices} selectedRouteId={selectedRouteId} onSelectRoute={setSelectedRouteId} highlightedDestination={selectedDestination} destinationCompleted={selectedDestinationCompleted} />
+          <GameBoard room={room} myTurn={myTurn && room.drawsThisTurn === 0 && !pendingChoices} selectedRouteId={selectedRouteId} onSelectRoute={setSelectedRouteId} highlights={boardHighlights} />
           <div className="ttr-map-legend">
             <span><i className="open" /> Open route</span>
             <span><i className="owned" /> Claimed route</span>
@@ -232,8 +294,11 @@ export default function TicketToRideClient() {
         </div>
       </section>
 
-      {selectedRoute && !room.claimedRoutes[selectedRoute.id] && <ClaimPanel route={selectedRoute} colors={paymentColors} busy={busy} onClose={() => setSelectedRouteId(null)} onClaim={(color) => { update((current) => claimRoute(current, playerId, selectedRoute.id, color)); setSelectedRouteId(null); }} />}
-      {pendingChoices && <DestinationChoice modal title="Choose new journeys" subtitle="Keep at least one. This ends your turn." choices={pendingChoices} selected={ticketSelection} setSelected={setTicketSelection} minimum={1} busy={busy} onConfirm={() => { update((current) => chooseDrawnDestinations(current, playerId, ticketSelection)); setTicketSelection([]); }} onLeave={leaveRoom} />}
+      {selectedRoute && !pendingChoices && !room.claimedRoutes[selectedRoute.id] && <ClaimPanel route={selectedRoute} colors={paymentColors} busy={busy} onClose={() => setSelectedRouteId(null)} onClaim={(color) => { update((current) => claimRoute(current, playerId, selectedRoute.id, color)); setSelectedRouteId(null); }} />}
+      {/* Docked rather than a modal over the table: choosing which journeys to
+          keep is a question about the board you have already built, and the old
+          full-screen overlay was the one moment the map went away. */}
+      {pendingChoices && <DestinationDock choices={pendingChoices} selected={ticketSelection} setSelected={setTicketSelection} hovered={hoveredChoiceId} setHovered={setHoveredChoiceId} busy={busy} onConfirm={() => { update((current) => chooseDrawnDestinations(current, playerId, ticketSelection)); setTicketSelection([]); setHoveredChoiceId(null); }} />}
       {room.phase === "finished" && <FinalScores room={room} playerId={playerId} onLeave={leaveRoom} />}
     </main>
   );
@@ -248,22 +313,169 @@ function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart
   return <main className="ttr-lobby-shell"><section className="ttr-lobby-card"><p className="ttr-kicker">All aboard</p><h1>Your room is ready</h1><button className="ttr-code-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><span>{room.roomCode}</span><small><Copy size={14} /> Copy room code</small></button><div className="ttr-lobby-players">{room.players.map((player, index) => <div key={player.id}>{player.isComputer ? <Bot style={{ color: player.color }} /> : <TrainFront style={{ color: player.color }} />}<span><strong>{player.name}</strong><small>{index === 0 ? "Host" : player.isComputer ? "Computer player" : "Ready to ride"}</small></span>{player.isComputer && isHost ? <button className="ttr-remove-computer" aria-label={`Remove ${player.name}`} disabled={busy} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}{Array.from({ length: Math.max(0, 5 - room.players.length) }, (_, index) => <div className="empty" key={index}><Users /><span><strong>Open seat</strong><small>Waiting for a traveler</small></span></div>)}</div>{isHost && room.players.length < 5 && <button className="ttr-add-computer" disabled={busy} onClick={onAddComputer}><Bot size={19} /> Add computer</button>}{isHost ? <button className="ttr-primary ttr-start" disabled={busy || room.players.length < 2} onClick={onStart}><TrainFront size={20} /> Start journey</button> : <p className="ttr-waiting-copy">Waiting for {room.players[0].name} to start the journey…</p>}<button className="ttr-quiet" onClick={onLeave}>Leave room</button>{room.players.length < 2 && isHost && <p className="ttr-waiting-copy">Add a computer or invite another traveler to begin.</p>}{error && <p className="ttr-form-error">{error}</p>}</section></main>;
 }
 
+/* The board does not go away again once it has arrived: the wait for the other
+ * travelers is the first chance to plan a line between the journeys you kept, so
+ * it happens on the same screen the choice did. */
 function WaitingRoom({ room, me, onLeave }) {
-  return <main className="ttr-lobby-shell"><section className="ttr-lobby-card"><TrainFront className="ttr-waiting-train" /><p className="ttr-kicker">Tickets, please</p><h1>Your choices are locked in</h1><p className="ttr-waiting-copy">Waiting for the other travelers to choose their destinations.</p><div className="ttr-ready-list">{room.players.map((player) => <span key={player.id} className={!player.pendingDestinations.length ? "ready" : ""}><i style={{ background: player.color }} />{player.name}{player.id === me.id ? " (you)" : ""}{player.isComputer ? " · Computer" : ""}<b>{!player.pendingDestinations.length ? "Ready" : "Choosing…"}</b></span>)}</div><button className="ttr-quiet" type="button" onClick={onLeave}>Leave room</button></section></main>;
+  const highlights = me.destinations.map((destination, index) => ({
+    id: destination.id,
+    from: destination.from,
+    to: destination.to,
+    points: destination.points,
+    color: CHOICE_INKS[index % CHOICE_INKS.length],
+    state: "candidate",
+    picked: true,
+    dim: false,
+  }));
+
+  return <main className="ttr-picker-shell">
+    <header className="ttr-picker-header">
+      <div><p className="ttr-kicker">Tickets, please</p><h1>Your choices are locked in</h1></div>
+      <p className="ttr-picker-sub">Waiting for the other travelers. Your journeys stay on the map — a good moment to work out the line that joins them.</p>
+      <button className="ttr-quiet ttr-picker-leave" type="button" onClick={onLeave}><LogOut size={15} /> Leave room</button>
+    </header>
+    <div className="ttr-picker-grid">
+      <section className="ttr-board-card" aria-label="Rail map of North America">
+        <GameBoard room={room} myTurn={false} selectedRouteId={null} onSelectRoute={() => {}} highlights={highlights} />
+      </section>
+      <aside className="ttr-picker-side">
+        <h2><Ticket size={16} /> Your journeys</h2>
+        <div className="ttr-picker-tickets">
+          {me.destinations.map((destination, index) => <ChoiceTicket key={destination.id} destination={destination} color={CHOICE_INKS[index % CHOICE_INKS.length]} selected />)}
+        </div>
+        <div className="ttr-ready-list">{room.players.map((player) => <span key={player.id} className={!player.pendingDestinations.length ? "ready" : ""}><i style={{ background: player.color }} />{player.name}{player.id === me.id ? " (you)" : ""}{player.isComputer ? " · Computer" : ""}<b>{!player.pendingDestinations.length ? "Ready" : "Choosing…"}</b></span>)}</div>
+      </aside>
+    </div>
+  </main>;
 }
 
-function DestinationChoice({ title, subtitle, choices, selected, setSelected, minimum, busy, onConfirm, onLeave, modal = false }) {
-  const content = <section className="ttr-choice-card"><p className="ttr-kicker">Private destinations</p><h1>{title}</h1><p>{subtitle}</p><div className="ttr-choice-grid">{choices.map((destination) => { const active = selected.includes(destination.id); return <button key={destination.id} className={active ? "selected" : ""} onClick={() => setSelected((current) => active ? current.filter((id) => id !== destination.id) : [...current, destination.id])}><span className="ttr-ticket-points">{destination.points}<small>points</small></span><Ticket /><strong>{CITIES[destination.from].name}</strong><i>to</i><strong>{CITIES[destination.to].name}</strong><span className="ttr-checkmark"><Check /></span></button>; })}</div><button className="ttr-primary ttr-confirm" disabled={busy || selected.length < minimum} onClick={onConfirm}>Keep {selected.length} {selected.length === 1 ? "destination" : "destinations"}</button><small className="ttr-minimum">Choose at least {minimum}</small>{onLeave && <button className="ttr-quiet" type="button" onClick={onLeave}><LogOut size={15} /> Leave room</button>}</section>;
-  return modal ? <div className="ttr-overlay">{content}</div> : <main className="ttr-choice-shell">{content}</main>;
+/**
+ * One ticket on offer. Selecting it keeps it; hovering or focusing it brings its
+ * line on the map forward, which is the whole point of drawing them there.
+ *
+ * Without `onToggle` it is the same card with nothing left to decide — a ticket
+ * you already hold — so it is drawn rather than offered.
+ */
+function ChoiceTicket({ destination, color, selected, onToggle, onHover }) {
+  const inner = <>
+    <span className="ttr-choice-swatch" aria-hidden="true" />
+    <span className="ttr-choice-route">
+      <strong>{CITIES[destination.from].name}</strong>
+      <i>to</i>
+      <strong>{CITIES[destination.to].name}</strong>
+    </span>
+    <b>{destination.points}<small>pts</small></b>
+    <span className="ttr-pick-mark" aria-hidden="true"><Check size={13} /></span>
+  </>;
+  const className = `ttr-choice-ticket ${selected ? "selected" : ""}`;
+
+  if (!onToggle) {
+    return <div className={`${className} static`} style={{ "--ticket-ink": color }}>{inner}</div>;
+  }
+
+  return <button
+    type="button"
+    className={className}
+    style={{ "--ticket-ink": color }}
+    aria-pressed={selected}
+    aria-label={`${destinationLabel(destination)}, ${destination.points} points. ${selected ? "Keeping" : "Not keeping"}.`}
+    onClick={onToggle}
+    onMouseEnter={() => onHover(destination.id)}
+    onMouseLeave={() => onHover(null)}
+    onFocus={() => onHover(destination.id)}
+    onBlur={() => onHover(null)}
+  >{inner}</button>;
 }
 
-function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlightedDestination, destinationCompleted }) {
+function toggleChoice(setSelected, id) {
+  setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+}
+
+/**
+ * The opening ticket deal, with the board.
+ *
+ * Choosing two of three journeys blind is choosing between names, and the names
+ * only mean something next to the continent they cross — so the map is on screen
+ * before the first choice of the game, with every ticket drawn across it.
+ */
+function DestinationPicker({ room, title, subtitle, choices, selected, setSelected, hovered, setHovered, minimum, busy, onConfirm, onLeave }) {
+  const highlights = choiceHighlights(choices, selected, hovered);
+  return <main className="ttr-picker-shell">
+    <header className="ttr-picker-header">
+      <div><p className="ttr-kicker">Private destinations</p><h1>{title}</h1></div>
+      <p className="ttr-picker-sub">{subtitle}</p>
+      <button className="ttr-quiet ttr-picker-leave" type="button" onClick={onLeave}><LogOut size={15} /> Leave room</button>
+    </header>
+    <div className="ttr-picker-grid">
+      <section className="ttr-board-card" aria-label="Rail map of North America">
+        <GameBoard room={room} myTurn={false} selectedRouteId={null} onSelectRoute={() => {}} highlights={highlights} />
+      </section>
+      <aside className="ttr-picker-side">
+        <h2><Ticket size={16} /> Your three tickets</h2>
+        <div className="ttr-picker-tickets">
+          {choices.map((destination, index) => <ChoiceTicket
+            key={destination.id}
+            destination={destination}
+            color={CHOICE_INKS[index % CHOICE_INKS.length]}
+            selected={selected.includes(destination.id)}
+            onToggle={() => toggleChoice(setSelected, destination.id)}
+            onHover={setHovered}
+          />)}
+        </div>
+        <p className="ttr-picker-hint">Point at a ticket to trace it on the map. Drag the map to pan, and use the zoom buttons for a closer look.</p>
+        <button className="ttr-primary ttr-picker-confirm" disabled={busy || selected.length < minimum} onClick={onConfirm}>Keep {selected.length} {selected.length === 1 ? "destination" : "destinations"}</button>
+        <small className="ttr-minimum">Choose at least {minimum}</small>
+      </aside>
+    </div>
+  </main>;
+}
+
+/** Mid-game ticket draw: the same choice, docked beside the live board. */
+function DestinationDock({ choices, selected, setSelected, hovered, setHovered, busy, onConfirm }) {
+  return <section className="ttr-ticket-dock" aria-label="Choose new destination tickets">
+    <p className="ttr-kicker">New destinations</p>
+    <h2>Keep at least one</h2>
+    <p className="ttr-dock-hint">Each ticket is drawn on the map beside this card. Point at one to trace it. Keeping ends your turn.</p>
+    <div className="ttr-dock-tickets">
+      {choices.map((destination, index) => <ChoiceTicket
+        key={destination.id}
+        destination={destination}
+        color={CHOICE_INKS[index % CHOICE_INKS.length]}
+        selected={selected.includes(destination.id)}
+        onToggle={() => toggleChoice(setSelected, destination.id)}
+        onHover={setHovered}
+      />)}
+    </div>
+    <div className="ttr-dock-actions">
+      <button className="ttr-primary" disabled={busy || selected.length < 1} onClick={onConfirm}>Keep {selected.length || ""} {selected.length === 1 ? "ticket" : "tickets"}</button>
+      <small>{selected.length ? `Returning ${choices.length - selected.length} to the deck` : "Choose at least one"}</small>
+    </div>
+  </section>;
+}
+
+/**
+ * @param {object[]} highlights destinations to draw over the map, each
+ *   `{ id, from, to, points, color, state, picked, dim }`. More than one at a
+ *   time is the case that matters: choosing between tickets means comparing them.
+ */
+function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlights = [] }) {
   const map = useMapView(BOARD_W, BOARD_H);
   const lakes = lakePaths();
-  const destinationState = destinationCompleted ? "complete" : "incomplete";
-  const highlightedCityIds = highlightedDestination
-    ? new Set([highlightedDestination.from, highlightedDestination.to])
-    : null;
+  /* A city on two highlighted tickets takes the first one's colour rather than
+     splitting the difference; the lines say the rest. */
+  const highlightedCities = new Map();
+  for (const highlight of highlights) {
+    if (highlight.dim) continue;
+    for (const cityId of [highlight.from, highlight.to]) {
+      if (!highlightedCities.has(cityId)) highlightedCities.set(cityId, highlight);
+    }
+  }
+  const spoken = highlights.filter((highlight) => !highlight.dim).map((highlight) => {
+    const pair = `${CITIES[highlight.from].name} to ${CITIES[highlight.to].name}`;
+    if (highlight.state === "complete") return `${pair}, connected`;
+    if (highlight.state === "incomplete") return `${pair}, not connected yet`;
+    return `${pair}, ${highlight.points} points`;
+  });
 
   return <div className="ttr-map-frame">
     <svg
@@ -271,8 +483,8 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlightedDe
       className={`ttr-map ${map.zoomed ? "zoomed" : ""}`}
       viewBox={map.viewBox}
       role="img"
-      aria-label={highlightedDestination
-        ? `${CITIES[highlightedDestination.from].name} and ${CITIES[highlightedDestination.to].name} highlighted ${destinationCompleted ? "green for a completed destination" : "red for an incomplete destination"}`
+      aria-label={spoken.length
+        ? `Cities and train routes across North America. Highlighted destinations: ${spoken.join("; ")}.`
         : "Cities and train routes across North America"}
       {...map.handlers}
     >
@@ -308,11 +520,15 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlightedDe
         />;
       })}
 
+      {highlights.map((highlight) => <DestinationLink key={highlight.id} highlight={highlight} />)}
+
       {Object.entries(CITIES).map(([id, city]) => {
-        const highlighted = highlightedCityIds?.has(id);
-        return <g className={`ttr-city ${highlighted ? `destination-${destinationState}` : ""}`} data-city-id={id} data-destination-state={highlighted ? destinationState : undefined} key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}>
-        <circle r="7" /><circle r="3" />
-        {highlighted && <circle className="ttr-city-highlight" r="14" />}
+        const highlight = highlightedCities.get(id);
+        const candidate = highlight?.state === "candidate";
+        return <g className={`ttr-city ${highlight ? `destination-${highlight.state}` : ""}`} data-city-id={id} data-destination-state={highlight?.state} key={id} transform={`translate(${city.x * 10} ${city.y * 6})`}>
+        <circle r="7" style={candidate ? { fill: "#fff5e0", stroke: highlight.color } : undefined} />
+        <circle r="3" style={candidate ? { fill: highlight.color } : undefined} />
+        {highlight && <circle className="ttr-city-highlight" r="14" style={candidate ? { stroke: highlight.color } : undefined} />}
         <text x={city.labelX ?? 0} y={city.labelY ?? 20} textAnchor={city.labelAnchor ?? "middle"}>{city.name}</text>
       </g>;
       })}
@@ -324,6 +540,37 @@ function GameBoard({ room, myTurn, selectedRouteId, onSelectRoute, highlightedDe
       <button type="button" onClick={map.zoomIn} aria-label="Zoom in">+</button>
     </div>
   </div>;
+}
+
+/**
+ * A ticket drawn across the map: its two cities joined by a bowed dashed line
+ * carrying the ticket's points.
+ *
+ * The bow is what keeps it readable — a straight chord between two cities often
+ * lies along the very routes it is asking about, and would read as track.
+ */
+function DestinationLink({ highlight }) {
+  const from = CITY_POINTS[highlight.from];
+  const to = CITY_POINTS[highlight.to];
+  const span = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+  const bow = Math.min(34, span * 0.11);
+  const control = {
+    x: (from.x + to.x) / 2 - ((to.y - from.y) / span) * bow,
+    y: (from.y + to.y) / 2 + ((to.x - from.x) / span) * bow,
+  };
+  const middle = quadraticPoint(from, control, to, 0.5);
+  const outline = `M${from.x} ${from.y}Q${control.x.toFixed(1)} ${control.y.toFixed(1)} ${to.x} ${to.y}`;
+  const classes = ["ttr-destination-link", highlight.dim && "dim", highlight.picked && "picked"]
+    .filter(Boolean).join(" ");
+
+  return <g className={classes} aria-hidden="true">
+    <path className="ttr-destination-link-halo" d={outline} />
+    <path className="ttr-destination-link-line" d={outline} style={{ stroke: highlight.color }} />
+    <g transform={`translate(${middle.x.toFixed(1)} ${middle.y.toFixed(1)})`}>
+      <rect className="ttr-destination-pip" x="-11" y="-8.5" width="22" height="17" rx="8.5" style={{ fill: highlight.color }} />
+      <text className="ttr-destination-pip-label" y="4" textAnchor="middle">{highlight.points}</text>
+    </g>
+  </g>;
 }
 
 function RouteGraphic({ route, owner, selected, interactive, blocked, onClick }) {
@@ -401,19 +648,6 @@ function quadraticPoint(start, control, end, t) {
   return {
     x: inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x,
     y: inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y,
-  };
-}
-
-function fixedRouteSection(start, control, end, position) {
-  const center = quadraticPoint(start, control, end, position);
-  const derivative = {
-    x: 2 * (1 - position) * (control.x - start.x) + 2 * position * (end.x - control.x),
-    y: 2 * (1 - position) * (control.y - start.y) + 2 * position * (end.y - control.y),
-  };
-  return {
-    x: center.x,
-    y: center.y,
-    angle: Math.atan2(derivative.y, derivative.x) * 180 / Math.PI,
   };
 }
 
