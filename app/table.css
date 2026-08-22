@@ -1287,7 +1287,7 @@
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap: calc(16 * var(--px)) calc(20 * var(--px));
+  gap: calc(20 * var(--px)) calc(26 * var(--px));
   place-items: center;
   pointer-events: none;
 }
@@ -1295,20 +1295,20 @@
 .seven-up-lane {
   display: flex;
   align-items: center;
-  gap: calc(5 * var(--px));
-  min-width: calc(118 * var(--px));
+  gap: calc(6 * var(--px));
+  min-width: calc(148 * var(--px));
 }
 
 .seven-up-lane-suit {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: calc(18 * var(--px));
-  height: calc(18 * var(--px));
+  width: calc(22 * var(--px));
+  height: calc(22 * var(--px));
   border-radius: 50%;
   background: rgba(6, 28, 20, .55);
   color: var(--felt-ink);
-  font-size: calc(11.5 * var(--px));
+  font-size: calc(14 * var(--px));
 }
 
 .seven-up-lane.is-hearts .seven-up-lane-suit,
@@ -1322,34 +1322,59 @@
 }
 
 .seven-up-lane-card {
-  width: calc(24 * var(--px));
+  width: calc(31 * var(--px));
   z-index: calc(var(--i) + 1);
   filter: drop-shadow(0 calc(2 * var(--px)) calc(4 * var(--px)) rgba(6, 20, 14, .45));
 }
 
 .seven-up-lane-card:not(:first-child) {
-  margin-left: calc(-13 * var(--px));
+  margin-left: calc(-16 * var(--px));
 }
 
 .seven-up-lane-card.is-seven {
   z-index: 20;
-  margin-top: calc(-5 * var(--px));
+  margin-top: calc(-6 * var(--px));
 }
 
 .seven-up-table-card {
   display: block;
-  width: calc(24 * var(--px));
+  width: calc(31 * var(--px));
   height: auto;
 }
 
 .seven-up-lane-card.is-seven .seven-up-table-card {
-  width: calc(28 * var(--px));
+  width: calc(36 * var(--px));
 }
 
 .seven-up-lane-empty {
   color: var(--felt-ink-dim);
-  font-size: calc(9.6 * var(--px));
+  font-size: calc(11 * var(--px));
   font-style: italic;
+}
+
+/* Seven-Up's own log sits below the hand rather than beside a piles panel,
+   so it doesn't need the 220px .tbl-side floor every other felt game's
+   side-by-side layout wants — and trimming it hands .tbl-felt-fit's flex:1
+   more of the shell's height, which is where that height actually goes:
+   straight into the felt (and the tableau riding its --px scale). */
+.seven-up-log {
+  min-height: 0;
+  padding: 12px 15px;
+}
+
+/* Every pixel this shell's chrome doesn't need goes to the felt via
+   .tbl-felt-fit's flex:1, so a little air comes out of the hand zone too —
+   its own header and Pass row, not the cards, which stay full size. */
+.seven-up-theme .tbl-hand-zone {
+  padding: 10px 14px;
+}
+
+.seven-up-theme .tbl-actions {
+  padding-top: 6px;
+}
+
+.seven-up-theme .hand-help {
+  font-size: 0.78rem;
 }
 
 /* The tableau fills the middle the small centre mark used to leave clear, so
@@ -2035,29 +2060,29 @@
      actually has between its top and bottom seats instead. */
   .seven-up-tableau {
     grid-template-columns: 1fr;
-    gap: calc(4 * var(--px));
+    gap: calc(6 * var(--px));
   }
   .seven-up-lane {
     min-width: 0;
-    gap: calc(3 * var(--px));
+    gap: calc(4 * var(--px));
   }
   .seven-up-lane-suit {
-    width: calc(13 * var(--px));
-    height: calc(13 * var(--px));
-    font-size: calc(8.5 * var(--px));
+    width: calc(16 * var(--px));
+    height: calc(16 * var(--px));
+    font-size: calc(10.5 * var(--px));
   }
   .seven-up-lane-card,
   .seven-up-table-card {
-    width: calc(15 * var(--px));
+    width: calc(19 * var(--px));
   }
   .seven-up-lane-card:not(:first-child) {
-    margin-left: calc(-8 * var(--px));
+    margin-left: calc(-10 * var(--px));
   }
   .seven-up-lane-card.is-seven .seven-up-table-card {
-    width: calc(17 * var(--px));
+    width: calc(22 * var(--px));
   }
   .seven-up-lane-empty {
-    font-size: calc(7.5 * var(--px));
+    font-size: calc(9 * var(--px));
   }
   .seven-up-felt .tbl-felt-meta {
     bottom: 3.5%;

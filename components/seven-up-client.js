@@ -494,19 +494,6 @@ export default function SevenUpClient() {
             />
           </section>
 
-          <aside className="tbl-side tbl-log seven-up-log">
-            <p>Table talk</p>
-            {(() => {
-              const log = mode === "local" ? localGame?.log : room.state?.game?.log;
-              if (!log || log.length === 0) {
-                return <span className="tbl-log-line">No turns yet.</span>;
-              }
-              return log.slice(0, 5).map((entry, index) => (
-                <span className="tbl-log-line" key={`${index}-${entry}`}>{entry}</span>
-              ));
-            })()}
-          </aside>
-
           <section className="tbl-hand-zone">
             <header className="tbl-hand-header">
               <div>
@@ -551,6 +538,19 @@ export default function SevenUpClient() {
               </button>
             </div>
           </section>
+
+          <aside className="tbl-side tbl-log seven-up-log">
+            <p>Table talk</p>
+            {(() => {
+              const log = mode === "local" ? localGame?.log : room.state?.game?.log;
+              if (!log || log.length === 0) {
+                return <span className="tbl-log-line">No turns yet.</span>;
+              }
+              return log.slice(0, 5).map((entry, index) => (
+                <span className="tbl-log-line" key={`${index}-${entry}`}>{entry}</span>
+              ));
+            })()}
+          </aside>
         </main>
       ) : (
         <div className="page-shell">
