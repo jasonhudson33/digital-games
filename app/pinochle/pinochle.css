@@ -138,83 +138,19 @@
 .pn-wash-notice div span { padding: 3px 6px; border-radius: 5px; background: rgba(255,255,255,.58); font-size: .66rem; }
 
 /* ── The table ───────────────────────────────────────────────────────────────
- * Seats and played cards are placed by lib/pinochle-seats.js in a fixed 940x580
- * design box and emitted as percentages, so the felt scales to whatever room it
- * has while the plates and cards stay a legible fixed size. One arrangement
- * covers every screen and every table from two players to six.
+ * The felt, the seats and the played cards are the shared seated table in
+ * app/table.css, placed by lib/table-seats.js. What is left here is the part
+ * that is Pinochle's own: the auction and the meld.
  */
 
 .pn-table { width: min(1180px, 100%); margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; align-items: start; }
 
-.pn-felt-table { position: relative; width: 100%; aspect-ratio: 940 / 580; }
+.pn-felt-mark.red { color: #ef9a97; }
 
-.pn-felt {
-  position: absolute;
-  inset: 0;
-  border: 9px solid #663f24;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 34%, #1d6650, #12452f 62%, #0d3325);
-  box-shadow: inset 0 0 60px rgba(3,26,18,.55), 0 16px 40px rgba(12,32,24,.28);
-}
-
-/* ── Seats ─────────────────────────────────────────────────────────────────── */
-
-.pn-seat { position: absolute; left: var(--seat-x); top: var(--seat-y); translate: -50% -50%; width: 152px; }
-
-.pn-seat-plate {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 9px;
-  border: 1px solid rgba(240,222,180,.2);
-  border-radius: 11px;
-  background: rgba(9,36,27,.9);
-  box-shadow: 0 5px 14px rgba(6,24,18,.4);
-}
-
-.pn-seat-avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #123527; background: linear-gradient(#f0dfae, #d8bd80); font-family: var(--font-ui); font-size: .88rem; font-weight: 800; }
-.pn-seat-who { min-width: 0; }
-.pn-seat-who strong { display: block; overflow: hidden; color: #f6ecd4; font-family: var(--font-ui); font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
-.pn-seat-who strong span { color: #9dbcac; font-weight: 500; }
-.pn-seat-who small { display: block; overflow: hidden; color: #93b3a2; font-size: .6rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Marks ride the plate's corner. Inside its grid they took width from the name,
-   and two of them turned "Bot Vale" into "Bo…". */
-/* Marks hang on the plate's corner rather than sitting in its grid, where two of
-   them turned "Bot Vale" into "Bo…". They still have to be paid for, though: the
-   plate reserves their lane, so a long name ends in an ellipsis instead of
-   disappearing underneath a badge. */
-.pn-seat-marks { position: absolute; top: -9px; right: -5px; display: flex; gap: 3px; }
-.pn-seat-plate:has(.pn-mark) { padding-right: 22px; }
-.pn-seat-plate:has(.pn-mark + .pn-mark) { padding-right: 47px; }
-.pn-mark { display: grid; place-items: center; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 6px; font-family: var(--font-ui); font-size: .6rem; font-style: normal; font-weight: 800; }
-.pn-mark.deal { color: #dcecdf; background: rgba(255,255,255,.16); }
-.pn-mark.bid { color: #2a1c02; background: #edc45c; }
-
-/* Whose turn it is belongs on the seat, not in a sentence elsewhere. */
-.pn-seat.turn .pn-seat-plate { border-color: #f0c653; background: rgba(20,64,44,.96); box-shadow: 0 0 0 2px rgba(240,198,83,.5), 0 6px 18px rgba(6,24,18,.45); }
-.pn-seat.self .pn-seat-plate { border-color: rgba(240,222,180,.55); }
-/* Your side of the table, said on the plate itself now that the partner dot has
-   gone — one less badge competing with the name for a 92px plate. */
-.pn-seat.mate .pn-seat-avatar { background: linear-gradient(#a9d3bb, #79b295); }
-.pn-seat.mate .pn-seat-plate { border-color: rgba(142,197,166,.7); box-shadow: inset 3px 0 0 #8ec5a6, 0 5px 14px rgba(6,24,18,.4); }
-.pn-seat.self .pn-seat-plate { box-shadow: inset 3px 0 0 rgba(240,222,180,.75), 0 5px 14px rgba(6,24,18,.4); }
-
-/* A hand you cannot see: a fan of backs behind the plate, so a seat reads as
-   somebody holding cards. Behind rather than above, which also keeps the seat's
-   box short enough that a played card never runs into a diagonal neighbour. */
-.pn-seat-fan { position: absolute; left: 50%; bottom: 62%; translate: -50% 0; width: 100%; height: 30px; display: grid; place-items: center; z-index: -1; }
-.pn-seat-fan i { position: absolute; width: 22px; height: 31px; border: 1.5px solid #e8d9ae; border-radius: 3px; background: repeating-linear-gradient(45deg, #17503d 0 3px, #113a2e 3px 6px); rotate: var(--a); translate: var(--o) 0; }
-
-/* The auction, seated. */
-.pn-seat-bid { position: absolute; left: 50%; top: calc(100% + 5px); translate: -50% 0; padding: 2px 8px; border-radius: 999px; color: #163a2b; background: #eddaa8; font-family: var(--font-ui); font-size: .64rem; font-weight: 800; white-space: nowrap; }
-.pn-seat-bid.pass { color: #cfe0d5; background: rgba(255,255,255,.13); text-decoration: line-through; }
-
-/* Meld belongs to a player, so it opens from their seat. */
+/* Meld belongs to a player, so it opens from their seat rather than from a panel
+   that listed the same people over again. */
 .pn-seat-meld { position: absolute; left: 50%; top: calc(100% + 5px); translate: -50% 0; width: 100%; }
-.pn-seat-meld summary { padding: 2px 8px; border-radius: 999px; color: #14382a; background: rgba(215,232,220,.88); font-family: var(--font-ui); font-size: .6rem; font-weight: 800; list-style: none; text-align: center; cursor: pointer; }
+.pn-seat-meld summary { display: block; position: static; translate: none; list-style: none; text-align: center; cursor: pointer; }
 .pn-seat-meld summary::-webkit-details-marker { display: none; }
 .pn-seat-meld[open] > div { position: absolute; left: 50%; top: calc(100% + 5px); translate: -50% 0; z-index: 6; width: 176px; padding: 8px 9px; border-radius: 10px; color: #e6f0e8; background: rgba(6,30,22,.97); box-shadow: 0 10px 24px rgba(4,18,13,.5); }
 .pn-seat-meld p { display: grid; grid-template-columns: 1fr auto; gap: 1px 6px; margin: 0 0 6px; font-size: .62rem; }
@@ -224,35 +160,11 @@
 .pn-seat-meld i { padding: 0 3px; border-radius: 3px; background: rgba(255,255,255,.1); font-style: normal; font-size: .58rem; }
 .pn-seat-meld i.red { color: #f2a3a1; }
 
-/* Pills hang away from the middle of the table, because the middle is where the
-   cards are: a seat in the upper half puts them above its plate, one in the lower
-   half below. Sending every non-viewer pill upward instead worked on a wide felt
-   and dropped a meld total straight onto a card on a narrow one, where the ring
-   of cards sits much closer to the plates.
+/* The summary is a pill, so it follows the pill rule: away from the middle of
+   the table, because the middle is where the cards are. */
+.tbl-chair.upper .pn-seat-meld { top: auto; bottom: calc(100% + var(--pill-lift)); }
+.tbl-chair.upper .pn-seat-meld[open] > div { top: auto; bottom: calc(100% + 5px); }
 
-   Above the plate is also where the fan of card backs peeks out, so an upper
-   seat's pill clears that too — 32px, the height the fan shows. */
-.pn-seat { --pill-lift: 32px; }
-.pn-seat.upper .pn-seat-bid,
-.pn-seat.upper .pn-seat-meld { top: auto; bottom: calc(100% + var(--pill-lift)); }
-.pn-seat.upper .pn-seat-meld[open] > div { top: auto; bottom: calc(100% + var(--pill-lift)); }
-
-/* ── Played cards ──────────────────────────────────────────────────────────── */
-
-.pn-seat-card { position: absolute; left: var(--card-x); top: var(--card-y); translate: -50% -50%; rotate: var(--tilt); transition: left .34s ease, top .34s ease, rotate .34s ease; }
-.pn-seat-card .pn-card { width: 62px; height: 86px; }
-.pn-seat-card.won .pn-card { outline: 2px solid #f0c653; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(240,198,83,.18), 0 6px 14px rgba(10,26,20,.34); }
-
-@media (prefers-reduced-motion: reduce) { .pn-seat-card { transition: none; } }
-
-/* ── The middle ────────────────────────────────────────────────────────────── */
-
-/* The middle of the felt is a box the cards have to keep out of, so it is sized
-   in lib/pinochle-seats.js as `centre` — 150x72 here, which the two marks below
-   stack inside. Grow one of them and the ring of cards has to be re-solved. */
-.pn-felt-trump { position: absolute; left: 50%; top: 50%; translate: -50% -50%; margin-top: -12px; display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid rgba(240,222,180,.22); border-radius: 50%; color: #f4e3ba; background: rgba(6,28,20,.62); font-size: 1.5rem; line-height: 1; pointer-events: none; }
-.pn-felt-trump.red { color: #ef9a97; }
-.pn-felt-meta { position: absolute; left: 50%; top: 50%; translate: -50% -50%; margin-top: 25px; max-width: 148px; overflow: hidden; padding: 2px 8px; border-radius: 999px; background: rgba(6,28,20,.55); color: #a9c6b6; font-size: .58rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
 
 /* ── Beside the table ──────────────────────────────────────────────────────── */
 
@@ -326,31 +238,8 @@
   .pn-lobby-heading,
   .pn-lobby-footer { align-items: flex-start; flex-direction: column; }
   .pn-seat-grid { grid-template-columns: 1fr; }
-  /* A phone gets a table too, stood on its end — and its own solution, because a
-     92px plate on a portrait felt is a different arrangement problem, not the
-     desktop's answer scaled down. These sizes are the ones PHONE_TABLE in
-     lib/pinochle-seats.js solves against; changing one means changing both. */
+  /* The felt stands on its end here — that is all in app/table.css. */
   .pn-table { grid-template-columns: 1fr; }
-  .pn-felt-table { aspect-ratio: 360 / 500; }
-  .pn-seat { left: var(--seat-x-n); top: var(--seat-y-n); width: 92px; }
-  .pn-seat-card { left: var(--card-x-n); top: var(--card-y-n); }
-  .pn-seat-plate { gap: 4px; padding: 4px; border-radius: 9px; }
-  .pn-seat-avatar { width: 18px; height: 18px; font-size: .6rem; }
-  .pn-seat-who strong { font-size: .58rem; }
-  .pn-seat-who small { font-size: .48rem; }
-  .pn-seat-fan { display: none; }
-  .pn-mark { min-width: 15px; height: 15px; padding: 0 3px; font-size: .48rem; }
-  .pn-seat-marks { top: -7px; right: -4px; gap: 2px; }
-  .pn-seat-plate:has(.pn-mark) { padding-right: 14px; }
-  .pn-seat-plate:has(.pn-mark + .pn-mark) { padding-right: 31px; }
-  .pn-seat-card .pn-card { width: 40px; height: 56px; }
-  /* Only the trump suit fits in the middle at six seats; the bid and trick line
-     goes to the foot of the felt, which is the one patch of clear green left. */
-  .pn-felt-trump { width: 28px; height: 28px; margin-top: 0; font-size: 1rem; }
-  .pn-felt-meta { top: auto; bottom: 7%; translate: -50% 0; margin-top: 0; max-width: 165px; font-size: .46rem; }
-  /* No fan of backs at this size, so nothing to clear. */
-  .pn-seat { --pill-lift: 5px; }
-  .pn-seat-bid, .pn-seat-meld summary { font-size: .5rem; padding: 1px 5px; }
   .pn-seat-meld[open] > div { width: 150px; }
   .pn-rule-grid,
   .pn-meld-guide { grid-template-columns: 1fr; }
