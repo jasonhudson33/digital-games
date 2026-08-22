@@ -403,258 +403,60 @@
 }
 
 .hearts-board {
-  width: min(1380px, 100%);
+  width: min(1180px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  grid-template-rows: minmax(540px, calc(100vh - 286px)) auto;
-  gap: 14px;
+  gap: 12px;
 }
 
-.score-strip {
-  grid-row: 1 / span 2;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, .045);
+/* ── The table ───────────────────────────────────────────────────────────────
+ * The felt, the chairs and the played cards are the shared seated table in
+ * app/table.css. What is left here is what Hearts paints on it.
+ *
+ * This replaced a scoreboard down the left, a rail of opponents pinned across
+ * the top of the felt, and a row of played cards captioned with names — three
+ * places that each printed every player's name.
+ */
+
+.hearts-felt-wrap { position: relative; }
+
+.hearts-felt {
+  /* A wooden edge, because the page behind this one is nearly as dark as the
+     cloth and without it the table has no rim at all. */
+  --felt-rim: #3a2a1e;
+  --felt-cloth: var(--felt-light);
+  --felt-cloth-mid: var(--felt);
+  --felt-cloth-deep: #0c2c24;
+  --felt-plate: rgba(8, 30, 25, .9);
+  --felt-plate-lit: rgba(24, 62, 50, .96);
+  /* The accent stays gold. Red is what a broken heart means here, and a red ring
+     round the seat whose turn it is reads as a warning instead. */
 }
 
-.score-strip::before {
-  content: "Scoreboard";
-  padding: 3px 4px 8px;
-  color: rgba(248, 244, 233, .45);
-  font-size: .68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .14em;
-}
+/* Whether hearts are broken decides what you may lead, so it sits in the middle
+   of the felt where you are already looking — dim until it matters. */
+.hearts-broken { color: rgba(255, 255, 255, .28); transition: color .25s ease; }
+.hearts-broken.on { color: #ff7d72; }
 
-.score-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 9px;
-  padding: 9px;
-  border: 1px solid transparent;
+/* A card on the felt is sized by the table, so its face has to scale with it —
+   the pip is set for a 104px card in the hand and would spill out of a 40px one
+   on a phone. Everything inside is in em off the card's own font-size. */
+.tbl-felt-table .tbl-played .hearts-playing-card { width: var(--card-w); border-radius: calc(var(--card-w) / 9); font-size: calc(var(--card-w) / 8); }
+.tbl-felt-table .tbl-played .card-corner { left: .55em; top: .4em; font-size: 1.15em; }
+.tbl-felt-table .tbl-played .card-corner i { margin-top: .1em; }
+.tbl-felt-table .tbl-played .card-corner-bottom { inset: auto .55em .4em auto; }
+.tbl-felt-table .tbl-played .card-pip { font-size: 3.4em; }
+
+.hearts-message {
+  margin: 0;
+  padding: 8px 14px;
   border-radius: 12px;
-  color: rgba(248, 244, 233, .74);
-}
-
-.score-item.active {
-  border-color: rgba(255, 255, 255, .1);
-  background: rgba(255, 255, 255, .07);
-}
-
-.score-avatar,
-.opponent-avatar {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  color: #14372e;
-  background: #d8c8a9;
-  font-weight: 800;
-}
-
-.score-item strong,
-.score-item small { display: block; }
-.score-item strong { color: #f8f4e9; font-size: .83rem; }
-.score-item small { margin-top: 2px; color: rgba(248, 244, 233, .43); font-size: .65rem; }
-.score-item b { color: var(--hrt-white); font-family: var(--font-ui); font-size: 1.3rem; }
-
-.felt-table {
-  position: relative;
-  min-height: 540px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .13);
-  border-radius: 38px;
-  background:
-    radial-gradient(ellipse at center, rgba(255, 255, 255, .05), transparent 55%),
-    repeating-linear-gradient(125deg, rgba(255,255,255,.012) 0, rgba(255,255,255,.012) 1px, transparent 1px, transparent 5px),
-    linear-gradient(145deg, var(--felt-light), var(--felt));
-  box-shadow: inset 0 0 90px rgba(0, 0, 0, .28), 0 25px 55px rgba(0,0,0,.18);
-}
-
-.felt-table::after {
-  content: "";
-  position: absolute;
-  inset: 13px;
-  pointer-events: none;
-  border: 1px solid rgba(235, 214, 173, .12);
-  border-radius: 29px;
-}
-
-.opponents-rail {
-  position: absolute;
-  z-index: 5;
-  top: 25px;
-  left: 28px;
-  right: 28px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 8px;
-}
-
-.opponent-seat {
-  position: relative;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 6px;
-  color: rgba(248, 244, 233, .65);
-  text-align: left;
-}
-
-.opponent-seat::before {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  z-index: -1;
-  opacity: 0;
-  border-radius: 16px;
-  background: rgba(255,255,255,.07);
-  transition: opacity 140ms ease;
-}
-
-.opponent-seat.active::before { opacity: 1; }
-.opponent-seat.active .opponent-avatar { box-shadow: 0 0 0 3px var(--heart-red); }
-.opponent-seat strong, .opponent-seat small { display: block; }
-.opponent-seat strong { color: var(--hrt-white); font-size: .81rem; }
-.opponent-seat small { margin-top: 2px; font-size: .65rem; }
-.opponent-avatar { width: 34px; height: 34px; font-size: .8rem; }
-.opponent-cards {
-  display: none;
-}
-.opponent-cards i {
-  position: absolute;
-  left: calc(var(--mini-index) * 7px);
-  width: 23px;
-  height: 32px;
-  border: 1px solid rgba(255,255,255,.4);
-  border-radius: 4px;
-  background: repeating-linear-gradient(45deg, #a22931 0 3px, #7f1d27 3px 6px);
-  box-shadow: 0 4px 8px rgba(0,0,0,.16);
-}
-
-.table-center {
-  position: absolute;
-  z-index: 3;
-  inset: 50% auto auto 50%;
-  width: min(680px, 76%);
-  transform: translate(-50%, -40%);
+  background: rgba(255, 255, 255, .05);
+  color: rgba(248, 244, 233, .85);
+  font-size: .82rem;
   text-align: center;
 }
 
-.trick-count {
-  display: inline-flex;
-  padding: 5px 10px;
-  color: rgba(248, 244, 233, .52);
-  border: 1px solid rgba(255,255,255,.09);
-  border-radius: 999px;
-  font-size: .62rem;
-  font-weight: 800;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-
-.table-message {
-  min-height: 29px;
-  margin: 9px 0 2px;
-  color: #f7ecd8;
-  font-family: var(--font-ui);
-  font-size: 1.02rem;
-}
-
-.played-cards {
-  position: relative;
-  width: min(520px, 100%);
-  min-height: 245px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 34px 8px 20px;
-}
-
-.played-card-slot {
-  position: relative;
-  width: 82px;
-  text-align: center;
-  animation: card-arrive 220ms ease-out both;
-}
-
-.played-card-slot small {
-  display: block;
-  margin-top: 4px;
-  overflow: hidden;
-  color: rgba(248,244,233,.55);
-  font-size: .58rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.played-card {
-  position: relative;
-  width: 82px;
-  border-radius: 10px;
-}
-
-.played-card .card-pip { font-size: 3rem; }
-.played-card .card-corner { font-size: .88rem; }
-
-.played-cards.many-players {
-  width: min(640px, 100%);
-  gap: 6px;
-}
-
-.played-cards.many-players .played-card-slot,
-.played-cards.many-players .played-card {
-  width: 68px;
-}
-
-.played-cards.many-players .played-card .card-pip { font-size: 2.4rem; }
-
-@keyframes card-arrive {
-  from { opacity: 0; scale: .82; }
-  to { opacity: 1; scale: 1; }
-}
-
-.empty-trick {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 84px;
-  height: 84px;
-  display: grid;
-  place-items: center;
-  transform: translate(-50%, -50%) rotate(45deg);
-  color: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 18px;
-}
-
-.empty-trick span { transform: rotate(-45deg); font-size: 1.8rem; }
-
-.table-meta {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  color: rgba(248, 244, 233, .43);
-  font-size: .66rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-
-.table-meta span { display: inline-flex; align-items: center; gap: 5px; }
-.table-meta .broken { color: #ff7d72; }
 
 .pass-callout {
   position: absolute;
@@ -839,7 +641,19 @@
   border-radius: 13px;
   background: #eeeae1;
 }
-.round-score-list .score-avatar { width: 30px; height: 30px; }
+/* The round results still list everyone, so the avatar disc outlives the
+   scoreboard the chairs replaced. */
+.score-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #14372e;
+  background: #d8c8a9;
+  font-weight: 800;
+}
 .round-score-list small { color: #858a83; }
 .round-score-list b { text-align: right; font-family: var(--font-ui); font-size: 1.2rem; }
 .next-pass { display: block; margin-top: 11px; color: #878c84; }
@@ -849,38 +663,14 @@
 @media (max-width: 1000px) {
   .hearts-intro { grid-template-columns: 1fr; padding-top: 50px; }
   .hearts-card-art { display: none; }
-  .hearts-board { grid-template-columns: 1fr; grid-template-rows: auto minmax(520px, calc(100vh - 355px)) auto; }
-  .score-strip { grid-row: auto; flex-direction: row; overflow-x: auto; }
-  .score-strip::before { display: none; }
-  .score-item { flex: 1 0 145px; }
-  .felt-table { grid-row: 2; }
-  .your-seat { grid-row: 3; }
 }
 
 @media (max-width: 700px) {
   .hearts-game-shell { padding: 10px; }
   .hearts-gamebar { margin: 2px auto 9px; }
   .gamebar-actions button { width: 38px; padding: 0; justify-content: center; font-size: 0; }
-  .hearts-board { gap: 8px; grid-template-rows: auto 480px auto; }
-  .score-strip { padding: 6px; }
-  .score-item { flex-basis: 122px; padding: 6px; }
-  .score-avatar { width: 27px; height: 27px; }
-  .score-item small { display: none; }
-  .score-item b { font-size: 1.05rem; }
-  .felt-table { min-height: 480px; border-radius: 26px; }
-  .felt-table::after { inset: 8px; border-radius: 20px; }
-  .opponents-rail { top: 15px; left: 14px; right: 14px; grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 3px; }
-  .opponent-seat { padding: 3px; }
-  .opponent-seat small, .opponent-cards { display: none; }
-  .opponent-seat > div:nth-child(2) { display: none; }
-  .table-center { width: 94%; top: 57%; }
-  .played-cards { width: 100%; min-height: 230px; padding-top: 26px; }
-  .played-card-slot, .played-card { width: 66px; }
-  .played-cards.many-players .played-card-slot,
-  .played-cards.many-players .played-card { width: 55px; }
-  .played-cards.many-players .played-card .card-corner { font-size: .72rem; }
-  .played-cards.many-players .played-card .card-pip { font-size: 2rem; }
-  .table-meta { gap: 9px; }
+  .hearts-board { gap: 8px; }
+  .hearts-message { font-size: .74rem; padding: 6px 10px; }
   .pass-callout { right: 50%; bottom: 12px; width: 210px; transform: translateX(50%); }
   .player-hand { justify-content: flex-start; overflow-x: auto; min-height: 132px; padding: 6px 0 7px; }
   .hand-card-button { flex: 0 0 52px; min-width: 52px; margin-left: -3px; }

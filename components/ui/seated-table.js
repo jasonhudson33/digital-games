@@ -45,7 +45,7 @@ const join = (...names) => names.filter(Boolean).join(" ");
 export function SeatedTable({ count, viewerIndex, table, middle, foot, className, children }) {
   const solved = tableShapes(count, table)
     .map((entry) => ({ ...entry, layout: seatLayout(count, viewerIndex, entry.shape) }));
-  const crowded = solved[0].crowded;
+  const { tier } = solved[0];
 
   /* Both shapes' positions for one seat, as one style object. */
   const styles = (prefix, pick) => Object.assign(
@@ -54,12 +54,12 @@ export function SeatedTable({ count, viewerIndex, table, middle, foot, className
   );
 
   return (
-    <div className={join("tbl-felt-table", crowded && "crowded", className)}>
+    <div className={join("tbl-felt-table", tier, className)}>
       <div className="tbl-felt" aria-hidden="true" />
       {middle}
       {children({
         layout: solved[0].layout,
-        crowded,
+        tier,
         seatStyle: (index) => styles("seat", (layout) => layout[index].seat),
         /* `restingOn` gathers a whole trick onto whoever took it, which says
            where it went better than a line of text that only lasts one phase. */

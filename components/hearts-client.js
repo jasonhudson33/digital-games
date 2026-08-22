@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import {
   SUIT_SYMBOLS,
   chooseBotHeartCard,
@@ -185,46 +186,8 @@ export default function HeartsClient() {
       </header>
 
       <section className="hearts-board" aria-label="Hearts game table">
-        <div className="score-strip" aria-label="Scoreboard">
-          {game.players.map((player, index) => (
-            <div key={player.id} className={`score-item ${game.currentPlayerIndex === index && ["playing", "collecting"].includes(game.phase) ? "active" : ""}`}>
-              <span className="score-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
-              <span><strong>{player.name}</strong><small>{player.roundPoints} this round</small></span>
-              <b>{player.score}</b>
-            </div>
-          ))}
-        </div>
-
-        <div className="felt-table">
-          <div className="opponents-rail">
-            {game.players.slice(1).map((player, opponentIndex) => {
-              const index = opponentIndex + 1;
-              return <OpponentSeat key={player.id} player={player} active={game.currentPlayerIndex === index} />;
-            })}
-          </div>
-
-          <div className="table-center">
-            <span className="trick-count">Trick {game.trickNumber} / {game.cardsPerPlayer}</span>
-            <div className="table-message" role="status">{game.message}</div>
-            <div className={`played-cards ${game.playerCount > 4 ? "many-players" : ""}`}>
-              {game.trick.map((play) => (
-                <div className="played-card-slot" key={`${play.playerIndex}-${play.card.id}`}>
-                  <DisplayCard card={play.card} className="played-card" />
-                  <small>{game.players[play.playerIndex].name}</small>
-                </div>
-              ))}
-              {!game.trick.length && <div className="empty-trick"><span>{game.variant === "killer" ? "☠" : "♥"}</span></div>}
-            </div>
-            <div className="table-meta">
-              <span className={game.heartsPlayed ? "broken" : ""}>
-                <Heart size={14} fill="currentColor" /> {game.heartsPlayed ? "Hearts are broken" : "Hearts are not broken"}
-              </span>
-              <span>Pass: {game.variant === "killer" ? "none" : game.passDirection}</span>
-              {(game.carryoverCards.length > 0 || (!game.kittyClaimed && game.kitty.length > 0)) && (
-                <span>Carryover: {game.carryoverCards.length + (!game.kittyClaimed ? game.kitty.length : 0)} cards</span>
-              )}
-            </div>
-          </div>
+        <div className="hearts-felt-wrap">
+          <HeartsTable game={game} />
 
           {game.phase === "passing" && (
             <div className="pass-callout">
@@ -241,6 +204,8 @@ export default function HeartsClient() {
             </div>
           )}
         </div>
+
+        <p className="hearts-message" role="status">{game.message}</p>
 
         <div className="your-seat">
           <div className="your-turn-label">
@@ -286,15 +251,92 @@ export default function HeartsClient() {
   );
 }
 
-function OpponentSeat({ player, active }) {
+/*
+ * The table, with everybody sitting at it.
+ *
+ * What this replaced: a scoreboard down the left listing every player, a rail of
+ * opponents pinned across the top of the felt, and a row of played cards in the
+ * middle captioned with names in 12px type. Every player's name was printed
+ * three times, and "who played that queen?" was a question you answered by
+ * reading rather than by looking.
+ *
+ * Hearts scores on points taken, not on tricks, so that is what a seat carries:
+ * what they have picked up this round, and what they are carrying into it.
+ */
+function HeartsTable({ game }) {
+  const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
+  /* A cancelled trick in Killer has no winner and carries over, so there is
+     nobody for it to gather onto. */
+  const winnerIndex = game.phase === "collecting" ? game.lastTrick?.winnerIndex ?? null : null;
+  const carried = game.carryoverCards.length + (game.kittyClaimed ? 0 : game.kitty.length);
+
   return (
-    <div className={`opponent-seat ${active ? "active" : ""}`}>
-      <div className="opponent-avatar">{player.name.slice(0, 1)}</div>
-      <div><strong>{player.name}</strong><small>{player.hand.length} cards · {player.tricks} tricks</small></div>
-      <div className="opponent-cards" aria-hidden="true">
-        {Array.from({ length: Math.min(5, player.hand.length) }, (_, index) => <i key={index} style={{ "--mini-index": index }} />)}
-      </div>
-    </div>
+    <SeatedTable
+      count={game.playerCount}
+      viewerIndex={0}
+      className="hearts-felt"
+      middle={(
+        /* Whether hearts are broken decides what you are allowed to lead, so it
+           belongs where you are already looking rather than in a row of pills
+           below the felt. */
+        <b
+          className={`tbl-felt-mark hearts-broken ${game.heartsPlayed ? "on" : ""}`}
+          title={game.heartsPlayed ? "Hearts are broken" : "Hearts are not broken yet"}
+        >
+          {"\u2665"}
+        </b>
+      )}
+      foot={(
+        <small className="tbl-felt-meta">
+          {game.phase === "passing"
+            ? `Pass ${game.passDirection}`
+            : `Trick ${game.trickNumber} / ${game.cardsPerPlayer}`}
+          {carried > 0 ? ` \u00b7 ${carried} carried` : ""}
+        </small>
+      )}
+    >
+      {({ layout, seatStyle, cardStyle }) => (
+        <>
+          {layout.map((spot) => {
+            const card = played.get(spot.index);
+            if (!card) return null;
+            return (
+              <PlayedCard
+                key={`${spot.index}-${card.id}`}
+                won={winnerIndex === spot.index}
+                gathered={winnerIndex !== null}
+                style={cardStyle(spot.index, winnerIndex)}
+              >
+                <DisplayCard card={card} />
+              </PlayedCard>
+            );
+          })}
+
+          {layout.map((spot) => {
+            const player = game.players[spot.index];
+            return (
+              <Seat
+                key={player.id}
+                spot={spot}
+                style={seatStyle(spot.index)}
+                name={player.name}
+                avatar={player.name.slice(0, 1).toUpperCase()}
+                note={`${player.roundPoints} pts`}
+                hand={player.hand.length}
+                tone={game.currentPlayerIndex === spot.index && ["playing", "collecting"].includes(game.phase) ? "turn" : ""}
+                marks={spot.index === game.dealerIndex
+                  ? [{ key: "deal", label: "D", title: "Dealer", tone: "deal" }]
+                  : []}
+              >
+                {/* The running total, on the person it belongs to. This is the
+                    scoreboard that used to sit down the side of the table. */}
+                <span className="tbl-chair-pill quiet">{player.score} total</span>
+              </Seat>
+            );
+          })}
+        </>
+      )}
+    </SeatedTable>
   );
 }
 

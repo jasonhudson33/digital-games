@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { backFan, clearance, seatLayout, tableShapes, WIDE_TABLE } from "../lib/table-seats.js";
+import { backFan, clearance, leaning, seatLayout, tableShapes, WIDE_TABLE } from "../lib/table-seats.js";
 
 /*
  * The seating has to hold for every table these games deal — two players up to
@@ -156,17 +156,28 @@ test("pills hang away from the middle of the table", () => {
   });
 });
 
-test("the plates give up their second line only once they have to", () => {
-  for (const count of COUNTS) {
-    const [wide] = tableShapes(count);
-    assert.equal(wide.crowded, count > 8, `${count} seats`);
+test("furniture shrinks in step with the table, and only when it has to", () => {
+  const tierOf = (count) => tableShapes(count)[0].tier;
+  assert.deepEqual(COUNTS.map(tierOf), [
+    "roomy", "roomy", "roomy", "roomy", "roomy", "busy", "busy", "crowded", "crowded",
+  ]);
+  // Nothing ever gets bigger as the table fills up.
+  const area = (box) => box.w * box.h;
+  for (let i = 1; i < COUNTS.length; i += 1) {
+    const [before] = tableShapes(COUNTS[i - 1]);
+    const [after] = tableShapes(COUNTS[i]);
+    assert.ok(area(after.shape.card) <= area(before.shape.card), `card grew at ${COUNTS[i]} seats`);
+    assert.ok(area(after.shape.plate) <= area(before.shape.plate), `plate grew at ${COUNTS[i]} seats`);
   }
-  // Seven and eight buy their room from the gap instead, so the cards keep their
-  // size — the thing a player actually has to read.
-  const [eight] = tableShapes(8);
-  const [four] = tableShapes(4);
-  assert.deepEqual(eight.shape.card, four.shape.card);
-  assert.ok(eight.shape.gap < four.shape.gap);
+});
+
+test("the table solves against the box a leaning card actually covers", () => {
+  // A card is laid down at an angle, so it is wider than its own width. Solving
+  // against the upright box put a phone card four pixels into the plate beside it.
+  const upright = { w: 40, h: 56 };
+  const leaned = leaning(upright);
+  assert.ok(leaned.w > upright.w && leaned.h > upright.h);
+  assert.ok(leaned.w < upright.w + 6, "four degrees, not forty");
 });
 
 test("a game can bring its own card size", () => {

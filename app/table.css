@@ -1362,8 +1362,14 @@
   aspect-ratio: 940 / 580;
 }
 
-/* From nine seats the plates lose their second line and a quarter of their
-   width — see the tiers in lib/table-seats.js. */
+/* Seven and eight seats buy their room from the cards; from nine the plates lose
+   their second line and a quarter of their width as well. Both tiers are decided
+   in lib/table-seats.js — these are the sizes it solves against. */
+.tbl-felt-table.busy {
+  --card-w: 54px;
+  --card-h: 75px;
+}
+
 .tbl-felt-table.crowded {
   --seat-w: 112px;
   --seat-pad: 4px 7px;
@@ -1426,8 +1432,10 @@
    plate reserves their lane, so a long name ends in an ellipsis instead of
    disappearing underneath a badge. */
 .tbl-chair-marks { position: absolute; top: -9px; right: -5px; display: flex; gap: 3px; }
-.tbl-chair-plate:has(.tbl-mark) { padding-right: calc(var(--mark-w) + 2px); }
-.tbl-chair-plate:has(.tbl-mark + .tbl-mark) { padding-right: calc((var(--mark-w) * 2) + 5px); }
+/* The lane is only as wide as the part of the mark that actually sits over the
+   plate — it hangs 5px off the corner — so a name gives up as little as it can. */
+.tbl-chair-plate:has(.tbl-mark) { padding-right: calc(var(--mark-w) - 3px); }
+.tbl-chair-plate:has(.tbl-mark + .tbl-mark) { padding-right: calc(var(--mark-w) * 2); }
 .tbl-mark { display: grid; place-items: center; min-width: var(--mark-w); height: var(--mark-h); padding: 0 5px; border-radius: 6px; font-family: var(--font-ui); font-size: calc(var(--mark-h) * .48); font-style: normal; font-weight: 800; }
 .tbl-mark.deal { color: #dcecdf; background: rgba(255, 255, 255, .16); }
 .tbl-mark.lead { color: #2a1c02; background: var(--felt-accent); }
@@ -1482,8 +1490,10 @@
 .tbl-felt-table .tbl-played > * { width: var(--card-w); height: var(--card-h); }
 .tbl-felt-table .tbl-played.won > * { outline: 2px solid var(--felt-accent); outline-offset: 2px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--felt-accent) 18%, transparent), 0 6px 14px rgba(10, 26, 20, .34); }
 /* The whole trick slides to whoever took it, which says where it went better
-   than a label that only lasts until the phase changes. */
-.tbl-played.gathered { rotate: calc(var(--tilt) * 2.4); }
+   than a label that only lasts until the phase changes. It shrinks as it goes,
+   both because that is what sweeping cards up looks like and because it keeps
+   the jumbled pile inside the box the table solved for. */
+.tbl-played.gathered { rotate: calc(var(--tilt) * 1.5); scale: .9; }
 
 @media (prefers-reduced-motion: reduce) { .tbl-played { transition: none; } }
 
@@ -1534,7 +1544,12 @@
   /* A phone gets a table too, stood on its end — and its own solution, because a
      92px plate on a portrait felt is a different arrangement problem, not the
      desktop's answer scaled down. */
-  .tbl-felt-table {
+  /* Both selectors, because `.tbl-felt-table.busy` outranks a bare
+     `.tbl-felt-table` even inside a media query — and a phone at seven seats
+     drew the desktop's busy-tier card while the table had solved for this one,
+     which put the whole trick on top of a name plate. */
+  .tbl-felt-table,
+  .tbl-felt-table.busy {
     --seat-w: 92px;
     --seat-pad: 4px;
     --seat-avatar: 18px;
