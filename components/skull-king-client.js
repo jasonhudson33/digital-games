@@ -399,7 +399,7 @@ export default function SkullKingClient() {
   );
 
   return (
-    <main className="skull-app skull-game-shell">
+    <main className="skull-app skull-game-shell tbl-felt-shell">
       <header className="skull-gamebar">
         <div className="gamebar-title">
           <span className="gamebar-anchor"><Anchor size={19} /></span>

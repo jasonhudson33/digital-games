@@ -1428,11 +1428,18 @@
     height: calc(100vh - var(--felt-shell-offset, 0px));
     height: calc(100dvh - var(--felt-shell-offset, 0px));
     min-height: 0;
+    /* The felt is never let smaller than its floor, below. When a window is
+       short enough that the floor no longer fits the space left over, that
+       floor would otherwise just overflow its box and paint over whatever
+       comes after it — a hand of cards, on every game that has one. Letting
+       the shell scroll is what "a window too short scrolls a little instead"
+       was supposed to mean; without this it silently covered things instead. */
+    overflow-y: auto;
   }
 
   .tbl-felt-fit {
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: calc(650px * 580 / 940);
     container-type: size;
     display: grid;
     place-items: center;
@@ -1451,6 +1458,9 @@
      width of the others and carry no second line, so the same floor would put
      the names at seven pixels. Nine chairs on a short window scrolls a little
      rather than becoming unreadable. */
+  .tbl-felt-fit:has(> .tbl-felt-table.crowded) {
+    min-height: calc(800px * 580 / 940);
+  }
   .tbl-felt-fit > .tbl-felt-table.crowded {
     width: min(100%, max(800px, calc(100cqh * 940 / 580)));
   }
