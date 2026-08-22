@@ -27,7 +27,6 @@
   --cya-green-2: #1f6650;
   --cya-cream: #f7efd9;
   --cya-gold: #d6a431;
-  --cya-red: var(--cya-red);
   color: var(--cya-ink);
   font-family: var(--font-ui);
 }
