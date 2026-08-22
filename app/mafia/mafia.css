@@ -36,6 +36,16 @@
     box-sizing: border-box;
   }
 
+  .mafia-route input[type="text"] {
+    background-color: rgba(2, 6, 23, 0.6) !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+  }
+
+  .mafia-route input[type="text"]::placeholder {
+    color: #94a3b8 !important;
+  }
+
   .mafia-route playing-card {
     display: block;
     width: 100%;
@@ -47,9 +57,9 @@
   .mafia-route input:-webkit-autofill:focus,
   .mafia-route textarea:-webkit-autofill,
   .mafia-route select:-webkit-autofill {
-    -webkit-text-fill-color: #111827;
-    caret-color: #111827;
-    box-shadow: 0 0 0 1000px #ffffff inset;
+    -webkit-text-fill-color: #f8fafc;
+    caret-color: #f8fafc;
+    box-shadow: 0 0 0 1000px #020617 inset !important;
     transition: background-color 9999s ease-out 0s;
   }
 }

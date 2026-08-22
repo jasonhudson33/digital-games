@@ -43,7 +43,7 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin, c
             placeholder="e.g. Inspector Noir"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+            className="w-full bg-slate-950/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
           />
         </div>
 
@@ -62,7 +62,7 @@ const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin, c
                 maxLength={4}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center font-mono text-2xl tracking-widest placeholder:text-slate-400"
+                className="w-full bg-slate-950/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center font-mono text-2xl tracking-widest placeholder:text-slate-400"
               />
             </div>
             <div className="flex gap-2">
