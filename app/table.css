@@ -1287,7 +1287,7 @@
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap: calc(20 * var(--px)) calc(26 * var(--px));
+  gap: calc(26 * var(--px)) calc(34 * var(--px));
   place-items: center;
   pointer-events: none;
 }
@@ -1296,19 +1296,19 @@
   display: flex;
   align-items: center;
   gap: calc(6 * var(--px));
-  min-width: calc(148 * var(--px));
+  min-width: calc(185 * var(--px));
 }
 
 .seven-up-lane-suit {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: calc(22 * var(--px));
-  height: calc(22 * var(--px));
+  width: calc(27 * var(--px));
+  height: calc(27 * var(--px));
   border-radius: 50%;
   background: rgba(6, 28, 20, .55);
   color: var(--felt-ink);
-  font-size: calc(14 * var(--px));
+  font-size: calc(17 * var(--px));
 }
 
 .seven-up-lane.is-hearts .seven-up-lane-suit,
@@ -1322,28 +1322,28 @@
 }
 
 .seven-up-lane-card {
-  width: calc(31 * var(--px));
+  width: calc(40 * var(--px));
   z-index: calc(var(--i) + 1);
   filter: drop-shadow(0 calc(2 * var(--px)) calc(4 * var(--px)) rgba(6, 20, 14, .45));
 }
 
 .seven-up-lane-card:not(:first-child) {
-  margin-left: calc(-16 * var(--px));
+  margin-left: calc(-21 * var(--px));
 }
 
 .seven-up-lane-card.is-seven {
   z-index: 20;
-  margin-top: calc(-6 * var(--px));
+  margin-top: calc(-8 * var(--px));
 }
 
 .seven-up-table-card {
   display: block;
-  width: calc(31 * var(--px));
+  width: calc(40 * var(--px));
   height: auto;
 }
 
 .seven-up-lane-card.is-seven .seven-up-table-card {
-  width: calc(36 * var(--px));
+  width: calc(46 * var(--px));
 }
 
 .seven-up-lane-empty {
@@ -1680,6 +1680,16 @@
   }
   .tbl-felt-fit > .tbl-felt-table.crowded {
     width: min(100%, max(800px, calc(100cqh * 940 / 580)));
+  }
+
+  /* Seven-Up's tableau lives on the felt itself rather than in a side panel,
+     so a bigger table buys room for both the seats and the suit lanes at
+     once — worth a larger floor than the other felt games get by default. */
+  .tbl-felt-fit:has(> .tbl-felt-table.seven-up-felt) {
+    min-height: calc(760px * 580 / 940);
+  }
+  .tbl-felt-fit > .tbl-felt-table.seven-up-felt {
+    width: min(100%, max(760px, calc(100cqh * 940 / 580)));
   }
 }
 
@@ -2060,26 +2070,26 @@
      actually has between its top and bottom seats instead. */
   .seven-up-tableau {
     grid-template-columns: 1fr;
-    gap: calc(6 * var(--px));
+    gap: calc(8 * var(--px));
   }
   .seven-up-lane {
     min-width: 0;
-    gap: calc(4 * var(--px));
+    gap: calc(5 * var(--px));
   }
   .seven-up-lane-suit {
-    width: calc(16 * var(--px));
-    height: calc(16 * var(--px));
-    font-size: calc(10.5 * var(--px));
+    width: calc(20 * var(--px));
+    height: calc(20 * var(--px));
+    font-size: calc(13 * var(--px));
   }
   .seven-up-lane-card,
   .seven-up-table-card {
-    width: calc(19 * var(--px));
+    width: calc(25 * var(--px));
   }
   .seven-up-lane-card:not(:first-child) {
-    margin-left: calc(-10 * var(--px));
+    margin-left: calc(-13 * var(--px));
   }
   .seven-up-lane-card.is-seven .seven-up-table-card {
-    width: calc(22 * var(--px));
+    width: calc(29 * var(--px));
   }
   .seven-up-lane-empty {
     font-size: calc(9 * var(--px));

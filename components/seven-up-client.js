@@ -42,7 +42,6 @@ export default function SevenUpClient() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerConfigs, setPlayerConfigs] = useState(() => buildPlayerConfigs(4));
   const [localGame, setLocalGame] = useState(null);
-  const [overlayState, setOverlayState] = useState({ visible: false, playerName: "", message: "" });
   const [room, setRoom] = useState(initialRoom);
   const [createName, setCreateName] = useState("");
   const [joinRoomCode, setJoinRoomCode] = useState("");
@@ -65,7 +64,7 @@ export default function SevenUpClient() {
   }, []);
 
   useEffect(() => {
-    if (!localGame || overlayState.visible || localGame.winnerIndex !== null) {
+    if (!localGame || localGame.winnerIndex !== null) {
       return;
     }
     const currentPlayer = localGame.players[localGame.currentPlayerIndex];
@@ -80,7 +79,7 @@ export default function SevenUpClient() {
         clearTimeout(aiTimerRef.current);
       }
     };
-  }, [localGame, overlayState.visible]);
+  }, [localGame]);
 
   useEffect(() => {
     if (!room.roomCode || !room.token) {
@@ -121,11 +120,10 @@ export default function SevenUpClient() {
   const renderContext = getRenderContext({
     mode,
     localGame,
-    overlayState,
     roomState: room.state,
   });
 
-  const handContext = getHandContext({ mode, localGame, overlayState, roomState: room.state });
+  const handContext = getHandContext({ mode, localGame, roomState: room.state });
 
   function hydrateFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -166,6 +164,19 @@ export default function SevenUpClient() {
     setPlayerConfigs((previous) => resizePlayerConfigs(previous, nextCount));
   }
 
+  /* Local play is you against computers — one human seat, always the first
+     one. Switching into it drops any second human seat a room setup left
+     behind, so a stray "Player 2: Human" from room mode can't sneak a
+     hot-seat pass-and-play back in. */
+  function handleModeChange(nextMode) {
+    setMode(nextMode);
+    if (nextMode === "local") {
+      setPlayerConfigs((previous) =>
+        previous.map((player, index) => ({ ...player, playerType: index === 0 ? "human" : "computer" }))
+      );
+    }
+  }
+
   function handlePlayerConfigChange(index, patch) {
     setPlayerConfigs((previous) =>
       previous.map((player, playerIndex) =>
@@ -194,16 +205,6 @@ export default function SevenUpClient() {
     const firstPlayer = game.players[game.currentPlayerIndex];
     game.log.unshift(`${firstPlayer.name} goes first because play starts to the dealer's left.`);
     setLocalGame(game);
-    if (firstPlayer.playerType === "computer") {
-      setOverlayState({
-        visible: true,
-        playerName: firstPlayer.name,
-        message: "Cards are dealt. Review the table, then continue to let play begin.",
-      });
-      return;
-    }
-    setOverlayState({ visible: false, playerName: "", message: "" });
-    showOverlayIfNeeded(game, `${firstPlayer.name} goes first.`);
   }
 
   async function createRoom() {
@@ -314,7 +315,7 @@ export default function SevenUpClient() {
   function playLocalCard(card) {
     clearError();
     setLocalGame((previous) => {
-      if (!previous || overlayState.visible || previous.winnerIndex !== null) {
+      if (!previous || previous.winnerIndex !== null) {
         return previous;
       }
       const currentPlayer = previous.players[previous.currentPlayerIndex];
@@ -337,7 +338,6 @@ export default function SevenUpClient() {
         return nextGame;
       }
       advanceTurn(nextGame);
-      showOverlayIfNeeded(nextGame, `${nextPlayer.name} completed their turn.`);
       return nextGame;
     });
   }
@@ -367,7 +367,7 @@ export default function SevenUpClient() {
   function handleLocalPass() {
     clearError();
     setLocalGame((previous) => {
-      if (!previous || overlayState.visible || previous.winnerIndex !== null) {
+      if (!previous || previous.winnerIndex !== null) {
         return previous;
       }
       const currentPlayer = previous.players[previous.currentPlayerIndex];
@@ -379,7 +379,6 @@ export default function SevenUpClient() {
       nextGame.players[nextGame.currentPlayerIndex].passedLastTurn = true;
       nextGame.log.unshift(`${currentPlayer.name} passes.`);
       advanceTurn(nextGame);
-      showOverlayIfNeeded(nextGame, "No legal move was available.");
       return nextGame;
     });
   }
@@ -426,26 +425,8 @@ export default function SevenUpClient() {
     stopPolling();
     clearRoomToken(room.roomCode);
     setLocalGame(null);
-    setOverlayState({ visible: false, playerName: "", message: "" });
     setRoom(initialRoom);
     updateUrl("", "");
-  }
-
-  function showOverlayIfNeeded(game, message) {
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    const humanCount = game.players.filter((player) => player.playerType === "human").length;
-    if (game.winnerIndex !== null || currentPlayer.playerType !== "human" || humanCount < 2) {
-      return;
-    }
-    setOverlayState({
-      visible: true,
-      playerName: currentPlayer.name,
-      message,
-    });
-  }
-
-  function hideOverlay() {
-    setOverlayState({ visible: false, playerName: "", message: "" });
   }
 
   const roomPreview = room.state || room.joinPreview;
@@ -559,7 +540,7 @@ export default function SevenUpClient() {
               <p className="eyebrow">Card Game</p>
               <h1>7-up</h1>
               <p className="subtitle">
-                Play locally, mix in computer players, or create a shared room and deal into the same game from anywhere.
+                Play against computers on this device, or create a shared room and play with other people from anywhere.
               </p>
             </div>
             <button className="secondary-button" onClick={resetAll} type="button">
@@ -573,9 +554,9 @@ export default function SevenUpClient() {
                 <h2>Setup</h2>
                 <form className="setup-form" onSubmit={handleSubmit}>
                   <label htmlFor="mode-select">Play mode</label>
-                  <select id="mode-select" value={mode} onChange={(event) => setMode(event.target.value)}>
-                    <option value="local">Local game</option>
-                    <option value="room">Room game</option>
+                  <select id="mode-select" value={mode} onChange={(event) => handleModeChange(event.target.value)}>
+                    <option value="local">Play vs. computers</option>
+                    <option value="room">Play with other people online</option>
                   </select>
 
                   <label htmlFor="player-count">Players</label>
@@ -587,36 +568,58 @@ export default function SevenUpClient() {
                     ))}
                   </select>
 
-                  <div className="name-fields">
-                    {playerConfigs.map((player, index) => (
-                      <div key={index} className="player-row">
+                  {mode === "local" ? (
+                    <div className="name-fields">
+                      <div className="player-row">
                         <div>
-                          <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
+                          <label htmlFor="player-name-0">Your name</label>
                           <input
-                            id={`player-name-${index}`}
-                            value={player.name}
+                            id="player-name-0"
+                            value={playerConfigs[0]?.name || ""}
                             maxLength={20}
                             onChange={(event) =>
-                              handlePlayerConfigChange(index, { name: event.target.value })
+                              handlePlayerConfigChange(0, { name: event.target.value })
                             }
                           />
                         </div>
-                        <div>
-                          <label htmlFor={`player-type-${index}`}>Type</label>
-                          <select
-                            id={`player-type-${index}`}
-                            value={player.playerType}
-                            onChange={(event) =>
-                              handlePlayerConfigChange(index, { playerType: event.target.value })
-                            }
-                          >
-                            <option value="human">Human</option>
-                            <option value="computer">Computer</option>
-                          </select>
-                        </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="room-mode-note">
+                        You against {Math.max(playerConfigs.length - 1, 0)} computer opponent
+                        {playerConfigs.length - 1 === 1 ? "" : "s"}.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="name-fields">
+                      {playerConfigs.map((player, index) => (
+                        <div key={index} className="player-row">
+                          <div>
+                            <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
+                            <input
+                              id={`player-name-${index}`}
+                              value={player.name}
+                              maxLength={20}
+                              onChange={(event) =>
+                                handlePlayerConfigChange(index, { name: event.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`player-type-${index}`}>Type</label>
+                            <select
+                              id={`player-type-${index}`}
+                              value={player.playerType}
+                              onChange={(event) =>
+                                handlePlayerConfigChange(index, { playerType: event.target.value })
+                              }
+                            >
+                              <option value="human">Human</option>
+                              <option value="computer">Computer</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {mode === "room" ? (
                     <div className="room-mode-note">
@@ -754,19 +757,6 @@ export default function SevenUpClient() {
         </div>
       )}
 
-      {overlayState.visible ? (
-        <div className="handoff-overlay">
-          <div className="handoff-card">
-            <p className="eyebrow">Next turn</p>
-            <h2>{overlayState.playerName}</h2>
-            <p>{overlayState.message}</p>
-            <button className="primary-button" type="button" onClick={hideOverlay}>
-              Show hand
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {showWinnerOverlay ? (
         <div className="handoff-overlay">
           <div className="handoff-card">
@@ -842,7 +832,7 @@ function SevenUpGameHeader({ mode, roomCode, statusText, onLeave }) {
 function SevenUpTable({ playerRail, mode, tableau, turnCount }) {
   const viewerIndex = Math.max(
     0,
-    playerRail.findIndex((player) => (mode === "local" ? player.isCurrent : player.isViewer)),
+    playerRail.findIndex((player) => player.isViewer),
   );
 
   return (
@@ -1022,7 +1012,7 @@ function getTableau({ mode, localGame, roomState }) {
   return roomState?.game?.tableau || null;
 }
 
-function getRenderContext({ mode, localGame, overlayState, roomState }) {
+function getRenderContext({ mode, localGame, roomState }) {
   if (mode === "local" && localGame) {
     const player = localGame.players[localGame.currentPlayerIndex];
     const legalMoves = player.hand.filter((card) => isLegalPlay(localGame.tableau, card));
@@ -1042,7 +1032,6 @@ function getRenderContext({ mode, localGame, overlayState, roomState }) {
         .map((entry) => `${entry.name} (${entry.playerType}): ${entry.hand.length}`)
         .join(" | "),
       canPass:
-        !overlayState.visible &&
         localGame.winnerIndex === null &&
         player.playerType === "human" &&
         legalMoves.length === 0,
@@ -1096,7 +1085,7 @@ function getRenderContext({ mode, localGame, overlayState, roomState }) {
   return null;
 }
 
-function getHandContext({ mode, localGame, overlayState, roomState }) {
+function getHandContext({ mode, localGame, roomState }) {
   if (mode === "local") {
     if (!localGame) {
       return {
@@ -1106,28 +1095,15 @@ function getHandContext({ mode, localGame, overlayState, roomState }) {
         helpText: "Playable cards are highlighted.",
       };
     }
-    if (overlayState.visible) {
-      return {
-        cards: null,
-        legalMoves: [],
-        message: "Hand hidden until the next player continues.",
-        helpText: "Continue when the next human player has the screen.",
-      };
-    }
-    const player = localGame.players[localGame.currentPlayerIndex];
-    if (player.playerType === "computer") {
-      return {
-        cards: null,
-        legalMoves: [],
-        message: `${player.name} is a computer player.`,
-        helpText: "Computer players automatically follow the same legal move rules.",
-      };
-    }
+    const player = localGame.players[0];
+    const isYourTurn = localGame.currentPlayerIndex === 0 && localGame.winnerIndex === null;
     return {
       cards: player.hand,
-      legalMoves: player.hand.filter((card) => isLegalPlay(localGame.tableau, card)),
+      legalMoves: isYourTurn ? player.hand.filter((card) => isLegalPlay(localGame.tableau, card)) : [],
       message: "No cards remaining.",
-      helpText: "Playable cards are highlighted.",
+      helpText: isYourTurn
+        ? "Playable cards are highlighted."
+        : `Waiting for ${localGame.players[localGame.currentPlayerIndex].name}...`,
     };
   }
 
@@ -1192,7 +1168,7 @@ function getPlayerRail({ mode, localGame, roomState }) {
       isCurrent: localGame.currentPlayerIndex === localGame.players.indexOf(player) && localGame.winnerIndex === null,
       isWinner: localGame.winnerIndex !== null && localGame.players[localGame.winnerIndex] === player,
       isDealer: localGame.players[localGame.dealerIndex] === player,
-      isViewer: false,
+      isViewer: localGame.players.indexOf(player) === 0,
       orderLabel: `Turn ${index + 1}`,
     }));
   }
