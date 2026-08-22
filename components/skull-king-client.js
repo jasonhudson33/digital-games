@@ -459,12 +459,18 @@ export default function SkullKingClient() {
         <div className="skull-hand" aria-label="Your hand">
           {viewer.hand.map((card, index) => {
             const playable = legalIds.has(card.id);
+            /* A card dims to mark it unplayable, which only means something
+               while a trick is actually being played — every card in your
+               hand reads as "unplayable" during bidding, ghost turns, and
+               the rest, and that is exactly when you most need to read them
+               clearly to size up your hand. */
+            const dim = ["playing", "lastVolley"].includes(game.phase) && !playable;
             const cardHelp = getSkullKingCardHelp(card);
             return (
               <div key={card.id} className="skull-hand-item" style={{ "--card-index": index }}>
                 <button
                   type="button"
-                  className={`skull-hand-card ${playable ? "playable" : ""} ${game.forcedPlay?.playerIndex === viewerPlayerIndex && game.forcedPlay.cardId === card.id ? "forced" : ""}`}
+                  className={`skull-hand-card ${playable ? "playable" : ""} ${dim ? "dim" : ""} ${game.forcedPlay?.playerIndex === viewerPlayerIndex && game.forcedPlay.cardId === card.id ? "forced" : ""}`}
                   disabled={!playable}
                   onClick={() => playHumanCard(card)}
                   aria-label={`${formatSkullKingCard(card)}${playable ? ", playable" : ""}`}
