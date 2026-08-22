@@ -425,8 +425,7 @@ function PinochleTable({ game, viewerIndex, showingCompletedTrick, stock, dock }
               <PlayedCard
                 key={`${spot.index}-${card.id}`}
                 won={winnerIndex === spot.index}
-                gathered={showingCompletedTrick}
-                style={cardStyle(spot.index, showingCompletedTrick ? winnerIndex : null)}
+                style={cardStyle(spot.index)}
               >
                 <PinochleCard card={card} />
               </PlayedCard>
