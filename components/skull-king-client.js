@@ -614,12 +614,19 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
 function SkullKingTable({ game, viewerIndex, dock }) {
   const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
   const leadSuit = game.trick.length ? getSkullKingLeadSuit(game.trick) : null;
+  /* A bigger card at the table most games actually draw: 2 to 8 captains still
+     have room to spare at the sizes the shared table solves for. Nine does
+     not — the crowded tier is already down to a quarter less plate and gap to
+     fit them, so it keeps the sizes it was solved for rather than reclaiming
+     that margin. */
+  const bigCard = game.playerCount > 8 ? null : game.playerCount > 6 ? { w: 62, h: 86 } : { w: 72, h: 100 };
 
   return (
     <SeatedTable
       count={game.playerCount}
       viewerIndex={viewerIndex}
       className="skull-felt"
+      table={bigCard ? { wide: { card: bigCard } } : undefined}
       dock={dock}
       middle={(
         <b

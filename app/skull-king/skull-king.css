@@ -524,6 +524,19 @@
 }
 .skull-felt .tbl-chair-avatar { color: #eee0c5; }
 
+/* A bigger table for the sizes that have the room for it — up to eight
+   captains. Nine keeps the shared crowded floor: it is already solved down
+   to the wire and a bigger floor there would just force a page scroll for
+   the games least able to spare the space. */
+@media (min-width: 651px) {
+  .tbl-felt-fit > .tbl-felt-table.skull-felt:not(.crowded) {
+    width: min(100%, max(760px, calc(100cqh * 940 / 580)));
+  }
+  .tbl-felt-fit:has(> .tbl-felt-table.skull-felt:not(.crowded)) {
+    min-height: calc(760px * 580 / 940);
+  }
+}
+
 /* Which suit was led is what decides the card you may play, so it takes the
    middle of the felt. An anchor until somebody leads. */
 .skull-lead { font-size: 1.6rem; }
