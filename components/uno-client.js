@@ -145,11 +145,6 @@ export default function UnoClient() {
         <UnoTable room={room} viewerId={playerId} active={active} darkSide={darkSide} flipMode={flipMode} />
       </section>
 
-      <aside className="tbl-side tbl-log uno-log">
-        <p>Table talk</p>
-        {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
-      </aside>
-
       {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchUno(current, playerId))}>Catch missed UNO — make them draw 2</button>}
 
       <section className="tbl-hand-zone">
@@ -179,6 +174,11 @@ export default function UnoClient() {
           </div>
         )}
       </section>
+
+      <aside className="tbl-side tbl-log uno-log">
+        <p>Table talk</p>
+        {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
+      </aside>
 
       {(wildCardId || mustChooseOpening) && <ColorChooser colors={colorsForGame(room)} onChoose={(color) => mustChooseOpening ? update((current) => chooseOpeningColor(current, playerId, color)) : play(me.cards.find((held) => held.id === wildCardId), color)} onClose={mustChooseOpening ? null : () => setWildCardId(null)} />}
       {mustResolveFour && <ChoiceModal title={penaltyTitle(room.pendingDrawFour)} text={penaltyExplanation(room.pendingDrawFour)} actions={<><button type="button" className="tbl-primary" onClick={() => update((current) => resolveDrawFour(current, playerId, false))}>{penaltyAcceptLabel(room.pendingDrawFour)}</button><button type="button" className="tbl-secondary" onClick={() => update((current) => resolveDrawFour(current, playerId, true))}>Challenge</button></>} />}
