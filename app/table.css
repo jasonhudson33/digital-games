@@ -1688,12 +1688,6 @@
    is most of the gap between it and the name plate beside it. */
 .tbl-felt-table .tbl-played > * { box-sizing: border-box; width: var(--card-w); height: var(--card-h); }
 .tbl-felt-table .tbl-played.won > * { outline: 2px solid var(--felt-accent); outline-offset: 2px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--felt-accent) 18%, transparent), 0 6px 14px rgba(10, 26, 20, .34); }
-/* The whole trick slides to whoever took it, which says where it went better
-   than a label that only lasts until the phase changes. It shrinks as it goes,
-   both because that is what sweeping cards up looks like and because it keeps
-   the jumbled pile inside the box the table solved for. */
-.tbl-played.gathered { rotate: calc(var(--tilt) * 1.5); scale: .9; }
-
 @media (prefers-reduced-motion: reduce) { .tbl-played { transition: none; } }
 
 /* ── The middle, and the foot ────────────────────────────────────────────────

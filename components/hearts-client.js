@@ -303,8 +303,7 @@ function HeartsTable({ game, onPass }) {
               <PlayedCard
                 key={`${spot.index}-${card.id}`}
                 won={winnerIndex === spot.index}
-                gathered={winnerIndex !== null}
-                style={cardStyle(spot.index, winnerIndex)}
+                style={cardStyle(spot.index)}
               >
                 <DisplayCard card={card} />
               </PlayedCard>

@@ -133,10 +133,10 @@ export function Seat({ spot, name, avatar, note, marks = [], hand = 0, tone, sty
 }
 
 /** A card lying on the felt in front of the seat that played it. */
-export function PlayedCard({ style, gathered, won, children }) {
+export function PlayedCard({ style, won, children }) {
   return (
     <div
-      className={join("tbl-played", won && "won", gathered && "gathered")}
+      className={join("tbl-played", won && "won")}
       style={{ ...style, zIndex: won ? 3 : 2 }}
     >
       {children}
