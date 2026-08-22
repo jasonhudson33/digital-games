@@ -21,6 +21,7 @@
 }
 
 .hearts-app {
+  --felt-shell-offset: 74px;
   --heart-red: #e7473c;
   --heart-deep: #8f1f28;
   --cream: var(--hrt-ink-pale-sand);
@@ -403,10 +404,13 @@
 }
 
 .hearts-board {
-  width: min(1180px, 100%);
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(1240px, 100%);
   margin: 0 auto;
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ── The table ───────────────────────────────────────────────────────────────
@@ -418,7 +422,12 @@
  * places that each printed every player's name.
  */
 
-.hearts-felt-wrap { position: relative; }
+.hearts-message { flex: 0 0 auto; }
+.your-seat { flex: 0 0 auto; }
+
+/* The passing prompt is the shared dock now, so it takes the felt's colours. */
+.hearts-dock-go { padding: 10px 16px; border: 0; border-radius: 11px; color: #2a1c02; background: var(--felt-accent); font-family: var(--font-ui); font-weight: 800; cursor: pointer; }
+.hearts-dock-go:disabled { opacity: .4; cursor: not-allowed; }
 
 .hearts-felt {
   /* A wooden edge, because the page behind this one is nearly as dark as the
@@ -458,37 +467,6 @@
 }
 
 
-.pass-callout {
-  position: absolute;
-  z-index: 7;
-  right: 24px;
-  bottom: 22px;
-  width: 205px;
-  padding: 16px;
-  color: #272b27;
-  border-radius: 17px;
-  background: #fffaf0;
-  box-shadow: 0 18px 45px rgba(0,0,0,.22);
-}
-
-.pass-callout > span,
-.pass-callout small,
-.pass-callout strong { display: block; }
-.pass-callout > span { color: var(--heart-red); font-size: .66rem; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; }
-.pass-callout strong { margin-top: 5px; font-family: var(--font-ui); font-size: 1.14rem; }
-.pass-callout small { margin-top: 4px; color: #767b73; }
-.pass-callout button {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 12px;
-  color: white;
-  border: 0;
-  border-radius: 10px;
-  background: var(--heart-red);
-  cursor: pointer;
-  font-weight: 800;
-}
-.pass-callout button:disabled { opacity: .35; cursor: not-allowed; }
 
 .your-seat {
   min-width: 0;
@@ -671,7 +649,6 @@
   .gamebar-actions button { width: 38px; padding: 0; justify-content: center; font-size: 0; }
   .hearts-board { gap: 8px; }
   .hearts-message { font-size: .74rem; padding: 6px 10px; }
-  .pass-callout { right: 50%; bottom: 12px; width: 210px; transform: translateX(50%); }
   .player-hand { justify-content: flex-start; overflow-x: auto; min-height: 132px; padding: 6px 0 7px; }
   .hand-card-button { flex: 0 0 52px; min-width: 52px; margin-left: -3px; }
   .hand-card-button .hearts-playing-card { width: 82px; }

@@ -170,7 +170,7 @@ export default function HeartsClient() {
   );
 
   return (
-    <main className={`hearts-app hearts-game-shell ${game.variant === "killer" ? "is-killer" : ""}`}>
+    <main className={`hearts-app hearts-game-shell tbl-felt-shell ${game.variant === "killer" ? "is-killer" : ""}`}>
       <header className="hearts-gamebar">
         <div>
           <span className="gamebar-mark">{game.variant === "killer" ? <Skull size={18} /> : <Heart size={18} />}</span>
@@ -186,23 +186,11 @@ export default function HeartsClient() {
       </header>
 
       <section className="hearts-board" aria-label="Hearts game table">
-        <div className="hearts-felt-wrap">
-          <HeartsTable game={game} />
-
-          {game.phase === "passing" && (
-            <div className="pass-callout">
-              <span>Pass {game.passDirection}</span>
-              <strong>Choose three cards</strong>
-              <small>{game.selectedPass.length} of 3 selected</small>
-              <button
-                type="button"
-                disabled={game.selectedPass.length !== 3}
-                onClick={() => setGame((current) => completeHeartsPass(current, current.selectedPass))}
-              >
-                Pass cards <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          )}
+        <div className="tbl-felt-fit">
+          <HeartsTable
+            game={game}
+            onPass={() => setGame((current) => completeHeartsPass(current, current.selectedPass))}
+          />
         </div>
 
         <p className="hearts-message" role="status">{game.message}</p>
@@ -263,7 +251,7 @@ export default function HeartsClient() {
  * Hearts scores on points taken, not on tricks, so that is what a seat carries:
  * what they have picked up this round, and what they are carrying into it.
  */
-function HeartsTable({ game }) {
+function HeartsTable({ game, onPass }) {
   const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
   /* A cancelled trick in Killer has no winner and carries over, so there is
      nobody for it to gather onto. */
@@ -275,6 +263,17 @@ function HeartsTable({ game }) {
       count={game.playerCount}
       viewerIndex={0}
       className="hearts-felt"
+      dock={game.phase === "passing" ? (
+        /* The passing prompt belongs in the middle of the table: nothing is on
+           the felt yet, and it goes as soon as the three cards are away. */
+        <div className="tbl-felt-dock">
+          <h2>Pass {game.passDirection}</h2>
+          <p>Choose three cards from your hand. {game.selectedPass.length} of 3 selected.</p>
+          <button type="button" className="hearts-dock-go" disabled={game.selectedPass.length !== 3} onClick={onPass}>
+            Pass cards <span aria-hidden="true">{"\u2192"}</span>
+          </button>
+        </div>
+      ) : null}
       middle={(
         /* Whether hearts are broken decides what you are allowed to lead, so it
            belongs where you are already looking rather than in a row of pills

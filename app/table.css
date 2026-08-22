@@ -1344,20 +1344,39 @@
   --felt-avatar: linear-gradient(#f0dfae, #d8bd80);
   --felt-back: repeating-linear-gradient(45deg, #17503d 0 3px, #113a2e 3px 6px);
 
-  --seat-w: 152px;
-  --seat-pad: 6px 9px;
-  --seat-avatar: 30px;
-  --seat-name: .84rem;
-  --seat-note: .6rem;
-  --card-w: 62px;
-  --card-h: 86px;
-  --mark-w: 22px;
-  --mark-h: 20px;
+  /*
+   * One pixel of the design box lib/table-seats.js solves in, measured against
+   * the felt as it was actually drawn. Every size below is written in those, so
+   * the whole table scales as one thing.
+   *
+   * It has to. The arrangement is solved in a 940-wide box and placed as
+   * percentages, so a felt drawn at 700px puts the chairs proportionally right —
+   * but a name plate that stayed 152px wide would be half again as big as the
+   * table it is sitting on, and the chairs at the sides would meet. Fixed
+   * furniture on a scaled felt only looked correct while the felt happened to be
+   * near its design width.
+   */
+  --px: calc(100cqw / 940);
+
+  --seat-w: calc(152 * var(--px));
+  --seat-pad: calc(6 * var(--px)) calc(9 * var(--px));
+  --seat-gap: calc(8 * var(--px));
+  --seat-round: calc(11 * var(--px));
+  --seat-avatar: calc(30 * var(--px));
+  --seat-name: calc(13.4 * var(--px));
+  --seat-note: calc(9.6 * var(--px));
+  --card-w: calc(62 * var(--px));
+  --card-h: calc(86 * var(--px));
+  --mark-w: calc(22 * var(--px));
+  --mark-h: calc(20 * var(--px));
+  --fan-h: calc(30 * var(--px));
+  --pill-font: calc(9.9 * var(--px));
   /* Above a plate is also where the fan of card backs peeks out, so a pill on
      that side has to clear it. This is the height the fan shows. */
-  --pill-lift: 32px;
+  --pill-lift: calc(32 * var(--px));
 
   position: relative;
+  container-type: size;
   width: 100%;
   aspect-ratio: 940 / 580;
 }
@@ -1366,27 +1385,194 @@
    their second line and a quarter of their width as well. Both tiers are decided
    in lib/table-seats.js — these are the sizes it solves against. */
 .tbl-felt-table.busy {
-  --card-w: 54px;
-  --card-h: 75px;
+  --card-w: calc(54 * var(--px));
+  --card-h: calc(75 * var(--px));
 }
 
 .tbl-felt-table.crowded {
-  --seat-w: 112px;
-  --seat-pad: 4px 7px;
-  --seat-avatar: 22px;
-  --seat-name: .64rem;
-  --card-w: 52px;
-  --card-h: 72px;
-  --mark-w: 18px;
-  --mark-h: 17px;
-  --pill-lift: 26px;
+  --seat-w: calc(112 * var(--px));
+  --seat-pad: calc(4 * var(--px)) calc(7 * var(--px));
+  --seat-avatar: calc(22 * var(--px));
+  --seat-name: calc(10.2 * var(--px));
+  --card-w: calc(52 * var(--px));
+  --card-h: calc(72 * var(--px));
+  --mark-w: calc(18 * var(--px));
+  --mark-h: calc(17 * var(--px));
+  --pill-lift: calc(26 * var(--px));
 }
 .tbl-felt-table.crowded .tbl-chair-who small { display: none; }
+
+/* ── Fitting the felt to the screen ──────────────────────────────────────────
+ * A table you have to scroll to see is not a table. On a wide screen the felt
+ * takes the room left over once the header, the scoreboard and your own hand
+ * have had theirs, and its width follows from that height rather than from the
+ * page width — so the whole game fits in the window at every size.
+ *
+ * The height comes from the container rather than a subtracted constant: any
+ * `100dvh - 320px` guess is wrong the moment a game bar wraps to two lines, and
+ * wrong differently on each of these games.
+ *
+ * A game opts in by making its shell a column that fills the viewport and
+ * putting the felt in a .tbl-felt-fit.
+ */
+.tbl-felt-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 651px) {
+  /* A definite height, not a minimum: the felt can only take what is left over
+     if there is a fixed total to take it from. A game says how much of the
+     window the site header above it is using. */
+  .tbl-felt-shell {
+    height: calc(100vh - var(--felt-shell-offset, 0px));
+    height: calc(100dvh - var(--felt-shell-offset, 0px));
+    min-height: 0;
+  }
+
+  .tbl-felt-fit {
+    flex: 1 1 auto;
+    min-height: 0;
+    container-type: size;
+    display: grid;
+    place-items: center;
+  }
+  /*
+   * The height it has, turned into a width by the felt's own proportions — but
+   * never below 650px, where the name plates are down to the size a phone draws
+   * them and the type stops being readable. A window too short for that scrolls
+   * a little instead, which is the better of the two bad answers.
+   */
+  .tbl-felt-fit > .tbl-felt-table {
+    width: min(100%, max(650px, calc(100cqh * 940 / 580)));
+  }
+
+  /* A crowded table needs more of it. Its plates are already three quarters the
+     width of the others and carry no second line, so the same floor would put
+     the names at seven pixels. Nine chairs on a short window scrolls a little
+     rather than becoming unreadable. */
+  .tbl-felt-fit > .tbl-felt-table.crowded {
+    width: min(100%, max(800px, calc(100cqh * 940 / 580)));
+  }
+}
+
+/* ── The dock ────────────────────────────────────────────────────────────────
+ * Whatever you have to do right now, in the middle of the table, and gone the
+ * moment you have done it.
+ *
+ * It sits where a dealer would put the thing you are being asked about, and it
+ * is only ever up during a phase with no cards on the felt — an auction, a
+ * choice of trump, a trick waiting to be swept — so it never covers a card
+ * somebody played. That let the column of controls beside the table go, and the
+ * table is that much wider for it.
+ */
+.tbl-felt-dock {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  /* 360 of the design box: the widest a centred panel can be and still leave
+     every name plate showing, from two chairs to ten. During an auction those
+     plates are carrying everyone else's bid, which is the thing you are being
+     asked to beat. Its type stays a readable fixed size — the panel is a dialog,
+     not felt furniture. */
+  width: max(240px, calc(360 * var(--px)));
+  /* 190 of the design box is the matching height limit; the copy in a dock is
+     kept to a heading and one short line so it stays inside it even when the
+     felt is at its smallest. */
+  padding: 13px 16px;
+  border: 1px solid var(--felt-edge);
+  border-radius: 18px;
+  color: var(--felt-ink);
+  background: rgba(6, 26, 20, .95);
+  box-shadow: 0 22px 55px rgba(3, 16, 12, .5);
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+/*
+ * Sweeping up a finished trick is the one thing you are asked to do while there
+ * are still cards on the felt, so it cannot be a panel — you have to be able to
+ * see the trick you are clearing. It is a single button, sized to fit inside the
+ * ring of cards: at 190x40 of the design box it clears every gathered trick and
+ * every name plate from two chairs to ten.
+ *
+ * There is no such gap on a phone. The portrait felt draws the ring of cards in
+ * close enough that nothing fits between them at all, so there the button takes
+ * the strip along the bottom instead, and the line that usually lives there
+ * steps aside while it is up.
+ */
+.tbl-felt-sweep {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  min-width: calc(150 * var(--px));
+  max-width: calc(190 * var(--px));
+  padding: calc(9 * var(--px)) calc(14 * var(--px));
+  border: 1px solid rgba(120, 90, 20, .5);
+  border-radius: 999px;
+  color: #2a1c02;
+  background: var(--felt-accent);
+  box-shadow: 0 calc(8 * var(--px)) calc(22 * var(--px)) rgba(4, 18, 13, .45);
+  font-family: var(--font-ui);
+  font-size: calc(13 * var(--px));
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tbl-felt-sweep:hover:not(:disabled) { filter: brightness(1.08); }
+.tbl-felt-sweep:disabled { opacity: .6; cursor: not-allowed; }
+
+/* It takes the middle for that moment, so the marks that usually live there
+   stand down rather than being covered. */
+.tbl-felt-table:has(.tbl-felt-sweep) .tbl-felt-mark,
+.tbl-felt-table:has(.tbl-felt-sweep) .tbl-felt-meta { display: none; }
+
+/*
+ * A dock that may cover the chairs. Only for a game whose auction is closed —
+ * Skull King bids simultaneously and hides everyone else's number until the
+ * bidding is over, so there is nothing on those plates to read. Pinochle's
+ * auction goes round the table in the open, so its dock stays narrow enough to
+ * leave every bid showing.
+ */
+.tbl-felt-dock.wide { width: min(430px, 86%); }
+
+.tbl-felt-dock h2 {
+  margin: 0 0 3px;
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+}
+
+.tbl-felt-dock p {
+  margin: 0 0 11px;
+  color: var(--felt-ink-dim);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.tbl-felt-dock p:last-child { margin-bottom: 0; }
+
+.tbl-felt-dock-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 650px) {
+  .tbl-felt-dock { width: min(300px, 92%); padding: 13px; }
+  .tbl-felt-dock h2 { font-size: .92rem; }
+  .tbl-felt-dock p { margin-bottom: 9px; font-size: .66rem; }
+}
 
 .tbl-felt {
   position: absolute;
   inset: 0;
-  border: 9px solid var(--felt-rim);
+  border: calc(9 * var(--px)) solid var(--felt-rim);
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 34%, var(--felt-cloth), var(--felt-cloth-mid) 62%, var(--felt-cloth-deep));
   box-shadow: inset 0 0 60px rgba(3, 26, 18, .55), 0 16px 40px rgba(12, 32, 24, .28);
@@ -1401,10 +1587,10 @@
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 8px;
+  gap: var(--seat-gap);
   padding: var(--seat-pad);
   border: 1px solid var(--felt-edge);
-  border-radius: 11px;
+  border-radius: var(--seat-round);
   background: var(--felt-plate);
   box-shadow: 0 5px 14px rgba(6, 24, 18, .4);
 }
@@ -1431,12 +1617,12 @@
    them turned "Bot Vale" into "Bo…". They still have to be paid for, though: the
    plate reserves their lane, so a long name ends in an ellipsis instead of
    disappearing underneath a badge. */
-.tbl-chair-marks { position: absolute; top: -9px; right: -5px; display: flex; gap: 3px; }
+.tbl-chair-marks { position: absolute; top: calc(-9 * var(--px)); right: calc(-5 * var(--px)); display: flex; gap: calc(3 * var(--px)); }
 /* The lane is only as wide as the part of the mark that actually sits over the
    plate — it hangs 5px off the corner — so a name gives up as little as it can. */
-.tbl-chair-plate:has(.tbl-mark) { padding-right: calc(var(--mark-w) - 3px); }
+.tbl-chair-plate:has(.tbl-mark) { padding-right: calc(var(--mark-w) - (3 * var(--px))); }
 .tbl-chair-plate:has(.tbl-mark + .tbl-mark) { padding-right: calc(var(--mark-w) * 2); }
-.tbl-mark { display: grid; place-items: center; min-width: var(--mark-w); height: var(--mark-h); padding: 0 5px; border-radius: 6px; font-family: var(--font-ui); font-size: calc(var(--mark-h) * .48); font-style: normal; font-weight: 800; }
+.tbl-mark { display: grid; place-items: center; min-width: var(--mark-w); height: var(--mark-h); padding: 0 calc(5 * var(--px)); border-radius: calc(6 * var(--px)); font-family: var(--font-ui); font-size: calc(var(--mark-h) * .48); font-style: normal; font-weight: 800; }
 .tbl-mark.deal { color: #dcecdf; background: rgba(255, 255, 255, .16); }
 .tbl-mark.lead { color: #2a1c02; background: var(--felt-accent); }
 .tbl-mark.quiet { color: var(--felt-ink); background: rgba(255, 255, 255, .1); }
@@ -1453,8 +1639,8 @@
 /* A hand you cannot see: a fan of backs behind the plate, so a seat reads as
    somebody holding cards. Behind rather than above, which also keeps the seat's
    box short enough that a played card never runs into a diagonal neighbour. */
-.tbl-chair-fan { position: absolute; left: 50%; bottom: 62%; translate: -50% 0; width: 100%; height: 30px; display: grid; place-items: center; z-index: -1; }
-.tbl-chair-fan i { position: absolute; width: 22px; height: 31px; border: 1.5px solid #e8d9ae; border-radius: 3px; background: var(--felt-back); rotate: var(--a); translate: var(--o) 0; }
+.tbl-chair-fan { position: absolute; left: 50%; bottom: 62%; translate: -50% 0; width: 100%; height: var(--fan-h); display: grid; place-items: center; z-index: -1; }
+.tbl-chair-fan i { position: absolute; width: calc(22 * var(--px)); height: calc(31 * var(--px)); border: 1px solid #e8d9ae; border-radius: calc(3 * var(--px)); background: var(--felt-back); rotate: var(--a); translate: calc(var(--o) * var(--px) / 1px) 0; }
 
 /* ── Pills ───────────────────────────────────────────────────────────────────
  * A bid, a score, a total: things that belong to a player rather than to the
@@ -1466,14 +1652,14 @@
 .tbl-chair-pill {
   position: absolute;
   left: 50%;
-  top: calc(100% + 5px);
+  top: calc(100% + (5 * var(--px)));
   translate: -50% 0;
-  padding: 2px 8px;
+  padding: calc(2 * var(--px)) calc(8 * var(--px));
   border-radius: 999px;
   color: #163a2b;
   background: #eddaa8;
   font-family: var(--font-ui);
-  font-size: .62rem;
+  font-size: var(--pill-font);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1510,15 +1696,15 @@
   position: absolute;
   left: 50%; top: 50%;
   translate: -50% -50%;
-  margin-top: -12px;
+  margin-top: calc(-12 * var(--px));
   display: grid;
   place-items: center;
-  width: 46px; height: 46px;
+  width: calc(46 * var(--px)); height: calc(46 * var(--px));
   border: 1px solid var(--felt-edge);
   border-radius: 50%;
   color: #f4e3ba;
   background: rgba(6, 28, 20, .62);
-  font-size: 1.5rem;
+  font-size: calc(24 * var(--px));
   line-height: 1;
   pointer-events: none;
 }
@@ -1527,15 +1713,15 @@
   position: absolute;
   left: 50%; top: 50%;
   translate: -50% -50%;
-  margin-top: 25px;
-  max-width: 148px;
+  margin-top: calc(25 * var(--px));
+  max-width: calc(148 * var(--px));
   overflow: hidden;
-  padding: 2px 8px;
+  padding: calc(2 * var(--px)) calc(8 * var(--px));
   border-radius: 999px;
   background: rgba(6, 28, 20, .55);
   color: #a9c6b6;
   font-family: var(--font-ui);
-  font-size: .58rem;
+  font-size: calc(9.3 * var(--px));
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -1553,27 +1739,32 @@
      which put the whole trick on top of a name plate. */
   .tbl-felt-table,
   .tbl-felt-table.busy {
-    --seat-w: 92px;
-    --seat-pad: 4px;
-    --seat-avatar: 18px;
-    --seat-name: .58rem;
-    --seat-note: .48rem;
-    --card-w: 40px;
-    --card-h: 56px;
-    --mark-w: 15px;
-    --mark-h: 15px;
+    /* The portrait design box is 360 wide. */
+    --px: calc(100cqw / 360);
+    --seat-w: calc(92 * var(--px));
+    --seat-pad: calc(4 * var(--px));
+    --seat-gap: calc(4 * var(--px));
+    --seat-round: calc(9 * var(--px));
+    --seat-avatar: calc(18 * var(--px));
+    --seat-name: calc(9.3 * var(--px));
+    --seat-note: calc(7.7 * var(--px));
+    --card-w: calc(40 * var(--px));
+    --card-h: calc(56 * var(--px));
+    --mark-w: calc(15 * var(--px));
+    --mark-h: calc(15 * var(--px));
+    --pill-font: calc(8 * var(--px));
     /* No fan of backs at this size, so nothing to clear. */
-    --pill-lift: 5px;
+    --pill-lift: calc(5 * var(--px));
     aspect-ratio: 360 / 500;
   }
   .tbl-felt-table.crowded {
-    --seat-w: 72px;
-    --seat-pad: 4px 5px;
-    --seat-name: .5rem;
-    --card-w: 32px;
-    --card-h: 44px;
-    --mark-w: 12px;
-    --mark-h: 12px;
+    --seat-w: calc(72 * var(--px));
+    --seat-pad: calc(4 * var(--px)) calc(5 * var(--px));
+    --seat-name: calc(8 * var(--px));
+    --card-w: calc(32 * var(--px));
+    --card-h: calc(44 * var(--px));
+    --mark-w: calc(12 * var(--px));
+    --mark-h: calc(12 * var(--px));
   }
   /* Nine chairs on a phone leaves a 72px plate, and a 14px disc showing the same
      letter the name starts with was taking a quarter of it. The plate itself
@@ -1582,12 +1773,22 @@
   .tbl-felt-table.crowded .tbl-chair-plate { grid-template-columns: minmax(0, 1fr); }
   .tbl-chair { left: var(--seat-x-n); top: var(--seat-y-n); }
   .tbl-played { left: var(--card-x-n); top: var(--card-y-n); }
-  .tbl-chair-plate { gap: 4px; border-radius: 9px; }
-  .tbl-chair-marks { top: -7px; right: -4px; gap: 2px; }
+  .tbl-chair-marks { top: calc(-7 * var(--px)); right: calc(-4 * var(--px)); gap: calc(2 * var(--px)); }
   .tbl-chair-fan { display: none; }
-  .tbl-chair-pill { font-size: .5rem; padding: 1px 5px; }
+  .tbl-chair-pill { padding: calc(1 * var(--px)) calc(5 * var(--px)); }
   /* Only one mark fits in the middle at six seats; everything else goes to the
      foot of the felt. */
-  .tbl-felt-mark { width: 28px; height: 28px; margin-top: 0; font-size: 1rem; }
-  .tbl-felt-meta { top: auto; bottom: 7%; translate: -50% 0; margin-top: 0; max-width: 165px; font-size: .46rem; }
+  .tbl-felt-sweep {
+    top: auto;
+    bottom: 3.5%;
+    translate: -50% 0;
+    min-width: calc(120 * var(--px));
+    max-width: calc(220 * var(--px));
+    padding: calc(5 * var(--px)) calc(12 * var(--px));
+    font-size: calc(9.5 * var(--px));
+  }
+  .tbl-felt-mark { width: calc(28 * var(--px)); height: calc(28 * var(--px)); margin-top: 0; font-size: calc(16 * var(--px)); }
+  /* Right down on the rim: the seat at the bottom hangs its own pill into the
+     strip just above this, and six pixels between the two was not enough. */
+  .tbl-felt-meta { top: auto; bottom: 3.5%; translate: -50% 0; margin-top: 0; max-width: calc(165 * var(--px)); font-size: calc(7.4 * var(--px)); }
 }

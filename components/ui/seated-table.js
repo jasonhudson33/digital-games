@@ -39,10 +39,13 @@ const join = (...names) => names.filter(Boolean).join(" ");
  *                               mark, because the ring of cards closes in on it
  * @param {node}    foot         a line along the bottom of the felt, which is
  *                               the one patch of cloth nothing else wants
+ * @param {node}    dock         whatever the player has to do right now, in the
+ *                               middle of the table and gone once they have done
+ *                               it. Drawn last, so it is on top of everything
  * @param {function} children    called with { layout, crowded, seatStyle,
  *                               cardStyle } to render the seats and the cards
  */
-export function SeatedTable({ count, viewerIndex, table, middle, foot, className, children }) {
+export function SeatedTable({ count, viewerIndex, table, middle, foot, dock, className, children }) {
   const solved = tableShapes(count, table)
     .map((entry) => ({ ...entry, layout: seatLayout(count, viewerIndex, entry.shape) }));
   const { tier } = solved[0];
@@ -71,6 +74,7 @@ export function SeatedTable({ count, viewerIndex, table, middle, foot, className
         }),
       })}
       {foot}
+      {dock}
     </div>
   );
 }

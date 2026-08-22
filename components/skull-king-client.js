@@ -412,17 +412,18 @@ export default function SkullKingClient() {
         </div>
       </header>
 
-      <section className="skull-table" aria-label="Skull King game table">
-        <div className="skull-felt-wrap">
-          <SkullKingTable game={game} viewerIndex={viewerPlayerIndex} />
-
-          {game.phase === "bidding" && viewer.bid === null && (
-            <div className="bid-panel">
-              <span className="panel-kicker">Make your bid</span>
+      <section className="skull-table tbl-felt-fit" aria-label="Skull King game table">
+        <SkullKingTable
+          game={game}
+          viewerIndex={viewerPlayerIndex}
+          dock={game.phase === "bidding" && viewer.bid === null ? (
+            /* The auction goes in the middle of the table and is gone the moment
+               you lock, which is what the crew's chairs then say for you. */
+            <div className="tbl-felt-dock wide skull-bid-dock">
               <h2>How many tricks?</h2>
               <p>You have {game.roundNumber} {game.roundNumber === 1 ? "card" : "cards"}. Hit your bid exactly to score.</p>
               <div className="bid-options">
-                {Array.from({ length: game.roundNumber + 1 }, (_, value) => (
+                {Array.from({ length: game.roundNumber + 1 }, (unused, value) => (
                   <button key={value} type="button" className={bid === value ? "selected" : ""} onClick={() => setBid(value)}>{value}</button>
                 ))}
               </div>
@@ -430,18 +431,11 @@ export default function SkullKingClient() {
                 Lock bid at {bid}
               </button>
             </div>
-          )}
-          {game.phase === "bidding" && viewer.bid !== null && (
-            <div className="bid-panel bid-locked-panel">
-              <span className="panel-kicker">Bid locked</span>
-              <h2>You chose {viewer.bid}.</h2>
-              <p>Waiting for the rest of the crew to finish bidding…</p>
-            </div>
-          )}
-        </div>
-
-        <p className="skull-message" role="status">{game.message}</p>
+          ) : null}
+        />
       </section>
+
+      <p className="skull-message" role="status">{game.message}</p>
 
       <section className="skull-your-seat">
         <div className="skull-turn-label">
@@ -611,7 +605,7 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
  * taken. The lead suit is what constrains the card you may play, so it takes the
  * middle of the felt.
  */
-function SkullKingTable({ game, viewerIndex }) {
+function SkullKingTable({ game, viewerIndex, dock }) {
   const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
   const leadSuit = game.trick.length ? getSkullKingLeadSuit(game.trick) : null;
 
@@ -620,6 +614,7 @@ function SkullKingTable({ game, viewerIndex }) {
       count={game.playerCount}
       viewerIndex={viewerIndex}
       className="skull-felt"
+      dock={dock}
       middle={(
         <b
           className={`tbl-felt-mark skull-lead ${leadSuit || ""}`}

@@ -26,6 +26,7 @@
 }
 
 .skull-app {
+  --felt-shell-offset: 73px;
   --skull-ink: #f7ead3;
   --skull-muted: #b8aa94;
   --skull-gold: #e4b84b;
@@ -503,13 +504,9 @@
  */
 
 .skull-table {
-  width: min(1180px, calc(100% - 28px));
+  width: min(1240px, calc(100% - 28px));
   margin: 0 auto;
 }
-
-/* The bidding panel sits over the felt, so it measures against the felt rather
-   than against the felt plus whatever is written under it. */
-.skull-felt-wrap { position: relative; }
 
 .skull-felt {
   --felt-rim: #3b2a1c;
@@ -561,8 +558,9 @@
 .tbl-felt-table .tbl-played .skull-playing-card.pirate { padding-bottom: 0; }
 
 .skull-message {
+  flex: 0 0 auto;
   min-height: 21px;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: #d7cbb8;
   text-align: center;
   font-family: var(--font-ui);
@@ -571,32 +569,17 @@
 }
 
 
-.bid-panel {
-  position: absolute;
-  z-index: 6;
-  top: 50%;
-  left: 50%;
-  width: min(430px, calc(100% - 30px));
-  padding: 28px;
-  border: 1px solid rgba(228,184,75,.3);
-  border-radius: 20px;
-  background: rgba(8,28,34,.96);
-  box-shadow: 0 25px 65px rgba(0,0,0,.48);
-  transform: translate(-50%, -44%);
-  text-align: center;
-  backdrop-filter: blur(8px);
-}
-
-.bid-panel h2 { margin: 10px 0 6px; font-family: var(--font-ui); font-size: 1.7rem; }
-.bid-panel p { margin: 0 auto 18px; color: #a99d8c; font-size: .78rem; line-height: 1.5; }
-.bid-locked-panel { padding-bottom: 21px; }
-.bid-options { display: flex; justify-content: center; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
-.bid-options button { width: 42px; height: 42px; color: #d7cbb8; border: 1px solid rgba(235,199,111,.17); border-radius: 10px; background: rgba(255,255,255,.045); cursor: pointer; font-weight: 800; }
+/* The auction is the shared dock now. There is no locked-bid panel any more:
+   once you have bid, the pill on your own chair says so, and every other chair
+   says whether the rest of the crew have. */
+.bid-options { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+.bid-options button { width: 34px; height: 34px; color: #d7cbb8; border: 1px solid rgba(235,199,111,.17); border-radius: 10px; background: rgba(255,255,255,.045); cursor: pointer; font-weight: 800; }
 .bid-options button.selected { color: var(--sk-ink-deep-green); border-color: var(--skull-gold); background: var(--skull-gold); box-shadow: 0 0 0 3px rgba(228,184,75,.12); }
 
 .skull-your-seat {
-  width: min(1380px, calc(100% - 28px));
-  margin: 10px auto 0;
+  flex: 0 0 auto;
+  width: min(1240px, calc(100% - 28px));
+  margin: 8px auto 0;
   padding: 10px 12px 0;
   border-top: 1px solid rgba(235,199,111,.12);
 }
@@ -810,7 +793,6 @@
   .skull-playing-card > strong { font-size: 1.35rem; }
   .special-art { font-size: 2.5rem; }
   .skull-card-corner { top: 6px; left: 6px; }
-  .bid-panel { padding: 24px 18px; }
   .skull-your-seat { width: calc(100% - 16px); }
   .skull-hand-card .skull-playing-card { width: 88px; }
   .skull-modal-backdrop { padding: 12px; }

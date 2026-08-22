@@ -286,7 +286,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   }
 
   return (
-    <main className="pn-app pn-game-shell">
+    <main className="pn-app pn-game-shell tbl-felt-shell">
       <header className="pn-gamebar">
         <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.playerCount === 2 ? "Draw Pinochle" : game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
         <div className="pn-header-actions"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave</button></div>
@@ -318,21 +318,30 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
         </section>
       )}
 
-      <section className="pn-table">
-        <PinochleTable game={game} viewerIndex={viewerIndex} showingCompletedTrick={showingCompletedTrick} />
-
-        <div className="pn-table-side">
-          {game.playerCount === 2 && game.stockCount > 0 && game.stockTrumpCard && (
+      <section className="pn-table tbl-felt-fit">
+        <PinochleTable
+          game={game}
+          viewerIndex={viewerIndex}
+          showingCompletedTrick={showingCompletedTrick}
+          stock={game.playerCount === 2 && game.stockCount > 0 && game.stockTrumpCard && (
             <div className="pn-stock" aria-label={`${game.stockCount} cards remain in the draw stock; ${formatPinochleCard(game.stockTrumpCard)} is face up`}>
               <div className="pn-card-back"><span>P</span></div>
               <PinochleCard card={game.stockTrumpCard} />
-              <small>{game.stockCount} cards · trump card</small>
+              <small>{game.stockCount} cards</small>
             </div>
           )}
-          <p className="pn-message" role="status">{game.message}</p>
-          <TurnControls game={game} busy={busy} yourTurn={yourTurn} minimumBid={minimumBid} bidAmount={bidAmount} setBidAmount={setBidAmount} selectedIds={selectedIds} availableMelds={availableMelds} onAction={onAction} />
-        </div>
+          dock={<TurnControls game={game} busy={busy} yourTurn={yourTurn} minimumBid={minimumBid} bidAmount={bidAmount} setBidAmount={setBidAmount} selectedIds={selectedIds} availableMelds={availableMelds} onAction={onAction} />}
+        />
       </section>
+
+      <div className="pn-under-table">
+        <p className="pn-message" role="status">{game.message}</p>
+        {game.phase === "playing" && yourTurn && game.canTakeRest && (
+          /* The one control that can come up with cards already on the felt, so
+             it goes under the table rather than over them. */
+          <button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("takeRest")}>Take the rest</button>
+        )}
+      </div>
 
       <section className="pn-hand-zone">
         <div className="pn-hand-heading"><span className={`pn-turn-dot ${yourTurn ? "on" : ""}`} /><strong>{handInstruction(game, yourTurn) || (yourTurn ? "Your turn" : "Your hand")}</strong><small>{viewer.hand.length} cards</small></div>
@@ -377,7 +386,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
  * Position now answers "who played that" — the question a trick-taking game asks
  * most often — by looking rather than by reading.
  */
-function PinochleTable({ game, viewerIndex, showingCompletedTrick }) {
+function PinochleTable({ game, viewerIndex, showingCompletedTrick, stock, dock }) {
   const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
   const winnerIndex = showingCompletedTrick ? game.lastTrick?.winnerPlayerIndex : null;
   const viewerTeam = game.players[viewerIndex]?.teamId;
@@ -396,10 +405,13 @@ function PinochleTable({ game, viewerIndex, showingCompletedTrick }) {
           {game.trump ? PINOCHLE_SUIT_SYMBOLS[game.trump] : "\u2014"}
         </b>
       )}
+      dock={dock}
       foot={(
         <small className="tbl-felt-meta" aria-hidden="true">
-          {game.playerCount === 2 ? `Stock ${game.stockCount}` : `Bid ${game.highBid ?? "\u2014"}`}
-          {" \u00b7 Trick "}
+          {/* No stock count here at two hands: the stock is drawn on the felt
+              and says its own size. */}
+          {game.playerCount === 2 ? "" : `Bid ${game.highBid ?? "\u2014"} \u00b7 `}
+          {"Trick "}
           {showingCompletedTrick ? game.trickNumber : game.trickNumber + 1}
         </small>
       )}
@@ -478,56 +490,153 @@ function PinochleTable({ game, viewerIndex, showingCompletedTrick }) {
               </Seat>
             );
           })}
+
+          {stock}
         </>
       )}
     </SeatedTable>
   );
 }
 
+/*
+ * What you have to do right now, in the middle of the table, and gone the moment
+ * you have done it.
+ *
+ * This used to be a column of controls beside the felt, permanently 250px wide
+ * whether it held an auction or the words "Waiting for Ines…". Every phase it
+ * serves is one with no cards on the felt — an auction, a choice of trump, an
+ * exchange, a trick waiting to be swept — so the middle of the table is free,
+ * which is where a dealer would put the thing you are being asked about.
+ *
+ * Two phases deliberately get nothing. During play the chair with the ring round
+ * it says whose turn it is and your own hand says which cards are legal, so a
+ * panel repeating either would be a third place to look. And a player who has
+ * already bid is told so by the pill on their own chair.
+ */
 function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmount, selectedIds, availableMelds, onAction }) {
   if (game.phase === "trick-complete") {
-    return <div className="pn-turn-controls pn-clear-trick"><span>{game.playerCount === 2 && game.stockCount > 0 ? "Keep the trick face-up, then let its winner choose one meld." : "Everyone’s cards stay face-up until you are ready."}</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("clearTrick")}>Clear trick</button></div>;
+    /* A button rather than a panel: this is the one thing you are asked to do
+       while cards are still on the felt, and you have to be able to see the
+       trick you are about to clear. */
+    return (
+      <button type="button" className="tbl-felt-sweep" disabled={busy} onClick={() => onAction("clearTrick")}>
+        Clear trick
+      </button>
+    );
   }
+
   if (game.phase === "acknowledging-exchange") {
-    return yourTurn
-      ? <div className="pn-turn-controls waiting">Review and acknowledge the cards you received.</div>
-      : <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name} to acknowledge received cards…</div>;
+    return (
+      <div className="tbl-felt-dock">
+        <h2>Cards passed</h2>
+        <p>{yourTurn
+          ? "Review the cards you received."
+          : `Waiting for ${game.players[game.currentPlayerIndex]?.name}\u2026`}</p>
+      </div>
+    );
   }
-  if (!yourTurn) return <div className="pn-turn-controls waiting">Waiting for {game.players[game.currentPlayerIndex]?.name}…</div>;
+
+  if (!yourTurn) return null;
+
   if (game.phase === "two-player-melding") {
     return (
-      <div className="pn-turn-controls pn-meld-controls">
-        <span>Lay down one meld, or draw without melding.</span>
-        {availableMelds.map((meld) => <button type="button" className="pn-primary" disabled={busy} key={meld.key} onClick={() => onAction("declareMeld", { meldKey: meld.key })}>{meld.name} · {meld.points}</button>)}
-        <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("skipMeld")}>{availableMelds.length ? "Skip meld & draw" : "Draw cards"}</button>
+      <div className="tbl-felt-dock">
+        <h2>Lay a meld</h2>
+        <p>Lay one down, or draw.</p>
+        <div className="tbl-felt-dock-row">
+          {availableMelds.map((meld) => (
+            <button type="button" className="pn-primary" disabled={busy} key={meld.key} onClick={() => onAction("declareMeld", { meldKey: meld.key })}>
+              {meld.name} {"\u00b7"} {meld.points}
+            </button>
+          ))}
+          <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("skipMeld")}>
+            {availableMelds.length ? "Skip meld & draw" : "Draw cards"}
+          </button>
+        </div>
       </div>
     );
   }
+
   if (game.phase === "bidding") {
     return (
-      <div className="pn-turn-controls pn-bid-controls">
-        <label><span>Your bid</span><input type="number" min={minimumBid} step="10" value={bidAmount} onChange={(event) => setBidAmount(Number(event.target.value))} /></label>
-        <button type="button" className="pn-primary" disabled={busy || bidAmount < minimumBid} onClick={() => onAction("bid", { amount: bidAmount })}>Bid {bidAmount}</button>
-        <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("pass")}>Pass</button>
+      <div className="tbl-felt-dock pn-bid-dock">
+        <h2>Your bid</h2>
+        <p>{minimumBid} or more, or pass.</p>
+        <div className="tbl-felt-dock-row">
+          <input
+            type="number"
+            aria-label="Your bid"
+            min={minimumBid}
+            step="10"
+            value={bidAmount}
+            onChange={(event) => setBidAmount(Number(event.target.value))}
+          />
+          <button type="button" className="pn-primary" disabled={busy || bidAmount < minimumBid} onClick={() => onAction("bid", { amount: bidAmount })}>Bid {bidAmount}</button>
+          <button type="button" className="pn-pass" disabled={busy} onClick={() => onAction("pass")}>Pass</button>
+        </div>
       </div>
     );
   }
+
   if (game.phase === "choosing-trump") {
-    return <div className="pn-turn-controls pn-trump-controls"><span>Choose trump</span>{PINOCHLE_SUITS.map((suit) => <button type="button" key={suit} disabled={busy} className={suit === "hearts" || suit === "diamonds" ? "red" : ""} onClick={() => onAction("chooseTrump", { trump: suit })}>{PINOCHLE_SUIT_SYMBOLS[suit]}</button>)}</div>;
+    return (
+      <div className="tbl-felt-dock pn-trump-dock">
+        <h2>Choose trump</h2>
+        <p>You took it at {game.highBid}.</p>
+        <div className="tbl-felt-dock-row">
+          {PINOCHLE_SUITS.map((suit) => (
+            <button
+              type="button"
+              key={suit}
+              disabled={busy}
+              className={suit === "hearts" || suit === "diamonds" ? "red" : ""}
+              onClick={() => onAction("chooseTrump", { trump: suit })}
+            >
+              {PINOCHLE_SUIT_SYMBOLS[suit]}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   }
+
   if (game.phase === "discarding-kitty") {
-    return <div className="pn-turn-controls"><button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.kittySize} onClick={() => onAction("discardKitty", { cardIds: selectedIds })}>Return {game.kittySize} card to kitty</button></div>;
+    return (
+      <div className="tbl-felt-dock">
+        <h2>The kitty</h2>
+        <p>Choose {game.kittySize} in your hand to bury.</p>
+        <button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.kittySize} onClick={() => onAction("discardKitty", { cardIds: selectedIds })}>
+          Return {game.kittySize} {game.kittySize === 1 ? "card" : "cards"} to kitty
+        </button>
+      </div>
+    );
   }
+
   if (game.phase === "partner-passing") {
-    return <div className="pn-turn-controls"><button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.exchangeCount} onClick={() => onAction("passPartnerCards", { cardIds: selectedIds })}>Send {game.exchangeCount} cards to bidder</button></div>;
+    return (
+      <div className="tbl-felt-dock">
+        <h2>Pass to the bidder</h2>
+        <p>Choose {game.exchangeCount} cards in your hand.</p>
+        <button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.exchangeCount} onClick={() => onAction("passPartnerCards", { cardIds: selectedIds })}>
+          Send {game.exchangeCount} cards
+        </button>
+      </div>
+    );
   }
+
   if (game.phase === "bidder-returning") {
     const partner = game.players[game.exchangeReturnQueue[0]];
-    return <div className="pn-turn-controls"><button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.exchangeCount} onClick={() => onAction("returnPartnerCards", { cardIds: selectedIds })}>Return {game.exchangeCount} cards to {partner.name}</button></div>;
+    return (
+      <div className="tbl-felt-dock">
+        <h2>Return cards</h2>
+        <p>Choose {game.exchangeCount} for {partner.name}.</p>
+        <button type="button" className="pn-primary" disabled={busy || selectedIds.length !== game.exchangeCount} onClick={() => onAction("returnPartnerCards", { cardIds: selectedIds })}>
+          Return {game.exchangeCount} cards
+        </button>
+      </div>
+    );
   }
-  if (game.phase === "playing") return game.canTakeRest
-    ? <div className="pn-turn-controls"><span>Every remaining trick is guaranteed.</span><button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("takeRest")}>Take the rest</button></div>
-    : <div className="pn-turn-controls waiting">Play a highlighted card from your hand.</div>;
+
   return null;
 }
 
