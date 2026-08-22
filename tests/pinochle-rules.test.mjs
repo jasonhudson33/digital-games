@@ -311,7 +311,7 @@ test("a computer raises the bid when its hand supports the contract", () => {
   assert.equal(choosePinochleBotBid(withStrongComputer, 1), 210);
 });
 
-test("partnership bidding stops when only members of the same team remain", () => {
+test("partnership bidding lets a human teammate continue after the opponents pass", () => {
   let game = createPinochleGame({
     playerSeeds: players(4).map((player, index) => ({ ...player, isComputer: index === 3 })),
   });
@@ -320,10 +320,14 @@ test("partnership bidding stops when only members of the same team remain", () =
   game = placePinochleBid(game, 3, 210);
   game = passPinochleBid(game, 0);
 
-  assert.equal(game.phase, "choosing-trump");
-  assert.equal(game.highBidderIndex, 3);
-  assert.equal(game.currentPlayerIndex, 3);
+  assert.equal(game.phase, "bidding");
+  assert.equal(game.currentPlayerIndex, 1);
   assert.deepEqual(game.passedPlayerIndexes, [2, 0]);
+
+  game = placePinochleBid(game, 1, 220);
+  game = passPinochleBid(game, 3);
+  assert.equal(game.phase, "choosing-trump");
+  assert.equal(game.highBidderIndex, 1);
 });
 
 test("a computer never raises against a teammate when no opposing bidder remains", () => {
