@@ -1272,35 +1272,95 @@
   flex: 0 0 auto;
 }
 
-/* ── Seven-Up tableau ────────────────────────────────────────────────────── */
+/* ── Seven-Up tableau ────────────────────────────────────────────────────── *
+ * The four suit lanes sit in the middle of the felt itself, the way they
+ * would on a real table, instead of a separate panel below it — which also
+ * frees the .tbl-felt-fit floor below to give the felt the rest of the
+ * window's height. Sized in --px like the rest of the felt's furniture so it
+ * scales with the table rather than fighting it at small tiers. */
 
-.seven-up-tableau-zone {
-  margin-top: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-xl);
-  background: var(--surface);
-  box-shadow: var(--sh-1);
+.seven-up-tableau {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: calc(16 * var(--px)) calc(20 * var(--px));
+  place-items: center;
+  pointer-events: none;
 }
 
-.seven-up-tableau-head {
-  margin-bottom: 10px;
+.seven-up-lane {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--px));
+  min-width: calc(118 * var(--px));
 }
 
-.seven-up-tableau-head p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+.seven-up-lane-suit {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: calc(18 * var(--px));
+  height: calc(18 * var(--px));
+  border-radius: 50%;
+  background: rgba(6, 28, 20, .55);
+  color: var(--felt-ink);
+  font-size: calc(11.5 * var(--px));
 }
 
-.seven-up-tableau-head span {
+.seven-up-lane.is-hearts .seven-up-lane-suit,
+.seven-up-lane.is-diamonds .seven-up-lane-suit {
+  color: #ec8177;
+}
+
+.seven-up-lane-run {
+  display: flex;
+  align-items: flex-end;
+}
+
+.seven-up-lane-card {
+  width: calc(24 * var(--px));
+  z-index: calc(var(--i) + 1);
+  filter: drop-shadow(0 calc(2 * var(--px)) calc(4 * var(--px)) rgba(6, 20, 14, .45));
+}
+
+.seven-up-lane-card:not(:first-child) {
+  margin-left: calc(-13 * var(--px));
+}
+
+.seven-up-lane-card.is-seven {
+  z-index: 20;
+  margin-top: calc(-5 * var(--px));
+}
+
+.seven-up-table-card {
   display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.67rem;
+  width: calc(24 * var(--px));
+  height: auto;
+}
+
+.seven-up-lane-card.is-seven .seven-up-table-card {
+  width: calc(28 * var(--px));
+}
+
+.seven-up-lane-empty {
+  color: var(--felt-ink-dim);
+  font-size: calc(9.6 * var(--px));
+  font-style: italic;
+}
+
+/* The tableau fills the middle the small centre mark used to leave clear, so
+   the turn counter moves down to the crescent of felt below it instead of
+   overlapping — the same spot the phone breakpoint already parks it in. */
+.seven-up-felt .tbl-felt-meta {
+  top: auto;
+  bottom: 4%;
+  margin-top: 0;
+  translate: -50% 0;
+  white-space: nowrap;
 }
 
 /* ── Narrow ──────────────────────────────────────────────────────────────── */
@@ -1968,4 +2028,38 @@
   /* Right down on the rim: the seat at the bottom hangs its own pill into the
      strip just above this, and six pixels between the two was not enough. */
   .tbl-felt-meta { top: auto; bottom: 3.5%; translate: -50% 0; margin-top: 0; max-width: calc(165 * var(--px)); font-size: calc(7.4 * var(--px)); }
+
+  /* The portrait felt's middle band is narrow between the left and right
+     seats — a 2-column tableau collides with their plates the way the wide
+     table never does. One column, stacked, uses the room the portrait felt
+     actually has between its top and bottom seats instead. */
+  .seven-up-tableau {
+    grid-template-columns: 1fr;
+    gap: calc(4 * var(--px));
+  }
+  .seven-up-lane {
+    min-width: 0;
+    gap: calc(3 * var(--px));
+  }
+  .seven-up-lane-suit {
+    width: calc(13 * var(--px));
+    height: calc(13 * var(--px));
+    font-size: calc(8.5 * var(--px));
+  }
+  .seven-up-lane-card,
+  .seven-up-table-card {
+    width: calc(15 * var(--px));
+  }
+  .seven-up-lane-card:not(:first-child) {
+    margin-left: calc(-8 * var(--px));
+  }
+  .seven-up-lane-card.is-seven .seven-up-table-card {
+    width: calc(17 * var(--px));
+  }
+  .seven-up-lane-empty {
+    font-size: calc(7.5 * var(--px));
+  }
+  .seven-up-felt .tbl-felt-meta {
+    bottom: 3.5%;
+  }
 }

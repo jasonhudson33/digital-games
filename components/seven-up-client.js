@@ -494,44 +494,6 @@ export default function SevenUpClient() {
             />
           </section>
 
-          <div className="seven-up-tableau-zone" aria-label="Tableau">
-            <header className="seven-up-tableau-head">
-              <p>Tableau</p>
-              <span>Every card that has been played stays on the table — a lane never clears, it only grows.</span>
-            </header>
-            <div className="tableau">
-              {SUITS.map((suit) => {
-                const tableau = getTableau({ mode, localGame, roomState: room.state });
-                const lane = tableau ? tableau[suit] : { low: null, high: null };
-                const hasStarted = lane.low !== null;
-                const run = hasStarted ? buildSequence(suit, lane.low, lane.high) : [];
-                return (
-                  <section className="suit-lane" key={suit}>
-                    <h3>
-                      {capitalize(suit)} {SUIT_SYMBOLS[suit]}
-                    </h3>
-                    {!hasStarted ? (
-                      <div className="empty-lane">Waiting for the 7</div>
-                    ) : (
-                      <div className="lane-run" aria-label={`${capitalize(suit)}: ${run.length} card${run.length === 1 ? "" : "s"} played, ${lane.low} through ${lane.high}`}>
-                        {run.map((card, index) => (
-                          <div
-                            className={`lane-card ${card.rank === 7 ? "is-seven" : ""}`}
-                            key={`${suit}-${card.rank}`}
-                            style={{ "--i": index }}
-                            title={formatCard(card)}
-                          >
-                            <PlayingCard card={card} className="table-card" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-
           <aside className="tbl-side tbl-log seven-up-log">
             <p>Table talk</p>
             {(() => {
@@ -882,7 +844,6 @@ function SevenUpTable({ playerRail, mode, tableau, turnCount }) {
     0,
     playerRail.findIndex((player) => (mode === "local" ? player.isCurrent : player.isViewer)),
   );
-  const startedSuits = tableau ? SUITS.filter((suit) => tableau[suit].low !== null).length : 0;
 
   return (
     <SeatedTable
@@ -890,9 +851,37 @@ function SevenUpTable({ playerRail, mode, tableau, turnCount }) {
       viewerIndex={viewerIndex}
       className="seven-up-felt"
       middle={(
-        <b className="tbl-felt-mark" title={`${startedSuits} of 4 suits started`}>
-          {startedSuits}/4
-        </b>
+        <div className="seven-up-tableau" aria-label="Tableau">
+          {SUITS.map((suit) => {
+            const lane = tableau ? tableau[suit] : { low: null, high: null };
+            const hasStarted = lane.low !== null;
+            const run = hasStarted ? buildSequence(suit, lane.low, lane.high) : [];
+            return (
+              <div className={`seven-up-lane is-${suit}`} key={suit}>
+                <span className="seven-up-lane-suit" aria-hidden="true">{SUIT_SYMBOLS[suit]}</span>
+                {hasStarted ? (
+                  <div
+                    className="seven-up-lane-run"
+                    aria-label={`${capitalize(suit)}: ${run.length} card${run.length === 1 ? "" : "s"} played, ${lane.low} through ${lane.high}`}
+                  >
+                    {run.map((card, index) => (
+                      <div
+                        className={`seven-up-lane-card ${card.rank === 7 ? "is-seven" : ""}`}
+                        key={`${suit}-${card.rank}`}
+                        style={{ "--i": index }}
+                        title={formatCard(card)}
+                      >
+                        <PlayingCard card={card} className="seven-up-table-card" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="seven-up-lane-empty">Waiting for the 7</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
       foot={<small className="tbl-felt-meta">Turn {turnCount || 1}</small>}
     >
