@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Anchor, BookOpen, Copy, DoorOpen, Play, Plus, RotateCcw, UserPlus, Users, X } from "lucide-react";
+import { Anchor, BookOpen, Bot, Copy, DoorOpen, Play, Plus, RotateCcw, UserPlus, Users, X } from "lucide-react";
+import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { getSkullKingCardArt } from "../lib/skull-king-art";
 import { getSkullKingCardHelp } from "../lib/skull-king-card-help";
 import { SkullKingRoomService } from "./skull-king-room-service";
@@ -385,10 +386,6 @@ export default function SkullKingClient() {
   const ghostControllerIndex = ghost ? getSkullKingGhostControllerIndex(game) : null;
   const yourTurn = game.currentPlayerIndex === viewerPlayerIndex
     || (game.currentPlayerIndex === ghostPlayerIndex && ghostControllerIndex === viewerPlayerIndex);
-  const opponents = game.players
-    .map((player, index) => ({ player, index }))
-    .filter(({ player, index }) => index !== viewerPlayerIndex && !player.isGhost);
-
   const legalIds = new Set(
     ["playing", "lastVolley"].includes(game.phase) && game.currentPlayerIndex === viewerPlayerIndex
       ? getLegalSkullKingCards(game, viewerPlayerIndex).map((card) => card.id)
@@ -415,82 +412,35 @@ export default function SkullKingClient() {
         </div>
       </header>
 
-      <section className="skull-scoreboard" aria-label="Scoreboard">
-        {game.players.filter((player) => !player.isGhost).map((player) => {
-          const index = game.players.indexOf(player);
-          return (
-          <div key={player.id} className={`skull-score ${game.currentPlayerIndex === index ? "active" : ""} ${index === game.dealerIndex ? "dealer" : ""}`}>
-            <span className="skull-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
-            <span className="skull-player-copy">
-              <strong>{player.name}</strong>
-              <small>{player.bid === null ? "No bid yet" : `${player.tricks} / ${player.bid} tricks${player.wager ? ` · ${player.wager} wager` : ""}`}</small>
-            </span>
-            <b>{player.score}</b>
-            {index === game.dealerIndex && <i>D</i>}
-          </div>
-          );
-        })}
-      </section>
-
       <section className="skull-table" aria-label="Skull King game table">
-        <div className="skull-opponents">
-          {opponents.map(({ player, index: playerIndex }) => {
-            const handCount = player.handCount ?? player.hand.length;
-            return (
-              <div key={player.id} className={`skull-opponent ${game.currentPlayerIndex === playerIndex ? "active" : ""}`}>
-                <span className="opponent-name">{player.name}</span>
-                <div className="mini-hand" aria-hidden="true">
-                  {Array.from({ length: Math.min(handCount, 6) }, (_, index) => <i key={index} style={{ "--mini": index }} />)}
-                </div>
-                <small>{handCount} cards</small>
-              </div>
-            );
-          })}
-        </div>
+        <div className="skull-felt-wrap">
+          <SkullKingTable game={game} viewerIndex={viewerPlayerIndex} />
 
-        <div className="skull-table-center">
-          <div className="skull-round-chip">TRICK {game.trickNumber} <span>/ {game.roundNumber}</span></div>
-          <p className="skull-message" role="status">{game.message}</p>
-          <div className={`skull-trick ${game.playerCount > 5 ? "many" : ""}`}>
-            {game.trick.map((play) => (
-              <div className="skull-play" key={`${play.playerIndex}-${play.card.id}`}>
-                <SkullCard card={play.card} />
-                <small>{game.players[play.playerIndex].name}</small>
+          {game.phase === "bidding" && viewer.bid === null && (
+            <div className="bid-panel">
+              <span className="panel-kicker">Make your bid</span>
+              <h2>How many tricks?</h2>
+              <p>You have {game.roundNumber} {game.roundNumber === 1 ? "card" : "cards"}. Hit your bid exactly to score.</p>
+              <div className="bid-options">
+                {Array.from({ length: game.roundNumber + 1 }, (_, value) => (
+                  <button key={value} type="button" className={bid === value ? "selected" : ""} onClick={() => setBid(value)}>{value}</button>
+                ))}
               </div>
-            ))}
-            {!game.trick.length && (
-              <div className="empty-sea" aria-hidden="true"><span>⚓</span><i /><i /><i /></div>
-            )}
-          </div>
-          <div className="skull-table-meta">
-            <span>Dealer: {game.players[game.dealerIndex].name}</span>
-            <span>Lead: {getLeadLabel(game)}</span>
-            <span>{game.deckCount} cards ashore</span>
-          </div>
-        </div>
-
-        {game.phase === "bidding" && viewer.bid === null && (
-          <div className="bid-panel">
-            <span className="panel-kicker">Make your bid</span>
-            <h2>How many tricks?</h2>
-            <p>You have {game.roundNumber} {game.roundNumber === 1 ? "card" : "cards"}. Hit your bid exactly to score.</p>
-            <div className="bid-options">
-              {Array.from({ length: game.roundNumber + 1 }, (_, value) => (
-                <button key={value} type="button" className={bid === value ? "selected" : ""} onClick={() => setBid(value)}>{value}</button>
-              ))}
+              <button type="button" className="skull-primary full" onClick={() => updateGame("bid", { bid }, (current) => submitSkullKingBid(current, viewerPlayerIndex, bid))}>
+                Lock bid at {bid}
+              </button>
             </div>
-            <button type="button" className="skull-primary full" onClick={() => updateGame("bid", { bid }, (current) => submitSkullKingBid(current, viewerPlayerIndex, bid))}>
-              Lock bid at {bid}
-            </button>
-          </div>
-        )}
-        {game.phase === "bidding" && viewer.bid !== null && (
-          <div className="bid-panel bid-locked-panel">
-            <span className="panel-kicker">Bid locked</span>
-            <h2>You chose {viewer.bid}.</h2>
-            <p>Waiting for the rest of the crew to finish bidding…</p>
-          </div>
-        )}
+          )}
+          {game.phase === "bidding" && viewer.bid !== null && (
+            <div className="bid-panel bid-locked-panel">
+              <span className="panel-kicker">Bid locked</span>
+              <h2>You chose {viewer.bid}.</h2>
+              <p>Waiting for the rest of the crew to finish bidding…</p>
+            </div>
+          )}
+        </div>
+
+        <p className="skull-message" role="status">{game.message}</p>
       </section>
 
       <section className="skull-your-seat">
@@ -645,6 +595,95 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
       </section>
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
+  );
+}
+
+/*
+ * The crew, sitting round the felt.
+ *
+ * What this replaced: a scoreboard listing every captain above the table, a rail
+ * of opponents across the top of it, and a row of played cards each captioned
+ * with a name in 12px type. Every name was printed three times and none of the
+ * three said where anyone was sitting.
+ *
+ * A bid is the whole game here, so it goes on the chair rather than in a
+ * scoreboard somewhere else: what you said you would take, against what you have
+ * taken. The lead suit is what constrains the card you may play, so it takes the
+ * middle of the felt.
+ */
+function SkullKingTable({ game, viewerIndex }) {
+  const played = new Map(game.trick.map((play) => [play.playerIndex, play.card]));
+  const leadSuit = game.trick.length ? getSkullKingLeadSuit(game.trick) : null;
+
+  return (
+    <SeatedTable
+      count={game.playerCount}
+      viewerIndex={viewerIndex}
+      className="skull-felt"
+      middle={(
+        <b
+          className={`tbl-felt-mark skull-lead ${leadSuit || ""}`}
+          title={game.trick.length ? `Leading: ${getLeadLabel(game)}` : "Nobody has led yet"}
+        >
+          {leadSuit ? SKULL_KING_SUIT_DETAILS[leadSuit].symbol : "\u2693"}
+        </b>
+      )}
+      foot={(
+        <small className="tbl-felt-meta">
+          {`Trick ${game.trickNumber} / ${game.roundNumber}`}
+        </small>
+      )}
+    >
+      {({ layout, seatStyle, cardStyle }) => (
+        <>
+          {layout.map((spot) => {
+            const card = played.get(spot.index);
+            if (!card) return null;
+            return (
+              <PlayedCard
+                key={`${spot.index}-${card.id}`}
+                style={cardStyle(spot.index)}
+              >
+                <SkullCard card={card} />
+              </PlayedCard>
+            );
+          })}
+
+          {layout.map((spot) => {
+            const player = game.players[spot.index];
+            return (
+              <Seat
+                key={player.id}
+                spot={spot}
+                style={seatStyle(spot.index)}
+                name={player.name}
+                avatar={player.isComputer ? <Bot size={14} /> : player.name.slice(0, 1).toUpperCase()}
+                note={player.isGhost ? "ghost crew" : `${player.score} pts`}
+                hand={player.handCount ?? player.hand?.length ?? 0}
+                tone={[
+                  game.currentPlayerIndex === spot.index ? "turn" : "",
+                  player.isGhost ? "out" : "",
+                ].filter(Boolean).join(" ")}
+                marks={[
+                  spot.index === game.dealerIndex && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
+                  player.wager > 0 && { key: "wager", label: player.wager, title: `Wagered ${player.wager}`, tone: "lead" },
+                ].filter(Boolean)}
+              >
+                {/* Taken against called. Everything in Skull King is whether those
+                    two numbers match, so it is the pill rather than the second
+                    line of the plate — the second line is what a full table
+                    drops, and this is the last thing that should go. */}
+                {!player.isGhost && (
+                  <span className={`tbl-chair-pill ${player.bid === null ? "quiet" : ""}`}>
+                    {player.bid === null ? "no bid" : `${player.tricks} / ${player.bid}`}
+                  </span>
+                )}
+              </Seat>
+            );
+          })}
+        </>
+      )}
+    </SeatedTable>
   );
 }
 

@@ -1374,7 +1374,7 @@
   --seat-w: 112px;
   --seat-pad: 4px 7px;
   --seat-avatar: 22px;
-  --seat-name: .72rem;
+  --seat-name: .64rem;
   --card-w: 52px;
   --card-h: 72px;
   --mark-w: 18px;
@@ -1486,8 +1486,11 @@
 .tbl-played { position: absolute; left: var(--card-x); top: var(--card-y); translate: -50% -50%; rotate: var(--tilt); transition: left .34s ease, top .34s ease, rotate .34s ease; }
 /* Whatever card element the game hands over gets the table's size. Named through
    the table so it outranks the game's own rule for that element — a route
-   stylesheet loads after this one. */
-.tbl-felt-table .tbl-played > * { width: var(--card-w); height: var(--card-h); }
+   stylesheet loads after this one — and border-box, so the size the table solved
+   for is the whole card. A card face carrying its own border and padding on
+   content-box came out nine pixels wider than the table had allowed for, which
+   is most of the gap between it and the name plate beside it. */
+.tbl-felt-table .tbl-played > * { box-sizing: border-box; width: var(--card-w); height: var(--card-h); }
 .tbl-felt-table .tbl-played.won > * { outline: 2px solid var(--felt-accent); outline-offset: 2px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--felt-accent) 18%, transparent), 0 6px 14px rgba(10, 26, 20, .34); }
 /* The whole trick slides to whoever took it, which says where it went better
    than a label that only lasts until the phase changes. It shrinks as it goes,
@@ -1565,14 +1568,18 @@
   }
   .tbl-felt-table.crowded {
     --seat-w: 72px;
-    --seat-pad: 4px 3px;
-    --seat-avatar: 14px;
+    --seat-pad: 4px 5px;
     --seat-name: .5rem;
     --card-w: 32px;
     --card-h: 44px;
     --mark-w: 12px;
     --mark-h: 12px;
   }
+  /* Nine chairs on a phone leaves a 72px plate, and a 14px disc showing the same
+     letter the name starts with was taking a quarter of it. The plate itself
+     already says whose turn it is and which side they are on. */
+  .tbl-felt-table.crowded .tbl-chair-avatar { display: none; }
+  .tbl-felt-table.crowded .tbl-chair-plate { grid-template-columns: minmax(0, 1fr); }
   .tbl-chair { left: var(--seat-x-n); top: var(--seat-y-n); }
   .tbl-played { left: var(--card-x-n); top: var(--card-y-n); }
   .tbl-chair-plate { gap: 4px; border-radius: 9px; }

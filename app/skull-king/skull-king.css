@@ -478,103 +478,98 @@
 .skull-gamebar-actions { gap: 8px; }
 .skull-gamebar-actions button { gap: 7px; padding: 9px 12px; color: #d4c6b0; border: 1px solid rgba(235, 199, 111, 0.14); border-radius: 10px; background: rgba(255,255,255,.045); cursor: pointer; }
 
-.skull-scoreboard {
-  width: min(1380px, calc(100% - 28px));
-  margin: 0 auto 12px;
+/* The avatar disc outlives the scoreboard the chairs replaced: the lobby, the
+   round results and the dialogs that pick a captain all still list people. */
+.skull-avatar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-  gap: 8px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #eee0c5;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #31585a, #19383d);
+  font-family: var(--font-ui);
+  font-weight: 800;
 }
 
-.skull-score {
-  position: relative;
-  min-width: 0;
-  padding: 9px 11px;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(235, 199, 111, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.skull-score.active { border-color: rgba(228, 184, 75, 0.55); background: rgba(228, 184, 75, 0.09); }
-.skull-score > b { color: var(--skull-gold); font-size: 1.02rem; }
-.skull-score > i { position: absolute; top: -5px; right: -4px; width: 18px; height: 18px; display: grid; place-items: center; color: #14231e; border-radius: 50%; background: #dcb452; font-size: 0.58rem; font-style: normal; font-weight: 900; }
-.skull-avatar { display: grid; width: 34px; height: 34px; place-items: center; color: #eee0c5; border-radius: 50%; background: linear-gradient(145deg, #31585a, #19383d); font-family: var(--font-ui); font-weight: 800; }
-.skull-player-copy { min-width: 0; display: grid; gap: 2px; }
-.skull-player-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; }
-.skull-player-copy small { color: #9f9382; font-size: 0.66rem; }
+/* ── The table ───────────────────────────────────────────────────────────────
+ * The felt, the chairs and the played cards are the shared seated table in
+ * app/table.css. What is left here is what Skull King paints on it: a sea
+ * instead of green baize, and card faces sized for the felt.
+ *
+ * This replaced a scoreboard above the table, a rail of opponents across the top
+ * of it, and a row of played cards captioned with names — three places that each
+ * printed every captain's name, and none of which said where anyone was sitting.
+ */
 
 .skull-table {
-  position: relative;
-  width: min(1380px, calc(100% - 28px));
-  min-height: 470px;
+  width: min(1180px, calc(100% - 28px));
   margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid rgba(235, 199, 111, 0.14);
-  border-radius: 28px;
-  background:
-    radial-gradient(ellipse at center, rgba(42, 107, 98, 0.44), transparent 62%),
-    repeating-radial-gradient(ellipse at center, transparent 0 74px, rgba(106, 170, 156, 0.035) 75px 76px),
-    linear-gradient(160deg, #173e40, #0d2c33 63%, #0b242c);
-  box-shadow: inset 0 0 80px rgba(0,0,0,.28), 0 22px 45px rgba(0,0,0,.22);
 }
 
-.skull-opponents {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  justify-content: space-around;
-  gap: 8px;
-  padding: 17px 18px 0;
+/* The bidding panel sits over the felt, so it measures against the felt rather
+   than against the felt plus whatever is written under it. */
+.skull-felt-wrap { position: relative; }
+
+.skull-felt {
+  --felt-rim: #3b2a1c;
+  --felt-cloth: #2a6b62;
+  --felt-cloth-mid: #143a41;
+  --felt-cloth-deep: #0b242c;
+  --felt-plate: rgba(6, 28, 33, .9);
+  --felt-plate-lit: rgba(18, 60, 62, .96);
+  --felt-edge: rgba(235, 199, 111, .22);
+  --felt-ink: #f4ead2;
+  --felt-ink-dim: #9f9382;
+  --felt-accent: var(--skull-gold);
+  --felt-avatar: linear-gradient(145deg, #4a8083, #19383d);
+  --felt-back: repeating-linear-gradient(45deg, #3b2827 0 3px, #ad8241 4px 5px);
+}
+.skull-felt .tbl-chair-avatar { color: #eee0c5; }
+
+/* Which suit was led is what decides the card you may play, so it takes the
+   middle of the felt. An anchor until somebody leads. */
+.skull-lead { font-size: 1.6rem; }
+.skull-lead.green { color: #8fd6a4; }
+.skull-lead.yellow { color: #f1c84d; }
+.skull-lead.purple { color: #cf9ed4; }
+.skull-lead.black { color: #f6dda0; }
+
+/* A card on the felt is sized by the table, and at nine captains that is 52px.
+   The art and the corner mark say which card it is; the name and the ability
+   line are set for a 96px card in the hand and only turn to mush here, so they
+   step aside — the card keeps its full name on the element's title. */
+.tbl-felt-table .tbl-played .skull-playing-card {
+  width: var(--card-w);
+  /* The suit and pirate faces carry a bottom padding for the label they show in
+     the hand. The label is gone here, and the padding would push the card past
+     the size the table solved for. */
+  padding: 0;
+  border-width: 2px;
+  border-radius: calc(var(--card-w) / 8);
+  font-size: calc(var(--card-w) / 62 * 1rem);
+}
+.tbl-felt-table .tbl-played .skull-playing-card > strong,
+.tbl-felt-table .tbl-played .skull-playing-card > small,
+.tbl-felt-table .tbl-played .expansion-mark { display: none; }
+.tbl-felt-table .tbl-played .skull-card-corner { inset: 3px auto auto 3px; }
+.tbl-felt-table .tbl-played .skull-card-corner b { font-size: .82em; }
+.tbl-felt-table .tbl-played .skull-card-corner i { margin-top: 1px; font-size: .62em; }
+.tbl-felt-table .tbl-played .special-art { font-size: 1.9em; }
+.tbl-felt-table .tbl-played .card-illustration { inset: 0; }
+.tbl-felt-table .tbl-played .skull-playing-card.illustrated-character::before,
+.tbl-felt-table .tbl-played .skull-playing-card.pirate { padding-bottom: 0; }
+
+.skull-message {
+  min-height: 21px;
+  margin: 10px 0 0;
+  color: #d7cbb8;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: .9rem;
+  font-style: italic;
 }
 
-.skull-opponent { min-width: 92px; display: grid; justify-items: center; color: #b8aa93; transition: color 160ms ease; }
-.skull-opponent.active { color: var(--skull-gold); }
-.opponent-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem; font-weight: 800; }
-.skull-opponent > small { margin-top: 5px; font-size: 0.62rem; }
-
-.mini-hand { position: relative; width: 68px; height: 32px; margin-top: 6px; }
-.mini-hand i { position: absolute; bottom: 0; left: calc(22px + var(--mini) * 5px); width: 23px; height: 31px; border: 1px solid #a98946; border-radius: 4px; background: repeating-linear-gradient(45deg, #3b2827 0 3px, #ad8241 4px 5px); transform: translateX(-50%) rotate(calc((var(--mini) - 2.5) * 5deg)); transform-origin: bottom center; }
-.skull-opponent.active .mini-hand { filter: drop-shadow(0 0 6px rgba(228,184,75,.5)); }
-
-.skull-table-center {
-  min-height: 378px;
-  padding: 20px 20px 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.skull-round-chip { padding: 5px 10px; color: var(--skull-gold); border: 1px solid rgba(228,184,75,.2); border-radius: 999px; background: rgba(4,22,26,.38); font-size: .62rem; font-weight: 900; letter-spacing: .13em; }
-.skull-round-chip span { color: #978b79; }
-.skull-message { min-height: 21px; margin: 9px 0 12px; color: #d7cbb8; text-align: center; font-family: var(--font-ui); font-size: .9rem; font-style: italic; }
-
-.skull-trick {
-  min-height: 188px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 10px;
-}
-
-.skull-play { display: grid; justify-items: center; gap: 5px; animation: card-arrive 220ms ease-out both; }
-.skull-play .skull-playing-card { width: 92px; }
-.skull-play > small { max-width: 90px; overflow: hidden; color: #bdb09c; font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
-
-@keyframes card-arrive { from { opacity: 0; transform: translateY(-10px) scale(.92); } to { opacity: 1; transform: none; } }
-
-.empty-sea { position: relative; width: 180px; height: 145px; display: grid; place-items: center; color: rgba(229,193,108,.3); }
-.empty-sea > span { font-size: 3.4rem; }
-.empty-sea i { position: absolute; width: 112px; height: 42px; border-bottom: 2px solid rgba(96,174,166,.13); border-radius: 50%; }
-.empty-sea i:nth-child(2) { bottom: 29px; left: 4px; }
-.empty-sea i:nth-child(3) { right: 3px; bottom: 13px; }
-.empty-sea i:nth-child(4) { bottom: 0; left: 23px; }
-
-.skull-table-meta { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.skull-table-meta span { padding: 5px 9px; color: #8fa9a3; border-radius: 999px; background: rgba(4,21,25,.3); font-size: .62rem; }
 
 .bid-panel {
   position: absolute;
@@ -793,8 +788,6 @@
   .art-purple { top: 130px; left: calc(50% - 180px); }
   .art-pirate { top: 88px; left: calc(50% - 75px); }
   .art-black { top: 130px; left: calc(50% + 30px); }
-  .skull-trick.many { gap: 3px; }
-  .skull-trick.many .skull-playing-card { width: 74px; }
   .skull-hand { justify-content: flex-start; }
   .skull-ghost-hand { justify-content: flex-start; }
 }
@@ -812,20 +805,11 @@
   .skull-gamebar { align-items: flex-start; }
   .skull-gamebar-actions button { padding: 9px; font-size: 0; }
   .skull-gamebar-actions button svg { width: 18px; height: 18px; }
-  .skull-scoreboard { display: flex; overflow-x: auto; }
-  .skull-score { min-width: 155px; }
-  .skull-table { min-height: 430px; border-radius: 20px; }
-  .skull-opponents { justify-content: flex-start; overflow-x: auto; }
-  .skull-opponent { min-width: 82px; }
-  .skull-table-center { min-height: 338px; padding-inline: 8px; }
-  .skull-trick { gap: 3px; max-width: 100%; }
-  .skull-play .skull-playing-card { width: min(76px, calc((100vw - 48px) / 4)); border-width: 2px; }
-  .skull-trick.many .skull-playing-card { width: 57px; }
+  .skull-message { font-size: .78rem; }
   .skull-playing-card > small { display: none; }
   .skull-playing-card > strong { font-size: 1.35rem; }
   .special-art { font-size: 2.5rem; }
   .skull-card-corner { top: 6px; left: 6px; }
-  .skull-play > small { max-width: 58px; }
   .bid-panel { padding: 24px 18px; }
   .skull-your-seat { width: calc(100% - 16px); }
   .skull-hand-card .skull-playing-card { width: 88px; }
