@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bot, Trophy, Users } from "lucide-react";
 
 import { ColorGameCard, CardBack, cardName } from "./color-game-card";
+import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { UnoRoomService } from "./uno-room-service";
 import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
 import {
@@ -136,49 +137,18 @@ export default function UnoClient() {
   }
 
   return (
-    <main className="tbl-game uno-theme">
+    <main className="tbl-game uno-theme tbl-felt-shell">
       <GameHeader title={flipMode ? "UNO FLIP" : "UNO"} room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
       {error && <p className="tbl-error" role="alert">{error}</p>}
 
-      <section className="tbl-opponents">
-        {room.players.filter((player) => player.id !== playerId).map((player) => (
-          <article key={player.id} className={`tbl-opponent${active?.id === player.id ? " is-active" : ""}`}>
-            <span className="tbl-opponent-avatar" aria-hidden="true">{player.isComputer ? <Bot /> : player.name[0].toUpperCase()}</span>
-            <div>
-              <strong>{player.name}</strong>
-              <small>{player.cards.length} cards · {player.score} pts</small>
-            </div>
-            <div className="tbl-mini-stack"><CardBack count={player.cards.length} small flipSide={flipMode ? room.side : null} /></div>
-          </article>
-        ))}
+      <section className="uno-table tbl-felt-fit" aria-label="UNO table">
+        <UnoTable room={room} viewerId={playerId} active={active} darkSide={darkSide} flipMode={flipMode} />
       </section>
 
-      <section className="tbl-table">
-        <aside className="tbl-side">
-          <p>Round {room.round}</p>
-          <strong>{room.direction === 1 ? "Clockwise" : "Counterclockwise"}</strong>
-          <span>First to {room.targetScore}</span>
-          {flipMode && <b className={`tbl-side-badge ${room.side}`}>{room.side} side</b>}
-        </aside>
-
-        <div className="tbl-piles">
-          <div className="tbl-pile">
-            <CardBack count={room.deck.length} flipSide={flipMode ? room.side : null} />
-            <span className="tbl-pile-label">Draw pile</span>
-          </div>
-          <div className="tbl-pile">
-            <ColorGameCard card={cardFace(room, topDiscard(room))} dark={darkSide} />
-            <span className="tbl-pile-label">
-              Active color: <b className={`tbl-color-dot ${room.activeColor}`} /> {room.activeColor}
-            </span>
-          </div>
-        </div>
-
-        <aside className="tbl-side tbl-log">
-          <p>Table talk</p>
-          {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
-        </aside>
-      </section>
+      <aside className="tbl-side tbl-log uno-log">
+        <p>Table talk</p>
+        {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
+      </aside>
 
       {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchUno(current, playerId))}>Catch missed UNO — make them draw 2</button>}
 
@@ -215,6 +185,73 @@ export default function UnoClient() {
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
     </main>
+  );
+}
+
+/*
+ * The players, sitting round the felt.
+ *
+ * UNO has no per-round trick — one shared discard pile grows the whole game —
+ * so a seat cannot show "what that player played this hand" the way a
+ * trick-taking game can. It can still show the one thing a shared pile loses:
+ * who put the top card down. `lastPlayerId` tracks that, and the card sits in
+ * front of their chair until somebody else plays.
+ */
+function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
+  const viewerIndex = room.players.findIndex((player) => player.id === viewerId);
+  const lastPlayerIndex = room.lastPlayerId ? room.players.findIndex((player) => player.id === room.lastPlayerId) : -1;
+  const top = topDiscard(room);
+
+  return (
+    <SeatedTable
+      count={room.players.length}
+      viewerIndex={viewerIndex < 0 ? 0 : viewerIndex}
+      className="uno-felt"
+      middle={(
+        <b className={`tbl-felt-mark uno-mid is-${room.activeColor || "wild"}`} title={`${room.deck.length} left in the draw pile`}>
+          {room.deck.length}
+        </b>
+      )}
+      foot={(
+        <small className="tbl-felt-meta">
+          {`Round ${room.round} · ${room.direction === 1 ? "Clockwise" : "Counter-clockwise"} · Active `}
+          <b className={`tbl-color-dot ${room.activeColor}`} />
+          {` ${room.activeColor}`}
+        </small>
+      )}
+    >
+      {({ layout, seatStyle, cardStyle }) => (
+        <>
+          {lastPlayerIndex >= 0 && top && (
+            <PlayedCard style={cardStyle(lastPlayerIndex)}>
+              <ColorGameCard card={cardFace(room, top)} dark={darkSide} small />
+            </PlayedCard>
+          )}
+
+          {layout.map((spot) => {
+            const player = room.players[spot.index];
+            return (
+              <Seat
+                key={player.id}
+                spot={spot}
+                style={seatStyle(spot.index)}
+                name={player.name}
+                avatar={player.isComputer ? <Bot size={14} /> : player.name.slice(0, 1).toUpperCase()}
+                note={`${player.score} pts`}
+                hand={player.cards.length}
+                tone={active?.id === player.id ? "turn" : ""}
+                marks={[
+                  spot.index === room.dealerIndex && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
+                  flipMode && player.id === room.lastPlayerId && { key: "side", label: room.side === "dark" ? "●" : "○", title: `${room.side} side`, tone: "lead" },
+                ].filter(Boolean)}
+              >
+                <span className="tbl-chair-pill">{player.cards.length} {player.cards.length === 1 ? "card" : "cards"}</span>
+              </Seat>
+            );
+          })}
+        </>
+      )}
+    </SeatedTable>
   );
 }
 

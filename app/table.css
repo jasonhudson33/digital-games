@@ -653,8 +653,7 @@
 
 /* ── Table ───────────────────────────────────────────────────────────────── */
 
-.tbl-table,
-.dos-table {
+.tbl-table {
   display: grid;
   grid-template-columns: minmax(170px, 0.6fr) minmax(390px, 1.4fr) minmax(230px, 0.8fr);
   gap: 10px;
@@ -662,13 +661,23 @@
 }
 
 .tbl-side,
-.tbl-piles,
-.dos-center {
+.tbl-piles {
   min-height: 220px;
   padding: 15px;
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
   background: var(--surface);
+}
+
+/* DOS moved its center row out of the old grid and onto its own panel below
+   the felt table — same look as the hand zone below it. */
+.dos-center-zone {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
 }
 
 .tbl-side {
@@ -1219,10 +1228,6 @@
 
 /* ── DOS centre row ──────────────────────────────────────────────────────── */
 
-.dos-table > .tbl-side .tbl-card {
-  margin-top: 18px;
-}
-
 .dos-center-head p {
   margin: 0;
   color: var(--muted);
@@ -1260,8 +1265,7 @@
   .tbl-entry { border-radius: 0 0 var(--r-xl) var(--r-xl); }
   .tbl-game-header { flex-wrap: wrap; }
   .tbl-header-status { order: 6; width: 100%; text-align: center; }
-  .tbl-table,
-  .dos-table { grid-template-columns: 1fr 1.3fr; }
+  .tbl-table { grid-template-columns: 1fr 1.3fr; }
   .tbl-log { grid-column: 1 / -1; }
   .tbl-opponents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -1289,8 +1293,7 @@
     clip-path: inset(50%);
   }
 
-  .tbl-table,
-  .dos-table { grid-template-columns: 1fr; }
+  .tbl-table { grid-template-columns: 1fr; }
   .tbl-side { min-height: 120px; }
   .tbl-piles { gap: 20px; }
   .tbl-hand .tbl-card { width: 92px; height: 128px; }
@@ -1313,6 +1316,70 @@
  */
 .uno-theme { --tbl-hue: 30; --tbl-accent-hue: 90; }
 .dos-theme { --tbl-hue: 250; --tbl-accent-hue: 90; }
+
+/* Felt-shell offset for the two games that use the shared shell without a
+   dedicated stylesheet of their own — see the seated table below. */
+.tbl-game.tbl-felt-shell { --felt-shell-offset: 96px; }
+
+/* ── UNO / DOS felt theme ─────────────────────────────────────────────────
+ * A card game night table rather than either game's own brand colours —
+ * charcoal felt for UNO's black-cornered deck, a cooler ink for DOS.
+ */
+.uno-felt {
+  --felt-rim: #2a2118;
+  --felt-cloth: #35302f;
+  --felt-cloth-mid: #221f21;
+  --felt-cloth-deep: #161418;
+  --felt-plate: rgba(20, 18, 22, .9);
+  --felt-plate-lit: rgba(38, 34, 40, .96);
+  --felt-edge: rgba(241, 197, 46, .22);
+  --felt-ink: #f4ecda;
+  --felt-ink-dim: #a89f95;
+  --felt-accent: #e6aa16;
+  --felt-avatar: linear-gradient(145deg, #4a4550, #211f24);
+  --felt-back: repeating-linear-gradient(45deg, #2c2833 0 3px, #1c1a20 3px 6px);
+}
+
+.dos-felt {
+  --felt-rim: #1e2440;
+  --felt-cloth: #253064;
+  --felt-cloth-mid: #182047;
+  --felt-cloth-deep: #0f1430;
+  --felt-plate: rgba(14, 18, 40, .9);
+  --felt-plate-lit: rgba(30, 38, 74, .96);
+  --felt-edge: rgba(200, 210, 255, .22);
+  --felt-ink: #eef1ff;
+  --felt-ink-dim: #a2a9d6;
+  --felt-accent: #6f8bff;
+  --felt-avatar: linear-gradient(145deg, #4a54a0, #1c2154);
+  --felt-back: repeating-linear-gradient(45deg, #263070 0 3px, #171d47 3px 6px);
+}
+
+/* The active-color / draw-pile mark in the middle of the UNO felt reuses the
+   card-face colours rather than inventing new ones. */
+.tbl-felt-mark.uno-mid.is-red { background: linear-gradient(145deg, #f14449, #c31d2b); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-yellow { background: linear-gradient(145deg, #f8d747, #e6aa16); color: #25283a; border-color: rgba(0,0,0,.2); }
+.tbl-felt-mark.uno-mid.is-green { background: linear-gradient(145deg, #2ebd68, #178342); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-blue { background: linear-gradient(145deg, #3487ee, #1757b3); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-teal { background: linear-gradient(145deg, #25bcbc, #087d83); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-pink { background: linear-gradient(145deg, #ee58a5, #b52673); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-orange { background: linear-gradient(145deg, #f38b35, #bd481a); color: #fff; border-color: rgba(255,255,255,.35); }
+.tbl-felt-mark.uno-mid.is-purple, .tbl-felt-mark.uno-mid.is-wild { background: conic-gradient(from 45deg, #ee3e43 0 25%, #f1c52e 0 50%, #24a95a 0 75%, #2472d7 0); color: #202536; border-color: rgba(255,255,255,.4); }
+
+/* A playing card shrunk to felt size still carries hand-sized type unless it
+   is told otherwise — the label line is what a hand-sized card needs and a
+   felt-sized one does not, same trade Skull King made for its own cards. */
+.tbl-felt-table .tbl-played .tbl-card { padding: calc(3 * var(--px)); border-width: calc(2 * var(--px)); }
+.tbl-felt-table .tbl-played .tbl-card-corner { font-size: calc(7 * var(--px)); }
+.tbl-felt-table .tbl-played .tbl-card-face { gap: calc(2 * var(--px)); }
+.tbl-felt-table .tbl-played .tbl-card-face strong { font-size: calc(20 * var(--px)); }
+.tbl-felt-table .tbl-played .tbl-card-face b { display: none; }
+.tbl-felt-table .tbl-played .tbl-card-face svg { width: calc(16 * var(--px)); height: calc(16 * var(--px)); }
+
+.uno-log, .dos-log {
+  width: min(1240px, calc(100% - 28px));
+  margin: 10px auto 0;
+}
 
 /* ── The seated table ────────────────────────────────────────────────────────
  *

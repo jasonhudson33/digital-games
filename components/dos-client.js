@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bot, Trophy, Users } from "lucide-react";
 
 import { CardBack, ColorGameCard, cardName } from "./color-game-card";
+import { Seat, SeatedTable } from "./ui/seated-table";
 import { DosRoomService } from "./dos-room-service";
 import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
 import {
@@ -109,48 +110,30 @@ export default function DosClient() {
   }
 
   return (
-    <main className="tbl-game dos-theme">
+    <main className="tbl-game dos-theme tbl-felt-shell">
       <GameHeader title="DOS" room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
       {error && <p className="tbl-error" role="alert">{error}</p>}
 
-      <section className="tbl-opponents">
-        {room.players.filter((player) => player.id !== playerId).map((player) => (
-          <article key={player.id} className={`tbl-opponent${active?.id === player.id ? " is-active" : ""}`}>
-            <span className="tbl-opponent-avatar" aria-hidden="true">{player.isComputer ? <Bot /> : player.name[0].toUpperCase()}</span>
-            <div>
-              <strong>{player.name}</strong>
-              <small>{player.cards.length} cards · {player.score} pts</small>
-            </div>
-            <div className="tbl-mini-stack"><CardBack count={player.cards.length} small /></div>
-          </article>
-        ))}
+      <section className="dos-felt-wrap tbl-felt-fit" aria-label="DOS table">
+        <DosTable room={room} viewerId={playerId} active={active} />
       </section>
 
-      <section className="dos-table">
-        <aside className="tbl-side">
-          <p>Round {room.round}</p>
-          <strong>Make the sum.</strong>
-          <span>First to {room.targetScore}</span>
-          <CardBack count={room.deck.length} small />
-        </aside>
-
-        <div className="dos-center">
-          <header className="dos-center-head">
-            <p>Center row</p>
-            <span>Select one center card, then one matching card or two cards whose values add up to it.</span>
-          </header>
-          <div className="dos-center-row">
-            {room.centerRow.map((center) => (
-              <ColorGameCard key={center.id} card={center} selected={selectedCenter === center.id} disabled={!myTurn || mustPlace} onClick={myTurn && !mustPlace ? () => setSelectedCenter(center.id) : undefined} />
-            ))}
-          </div>
+      <div className="dos-center-zone" aria-label="Center row">
+        <header className="dos-center-head">
+          <p>Center row</p>
+          <span>Select one center card, then one matching card or two cards whose values add up to it.</span>
+        </header>
+        <div className="dos-center-row">
+          {room.centerRow.map((center) => (
+            <ColorGameCard key={center.id} card={center} selected={selectedCenter === center.id} disabled={!myTurn || mustPlace} onClick={myTurn && !mustPlace ? () => setSelectedCenter(center.id) : undefined} />
+          ))}
         </div>
+      </div>
 
-        <aside className="tbl-side tbl-log">
-          <p>Table talk</p>
-          {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
-        </aside>
-      </section>
+      <aside className="tbl-side tbl-log dos-log">
+        <p>Table talk</p>
+        {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
+      </aside>
 
       {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchDos(current, playerId))}>Catch missed DOS — make them draw 2</button>}
 
@@ -196,6 +179,55 @@ export default function DosClient() {
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
     </main>
+  );
+}
+
+function DosTable({ room, viewerId, active }) {
+  const viewerIndex = room.players.findIndex((player) => player.id === viewerId);
+
+  return (
+    <SeatedTable
+      count={room.players.length}
+      viewerIndex={viewerIndex < 0 ? 0 : viewerIndex}
+      className="dos-felt"
+      middle={(
+        <b className="tbl-felt-mark" title={`${room.deck.length} left in the draw pile`}>
+          {room.deck.length}
+        </b>
+      )}
+      foot={(
+        <small className="tbl-felt-meta">
+          {`Round ${room.round} · Target ${room.targetScore} · ${room.centerRow.length} in the center`}
+        </small>
+      )}
+    >
+      {({ layout, seatStyle }) => (
+        <>
+          {layout.map((spot) => {
+            const player = room.players[spot.index];
+            return (
+              <Seat
+                key={player.id}
+                spot={spot}
+                style={seatStyle(spot.index)}
+                name={player.name}
+                avatar={player.isComputer ? <Bot size={14} /> : player.name.slice(0, 1).toUpperCase()}
+                note={`${player.score} pts`}
+                hand={player.cards.length}
+                tone={active?.id === player.id ? "turn" : ""}
+                marks={[
+                  spot.index === room.dealerIndex && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
+                  player.dosSafe && { key: "dos", label: "DOS", title: `${player.name} called DOS`, tone: "lead" },
+                  room.missedDosPlayerId === player.id && { key: "miss", label: "!", title: `${player.name} missed DOS`, tone: "out" },
+                ].filter(Boolean)}
+              >
+                <span className="tbl-chair-pill">{player.cards.length} {player.cards.length === 1 ? "card" : "cards"}</span>
+              </Seat>
+            );
+          })}
+        </>
+      )}
+    </SeatedTable>
   );
 }
 
