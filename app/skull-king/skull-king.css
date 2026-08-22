@@ -524,16 +524,25 @@
 }
 .skull-felt .tbl-chair-avatar { color: #eee0c5; }
 
-/* A bigger table for the sizes that have the room for it — up to eight
-   captains. Nine keeps the shared crowded floor: it is already solved down
-   to the wire and a bigger floor there would just force a page scroll for
-   the games least able to spare the space. */
+/* A bigger table across the board — nine captains gets a bigger floor too
+   now, just a smaller bump than the rest, since that tier has the least
+   margin to give back before a name plate or a card starts crowding its
+   neighbour. On a shorter real window this floor can now ask for more room
+   than the hand strip has left to give, which the shell's own overflow
+   handles by scrolling that strip a little rather than by overlapping it —
+   the same fallback the covering bug was fixed with. */
 @media (min-width: 651px) {
   .tbl-felt-fit > .tbl-felt-table.skull-felt:not(.crowded) {
-    width: min(100%, max(760px, calc(100cqh * 940 / 580)));
+    width: min(100%, max(900px, calc(100cqh * 940 / 580)));
   }
   .tbl-felt-fit:has(> .tbl-felt-table.skull-felt:not(.crowded)) {
-    min-height: calc(760px * 580 / 940);
+    min-height: calc(900px * 580 / 940);
+  }
+  .tbl-felt-fit > .tbl-felt-table.skull-felt.crowded {
+    width: min(100%, max(860px, calc(100cqh * 940 / 580)));
+  }
+  .tbl-felt-fit:has(> .tbl-felt-table.skull-felt.crowded) {
+    min-height: calc(860px * 580 / 940);
   }
 }
 

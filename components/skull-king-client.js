@@ -619,7 +619,7 @@ function SkullKingTable({ game, viewerIndex, dock }) {
      not — the crowded tier is already down to a quarter less plate and gap to
      fit them, so it keeps the sizes it was solved for rather than reclaiming
      that margin. */
-  const bigCard = game.playerCount > 8 ? null : game.playerCount > 6 ? { w: 62, h: 86 } : { w: 72, h: 100 };
+  const bigCard = game.playerCount > 8 ? { w: 58, h: 80 } : game.playerCount > 6 ? { w: 76, h: 106 } : { w: 75, h: 104 };
 
   return (
     <SeatedTable
