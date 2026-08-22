@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { shuffleInPlace } from "../lib/shuffle.js";
+import { Copy, LogOut } from "lucide-react";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import {
   SUITS,
@@ -470,249 +471,34 @@ export default function SevenUpClient() {
         : "";
   const showWinnerOverlay = Boolean(winnerName);
   const canDealAgain = mode === "local" || Boolean(room.state?.hostControls);
+  const gameActive = mode === "local" ? Boolean(localGame) : Boolean(room.state?.game);
 
   return (
     <>
-      <div className="page-shell">
-        <header className="hero">
-          <div>
-            <p className="eyebrow">Card Game</p>
-            <h1>7-up</h1>
-            <p className="subtitle">
-              Play locally, mix in computer players, or create a shared room and deal into the same game from anywhere.
-            </p>
-          </div>
-          <button className="secondary-button" onClick={resetAll} type="button">
-            New game
-          </button>
-        </header>
+      {gameActive ? (
+        <main className="tbl-game seven-up-theme tbl-felt-shell">
+          <SevenUpGameHeader
+            mode={mode}
+            roomCode={room.roomCode}
+            statusText={renderContext?.statusText || ""}
+            onLeave={resetAll}
+          />
+          {error && <p className="tbl-error" role="alert">{error}</p>}
 
-        <main className="layout">
-          {!hideSetupPanel ? (
-            <section className="panel control-panel">
-              <h2>Setup</h2>
-              <form className="setup-form" onSubmit={handleSubmit}>
-                <label htmlFor="mode-select">Play mode</label>
-                <select id="mode-select" value={mode} onChange={(event) => setMode(event.target.value)}>
-                  <option value="local">Local game</option>
-                  <option value="room">Room game</option>
-                </select>
-
-                <label htmlFor="player-count">Players</label>
-                <select id="player-count" value={playerCount} onChange={handlePlayerCountChange}>
-                  {Array.from({ length: 5 }, (_, index) => index + 3).map((count) => (
-                    <option key={count} value={count}>
-                      {count}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="name-fields">
-                  {playerConfigs.map((player, index) => (
-                    <div key={index} className="player-row">
-                      <div>
-                        <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
-                        <input
-                          id={`player-name-${index}`}
-                          value={player.name}
-                          maxLength={20}
-                          onChange={(event) =>
-                            handlePlayerConfigChange(index, { name: event.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor={`player-type-${index}`}>Type</label>
-                        <select
-                          id={`player-type-${index}`}
-                          value={player.playerType}
-                          onChange={(event) =>
-                            handlePlayerConfigChange(index, { playerType: event.target.value })
-                          }
-                        >
-                          <option value="human">Human</option>
-                          <option value="computer">Computer</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {mode === "room" ? (
-                  <div className="room-mode-note">
-                    Room mode uses Vercel API routes for game actions. For production multiplayer, configure the server-side Supabase room store so state persists across serverless requests.
-                  </div>
-                ) : null}
-
-                <button className="primary-button" type="submit">
-                  {mode === "room" ? "Create room" : "Deal cards"}
-                </button>
-              </form>
-
-              <div className="rules-note">
-                <strong>Rule note:</strong> if you have a legal card, you must play it.
-              </div>
-            </section>
-          ) : null}
-
-          <section className="panel room-panel">
-            <h2>Room Play</h2>
-            {!room.roomCode ? (
-              <div className="room-create-panel">
-                <p className="preview-title">Start a new room</p>
-                <p className="hand-help">
-                  Use the player setup on the left, then create a room to get a share link for everyone else.
-                </p>
-                <label htmlFor="create-name">Your name</label>
-                <input
-                  id="create-name"
-                  maxLength={20}
-                  placeholder="Your name"
-                  value={createName}
-                  onChange={(event) => setCreateName(event.target.value)}
-                />
-                <button className="primary-button" type="button" onClick={createRoom}>
-                  Create room
-                </button>
-              </div>
-            ) : null}
-
-            {!room.token ? (
-              <form className="setup-form" onSubmit={loadRoom}>
-                <label htmlFor="join-room-code">Room code</label>
-                <input
-                  id="join-room-code"
-                  maxLength={6}
-                  placeholder="ROOM CODE"
-                  value={joinRoomCode}
-                  onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
-                />
-
-                <label htmlFor="join-name">Your name</label>
-                <input
-                  id="join-name"
-                  maxLength={20}
-                  placeholder="Your name"
-                  value={joinName}
-                  onChange={(event) => setJoinName(event.target.value)}
-                />
-
-                <button className="secondary-button" type="submit">
-                  Load room
-                </button>
-              </form>
-            ) : null}
-
-            {roomPreview && !room.token ? (
-              <div className="room-join-preview">
-                <p className="preview-title">Open seats in room {roomPreview.roomCode}</p>
-                {roomPreview.players
-                  .filter((player) => player.playerType === "human")
-                  .map((player) => (
-                    <div className="join-seat-row" key={player.seatId}>
-                      <span>
-                        {player.label} {player.claimed ? "(taken)" : ""}
-                      </span>
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        disabled={player.claimed}
-                        onClick={() => joinSeat(player.seatId)}
-                      >
-                        {player.claimed ? "Taken" : "Join seat"}
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            ) : null}
-
-            {room.roomCode ? (
-              <div className="room-controls">
-                <div className="room-meta">
-                  <span className="meta-label">Room code</span>
-                  <div>{room.roomCode}</div>
-                </div>
-                <div className="room-meta">
-                  <span className="meta-label">Share link</span>
-                  <div className="room-link">{roomUrl}</div>
-                </div>
-                <div className="room-meta">
-                  <span className="meta-label">Seat privacy</span>
-                  <div>This device keeps its seat privately. Share the room link, not your private seat token.</div>
-                </div>
-                <div className="turn-actions">
-                  <button
-                    className="primary-button"
-                    type="button"
-                    disabled={!room.state || !room.state.hostControls || !roomReadyToDeal}
-                    onClick={startRoom}
-                  >
-                    Deal cards
-                  </button>
-                  <button className="secondary-button" type="button" onClick={leaveRoom}>
-                    Leave room
-                  </button>
-                </div>
-                {room.state?.status === "waiting" ? (
-                  <div className="hand-help">
-                    {roomReadyToDeal
-                      ? "All human players have joined. Deal cards when everyone is ready."
-                      : `${openHumanSeats.length} human seat${openHumanSeats.length === 1 ? "" : "s"} still need to join before dealing.`}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+          <section className="seven-up-felt-wrap tbl-felt-fit" aria-label="7-Up table">
+            <SevenUpTable
+              playerRail={playerRail}
+              mode={mode}
+              tableau={getTableau({ mode, localGame, roomState: room.state })}
+              turnCount={renderContext?.turnCount}
+            />
           </section>
 
-          <section className="panel status-panel">
-            {error ? <div className="error-banner">{error}</div> : null}
-            <div className={`status-banner ${renderContext ? "" : "empty"}`}>
-              {renderContext ? renderContext.statusText : "Start a game to begin."}
-            </div>
-
-            {renderContext?.winnerText ? (
-              <div className="winner-banner">{renderContext.winnerText}</div>
-            ) : null}
-
-            <div className="meta-grid">
-              <div>
-                <span className="meta-label">Current player</span>
-                <div>{renderContext?.currentPlayerName || "-"}</div>
-              </div>
-              <div>
-                <span className="meta-label">Dealer</span>
-                <div>{renderContext?.dealerName || "-"}</div>
-              </div>
-              <div>
-                <span className="meta-label">Turn</span>
-                <div>{renderContext?.turnCount || 0}</div>
-              </div>
-              <div>
-                <span className="meta-label">Hand sizes</span>
-                <div>{renderContext?.handSummary || "-"}</div>
-              </div>
-            </div>
-            <button
-              className={`primary-button ${overlayState.visible ? "" : "hidden"}`}
-              type="button"
-              onClick={hideOverlay}
-            >
-              Continue
-            </button>
-          </section>
-
-          {playerRail.length > 0 ? (
-            <section className="panel seats-panel">
-              <h2>Table</h2>
-              <div className="seven-up-table">
-                <SevenUpTable playerRail={playerRail} mode={mode} tableau={getTableau({ mode, localGame, roomState: room.state })} turnCount={renderContext?.turnCount} />
-              </div>
-            </section>
-          ) : null}
-
-          <section className="panel tableau-panel">
-            <h2>Tableau</h2>
-            <p className="hand-help">Every card that has been played stays on the table — a lane never clears, it only grows.</p>
+          <div className="seven-up-tableau-zone" aria-label="Tableau">
+            <header className="seven-up-tableau-head">
+              <p>Tableau</p>
+              <span>Every card that has been played stays on the table — a lane never clears, it only grows.</span>
+            </header>
             <div className="tableau">
               {SUITS.map((suit) => {
                 const tableau = getTableau({ mode, localGame, roomState: room.state });
@@ -744,13 +530,29 @@ export default function SevenUpClient() {
                 );
               })}
             </div>
-          </section>
+          </div>
 
-          <section className="panel hand-panel">
-            <div className="hand-header">
-              <h2>Hand</h2>
-              <p className="hand-help">{handContext.helpText}</p>
-            </div>
+          <aside className="tbl-side tbl-log seven-up-log">
+            <p>Table talk</p>
+            {(() => {
+              const log = mode === "local" ? localGame?.log : room.state?.game?.log;
+              if (!log || log.length === 0) {
+                return <span className="tbl-log-line">No turns yet.</span>;
+              }
+              return log.slice(0, 5).map((entry, index) => (
+                <span className="tbl-log-line" key={`${index}-${entry}`}>{entry}</span>
+              ));
+            })()}
+          </aside>
+
+          <section className="tbl-hand-zone">
+            <header className="tbl-hand-header">
+              <div>
+                <p>Your hand</p>
+                <strong>{handContext.cards ? `${handContext.cards.length} cards` : handContext.message}</strong>
+              </div>
+            </header>
+            <p className="hand-help">{handContext.helpText}</p>
             {handContext.cards ? (
               handContext.cards.length === 0 ? (
                 <div className="hand empty-hand">{handContext.message}</div>
@@ -776,9 +578,9 @@ export default function SevenUpClient() {
             ) : (
               <div className="hand empty-hand">{handContext.message}</div>
             )}
-            <div className="hand-actions">
+            <div className="tbl-actions">
               <button
-                className="secondary-button"
+                className="tbl-secondary"
                 type="button"
                 disabled={!renderContext?.canPass}
                 onClick={handlePass}
@@ -787,22 +589,208 @@ export default function SevenUpClient() {
               </button>
             </div>
           </section>
-
-          <section className="panel log-panel">
-            <h2>Game log</h2>
-            <ol className="log-list">
-              {(mode === "local" ? localGame?.log : room.state?.game?.log) && (
-                (mode === "local" ? localGame?.log : room.state?.game?.log).length > 0
-                  ? (mode === "local" ? localGame.log : room.state.game.log).map((entry, index) => (
-                      <li key={`${index}-${entry}`}>{entry}</li>
-                    ))
-                  : <li>No turns yet.</li>
-              )}
-              {!((mode === "local" ? localGame?.log : room.state?.game?.log)) ? <li>No turns yet.</li> : null}
-            </ol>
-          </section>
         </main>
-      </div>
+      ) : (
+        <div className="page-shell">
+          <header className="hero">
+            <div>
+              <p className="eyebrow">Card Game</p>
+              <h1>7-up</h1>
+              <p className="subtitle">
+                Play locally, mix in computer players, or create a shared room and deal into the same game from anywhere.
+              </p>
+            </div>
+            <button className="secondary-button" onClick={resetAll} type="button">
+              New game
+            </button>
+          </header>
+
+          <main className="layout">
+            {!hideSetupPanel ? (
+              <section className="panel control-panel">
+                <h2>Setup</h2>
+                <form className="setup-form" onSubmit={handleSubmit}>
+                  <label htmlFor="mode-select">Play mode</label>
+                  <select id="mode-select" value={mode} onChange={(event) => setMode(event.target.value)}>
+                    <option value="local">Local game</option>
+                    <option value="room">Room game</option>
+                  </select>
+
+                  <label htmlFor="player-count">Players</label>
+                  <select id="player-count" value={playerCount} onChange={handlePlayerCountChange}>
+                    {Array.from({ length: 5 }, (_, index) => index + 3).map((count) => (
+                      <option key={count} value={count}>
+                        {count}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="name-fields">
+                    {playerConfigs.map((player, index) => (
+                      <div key={index} className="player-row">
+                        <div>
+                          <label htmlFor={`player-name-${index}`}>Player {index + 1} name</label>
+                          <input
+                            id={`player-name-${index}`}
+                            value={player.name}
+                            maxLength={20}
+                            onChange={(event) =>
+                              handlePlayerConfigChange(index, { name: event.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`player-type-${index}`}>Type</label>
+                          <select
+                            id={`player-type-${index}`}
+                            value={player.playerType}
+                            onChange={(event) =>
+                              handlePlayerConfigChange(index, { playerType: event.target.value })
+                            }
+                          >
+                            <option value="human">Human</option>
+                            <option value="computer">Computer</option>
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {mode === "room" ? (
+                    <div className="room-mode-note">
+                      Room mode uses Vercel API routes for game actions. For production multiplayer, configure the server-side Supabase room store so state persists across serverless requests.
+                    </div>
+                  ) : null}
+
+                  <button className="primary-button" type="submit">
+                    {mode === "room" ? "Create room" : "Deal cards"}
+                  </button>
+                </form>
+
+                <div className="rules-note">
+                  <strong>Rule note:</strong> if you have a legal card, you must play it.
+                </div>
+              </section>
+            ) : null}
+
+            <section className="panel room-panel">
+              <h2>Room Play</h2>
+              {!room.roomCode ? (
+                <div className="room-create-panel">
+                  <p className="preview-title">Start a new room</p>
+                  <p className="hand-help">
+                    Use the player setup on the left, then create a room to get a share link for everyone else.
+                  </p>
+                  <label htmlFor="create-name">Your name</label>
+                  <input
+                    id="create-name"
+                    maxLength={20}
+                    placeholder="Your name"
+                    value={createName}
+                    onChange={(event) => setCreateName(event.target.value)}
+                  />
+                  <button className="primary-button" type="button" onClick={createRoom}>
+                    Create room
+                  </button>
+                </div>
+              ) : null}
+
+              {!room.token ? (
+                <form className="setup-form" onSubmit={loadRoom}>
+                  <label htmlFor="join-room-code">Room code</label>
+                  <input
+                    id="join-room-code"
+                    maxLength={6}
+                    placeholder="ROOM CODE"
+                    value={joinRoomCode}
+                    onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
+                  />
+
+                  <label htmlFor="join-name">Your name</label>
+                  <input
+                    id="join-name"
+                    maxLength={20}
+                    placeholder="Your name"
+                    value={joinName}
+                    onChange={(event) => setJoinName(event.target.value)}
+                  />
+
+                  <button className="secondary-button" type="submit">
+                    Load room
+                  </button>
+                </form>
+              ) : null}
+
+              {roomPreview && !room.token ? (
+                <div className="room-join-preview">
+                  <p className="preview-title">Open seats in room {roomPreview.roomCode}</p>
+                  {roomPreview.players
+                    .filter((player) => player.playerType === "human")
+                    .map((player) => (
+                      <div className="join-seat-row" key={player.seatId}>
+                        <span>
+                          {player.label} {player.claimed ? "(taken)" : ""}
+                        </span>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          disabled={player.claimed}
+                          onClick={() => joinSeat(player.seatId)}
+                        >
+                          {player.claimed ? "Taken" : "Join seat"}
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+
+              {room.roomCode ? (
+                <div className="room-controls">
+                  <div className="room-meta">
+                    <span className="meta-label">Room code</span>
+                    <div>{room.roomCode}</div>
+                  </div>
+                  <div className="room-meta">
+                    <span className="meta-label">Share link</span>
+                    <div className="room-link">{roomUrl}</div>
+                  </div>
+                  <div className="room-meta">
+                    <span className="meta-label">Seat privacy</span>
+                    <div>This device keeps its seat privately. Share the room link, not your private seat token.</div>
+                  </div>
+                  <div className="turn-actions">
+                    <button
+                      className="primary-button"
+                      type="button"
+                      disabled={!room.state || !room.state.hostControls || !roomReadyToDeal}
+                      onClick={startRoom}
+                    >
+                      Deal cards
+                    </button>
+                    <button className="secondary-button" type="button" onClick={leaveRoom}>
+                      Leave room
+                    </button>
+                  </div>
+                  {room.state?.status === "waiting" ? (
+                    <div className="hand-help">
+                      {roomReadyToDeal
+                        ? "All human players have joined. Deal cards when everyone is ready."
+                        : `${openHumanSeats.length} human seat${openHumanSeats.length === 1 ? "" : "s"} still need to join before dealing.`}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="panel status-panel">
+              {error ? <div className="error-banner">{error}</div> : null}
+              <div className={`status-banner ${renderContext ? "" : "empty"}`}>
+                {renderContext ? renderContext.statusText : "Start a game to begin."}
+              </div>
+            </section>
+          </main>
+        </div>
+      )}
 
       {overlayState.visible ? (
         <div className="handoff-overlay">
@@ -841,6 +829,43 @@ export default function SevenUpClient() {
         </div>
       ) : null}
     </>
+  );
+}
+
+/*
+ * The in-game header, matching the shared felt-shell look UNO and DOS use.
+ * Bespoke rather than the shared <GameHeader> since Seven-Up plays either
+ * hot-seat local (no room at all) or in a room — <GameHeader> assumes a
+ * room object with a round number, which local play doesn't have.
+ */
+function SevenUpGameHeader({ mode, roomCode, statusText, onLeave }) {
+  return (
+    <header className="tbl-game-header">
+      <div className="tbl-game-title">
+        <p>{mode === "room" ? "Private room" : "Local game"}</p>
+        <h1>7-Up</h1>
+      </div>
+
+      <strong className="tbl-header-status" role="status">
+        {statusText}
+      </strong>
+
+      {mode === "room" && roomCode ? (
+        <button
+          type="button"
+          className="tbl-header-action"
+          onClick={() => navigator.clipboard?.writeText(roomCode)}
+        >
+          <Copy aria-hidden="true" />
+          <span className="tbl-header-action-label">{roomCode}</span>
+        </button>
+      ) : null}
+
+      <button type="button" className="tbl-header-action" onClick={onLeave}>
+        <LogOut aria-hidden="true" />
+        <span className="tbl-header-action-label">Leave</span>
+      </button>
+    </header>
   );
 }
 

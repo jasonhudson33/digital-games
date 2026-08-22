@@ -1272,6 +1272,37 @@
   flex: 0 0 auto;
 }
 
+/* ── Seven-Up tableau ────────────────────────────────────────────────────── */
+
+.seven-up-tableau-zone {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+
+.seven-up-tableau-head {
+  margin-bottom: 10px;
+}
+
+.seven-up-tableau-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.seven-up-tableau-head span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+
 /* ── Narrow ──────────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
@@ -1331,6 +1362,7 @@
  */
 .uno-theme { --tbl-hue: 30; --tbl-accent-hue: 90; }
 .dos-theme { --tbl-hue: 250; --tbl-accent-hue: 90; }
+.seven-up-theme { --tbl-hue: 205; --tbl-accent-hue: 45; }
 
 /* Felt-shell offset for the two games that use the shared shell without a
    dedicated stylesheet of their own — see the seated table below. */
