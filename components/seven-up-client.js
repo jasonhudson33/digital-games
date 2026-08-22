@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { shuffleInPlace } from "../lib/shuffle.js";
+import { Seat, SeatedTable } from "./ui/seated-table";
 import {
   SUITS,
+  buildSequence,
   capitalize,
   chooseComputerMove,
   compareCards,
@@ -690,31 +692,6 @@ export default function SevenUpClient() {
                 <div>{renderContext?.handSummary || "-"}</div>
               </div>
             </div>
-            {playerRail.length > 0 ? (
-              <div className="player-rail" aria-label="Play order">
-                {playerRail.map((player) => (
-                  <div
-                    key={player.id}
-                    className={`player-seat ${player.isCurrent ? "current" : ""} ${player.isWinner ? "winner" : ""}`}
-                  >
-                    <div className="player-seat-name">
-                      {player.name}
-                      {player.isViewer ? " (You)" : ""}
-                    </div>
-                    <div className="player-seat-meta">
-                      {player.isDealer ? "Dealer" : player.orderLabel}
-                    </div>
-                    <div className="player-seat-cards" aria-hidden="true">
-                      {Array.from({ length: Math.min(player.handCount, 5) }, (_, index) => (
-                        <div className="card-back" key={`${player.id}-back-${index}`} style={{ zIndex: index + 1 }} />
-                      ))}
-                      {player.handCount === 0 ? <div className="card-back empty" /> : null}
-                    </div>
-                    <div className="player-seat-count">{player.handCount} left</div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
             <button
               className={`primary-button ${overlayState.visible ? "" : "hidden"}`}
               type="button"
@@ -724,61 +701,45 @@ export default function SevenUpClient() {
             </button>
           </section>
 
+          {playerRail.length > 0 ? (
+            <section className="panel seats-panel">
+              <h2>Table</h2>
+              <div className="seven-up-table">
+                <SevenUpTable playerRail={playerRail} mode={mode} tableau={getTableau({ mode, localGame, roomState: room.state })} turnCount={renderContext?.turnCount} />
+              </div>
+            </section>
+          ) : null}
+
           <section className="panel tableau-panel">
             <h2>Tableau</h2>
+            <p className="hand-help">Every card that has been played stays on the table — a lane never clears, it only grows.</p>
             <div className="tableau">
               {SUITS.map((suit) => {
                 const tableau = getTableau({ mode, localGame, roomState: room.state });
                 const lane = tableau ? tableau[suit] : { low: null, high: null };
                 const hasStarted = lane.low !== null;
-                const lowEdgeCard =
-                  hasStarted && lane.low !== null && lane.low < 7
-                    ? { suit, rank: lane.low }
-                    : null;
-                const highEdgeCard =
-                  hasStarted && lane.high !== null && lane.high > 7
-                    ? { suit, rank: lane.high }
-                    : null;
-                const showCenterSeven = !(lowEdgeCard && highEdgeCard);
-                const compactSuitLane =
-                  hasStarted &&
-                  ((!lowEdgeCard && !highEdgeCard) || (lowEdgeCard && highEdgeCard));
+                const run = hasStarted ? buildSequence(suit, lane.low, lane.high) : [];
                 return (
-                  <section
-                    className={`suit-lane ${compactSuitLane ? "compact-suit-lane" : ""}`}
-                    key={suit}
-                  >
+                  <section className="suit-lane" key={suit}>
                     <h3>
                       {capitalize(suit)} {SUIT_SYMBOLS[suit]}
                     </h3>
-                    <div className={`suit-cards ${showCenterSeven ? "" : "condensed"}`}>
-                      {!hasStarted ? (
-                        <div className="empty-lane">Waiting for the 7</div>
-                      ) : (
-                        <>
-                          <div className="table-edge-slot">
-                            {lowEdgeCard ? (
-                              <PlayingCard card={lowEdgeCard} className="table-card" />
-                            ) : null}
+                    {!hasStarted ? (
+                      <div className="empty-lane">Waiting for the 7</div>
+                    ) : (
+                      <div className="lane-run" aria-label={`${capitalize(suit)}: ${run.length} card${run.length === 1 ? "" : "s"} played, ${lane.low} through ${lane.high}`}>
+                        {run.map((card, index) => (
+                          <div
+                            className={`lane-card ${card.rank === 7 ? "is-seven" : ""}`}
+                            key={`${suit}-${card.rank}`}
+                            style={{ "--i": index }}
+                            title={formatCard(card)}
+                          >
+                            <PlayingCard card={card} className="table-card" />
                           </div>
-                          {showCenterSeven ? (
-                            <div className="table-edge-slot">
-                              <div className="table-center-card">
-                                <PlayingCard
-                                  card={{ suit, rank: 7 }}
-                                  className="table-card table-card-center"
-                                />
-                              </div>
-                            </div>
-                          ) : null}
-                          <div className="table-edge-slot">
-                            {highEdgeCard ? (
-                              <PlayingCard card={highEdgeCard} className="table-card" />
-                            ) : null}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </section>
                 );
               })}
@@ -880,6 +841,62 @@ export default function SevenUpClient() {
         </div>
       ) : null}
     </>
+  );
+}
+
+/*
+ * The players, sitting round the felt.
+ *
+ * Local play is hot-seat: one screen, passed around, so "you" is whoever's
+ * turn it is rather than a fixed device. Room play fixes "you" to the seat
+ * this browser claimed. Either way the table rotates to put that seat at
+ * the bottom, the same way UNO and DOS do for their own viewer.
+ */
+function SevenUpTable({ playerRail, mode, tableau, turnCount }) {
+  const viewerIndex = Math.max(
+    0,
+    playerRail.findIndex((player) => (mode === "local" ? player.isCurrent : player.isViewer)),
+  );
+  const startedSuits = tableau ? SUITS.filter((suit) => tableau[suit].low !== null).length : 0;
+
+  return (
+    <SeatedTable
+      count={playerRail.length}
+      viewerIndex={viewerIndex}
+      className="seven-up-felt"
+      middle={(
+        <b className="tbl-felt-mark" title={`${startedSuits} of 4 suits started`}>
+          {startedSuits}/4
+        </b>
+      )}
+      foot={<small className="tbl-felt-meta">Turn {turnCount || 1}</small>}
+    >
+      {({ layout, seatStyle }) => (
+        <>
+          {layout.map((spot) => {
+            const player = playerRail[spot.index];
+            return (
+              <Seat
+                key={player.id}
+                spot={spot}
+                style={seatStyle(spot.index)}
+                name={player.name}
+                avatar={player.name.slice(0, 1).toUpperCase()}
+                note={player.isDealer ? "Dealer" : player.orderLabel}
+                hand={player.handCount}
+                tone={player.isCurrent ? "turn" : ""}
+                marks={[
+                  player.isDealer && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
+                  player.isWinner && { key: "win", label: "\u2605", title: `${player.name} went out`, tone: "lead" },
+                ].filter(Boolean)}
+              >
+                <span className="tbl-chair-pill">{player.handCount} {player.handCount === 1 ? "card" : "cards"}</span>
+              </Seat>
+            );
+          })}
+        </>
+      )}
+    </SeatedTable>
   );
 }
 
@@ -1185,32 +1202,6 @@ function getPlayerRail({ mode, localGame, roomState }) {
 
 function orderedPlayers(players, dealerIndex) {
   return players.map((_, index) => players[(dealerIndex + 1 + index) % players.length]);
-}
-
-function buildStackStyle(count) {
-  const cardWidth = 52;
-  const minWidth = count === 0 ? 0 : cardWidth + Math.max(0, count - 1) * 18;
-  return {
-    minHeight: count > 0 ? "92px" : undefined,
-    "--stack-card-count": count,
-    "--stack-min-width": `${minWidth}px`,
-  };
-}
-
-function buildCardPositionStyle({ index, count, direction }) {
-  if (count <= 1) {
-    return {
-      zIndex: index + 1,
-      [direction === "low" ? "right" : "left"]: 0,
-    };
-  }
-  const ratio = index / (count - 1);
-  const percent = ratio * 100;
-  const pixelOffset = ratio * 52;
-  return {
-    zIndex: index + 1,
-    [direction === "low" ? "right" : "left"]: `calc(${percent}% - ${pixelOffset}px)`,
-  };
 }
 
 function updateUrl(roomCode, token) {

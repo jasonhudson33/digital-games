@@ -1325,7 +1325,7 @@
  * A card game night table rather than either game's own brand colours —
  * charcoal felt for UNO's black-cornered deck, a cooler ink for DOS.
  */
-.uno-felt {
+.tbl-felt-table.uno-felt {
   --felt-rim: #2a2118;
   --felt-cloth: #35302f;
   --felt-cloth-mid: #221f21;
@@ -1340,7 +1340,7 @@
   --felt-back: repeating-linear-gradient(45deg, #2c2833 0 3px, #1c1a20 3px 6px);
 }
 
-.dos-felt {
+.tbl-felt-table.dos-felt {
   --felt-rim: #1e2440;
   --felt-cloth: #253064;
   --felt-cloth-mid: #182047;
@@ -1353,6 +1353,24 @@
   --felt-accent: #6f8bff;
   --felt-avatar: linear-gradient(145deg, #4a54a0, #1c2154);
   --felt-back: repeating-linear-gradient(45deg, #263070 0 3px, #171d47 3px 6px);
+}
+
+/* Seven Up sits on its own warm, wood-toned felt rather than the card-night
+ * charcoal or ink UNO and DOS use — closer to the terracotta this game's own
+ * panels already lean on. */
+.tbl-felt-table.seven-up-felt {
+  --felt-rim: #5b3a24;
+  --felt-cloth: #2f5a3f;
+  --felt-cloth-mid: #1f4130;
+  --felt-cloth-deep: #163124;
+  --felt-plate: rgba(28, 20, 14, .9);
+  --felt-plate-lit: rgba(56, 38, 26, .96);
+  --felt-edge: rgba(240, 200, 150, .22);
+  --felt-ink: #fbf1e2;
+  --felt-ink-dim: #c2b09a;
+  --felt-accent: #d9752e;
+  --felt-avatar: linear-gradient(145deg, #e0a868, #8a5a2c);
+  --felt-back: repeating-linear-gradient(45deg, #2c4a37 0 3px, #1c3527 3px 6px);
 }
 
 /* The active-color / draw-pile mark in the middle of the UNO felt reuses the
