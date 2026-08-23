@@ -4,7 +4,7 @@ import { subscribeToRoomState } from "../lib/supabase-room-sync";
 import { asRoomError, isOffline, readCachedRoom, writeCachedRoom } from "../lib/room-cache";
 import { ROOM_CODE_ALPHABET, randomString } from "../lib/random";
 
-export function createCardGameRoomService(gameKey, gameName) {
+export function createCardGameRoomService(gameKey, gameName, { pollInterval = 1200, maxPollInterval } = {}) {
   const channelName = `${gameKey}-room-updates`;
   const service = {
     async createCode() {
@@ -54,7 +54,8 @@ export function createCardGameRoomService(gameKey, gameName) {
         load: (code) => service.load(code),
         migrate: (state) => state,
         handler,
-        pollInterval: 1200,
+        pollInterval,
+        maxPollInterval,
       });
     },
   };
