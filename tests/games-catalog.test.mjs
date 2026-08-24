@@ -107,6 +107,7 @@ test("advertised player counts match what each engine will actually start", asyn
     { slug: "five-crowns", load: async () => await import("../lib/five-crowns.js") },
     { slug: "bang", load: async () => await import("../lib/bang.js") },
     { slug: "no-thanks", load: async () => await import("../lib/no-thanks.js") },
+    { slug: "phase-10", load: async () => await import("../lib/phase-10.js") },
     { slug: "cover-your-assets", load: async () => await import("../lib/cover-your-assets.js") },
     { slug: "secret-hitler", load: async () => { const m = await import("../lib/secret-hitler.js"); return { min: m.SECRET_HITLER_MIN_PLAYERS, max: m.SECRET_HITLER_MAX_PLAYERS }; } },
     { slug: "scum", load: async () => { const m = await import("../lib/scum-rooms.js"); return { min: m.SCUM_MIN_PLAYERS, max: m.SCUM_MAX_PLAYERS }; } },

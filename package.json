@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@letele/playing-cards": "^0.1.0",
     "@supabase/supabase-js": "^2.111.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",

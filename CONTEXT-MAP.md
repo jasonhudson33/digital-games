@@ -16,6 +16,7 @@
 - [Mafia](./docs/contexts/mafia.md) - Create a room, assign hidden roles, and play through shared night and day phases.
 - [Monopoly](./docs/contexts/monopoly.md) - Buy properties, roll animated dice, trade, mortgage, auction, and build houses in shared rooms.
 - [No Thanks!](./docs/contexts/no-thanks.md) - Take the card or pay to pass, build low-scoring runs, and outlast friends or computer players.
+- [Phase 10](./docs/contexts/phase-10.md) - Complete ten escalating sets, runs, and color phases while keeping your score low.
 - [Pinochle](./docs/contexts/pinochle.md) - Win the auction, lay down your meld, call trump, and make the contract at a shared table.
 - [Qwirkle](./docs/contexts/qwirkle.md) - Match colors and shapes, cross the grid for bigger scores, and complete six-tile Qwirkles.
 - Risk - Deploy armies, roll into battle, claim continent bonuses, and conquer the world against two computer commanders. _(no context document yet)_
@@ -42,7 +43,7 @@ read a rival's hand.
 
 - **Client-authoritative, fully readable.** Every other online game — **BANG!**,
   **Catan**, **Cover Your Assets**, **Dominion**, **DOS**, **Flip 7**, **Life**,
-  **Monopoly**, **No Thanks!**, **Qwirkle**, **Risk**, **Sequence**,
+  **Monopoly**, **No Thanks!**, **Phase 10**, **Qwirkle**, **Risk**, **Sequence**,
   **Splendor**, **Spyrium**, **Ticket to Ride**, **UNO**, and **Viticulture** —
   computes state in the browser and stores it whole. `GET
   /api/<game>/rooms/<code>` returns the entire game object to anyone who asks

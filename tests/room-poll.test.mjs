@@ -143,23 +143,6 @@ test("backoff is capped at maxInterval", async () => {
   assert.deepEqual(h.delays(), [4000]);
 });
 
-test("a fixed poll cap keeps interactive rooms responsive", async () => {
-  const h = harness();
-  createRoomPoll({
-    load: async () => ({ updatedAt: 1 }),
-    onState: () => {},
-    baseInterval: 900,
-    maxInterval: 900,
-    quietPolls: 1,
-    env: h.env,
-  });
-
-  await h.advance(0);
-  await h.advance(900);
-  await h.advance(900);
-  assert.deepEqual(h.delays(), [900]);
-});
-
 test("a hidden tab does not fetch, and refetches once on becoming visible", async () => {
   const h = harness();
   let loads = 0;

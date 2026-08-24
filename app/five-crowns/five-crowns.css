@@ -17,3 +17,61 @@
 .fc-card.hearts { background: #b94b45; }
 .fc-card.diamonds { background: #d4772e; }
 .fc-card.stars { color: #fff9e8; background: #a56bba; }
+
+/* CC0 traditional deck faces, with a fifth star suit drawn to match. */
+.fc-svg-card {
+  --suit-color: #26333f;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid var(--suit-color);
+  border-radius: 10px;
+  color: var(--suit-color);
+  background: #fffdf8;
+  box-shadow: 0 7px 15px rgba(24, 36, 52, .23), inset 0 0 0 1px rgba(255, 255, 255, .85);
+}
+.fc-svg-card.hearts { --suit-color: #b83b46; background: #fffdf8; }
+.fc-svg-card.diamonds { --suit-color: #d46b2d; background: #fffdf8; }
+.fc-svg-card.clubs { --suit-color: #2f7d5b; background: #fffdf8; }
+.fc-svg-card.spades { --suit-color: #365d99; background: #fffdf8; }
+.fc-svg-card.stars { --suit-color: #b48218; color: var(--suit-color); background: #fffdf8; }
+.fc-svg-card.joker { --suit-color: #70447f; background: #fffdf8; }
+.fc-svg-card > svg { display: block; width: 100%; height: 100%; }
+.fc-svg-card.number > svg path:not([fill="none"]) { fill: var(--suit-color); }
+.fc-svg-card.number > svg path[fill="none"] { stroke: var(--suit-color); }
+.fc-svg-card.court > svg > defs > symbol:nth-child(1) path { stroke: var(--suit-color); }
+.fc-svg-card.court > svg > defs > symbol:nth-child(2) path { fill: var(--suit-color); }
+.fc-svg-card.wild { outline: 4px solid #f1bd42; outline-offset: 2px; }
+.fc-svg-card.wild::after {
+  content: "WILD";
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  right: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #4c3504;
+  background: #f6cc61;
+  font: 900 .45rem/1 sans-serif;
+  letter-spacing: .06em;
+}
+.fc-svg-back { border-color: #8f302f; background: #fffdf8; }
+.star-card-paper { fill: #fffdf8; stroke: #d8d0c3; stroke-width: 1.5; }
+.star-card-index { fill: var(--suit-color); font: 900 15px Georgia, serif; text-anchor: middle; }
+.star-card-index .star-index-pip { font-size: 10px; }
+.star-card-index-bottom { transform: rotate(180deg); transform-origin: 50px 70px; }
+.star-pip { fill: var(--suit-color); font: 18px Georgia, serif; text-anchor: middle; dominant-baseline: middle; }
+.star-pip.turned { transform-box: fill-box; transform-origin: center; transform: rotate(180deg); }
+.star-court-frame { fill: #f0d27f; stroke: var(--suit-color); stroke-width: 2; }
+.star-court-crown { fill: var(--suit-color); }
+.star-court circle { fill: #edc29d; stroke: #694627; stroke-width: 1.5; }
+.star-court-robe { fill: #456c91; stroke: #243c56; stroke-width: 1.5; }
+.star-court.rank-q .star-court-robe { fill: #a5475e; }
+.star-court.rank-k .star-court-robe { fill: #315e4b; }
+.star-court-letter { fill: #fff8e8; font: 900 18px Georgia, serif; text-anchor: middle; }
+.star-court-star { fill: var(--suit-color); font: 14px Georgia, serif; text-anchor: middle; }
+
+@media (max-width: 560px) {
+  .fc-svg-card { border-width: 2px; border-radius: 8px; }
+  .fc-svg-card.wild::after { top: 3px; right: 2px; font-size: .38rem; }
+}

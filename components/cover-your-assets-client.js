@@ -68,6 +68,13 @@ export default function CoverYourAssetsClient() {
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
 
+  // A completed move can remove selected cards from the hand. Keeping those
+  // stale IDs makes every action look illegal when this player's next turn
+  // arrives, even though the room state itself is current.
+  useEffect(() => {
+    setSelected([]);
+  }, [room?.updatedAt]);
+
   const computerToAct = useMemo(() => {
     if (room?.phase !== "playing") return null;
     if (room.pendingChallenge) return room.players.find((player) => player.id === room.pendingChallenge.turnPlayerId && player.isComputer) ?? null;

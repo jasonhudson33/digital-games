@@ -73,13 +73,62 @@ test("period decks contain the tabletop card distribution", () => {
   assert.equal(cards.filter((card) => card.type === "building").length, 35);
   assert.equal(cards.filter((card) => card.type === "character").length, 17);
   assert.equal(cards.filter((card) => card.type === "technique").length, 7);
+  assert.equal(new Set(cards.map((card) => card.id)).size, cards.length, "every physical copy needs a unique ID");
+
+  const manifest = Object.fromEntries(Object.entries(Object.groupBy(cards, (card) => `${card.period}:${card.slug}`))
+    .map(([key, copies]) => [key, copies.length]));
+  assert.deepEqual(manifest, {
+    "A:architect": 2,
+    "A:apprentice": 2,
+    "A:automation": 1,
+    "A:bureaucrat": 1,
+    "A:capitalization": 1,
+    "A:commerce": 1,
+    "A:crane": 1,
+    "A:engineering": 1,
+    "A:laboratory": 1,
+    "A:lobbying": 1,
+    "A:mine": 3,
+    "A:mine-small": 2,
+    "A:miner": 2,
+    "A:neighborhood": 3,
+    "A:residence": 2,
+    "A:university": 1,
+    "A:workshop": 3,
+    "A:workshop-b": 2,
+    "B:architect": 1,
+    "B:banker": 1,
+    "B:bureaucrat": 1,
+    "B:engineer": 1,
+    "B:factory": 2,
+    "B:factory-c": 1,
+    "B:geologist": 1,
+    "B:laboratory-b": 1,
+    "B:laboratory-c": 1,
+    "B:mine-rich": 2,
+    "B:miner": 1,
+    "B:neighborhood-b": 2,
+    "B:residence": 1,
+    "B:residence-b": 2,
+    "B:taylorism": 1,
+    "B:university-b": 1,
+    "C:adviser": 1,
+    "C:engineer": 1,
+    "C:factory-c": 1,
+    "C:financier": 1,
+    "C:geologist": 1,
+    "C:laboratory-c": 1,
+    "C:luxury-home": 1,
+    "C:mansion": 1,
+    "C:palace": 1,
+  });
 });
 
 test("every unique period card has generated artwork", () => {
   const cards = Object.values(createPeriodDecks(() => 0.2)).flat();
   const designs = new Map(cards.map((card) => [`${card.period}-${card.slug}`, card]));
 
-  assert.equal(designs.size, 39);
+  assert.equal(designs.size, 43);
   for (const card of designs.values()) {
     assert.match(card.art, /^\/spyrium\/cards\/[abc]-[a-z-]+\.png$/);
     assert.equal(existsSync(new URL(`../public${card.art}`, import.meta.url)), true, `Missing artwork for ${card.name}`);
@@ -91,6 +140,7 @@ test("six rounds deal 27 A cards, 18 B cards, and every C card", () => {
   const dealt = { A: [], B: [], C: [] };
 
   for (let round = 1; round <= 6; round += 1) {
+    assert.ok(game.market.every((card) => card.period === game.period), `round ${round} contains a card from another period`);
     dealt[game.period].push(...game.market.map((card) => card.id));
     if (round < 6) game = advanceRound(game);
   }
@@ -101,6 +151,7 @@ test("six rounds deal 27 A cards, 18 B cards, and every C card", () => {
   assert.equal(new Set(dealt.A).size, 27);
   assert.equal(new Set(dealt.B).size, 18);
   assert.equal(new Set(dealt.C).size, 9);
+  assert.equal(new Set(Object.values(dealt).flat()).size, 54, "a physical card was dealt more than once");
   assert.deepEqual(Object.fromEntries(Object.entries(game.decks).map(([period, cards]) => [period, cards.length])), { A: 3, B: 2, C: 0 });
 });
 
