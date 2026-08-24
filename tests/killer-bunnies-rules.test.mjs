@@ -769,6 +769,25 @@ test("Area 51 returns the previous abductee, strips attachments, and abducts one
   assert.equal(game.area51Abducted.bunny.id, first.id);
 });
 
+test("Heavenly Halo resolves an Area 51 attempt instead of trapping the game in target selection", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(207) });
+  const protectedBunny = bunny("Protected Bunny", "yellow", "area-halo-bunny");
+  protectedBunny.modifiers = [createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(58))];
+  const area51 = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(49));
+  game.players[1].bunnies = [protectedBunny];
+  game.bunnyCircle = [protectedBunny.id];
+  game.phase = "utilityBunnyTarget";
+  game.pendingAction = { playerIndex: 0, effect: "utilityBunnyTarget", card: area51 };
+
+  game = chooseKillerBunniesUtilityBunnyTarget(game, 0, 1, protectedBunny.id);
+
+  assert.equal(game.pendingAction, null);
+  assert.equal(game.phase, "draw");
+  assert.equal(game.area51Abducted?.bunny, undefined);
+  assert.ok(game.discardPile.some((card) => card.id === area51.id));
+  assert.match(game.message, /Heavenly Halo blocked Area 51/);
+});
+
 test("The Magic Fountain rolls five dice and revives one discarded bunny per match", () => {
   let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(208) });
   const fountain = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(76));
@@ -1189,7 +1208,15 @@ test("Carrot Thief offers the available numbered dice and steals the matching Ca
   assert.equal(game.phase, "draw");
   assert.equal(game.players[0].carrots.some((card) => card.label === "6"), true);
   assert.equal(game.players[1].carrots.some((card) => card.label === "6"), false);
-  assert.deepEqual(game.lastRoll, { value: 6, sides: 12, color: "orange", label: "Carrot Thief" });
+  assert.deepEqual(game.lastRoll, {
+    id: 1,
+    dice: [{ value: 6, sides: 12, color: "orange" }],
+    value: 6,
+    sides: 12,
+    color: "orange",
+    label: "Carrot Thief",
+    rollerName: "Ada",
+  });
 
   let closedMarketGame = createKillerBunniesGame({
     playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
@@ -1203,7 +1230,15 @@ test("Carrot Thief offers the available numbered dice and steals the matching Ca
   closedMarketGame = playTopRun(closedMarketGame, 0, seededRandom(231));
   closedMarketGame = resolveKillerBunniesCardDiceRoll(closedMarketGame, 0, "clear-d20", () => 16 / 20);
   assert.equal(closedMarketGame.players[0].carrots.some((card) => card.label === "17"), true);
-  assert.deepEqual(closedMarketGame.lastRoll, { value: 17, sides: 20, color: "clear", label: "Carrot Thief" });
+  assert.deepEqual(closedMarketGame.lastRoll, {
+    id: 1,
+    dice: [{ value: 17, sides: 20, color: "clear" }],
+    value: 17,
+    sides: 20,
+    color: "clear",
+    label: "Carrot Thief",
+    rollerName: "Ada",
+  });
 
   let noVioletGame = createKillerBunniesGame({
     playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
@@ -1461,7 +1496,14 @@ test("a weapon waits for the targeted player to roll the die", () => {
   assert.match(game.message, /must roll a d12/);
 
   game = resolveKillerBunniesDefense(game, 1, "roll", () => 0);
-  assert.deepEqual(game.lastRoll, { value: 1, sides: 12, label: weapon.name });
+  assert.deepEqual(game.lastRoll, {
+    id: 1,
+    dice: [{ value: 1, sides: 12, color: null }],
+    value: 1,
+    sides: 12,
+    label: weapon.name,
+    rollerName: "Defender",
+  });
   assert.equal(game.players[1].bunnies.length, 0);
   assert.equal(game.phase, "draw");
 });
@@ -1755,6 +1797,32 @@ test("Red Barriers stop adjacent Weapon spillover while leaving the target attac
   game = chooseKillerBunniesTarget(game, 0, 1, target.id);
   assert.equal(game.pendingAction.affected.some((entry) => entry.bunnyId === target.id), true);
   assert.equal(game.pendingAction.affected.some((entry) => entry.bunnyId === blocked.id), false);
+});
+
+test("multi-die rolls record each result with its printed die color", () => {
+  let game = programAllPlayers(createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["red"],
+    random: seededRandom(194),
+  }));
+  const rainbo = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(194));
+  game.phase = "rainboRoll";
+  game.pendingAction = { playerIndex: 0, targetPlayerIndex: 0, cardPlayerIndex: 0, effect: "playerTarget", card: rainbo };
+
+  let nextValue = 0;
+  game = resolveKillerBunniesCardAction(game, 0, {}, () => (nextValue++ % 12) / 12);
+
+  assert.deepEqual(game.lastRoll.dice.map(({ color, value, sides }) => ({ color, value, sides })), [
+    { color: "violet", value: 1, sides: 12 },
+    { color: "orange", value: 2, sides: 12 },
+    { color: "green", value: 3, sides: 12 },
+    { color: "yellow", value: 4, sides: 12 },
+    { color: "blue", value: 5, sides: 12 },
+    { color: "black", value: 6, sides: 12 },
+    { color: "red", value: 7, sides: 12 },
+    { color: "pink", value: 8, sides: 12 },
+  ]);
+  assert.equal(game.lastRoll.rollerName, "Ada");
 });
 
 test("Holographic Bunny 0191 is not living until Ancient Star Rod makes it real", () => {

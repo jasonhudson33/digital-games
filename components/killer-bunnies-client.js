@@ -335,7 +335,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
         </div>
 
         <div className="kb-felt-center">
-          <div className={`kb-turn-message phase-${game.phase}`}><span>{game.phase === "setupRun" ? isOpeningTurn ? "PROGRAM YOUR RUN" : "OPENING SETUP" : mustDefend || mustResolveImmediate || mustPlaceModifier || mustResolveDefector || mustResolvePovertyPoker || mustResolveAreaWeapon || mustChoosePlayerTarget || mustChooseUtilityBunny || mustChooseOwnWeaponTarget || mustChooseBlueRollTarget || mustResolveBlueCardRoll || mustResolveBlueSpecial || mustChooseRoamingTarget || mustResolveRoamingRoll || mustResolveCardDice || mustResolveAuction || mustResolveBunnyExchange || mustChooseEveryoneFeedBunny || mustResolveBlackCat ? "ACTION NEEDED" : yourTurn ? "YOUR TURN" : `${game.players[game.currentPlayerIndex]?.name?.toUpperCase() || "GAME"}`}</span><p>{game.message}</p>{game.lastRoll && <b>d{game.lastRoll.sides}: {game.lastRoll.value}</b>}</div>
+          <div className={`kb-turn-message phase-${game.phase}`}><span>{game.phase === "setupRun" ? isOpeningTurn ? "PROGRAM YOUR RUN" : "OPENING SETUP" : mustDefend || mustResolveImmediate || mustPlaceModifier || mustResolveDefector || mustResolvePovertyPoker || mustResolveAreaWeapon || mustChoosePlayerTarget || mustChooseUtilityBunny || mustChooseOwnWeaponTarget || mustChooseBlueRollTarget || mustResolveBlueCardRoll || mustResolveBlueSpecial || mustChooseRoamingTarget || mustResolveRoamingRoll || mustResolveCardDice || mustResolveAuction || mustResolveBunnyExchange || mustChooseEveryoneFeedBunny || mustResolveBlackCat ? "ACTION NEEDED" : yourTurn ? "YOUR TURN" : `${game.players[game.currentPlayerIndex]?.name?.toUpperCase() || "GAME"}`}</span><p>{game.message}</p>{game.lastRoll && <LastRollBadge roll={game.lastRoll} />}</div>
 
           {!!game.roamingEffects?.length && <div className="kb-active-expansions" aria-label="Roaming attacks">{game.roamingEffects.map((effect) => <i key={effect.id}><Target size={12} /> {effect.card.name} waits on {game.players.flatMap((player) => player.bunnies).find((bunny) => bunny.id === effect.currentBunnyId)?.name || "the next target"}</i>)}</div>}
 
@@ -426,6 +426,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
       {mustChooseRoamingTarget && <UtilityBunnyTargetDialog pending={game.pendingAction} players={game.players} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseRoamingTarget", { targetPlayerIndex, bunnyId })} />}
       {roamingRollPhase && <BlueCardRollDialog pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onRoll={() => onAction("resolveRoamingRoll")} />}
       {expandedCardAction && <ExpandedCardActionDialog game={game} viewerIndex={viewerIndex} busy={busy} onResolve={(cardAction) => onAction("resolveCardAction", { cardAction })} />}
+      <DiceRollOverlay roll={game.lastRoll} />
       {game.phase === "gameOver" && <div className="kb-result"><div><span className="kb-kicker"><Sparkles size={15} /> Magic Carrot {game.revealedMagicCarrot?.label}</span><h2>{game.winnerIndexes.length ? `${game.winnerIndexes.map((index) => game.players[index].name).join(" & ")} wins!` : "The carrot escaped!"}</h2><p>{game.message}</p><button className="kb-primary" type="button" onClick={onLeave}>Return to the burrow</button></div></div>}
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
@@ -451,6 +452,47 @@ function FeedingObligations({ player, yourTurn, phase }) {
 function BountyDonationTray({ targets, balance, canDonate, busy, onDonate }) {
   const [amount, setAmount] = useState(1);
   return <section className="kb-bounty-tray" aria-label="Active bounties"><span><Target size={14} /> ACTIVE BOUNTIES</span>{targets.map(({ bunny, player }) => <article key={bunny.id}><b>{bunny.name}</b><small>{player.name} · {bunny.bounty.amount} Dolla</small><input aria-label={`Donation for ${bunny.name}`} type="number" min="1" max={balance} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /><button type="button" disabled={busy || !canDonate || amount < 1 || amount > balance} onClick={() => onDonate(bunny.id, amount)}>Add Dolla</button></article>)}</section>;
+}
+
+function LastRollBadge({ roll }) {
+  const dice = normalizeLastRollDice(roll);
+  return <div className="kb-last-roll" aria-label={`Last roll: ${dice.map(formatVisibleDie).join(", ")}`}>{dice.map((die, index) => <span data-color={die.color || "neutral"} key={`${die.color || "die"}-${index}`}><small>{die.color ? die.color[0].toUpperCase() : "d"}</small>{die.value}</span>)}</div>;
+}
+
+function DiceRollOverlay({ roll }) {
+  const rollKey = roll?.id ?? (roll ? JSON.stringify(roll) : null);
+  const initialKey = rollKey;
+  const seenKey = useRef(initialKey);
+  const [displayRoll, setDisplayRoll] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    if (!roll || rollKey === seenKey.current) return undefined;
+    seenKey.current = rollKey;
+    setDisplayRoll(roll);
+    setRevealed(false);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const revealTimer = window.setTimeout(() => setRevealed(true), reducedMotion ? 50 : 850);
+    const closeTimer = window.setTimeout(() => setDisplayRoll(null), reducedMotion ? 1800 : 3400);
+    return () => { window.clearTimeout(revealTimer); window.clearTimeout(closeTimer); };
+  }, [rollKey]);
+
+  if (!displayRoll) return null;
+  const dice = normalizeLastRollDice(displayRoll);
+  return <div className={`kb-dice-overlay ${revealed ? "revealed" : "rolling"}`} aria-live="assertive" aria-atomic="true"><section><span className="kb-kicker"><Dices size={16} /> {revealed ? "Roll complete" : "Dice rolling"}</span><h2>{displayRoll.rollerName ? `${displayRoll.rollerName} rolls` : "Rolling dice"}</h2><p>{displayRoll.label}</p><div className="kb-dice-stage">{dice.map((die, index) => <article data-color={die.color || "neutral"} key={`${displayRoll.id || "roll"}-${index}`} style={{ "--die-delay": `${index * 70}ms` }}><div className="kb-animated-die"><b>{revealed ? die.value : "?"}</b></div><strong>{die.color ? `${capitalizeDieColor(die.color)} ` : ""}d{die.sides}</strong>{revealed && <small>rolled {die.value}</small>}</article>)}</div></section></div>;
+}
+
+function normalizeLastRollDice(roll) {
+  if (Array.isArray(roll?.dice) && roll.dice.length) return roll.dice;
+  return roll ? [{ value: roll.value, sides: roll.sides, color: roll.color || null }] : [];
+}
+
+function capitalizeDieColor(color) {
+  return String(color || "").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function formatVisibleDie(die) {
+  return `${die.color ? `${capitalizeDieColor(die.color)} ` : ""}d${die.sides} rolled ${die.value}`;
 }
 
 function SpecialChoiceDialog({ card, busy, onChoice }) {
