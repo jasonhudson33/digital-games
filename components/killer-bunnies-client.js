@@ -5,12 +5,21 @@ import {
   BookOpen, Bot, Carrot, Coins, Copy, Dices, DoorOpen, Droplets, Layers3, Library,
   Leaf, PackageOpen, Play, Plus, Rabbit, Shield, Sparkles, Store, Target, Users, X,
 } from "lucide-react";
-import { bankTotal, getKaballasMarket, getKillerBunniesCardPlayStatus, getKillerBunniesCloverCards, getKillerBunniesCloverReduction, getKillerBunniesDefenseUnits, getKillerBunniesExtraRunStatus, getKillerBunniesFeedingStatus, getKillerBunniesPileStatus, getKillerBunniesShopItemStatus, getKillerBunniesSupplyUnits } from "../lib/killer-bunnies";
+import { bankTotal, getKaballasMarket, getKillerBunniesKaballasPrice, getKillerBunniesCardPlayStatus, getKillerBunniesCloverCards, getKillerBunniesCloverReduction, getKillerBunniesDefenseUnits, getKillerBunniesExtraRunStatus, getKillerBunniesFeedingStatus, getKillerBunniesPileStatus, getKillerBunniesSavedSpecialStatus, getKillerBunniesShopItemStatus, getKillerBunniesSupplyUnits } from "../lib/killer-bunnies";
 import { KILLER_BUNNIES_EXPANSIONS } from "../lib/killer-bunnies-expansions";
 import { KillerBunniesRoomService } from "./killer-bunnies-room-service";
 
 const NAME_KEY = "killer-bunnies-player-name";
 const TOKEN_PREFIX = "killer-bunnies-room-token:";
+const EXPANDED_CARD_ACTION_PHASES = new Set([
+  "rockBottomChoice", "russianRouletteChoose", "russianRouletteRoll", "russianRouletteReroll",
+  "freshnessTarget", "freshnessChoice", "weaponExchange", "feedAllTarget", "minilithActivate",
+  "minilithPenalty", "barrierPlace", "barrierRemove", "carrotExchange", "clumsyCongenialTarget",
+  "redLightDistrict", "hempRoll", "rainboRoll", "rooneysCoupon", "resourceAttackResponse",
+  "reversalTarget", "showBunnyTarget", "showBunnyExchange", "dudePlayerChoice", "dudeGuess",
+  "dudePenalty", "mysteryUrnRoll", "mysteryUrnDonate", "mysteryUrnFinal", "bountyTarget",
+  "bountyAmount", "zepTepiChoice", "sinisterBounceTarget", "timidRerollChoice",
+]);
 
 export default function KillerBunniesClient() {
   const [ready, setReady] = useState(false);
@@ -253,6 +262,10 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
   const topRunStatus = getKillerBunniesCardPlayStatus(viewer, viewer.topRun);
   const topRunWillDiscard = canPlayTop && viewer.topRun && !topRunStatus.enabled;
   const market = getKaballasMarket(game);
+  const marketPrices = Object.fromEntries(["cabbage", "water", "carrot"].map((item) => [item, getKillerBunniesKaballasPrice(game, viewerIndex, item)]));
+  const couponActive = Object.keys(marketPrices).some((item) => marketPrices[item] !== market.prices[item]);
+  const playableReaction = savedSpecials.find((card) => game.phase !== "play" && getKillerBunniesSavedSpecialStatus(game, viewerIndex, card).enabled);
+  const expandedCardAction = EXPANDED_CARD_ACTION_PHASES.has(game.phase);
   const supplyStatuses = {
     main: getKillerBunniesPileStatus(game, viewerIndex, "main"),
     cabbage: getKillerBunniesPileStatus(game, viewerIndex, "cabbage"),
@@ -261,6 +274,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
     magic: getKillerBunniesPileStatus(game, viewerIndex, "magic"),
   };
   const opponents = game.players.map((player, index) => ({ player, index })).filter(({ index }) => index !== viewerIndex);
+  const bountyTargets = game.players.flatMap((player) => player.bunnies.filter((bunny) => bunny.bounty).map((bunny) => ({ bunny, player })));
 
   useEffect(() => {
     setOpeningTopId("");
@@ -295,7 +309,13 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
 
       {!!game.expansionIds?.length && <section className="kb-active-expansions" aria-label="Active expansions"><span><PackageOpen size={13} /> ACTIVE PACKS</span>{game.expansionIds.map((id) => { const pack = KILLER_BUNNIES_EXPANSIONS.find((entry) => entry.id === id); return pack ? <i key={id} style={{ "--pack-color": pack.color }}>{pack.name.replace(" Booster", "")}</i> : null; })}</section>}
 
+      {!!bountyTargets.length && <BountyDonationTray targets={bountyTargets} balance={bankTotal(viewer)} canDonate={game.phase === "play"} busy={busy} onDonate={(bunnyId, amount) => onAction("donateBounty", { bunnyId, amount })} />}
+
       {game.area51Abducted?.bunny && <section className="kb-active-expansions" aria-label="Area 51 abducted bunny"><span><Sparkles size={13} /> AREA 51</span><i>{game.players[game.area51Abducted.ownerIndex]?.name}'s {game.area51Abducted.bunny.name} is alive but out of play</i></section>}
+
+      {!!game.barriers?.length && <section className="kb-active-expansions" aria-label="Barriers in play"><span><Shield size={13} /> BARRIERS</span>{game.barriers.map((barrier) => <i key={barrier.id}>{game.players[barrier.leftPlayerIndex]?.name} ↔ {game.players[barrier.rightPlayerIndex]?.name}</i>)}</section>}
+
+      {!!game.futureBunnies?.length && <section className="kb-active-expansions" aria-label="Bunnies in the future"><span><Sparkles size={13} /> FUTURE</span>{game.futureBunnies.map((entry) => <i key={entry.id}>{entry.bunny.name} returns to {game.players[entry.ownerIndex]?.name} on owner turn {entry.returnAtTurnStarted}</i>)}</section>}
 
       <section className="kb-score-rail" aria-label="Players">
         {game.players.map((player, index) => (
@@ -328,11 +348,11 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
           </div>
 
           <div className={`kb-market ${market.isOpen ? "open" : "closed"}`}>
-            <KaballasMarketCard market={market} />
+            <KaballasMarketCard market={market} prices={marketPrices} couponActive={couponActive} />
             <div className="kb-market-stock">
               <div className="kb-market-label"><span><Carrot size={17} /> Carrots for sale</span><small>{canChooseCarrot ? "Choose A Carrot works even while closed" : supplyStatuses.carrot.reason}</small></div>
               <div className="kb-carrot-row">
-                {game.carrotMarket.map((carrotCard) => <button key={carrotCard.id} type="button" className={`kb-carrot-card carrot-${carrotCard.color}`} disabled={busy || (!canChooseCarrot && !supplyStatuses.carrot.enabled)} onClick={() => clickCarrot(carrotCard)}><Carrot /><b>{carrotCard.label}</b><span>{canChooseCarrot ? "TAKE" : market.prices.carrot}<Coins size={10} /></span></button>)}
+                {game.carrotMarket.map((carrotCard) => <button key={carrotCard.id} type="button" className={`kb-carrot-card carrot-${carrotCard.color}`} disabled={busy || (!canChooseCarrot && !supplyStatuses.carrot.enabled)} onClick={() => clickCarrot(carrotCard)}><Carrot /><b>{carrotCard.label}</b><span>{canChooseCarrot ? "TAKE" : marketPrices.carrot}<Coins size={10} /></span></button>)}
                 {!game.carrotMarket.length && <div className="kb-empty-market">The market is empty. Destiny is waiting.</div>}
               </div>
             </div>
@@ -369,8 +389,8 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
           <div className="kb-hand-heading"><span>SAVED SPECIALS · {savedSpecials.length} CARDS</span><b>Saved cards do not replace your normal TOP RUN play</b></div>
           <div className="kb-saved-cards">
             {savedSpecials.map((card) => {
-              const playable = game.phase === "play" && (yourTurn || card.type === "VERY SPECIAL");
-              return <button key={card.id} type="button" disabled={busy || !playable} onClick={() => onAction("playSaved", { cardId: card.id })} title={playable ? `Play ${card.name}` : card.type === "VERY SPECIAL" ? "Play while another player is choosing their TOP RUN action" : "Play on your turn"}><GameCard card={card} compact /></button>;
+              const status = getKillerBunniesSavedSpecialStatus(game, viewerIndex, card);
+              return <button key={card.id} type="button" disabled={busy || !status.enabled} onClick={() => onAction("playSaved", { cardId: card.id })} title={status.reason}><GameCard card={card} compact /></button>;
             })}
             {!savedSpecials.length && <span><Sparkles /> Run a SPECIAL or VERY SPECIAL card through BOTTOM and TOP RUN to save it here.</span>}
           </div>
@@ -380,8 +400,10 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
       </section>
 
       {error && <div className="kb-toast" role="alert">{error}</div>}
+      {playableReaction && <aside className="kb-reaction-card" aria-label="Available reaction"><GameCard card={playableReaction} compact /><div><b>Interrupt available</b><span>{getKillerBunniesSavedSpecialStatus(game, viewerIndex, playableReaction).reason}</span><button className="kb-primary" type="button" disabled={busy} onClick={() => onAction("playSaved", { cardId: playableReaction.id })}><Sparkles size={16} /> Use {playableReaction.name}</button></div></aside>}
       {game.phase === "specialChoice" && game.pendingAction?.playerIndex === viewerIndex && <SpecialChoiceDialog card={game.pendingAction.card} busy={busy} onChoice={(choice) => onAction("specialChoice", { choice })} />}
       {mustDefend && <DefenseDialog pending={game.pendingAction} player={viewer} busy={busy} onChoice={(choice) => onAction("resolveDefense", { choice })} />}
+      {game.phase === "weaponReuseChoice" && <WeaponReuseDialog pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onChoice={(choice) => onAction("resolveWeaponReuse", { choice })} />}
       {mustResolveCardDice && <CardDiceDialog pending={game.pendingAction} busy={busy} onRoll={(choiceId) => onAction("resolveCardDiceRoll", { choiceId })} />}
       {auctionPhase && <BunnyAuctionDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseAuctionTarget", { targetPlayerIndex, bunnyId })} onBid={(amount) => onAction("placeAuctionBid", { amount })} />}
       {bunnyExchangePhase && <BunnyExchangeDialog phase={game.phase} pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onGive={(bunnyId) => onAction("chooseBunnyExchangeGive", { bunnyId })} onExchange={(targetPlayerIndex, bunnyIds) => onAction("resolveBunnyExchange", { targetPlayerIndex, bunnyIds })} />}
@@ -403,6 +425,7 @@ function GameTable({ game, error, busy, copied, onCopy, onAction, onLeave, onRul
       {reviveBunnyPhase && <ReviveBunnyDialog pending={game.pendingAction} game={game} viewerIndex={viewerIndex} busy={busy} onChoose={(bunnyId) => onAction("chooseRevivedBunny", { bunnyId })} />}
       {mustChooseRoamingTarget && <UtilityBunnyTargetDialog pending={game.pendingAction} players={game.players} busy={busy} onTarget={(targetPlayerIndex, bunnyId) => onAction("chooseRoamingTarget", { targetPlayerIndex, bunnyId })} />}
       {roamingRollPhase && <BlueCardRollDialog pending={game.pendingAction} players={game.players} viewerIndex={viewerIndex} busy={busy} onRoll={() => onAction("resolveRoamingRoll")} />}
+      {expandedCardAction && <ExpandedCardActionDialog game={game} viewerIndex={viewerIndex} busy={busy} onResolve={(cardAction) => onAction("resolveCardAction", { cardAction })} />}
       {game.phase === "gameOver" && <div className="kb-result"><div><span className="kb-kicker"><Sparkles size={15} /> Magic Carrot {game.revealedMagicCarrot?.label}</span><h2>{game.winnerIndexes.length ? `${game.winnerIndexes.map((index) => game.players[index].name).join(" & ")} wins!` : "The carrot escaped!"}</h2><p>{game.message}</p><button className="kb-primary" type="button" onClick={onLeave}>Return to the burrow</button></div></div>}
       <RulesDialog open={rulesOpen} onClose={onCloseRules} />
     </main>
@@ -425,8 +448,75 @@ function FeedingObligations({ player, yourTurn, phase }) {
   </section>;
 }
 
+function BountyDonationTray({ targets, balance, canDonate, busy, onDonate }) {
+  const [amount, setAmount] = useState(1);
+  return <section className="kb-bounty-tray" aria-label="Active bounties"><span><Target size={14} /> ACTIVE BOUNTIES</span>{targets.map(({ bunny, player }) => <article key={bunny.id}><b>{bunny.name}</b><small>{player.name} · {bunny.bounty.amount} Dolla</small><input aria-label={`Donation for ${bunny.name}`} type="number" min="1" max={balance} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /><button type="button" disabled={busy || !canDonate || amount < 1 || amount > balance} onClick={() => onDonate(bunny.id, amount)}>Add Dolla</button></article>)}</section>;
+}
+
 function SpecialChoiceDialog({ card, busy, onChoice }) {
   return <div className="kb-modal-backdrop"><section className="kb-special-choice" role="dialog" aria-modal="true" aria-labelledby="kb-special-choice-title"><GameCard card={card} /><div><span className="kb-kicker"><Sparkles size={15} /> TOP RUN special</span><h2 id="kb-special-choice-title">Use it or save it?</h2><p>Because this card completed the BOTTOM RUN → TOP RUN cycle, you may keep it face-up for later instead of resolving it now.</p><div><button className="kb-primary" type="button" disabled={busy} onClick={() => onChoice("save")}><PackageOpen size={17} /> Save for later</button><button type="button" disabled={busy} onClick={() => onChoice("use")}><Play size={17} /> Use now</button></div></div></section></div>;
+}
+
+function WeaponReuseDialog({ pending, players, viewerIndex, busy, onChoice }) {
+  const controller = players[pending.playerIndex];
+  const isController = pending.playerIndex === viewerIndex;
+  return <div className="kb-modal-backdrop"><section className="kb-special-choice kb-weapon-reuse" role="dialog" aria-modal="true" aria-labelledby="kb-weapon-reuse-title"><GameCard card={pending.card} /><div><span className="kb-kicker"><Target size={15} /> Rooney’s Reusables</span><h2 id="kb-weapon-reuse-title">Launch this Weapon a second time?</h2><p>{controller.name} may spend the saved Rooney’s Reusables now and choose the same or a different opponent’s bunny. Keeping Reusables sends this Weapon to its normal discard location.</p>{isController ? <div><button className="kb-primary" type="button" disabled={busy} onClick={() => onChoice("reuse")}><Target size={17} /> Reuse Weapon</button><button type="button" disabled={busy} onClick={() => onChoice("discard")}><Layers3 size={17} /> Keep Reusables</button></div> : <p>Waiting for {controller.name} to decide.</p>}</div></section></div>;
+}
+
+function ExpandedCardActionDialog({ game, viewerIndex, busy, onResolve }) {
+  const pending = game.pendingAction || {};
+  const controller = game.players[pending.playerIndex];
+  const isController = pending.playerIndex === viewerIndex;
+  const [choice, setChoice] = useState({});
+  const [amount, setAmount] = useState(1);
+  useEffect(() => { setChoice({}); setAmount(1); }, [game.phase, pending.card?.id, pending.playerIndex]);
+  const viewer = game.players[viewerIndex];
+  const allBunnies = game.players.flatMap((player, playerIndex) => player.bunnies.map((bunny) => ({ bunny, player, playerIndex })));
+  const toggle = (key, id) => setChoice((current) => ({ ...current, [key]: current[key]?.includes(id) ? current[key].filter((entry) => entry !== id) : [...(current[key] || []), id] }));
+  const pick = (key, value) => setChoice((current) => ({ ...current, [key]: value }));
+  const submit = (extra = {}) => onResolve({ ...choice, ...extra });
+  const rollPhases = ["russianRouletteRoll", "hempRoll", "rainboRoll", "mysteryUrnRoll", "mysteryUrnFinal"];
+
+  let controls = null;
+  if (isController && rollPhases.includes(game.phase)) controls = <button className="kb-primary" type="button" disabled={busy} onClick={() => submit()}><Dices size={17} /> Roll now</button>;
+  else if (isController && game.phase === "rooneysCoupon") controls = <button className="kb-primary" type="button" disabled={busy} onClick={() => submit()}><Store size={17} /> Activate coupon</button>;
+  else if (isController && game.phase === "timidRerollChoice") controls = <><button className="kb-primary" type="button" disabled={busy} onClick={() => submit({ choice: "reroll" })}><Dices size={17} /> Reroll</button><button type="button" disabled={busy} onClick={() => submit({ choice: "keep" })}>Keep roll</button></>;
+  else if (isController && game.phase === "russianRouletteReroll") controls = <><button className="kb-primary" type="button" disabled={busy} onClick={() => submit({ choice: "reroll" })}><Dices size={17} /> Replace roll</button><button type="button" disabled={busy} onClick={() => submit({ choice: "keep" })}>Keep roll</button></>;
+  else if (isController && game.phase === "resourceAttackResponse") controls = <button className="kb-primary" type="button" disabled={busy} onClick={() => submit({ choice: "accept" })}>Accept the loss</button>;
+  else if (isController && game.phase === "rockBottomChoice") controls = <><div className="kb-choice-grid">{pending.eligibleResources?.map((resource) => { const maximum = Math.max(...game.players.map((player, index) => index === viewerIndex ? -1 : getKillerBunniesSupplyUnits(player, resource))); const candidates = game.players.map((player, index) => ({ player, index })).filter(({ index, player }) => index !== viewerIndex && getKillerBunniesSupplyUnits(player, resource) === maximum); return <label key={resource}><b>{resource}</b><select value={choice[`${resource}PlayerIndex`] ?? candidates[0]?.index ?? ""} onChange={(event) => pick(`${resource}PlayerIndex`, Number(event.target.value))}>{candidates.map(({ player, index }) => <option key={player.playerId} value={index}>{player.name} ({maximum})</option>)}</select></label>; })}</div><button className="kb-primary" type="button" disabled={busy} onClick={() => submit()}>Take half</button></>;
+  else if (isController && game.phase === "russianRouletteChoose") controls = <ChoiceButtons items={viewer.bunnies.filter((bunny) => !/Heavenly Halo/i.test((bunny.modifiers || []).map((card) => card.name).join(" "))).map((bunny) => ({ id: bunny.id, label: bunny.name }))} busy={busy} onPick={(bunnyId) => submit({ bunnyId })} />;
+  else if (isController && ["freshnessTarget", "feedAllTarget", "showBunnyTarget"].includes(game.phase)) controls = <ChoiceButtons items={game.players.map((player, index) => ({ id: index, label: player.name, disabled: index === viewerIndex || (game.phase === "freshnessTarget" && !player.carrots.length) || (game.phase === "feedAllTarget" && !player.bunnies.length) }))} busy={busy} onPick={(targetPlayerIndex) => submit({ targetPlayerIndex })} />;
+  else if (isController && game.phase === "freshnessChoice") controls = <><MultiChoice items={viewer.carrots} selected={choice.carrotIds || []} onToggle={(id) => toggle("carrotIds", id)} label={(card) => `Carrot ${card.label} · keep for 2 Dolla`} /><button className="kb-primary" type="button" disabled={busy || (choice.carrotIds?.length || 0) * 2 > bankTotal(viewer)} onClick={() => submit({ carrotIds: choice.carrotIds || [] })}>Pay and return the rest</button></>;
+  else if (isController && game.phase === "weaponExchange") {
+    const ownWeapons = viewer.hand.filter((card) => card.kind === "weapon");
+    const otherWeapons = game.players.flatMap((player, targetPlayerIndex) => targetPlayerIndex === viewerIndex ? [] : player.hand.filter((card) => card.kind === "weapon").map((card) => ({ ...card, targetPlayerIndex })));
+    const rooneyWeapons = game.rooneysEmporium?.weaponDiscard || [];
+    controls = <><MultiChoice items={ownWeapons} selected={choice.ownWeaponId ? [choice.ownWeaponId] : []} onToggle={(id) => pick("ownWeaponId", id)} /><MultiChoice items={[...otherWeapons, ...rooneyWeapons.map((card) => ({ ...card, source: "rooneys" }))]} selected={choice.targetWeaponId ? [choice.targetWeaponId] : []} onToggle={(id) => { const card = [...otherWeapons, ...rooneyWeapons.map((entry) => ({ ...entry, source: "rooneys" }))].find((entry) => entry.id === id); setChoice((current) => ({ ...current, targetWeaponId: id, source: card?.source || "player", targetPlayerIndex: card?.targetPlayerIndex })); }} /><button className="kb-primary" type="button" disabled={busy || !choice.ownWeaponId || !choice.targetWeaponId} onClick={() => submit()}>Exchange Weapons</button></>;
+  } else if (isController && game.phase === "minilithActivate") controls = <div className="kb-choice-grid">{game.players.map((player, targetPlayerIndex) => !pending.minilithHolderIndexes?.includes(targetPlayerIndex) ? null : <article key={player.playerId}><b>{player.name}</b><button type="button" disabled={busy} onClick={() => submit({ targetPlayerIndex, mode: "steal" })}>Steal Minilith</button>{player.savedSpecials.some((card) => Number(card.number) === 147) && <button type="button" disabled={busy} onClick={() => submit({ targetPlayerIndex, mode: "roll" })}><Dices size={15} /> Roll seven dice</button>}</article>)}</div>;
+  else if (isController && game.phase === "minilithPenalty") controls = <><MultiChoice items={viewer.carrots} selected={choice.carrotIds || []} onToggle={(id) => toggle("carrotIds", id)} label={(card) => `Carrot ${card.label}`} /><MultiChoice items={viewer.bunnies} selected={choice.bunnyIds || []} onToggle={(id) => toggle("bunnyIds", id)} /><button className="kb-primary" type="button" disabled={busy} onClick={() => submit({ carrotIds: choice.carrotIds || [], bunnyIds: choice.bunnyIds || [] })}>Surrender selected items</button></>;
+  else if (isController && game.phase === "barrierPlace") controls = <ChoiceButtons items={game.players.map((player, index) => ({ id: index, label: `${player.name} ↔ ${game.players[(index + 1) % game.players.length].name}` }))} busy={busy} onPick={(leftPlayerIndex) => submit({ leftPlayerIndex })} />;
+  else if (isController && game.phase === "barrierRemove") controls = <ChoiceButtons items={(game.barriers || []).map((barrier) => ({ id: barrier.id, label: `${game.players[barrier.leftPlayerIndex].name} ↔ ${game.players[barrier.rightPlayerIndex].name}` }))} busy={busy} onPick={(barrierId) => submit({ barrierId })} />;
+  else if (isController && game.phase === "carrotExchange") controls = <><MultiChoice items={viewer.carrots} selected={choice.ownCarrotId ? [choice.ownCarrotId] : []} onToggle={(id) => pick("ownCarrotId", id)} label={(card) => `Give Carrot ${card.label}`} />{game.players.map((player, targetPlayerIndex) => targetPlayerIndex === viewerIndex || player.carrots.length < 2 ? null : <article key={player.playerId}><b>{player.name}</b><MultiChoice items={player.carrots} selected={choice.targetPlayerIndex === targetPlayerIndex ? choice.targetCarrotIds || [] : []} onToggle={(id) => { const ids = choice.targetPlayerIndex === targetPlayerIndex ? choice.targetCarrotIds || [] : []; setChoice((current) => ({ ...current, targetPlayerIndex, targetCarrotIds: ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id].slice(-2) })); }} label={(card) => `Carrot ${card.label}`} /></article>)}<button className="kb-primary" type="button" disabled={busy || !choice.ownCarrotId || choice.targetCarrotIds?.length !== 2} onClick={() => submit()}>Exchange Carrots</button></>;
+  else if (isController && ["clumsyCongenialTarget", "bountyTarget", "sinisterBounceTarget"].includes(game.phase)) { const targets = allBunnies.filter(({ bunny, playerIndex }) => game.phase === "clumsyCongenialTarget" ? /Congenial Bunny/i.test(bunny.name) : game.phase === "sinisterBounceTarget" ? playerIndex === pending.attackingPlayerIndex : true); controls = <ChoiceButtons items={targets.map(({ bunny, player }) => ({ id: bunny.id, label: `${player.name}: ${bunny.name}` }))} busy={busy} onPick={(bunnyId) => submit({ bunnyId })} />; }
+  else if (isController && game.phase === "redLightDistrict") { const items = game.players.flatMap((player, targetPlayerIndex) => targetPlayerIndex === viewerIndex ? [] : [...player.bunnies, ...(player.pawns || []), ...(player.zodiacCards || [])].filter((item) => item.color === "red" || /Red|Fire/i.test(item.name || "")).map((item) => ({ id: item.id, label: `${player.name}: ${item.name}`, targetPlayerIndex }))); controls = <ChoiceButtons items={items} busy={busy} onPick={(itemId) => { const item = items.find((entry) => entry.id === itemId); submit({ itemId, targetPlayerIndex: item.targetPlayerIndex }); }} />; }
+  else if (isController && game.phase === "reversalTarget") controls = <ChoiceButtons items={allBunnies.filter(({ bunny }) => bunny.id !== pending.originalBunnyId).map(({ bunny, player, playerIndex }) => ({ id: bunny.id, label: `${player.name}: ${bunny.name}`, playerIndex }))} busy={busy} onPick={(bunnyId) => { const target = allBunnies.find(({ bunny }) => bunny.id === bunnyId); submit({ bunnyId, targetPlayerIndex: target.playerIndex }); }} />;
+  else if (isController && game.phase === "showBunnyExchange") { const revealed = game.players.flatMap((player, playerIndex) => playerIndex === viewerIndex ? [] : player.hand.filter((card) => pending.revealedBunnyIds?.includes(card.id)).map((card) => ({ ...card, ownerName: player.name }))); controls = <><MultiChoice items={viewer.hand} selected={choice.ownCardId ? [choice.ownCardId] : []} onToggle={(id) => pick("ownCardId", id)} /><MultiChoice items={revealed} selected={choice.bunnyCardId ? [choice.bunnyCardId] : []} onToggle={(id) => pick("bunnyCardId", id)} label={(card) => `${card.ownerName}: ${card.name}`} /><button className="kb-primary" type="button" disabled={busy || !choice.ownCardId || !choice.bunnyCardId} onClick={() => submit({ choice: "exchange" })}>Exchange</button><button type="button" disabled={busy} onClick={() => submit({ choice: "pass" })}>Pass</button></>;
+  } else if (isController && game.phase === "dudePlayerChoice") controls = <div className="kb-choice-grid">{game.players.map((player, targetPlayerIndex) => !player.carrots.length ? null : <article key={player.playerId}><b>{player.name}</b><button type="button" disabled={busy} onClick={() => submit({ targetPlayerIndex, dieSides: 12 })}>Red d12</button>{game.expansionIds.includes("violet") && <button type="button" disabled={busy} onClick={() => submit({ targetPlayerIndex, dieSides: 20 })}>Clear d20 · twice</button>}</article>)}</div>;
+  else if (isController && game.phase === "dudeGuess") controls = <ChoiceButtons items={[{ id: "market", label: "Kaballa’s Market" }, ...game.players.map((player, index) => ({ id: index, label: player.name }))]} busy={busy} onPick={(id) => id === "market" ? submit({ owner: "market" }) : submit({ ownerPlayerIndex: id })} />;
+  else if (isController && game.phase === "dudePenalty") controls = <ChoiceButtons items={viewer.carrots.map((card) => ({ id: card.id, label: `Return Carrot ${card.label}` }))} busy={busy} onPick={(carrotId) => submit({ carrotId })} />;
+  else if (isController && game.phase === "mysteryUrnDonate") controls = <ChoiceButtons items={[...viewer.bunnies.map((bunny) => ({ id: `b:${bunny.id}`, label: bunny.name })), ...viewer.carrots.map((card) => ({ id: `c:${card.id}`, label: `Carrot ${card.label}` }))]} busy={busy} onPick={(id) => id.startsWith("b:") ? submit({ bunnyId: id.slice(2) }) : submit({ carrotId: id.slice(2) })} />;
+  else if (isController && game.phase === "bountyAmount") controls = <><label>Starting bounty <input type="number" min="1" max={bankTotal(viewer)} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><button className="kb-primary" type="button" disabled={busy || amount < 1 || amount > bankTotal(viewer)} onClick={() => submit({ amount })}>Place bounty</button></>;
+  else if (isController && game.phase === "zepTepiChoice") { const cards = pending.adjacentIndexes.flatMap((index) => game.players[index].savedSpecials.map((card) => ({ ...card, ownerIndex: index }))); controls = <><MultiChoice items={cards} selected={choice.specialIds || []} onToggle={(id) => { const card = cards.find((entry) => entry.id === id); const selected = (choice.specialIds || []).filter((entry) => cards.find((candidate) => candidate.id === entry)?.ownerIndex !== card.ownerIndex); pick("specialIds", [...selected, id]); }} /><button className="kb-primary" type="button" disabled={busy} onClick={() => submit({ specialIds: choice.specialIds || [] })}>Take selected Specials</button></>; }
+
+  return <div className="kb-modal-backdrop"><section className="kb-special-choice kb-expanded-action" role="dialog" aria-modal="true"><GameCard card={pending.card || { name: "Card action", kind: "action", type: "RUN" }} /><div><span className="kb-kicker"><Dices size={15} /> Official card action</span><h2>{pending.card?.name || "Resolve the roll"}</h2><p>{game.message}</p>{isController ? <div className="kb-expanded-controls">{controls || <button className="kb-primary" type="button" disabled={busy} onClick={() => submit()}>Continue</button>}</div> : <p>Waiting for {controller?.name || "the active player"}.</p>}</div></section></div>;
+}
+
+function ChoiceButtons({ items, busy, onPick }) {
+  return <div className="kb-choice-grid">{items.filter(Boolean).map((item) => <button key={item.id} type="button" disabled={busy || item.disabled} onClick={() => onPick(item.id)}>{item.label}</button>)}</div>;
+}
+
+function MultiChoice({ items = [], selected, onToggle, label = (item) => item.name }) {
+  return <div className="kb-multi-choice">{items.map((item) => <button className={selected.includes(item.id) ? "selected" : ""} key={item.id} type="button" onClick={() => onToggle(item.id)}>{label(item)}</button>)}</div>;
 }
 
 function DefenseDialog({ pending, player, busy, onChoice }) {
@@ -690,16 +780,16 @@ function Pile({ title, count, icon, tone, status, busy, onClick }) {
   return <button className={`kb-pile pile-${tone} ${status.enabled ? "enabled" : ""}`} type="button" disabled={!status.enabled || busy} onClick={onClick} title={status.reason}><span className="kb-stack" style={{ "--cards": Math.min(count, 5) }}>{icon}<b>{count}</b></span><strong>{title}</strong><small>{status.reason}</small></button>;
 }
 
-function KaballasMarketCard({ market }) {
+function KaballasMarketCard({ market, prices, couponActive }) {
   return <article className={`kb-market-card ${market.isOpen ? "open" : "closed"}`} aria-label={`Kaballa’s Market is ${market.isOpen ? "open" : "closed"}`}>
     <span className="kb-market-card-type">STARTER CARD</span>
     <div className="kb-market-card-title"><Store /><span><strong>Kaballa’s</strong><b>MARKET</b></span></div>
     <div className="kb-market-sign">{market.isOpen ? "OPEN" : "CLOSED"}</div>
-    <p>{market.isOpen ? "Current prices for supplies" : "No purchases until a market card reopens the store"}</p>
+    <p>{market.isOpen ? couponActive ? "Half Price Coupon active for you this turn" : "Current prices for supplies" : "No purchases until a market card reopens the store"}</p>
     <div className="kb-price-board">
-      <span><Leaf /><b>Cabbage</b><strong>{market.prices.cabbage}</strong></span>
-      <span><Droplets /><b>Water</b><strong>{market.prices.water}</strong></span>
-      <span><Carrot /><b>Carrot</b><strong>{market.prices.carrot}</strong></span>
+      <span><Leaf /><b>Cabbage</b><strong>{prices.cabbage}</strong></span>
+      <span><Droplets /><b>Water</b><strong>{prices.water}</strong></span>
+      <span><Carrot /><b>Carrot</b><strong>{prices.carrot}</strong></span>
     </div>
     <small>{market.activeCard ? `Set by “${market.activeCard.name}”` : "Starter prices"}</small>
   </article>;
@@ -717,7 +807,7 @@ function WeilsPawnShop({ store, game, playerIndex, busy, onBuy }) {
 function MiniBunny({ bunny }) {
   const modifierCount = bunny.modifiers?.length || 0;
   const cloverReduction = getKillerBunniesCloverReduction(bunny);
-  return <span className={`kb-mini-bunny bunny-${bunny.color || "neutral"}`} title={`${bunny.name}${modifierCount ? ` · ${modifierCount} modifier${modifierCount === 1 ? "" : "s"}` : ""}${cloverReduction ? ` · Clover −${cloverReduction}` : ""}`}><Rabbit /><small>{bunny.name?.replace(" Bunny", "")}</small>{modifierCount > 0 && <i>{cloverReduction ? `♣−${cloverReduction}` : `+${modifierCount}`}</i>}</span>;
+  return <span className={`kb-mini-bunny bunny-${bunny.color || "neutral"}`} title={`${bunny.name}${modifierCount ? ` · ${modifierCount} modifier${modifierCount === 1 ? "" : "s"}` : ""}${cloverReduction ? ` · Clover −${cloverReduction}` : ""}${bunny.bounty ? ` · ${bunny.bounty.amount} Dolla bounty` : ""}`}><Rabbit /><small>{bunny.name?.replace(" Bunny", "")}</small>{bunny.bounty && <i>${bunny.bounty.amount}</i>}{modifierCount > 0 && <i>{cloverReduction ? `♣−${cloverReduction}` : `+${modifierCount}`}</i>}</span>;
 }
 
 function GameCard({ card, compact = false, className = "" }) {
