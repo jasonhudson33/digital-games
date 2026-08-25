@@ -73,6 +73,79 @@ test("Violet and Orange booster cards no longer fall back to manual resolution",
   }
 });
 
+test("Green booster cards no longer fall back to manual resolution", () => {
+  const manual = getKillerBunniesCatalogCardsForDeck("green")
+    .map(createKillerBunniesPlayableCard)
+    .filter((card) => card.resolutionStatus === "manual");
+  assert.deepEqual(manual.map((card) => `${card.catalogNumber} ${card.name}`), []);
+  assert.equal(getKillerBunniesCatalogCardsForDeck("green").length, 55);
+});
+
+test("Green Hi-Low Cash creates visible temporary shopping credit that expires with the turn", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["green"],
+    random: seededRandom(350),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(350));
+  const rolls = [0, 0.5, 0.99];
+  game = playTopRun(game, playerIndex, () => rolls.shift());
+  assert.equal(game.lastRoll.dice[0].color, "blue");
+  assert.equal(game.lastRoll.dice[1].color, "red");
+  assert.equal(game.lastRoll.dice[2].color, "clear");
+  assert.equal(game.players[playerIndex].greenStoreCredit, 19);
+  assert.equal(getKillerBunniesPileStatus(game, playerIndex, "carrot").enabled, true);
+});
+
+test("Green Fingercuffs shares fate when either adjacent bunny is eliminated", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["green"],
+    random: seededRandom(349),
+  });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const otherIndex = (playerIndex + 1) % 2;
+  const first = bunny("First Cuffed Bunny", "green", "cuffed-first");
+  const second = bunny("Second Cuffed Bunny", "blue", "cuffed-second");
+  game.players[playerIndex].bunnies = [first];
+  game.players[otherIndex].bunnies = [second];
+  game.bunnyCircle = [first.id, second.id];
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(349));
+  game = playTopRun(game, playerIndex, seededRandom(349));
+  game = resolveKillerBunniesCardAction(game, playerIndex, { bunnyIds: [first.id, second.id] });
+  assert.equal(game.fingercuffs.length, 1);
+
+  game.phase = "target";
+  game.pendingAction = { playerIndex, effect: "weapon", card: { id: "cuff-weapon", kind: "weapon", name: "Cuff Weapon", power: 12 } };
+  game = chooseKillerBunniesTarget(game, playerIndex, otherIndex, second.id);
+  game = resolveKillerBunniesDefense(game, otherIndex, "roll", () => 0);
+  assert.equal(game.players[playerIndex].bunnies.length, 0);
+  assert.equal(game.players[otherIndex].bunnies.length, 0);
+  assert.equal(game.fingercuffs.length, 0);
+});
+
+test("Green reveals the Winning Zodiac and resolves its holder before the Magic Carrot", () => {
+  let game = createKillerBunniesGame({
+    playerSeeds: [{ name: "Ada" }, { name: "Grace" }],
+    expansionIds: ["green"],
+    random: seededRandom(385),
+  });
+  game.players[0].zodiacCards = [{ id: "large-aries", kind: "zodiac", sign: "Aries" }];
+  game.players[1].zodiacCards = [];
+  game.zodiacDeck = [{ id: "winning-aries", sign: "Aries" }];
+  game.carrotMarket = [{ id: "last-carrot", label: 1, carrotKey: 1 }];
+  game.phase = "chooseCarrot";
+  game.pendingAction = { playerIndex: 0, effect: "chooseCarrot", remainingCount: 1, card: { id: "choose-last", name: "Choose A Carrot" } };
+  game = chooseKillerBunniesCarrot(game, 0, "last-carrot");
+  assert.equal(game.phase, "zodiacPrivilege");
+  assert.equal(game.winningZodiac.sign, "Aries");
+  game = resolveKillerBunniesCardAction(game, 0, {});
+  assert.equal(game.phase, "reveal");
+});
+
 test("Orange Random FTB rolls Green and Blue d12 costs for its target owner", () => {
   let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], expansionIds: ["orange"], random: seededRandom(41) });
   game.phase = "play";
@@ -84,10 +157,11 @@ test("Orange Random FTB rolls Green and Blue d12 costs for its target owner", ()
   game.players[0].bottomRun = game.players[0].hand[0];
   game = playTopRun(game, 0, () => 0);
   game = chooseKillerBunniesTarget(game, 0, 1, "grace-bunny", () => 0);
-  game = resolveKillerBunniesCardAction(game, 1, {}, () => 0);
+  const randomFeedRolls = [0, 0.1];
+  game = resolveKillerBunniesCardAction(game, 1, {}, () => randomFeedRolls.shift());
   assert.equal(game.players[1].feedingObligations[0].cabbageCost, 1);
-  assert.equal(game.players[1].feedingObligations[0].waterCost, 1);
-  assert.deepEqual(game.lastRoll.dice.map((die) => [die.color, die.sides, die.value]), [["green", 12, 1], ["blue", 12, 1]]);
+  assert.equal(game.players[1].feedingObligations[0].waterCost, 2);
+  assert.deepEqual(game.lastRoll.dice.map((die) => [die.color, die.sides, die.value]), [["green", 12, 1], ["blue", 12, 2]]);
 });
 
 test("Orange high-level weapons use the Clear d20 and C.O.M.A. leaves its bunny alive", () => {
