@@ -62,7 +62,7 @@ import {
   createKillerBunniesExpansionContent,
 } from "../lib/killer-bunnies-expansions.js";
 import { createKillerBunniesPlayableCard } from "../lib/killer-bunnies-card-adapter.js";
-import { getKillerBunniesCatalogCard, getKillerBunniesCatalogCardsForDeck } from "../lib/killer-bunnies-card-catalog.js";
+import { KILLER_BUNNIES_CARD_CATALOG, getKillerBunniesCatalogCard, getKillerBunniesCatalogCardsForDeck } from "../lib/killer-bunnies-card-catalog.js";
 
 test("Violet and Orange booster cards no longer fall back to manual resolution", () => {
   for (const deckId of ["violet", "orange"]) {
@@ -556,11 +556,29 @@ test("market RUN cards can close the store while Choose A Carrot still works", (
   assert.equal(game.kaballasMarket.isOpen, false);
 });
 
-test("Choose A Carrot is playable without a bunny, while weapons and feeding cards are not", () => {
+test("every Choose A Carrot RUN requires a living bunny", () => {
   const player = { bunnies: [] };
-  assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(16))).enabled, true);
+  const chooseCards = KILLER_BUNNIES_CARD_CATALOG
+    .filter((card) => card.kind === "chooseCarrot")
+    .map(createKillerBunniesPlayableCard);
+  assert.ok(chooseCards.length > 0);
+  for (const card of chooseCards) {
+    assert.equal(card.requiresBunny, true, `${card.catalogNumber} should carry the shared bunny requirement`);
+    assert.equal(getKillerBunniesCardPlayStatus(player, card).enabled, false, `${card.catalogNumber} should be blocked without a bunny`);
+  }
   assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(31))).enabled, false);
   assert.equal(getKillerBunniesCardPlayStatus(player, createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(24))).enabled, false);
+
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], random: seededRandom(1616) });
+  game = programAllPlayers(game);
+  const playerIndex = game.currentPlayerIndex;
+  const carrotsBefore = game.players[playerIndex].carrots.length;
+  game.players[playerIndex].bunnies = [];
+  game.players[playerIndex].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(16));
+  game = playTopRun(game, playerIndex, seededRandom(1617));
+  assert.equal(game.phase, "draw");
+  assert.equal(game.players[playerIndex].carrots.length, carrotsBefore);
+  assert.match(game.message, /without a living bunny/i);
 });
 
 test("a Bunny Modifier may be attached to any bunny and remains under that bunny", () => {
