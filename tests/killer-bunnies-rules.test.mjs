@@ -62,7 +62,51 @@ import {
   createKillerBunniesExpansionContent,
 } from "../lib/killer-bunnies-expansions.js";
 import { createKillerBunniesPlayableCard } from "../lib/killer-bunnies-card-adapter.js";
-import { getKillerBunniesCatalogCard } from "../lib/killer-bunnies-card-catalog.js";
+import { getKillerBunniesCatalogCard, getKillerBunniesCatalogCardsForDeck } from "../lib/killer-bunnies-card-catalog.js";
+
+test("Violet and Orange booster cards no longer fall back to manual resolution", () => {
+  for (const deckId of ["violet", "orange"]) {
+    const manual = getKillerBunniesCatalogCardsForDeck(deckId)
+      .map(createKillerBunniesPlayableCard)
+      .filter((card) => card.resolutionStatus === "manual");
+    assert.deepEqual(manual.map((card) => `${card.catalogNumber} ${card.name}`), []);
+  }
+});
+
+test("Orange Random FTB rolls Green and Blue d12 costs for its target owner", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], expansionIds: ["orange"], random: seededRandom(41) });
+  game.phase = "play";
+  game.currentPlayerIndex = 0;
+  game.runPlaysThisTurn = 0;
+  game.players[0].bunnies = [{ id: "ada-bunny", name: "Ada Bunny", kind: "bunny", color: "blue" }];
+  game.players[1].bunnies = [{ id: "grace-bunny", name: "Grace Bunny", kind: "bunny", color: "green" }];
+  game.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(286));
+  game.players[0].bottomRun = game.players[0].hand[0];
+  game = playTopRun(game, 0, () => 0);
+  game = chooseKillerBunniesTarget(game, 0, 1, "grace-bunny", () => 0);
+  game = resolveKillerBunniesCardAction(game, 1, {}, () => 0);
+  assert.equal(game.players[1].feedingObligations[0].cabbageCost, 1);
+  assert.equal(game.players[1].feedingObligations[0].waterCost, 1);
+  assert.deepEqual(game.lastRoll.dice.map((die) => [die.color, die.sides, die.value]), [["green", 12, 1], ["blue", 12, 1]]);
+});
+
+test("Orange high-level weapons use the Clear d20 and C.O.M.A. leaves its bunny alive", () => {
+  let game = createKillerBunniesGame({ playerSeeds: [{ name: "Ada" }, { name: "Grace" }], expansionIds: ["orange"], random: seededRandom(43) });
+  game.phase = "play";
+  game.currentPlayerIndex = 0;
+  game.runPlaysThisTurn = 0;
+  game.players[0].bunnies = [{ id: "ada-bunny", name: "Ada Bunny", kind: "bunny", color: "blue" }];
+  game.players[1].bunnies = [{ id: "coma-target", name: "Target Bunny", kind: "bunny", color: "green" }];
+  game.players[0].topRun = createKillerBunniesPlayableCard(getKillerBunniesCatalogCard(291));
+  game.players[0].bottomRun = game.players[0].hand[0];
+  game = playTopRun(game, 0, () => 0);
+  game = chooseKillerBunniesTarget(game, 0, 1, "coma-target", () => 0);
+  game = resolveKillerBunniesDefense(game, 1, "roll", () => 0);
+  assert.equal(game.players[1].bunnies[0].id, "coma-target");
+  assert.equal(game.players[1].bunnies[0].comatose, true);
+  assert.deepEqual(game.lastRoll.dice.map((die) => [die.color, die.sides, die.value]), [["clear", 20, 1]]);
+  assert.equal(getKillerBunniesCardPlayStatus(game.players[1], { name: "Attack", aggressive: true }).enabled, false);
+});
 
 test("the game uses all 165 official Blue and Yellow numbered cards with unnumbered support cards", () => {
   const game = createKillerBunniesGame({
@@ -184,7 +228,7 @@ test("Bunny Triplets recognize color, kind, pawns, grouped bunnies, and specifie
   assert.equal(getKillerBunniesExtraRunStatus({ bunnies: [bunny("Blue One", "blue"), bunny("Blue Two", "blue")] }).enabled, false);
 });
 
-test("Specialty Bunny unit counts use stable card numbers instead of display names", () => {
+test("grouped Bunny unit counts use stable card numbers instead of display names", () => {
   const persistedTriple = {
     id: "persisted-specialty-triple",
     number: 225,
@@ -193,6 +237,33 @@ test("Specialty Bunny unit counts use stable card numbers instead of display nam
     kind: "bunny",
   };
   assert.match(getKillerBunniesExtraRunStatus({ bunnies: [persistedTriple] }).reason, /specialty/i);
+
+  const persistedCelebrityTriple = {
+    id: "persisted-celebrity-triple",
+    number: 612,
+    catalogNumber: "0612",
+    name: "B'Elanna, Kathryn and 7",
+    kind: "bunny",
+  };
+  assert.match(getKillerBunniesExtraRunStatus({ bunnies: [persistedCelebrityTriple] }).reason, /celebrity/i);
+
+  const persistedBritishTriple = {
+    id: "persisted-british-triple",
+    number: 1272,
+    catalogNumber: "1272",
+    name: "Downton Bunnies",
+    kind: "bunny",
+  };
+  assert.match(getKillerBunniesExtraRunStatus({ bunnies: [persistedBritishTriple] }).reason, /british/i);
+
+  const persistedSuperBunny = {
+    id: "persisted-super-bunny",
+    number: 441,
+    catalogNumber: "0441",
+    name: "Violet Hero",
+    kind: "bunny",
+  };
+  assert.equal(getKillerBunniesExtraRunStatus({ bunnies: [persistedSuperBunny] }).enabled, true);
 });
 
 test("a Bunny Triplet plays, replaces, then exposes the second TOP RUN", () => {
