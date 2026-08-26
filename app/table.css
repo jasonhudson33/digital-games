@@ -314,6 +314,149 @@
   font-weight: 700;
 }
 
+/* A game whose entry card asks which *kind* of table you want before it asks
+   anything else — Seven-Up plays either against computers here or against
+   people in a room, and that is one choice, not a dropdown of two nouns. */
+.tbl-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: var(--sp-5);
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-3);
+}
+
+.tbl-modes button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.tbl-modes button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tbl-modes button:hover:not(.is-on) {
+  color: var(--ink);
+}
+
+.tbl-modes button.is-on {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--sh-1);
+}
+
+.tbl-field select {
+  width: 100%;
+  min-height: 49px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-3);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.tbl-entry-note {
+  margin: var(--sp-4) 0 0;
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.tbl-entry-note strong {
+  color: var(--ink);
+}
+
+/* Which seats a room opens for people and which it fills with computers. */
+.tbl-seat-types {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--sp-4);
+}
+
+.tbl-seat-type {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.tbl-seat-type em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.76rem;
+  padding-right: 6px;
+}
+
+.tbl-seat-type select {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm, 8px);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.tbl-seat-join {
+  padding: 7px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.tbl-seat-join:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tbl-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  margin: var(--sp-4) 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.tbl-share code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
 /* ── Lobby ───────────────────────────────────────────────────────────────── */
 
 .tbl-lobby {
@@ -1448,6 +1591,21 @@
 .uno-theme { --tbl-hue: 30; --tbl-accent-hue: 90; }
 .dos-theme { --tbl-hue: 250; --tbl-accent-hue: 90; }
 .seven-up-theme { --tbl-hue: 205; --tbl-accent-hue: 45; }
+
+/* The hero fan, dealt with the real <playing-card> element rather than the
+   .tbl-card divs UNO and DOS fan out — so it needs its own positioning. Height
+   is left to the element so the face keeps its own proportions. */
+.seven-up-hero-fan playing-card {
+  position: absolute;
+  display: block;
+  width: 125px;
+  height: auto;
+  filter: drop-shadow(0 22px 35px rgba(0, 0, 0, .32));
+}
+
+.seven-up-hero-fan playing-card:nth-child(1) { left: 0; top: 28px; rotate: -18deg; }
+.seven-up-hero-fan playing-card:nth-child(2) { left: 95px; top: 0; rotate: -1deg; }
+.seven-up-hero-fan playing-card:nth-child(3) { left: 190px; top: 25px; rotate: 17deg; }
 
 /* Felt-shell offset for the two games that use the shared shell without a
    dedicated stylesheet of their own — see the seated table below. */
