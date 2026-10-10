@@ -28,21 +28,13 @@ import {
   CONTINENTS,
   MAP_CONNECTIONS,
   TERRITORIES,
-  advancePhase,
-  attackTerritory,
   clampArmySelection,
   controlledContinents,
-  createRiskGameFromLobby,
   findTradeSet,
-  fortifyTerritory,
   hasOwnedPath,
   mustTradeCards,
-  placeReinforcement,
   PLAYER_STYLES,
-  resolveConquestMove,
-  runComputerTurn,
   tradeBonusFor,
-  tradeCards,
   territoriesForPlayer,
 } from "../lib/risk";
 import { RISK_BORDER_REGIONS, buildRiskTerritoryBorderSegments } from "../lib/risk-map-borders";
@@ -50,7 +42,6 @@ import { EMBLEM_PATHS, emblemFor, inkFor, plateFor } from "../lib/risk-emblems";
 import { useBoardZoom } from "./ui/use-board-zoom";
 import { RiskRoomService } from "./risk-room-service";
 
-const playerIdStorageKey = "risk-player-id";
 const playerNameStorageKey = "risk-player-name";
 
 const PHASES = {
@@ -316,26 +307,12 @@ function PlayerCard({ player, game, viewerPlayerId }) {
         <span>armies</span>
       </div>
       <div className="player-counts card-count">
-        <b>{player.cards?.length ?? 0}</b>
+        <b>{player.cardCount ?? player.cards?.length ?? 0}</b>
         <span>cards</span>
       </div>
       {continents.length > 0 && <span className="continent-crown" title={`${continents.length} controlled continents`}>{continents.length}</span>}
     </article>
   );
-}
-
-function createLobby(roomCode, hostId, name) {
-  const now = Date.now();
-  return {
-    roomCode,
-    hostId,
-    phase: "lobby",
-    cardTradeMode: "progressive",
-    players: [{ id: hostId, name, color: PLAYER_STYLES[0].color, colorName: PLAYER_STYLES[0].name, isBot: false, cards: [] }],
-    log: [`${name} created room ${roomCode}.`],
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 function Setup({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, ready }) {
@@ -512,7 +489,6 @@ function CardHand({ cards, deckCount, tradeMode }) {
 
 export default function RiskClient() {
   const [isReady, setIsReady] = useState(false);
-  const [playerId, setPlayerId] = useState("");
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [game, setGame] = useState(null);
@@ -530,14 +506,10 @@ export default function RiskClient() {
   const [actionNotice, setActionNotice] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const latestGame = useRef(null);
+  // The server tells each browser which seat it holds.
+  const playerId = game?.viewerId || "";
 
   useEffect(() => {
-    let storedId = localStorage.getItem(playerIdStorageKey);
-    if (!storedId) {
-      storedId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-      localStorage.setItem(playerIdStorageKey, storedId);
-    }
-    setPlayerId(storedId);
     setName(localStorage.getItem(playerNameStorageKey) || "");
     setJoinCode(new URLSearchParams(window.location.search).get("room")?.toUpperCase() || "");
     setIsReady(true);
@@ -549,18 +521,18 @@ export default function RiskClient() {
 
   useEffect(() => {
     const code = joinCode.trim().toUpperCase();
-    if (!isReady || !playerId || !code || game) return undefined;
+    if (!isReady || !code || game || !RiskRoomService.hasSeat(code)) return undefined;
     let cancelled = false;
     void RiskRoomService.load(code).then((existing) => {
-      if (cancelled || !existing?.players.some((player) => player.id === playerId)) return;
+      if (cancelled || !existing) return;
       setGame(existing);
       latestGame.current = existing;
-      const viewer = existing.players.find((player) => player.id === playerId);
+      const viewer = existing.players.find((player) => player.id === existing.viewerId);
       if (viewer) setName(viewer.name);
       window.history.replaceState(null, "", `?room=${existing.roomCode}`);
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [game, isReady, joinCode, playerId]);
+  }, [game, isReady, joinCode]);
 
   useEffect(() => {
     if (!game?.roomCode) return undefined;
@@ -583,7 +555,7 @@ export default function RiskClient() {
     if (!game || !isHost || !currentPlayer?.isBot || game.winnerId) return undefined;
     setBotThinking(true);
     const timer = window.setTimeout(() => {
-      void updateGame((current) => runComputerTurn(current));
+      void stepComputer();
       setSelectedFrom(null);
       setSelectedTo(null);
       setBotThinking(false);
@@ -627,19 +599,18 @@ export default function RiskClient() {
     return cleanName;
   };
 
-  const persist = async (next) => {
-    const saved = await RiskRoomService.save(next);
-    setGame(saved);
-    latestGame.current = saved;
-    window.history.replaceState(null, "", `?room=${saved.roomCode}`);
-    return saved;
+  const adopt = (state) => {
+    setGame(state);
+    latestGame.current = state;
+    window.history.replaceState(null, "", `?room=${state.roomCode}`);
+    return state;
   };
 
-  const updateGame = async (updater) => {
+  const act = async (action, args) => {
     const current = latestGame.current;
     if (!current) return null;
     try {
-      const next = await RiskRoomService.update(current.roomCode, updater);
+      const next = await RiskRoomService.action(current.roomCode, action, args);
       if (!next) return null;
       setGame(next);
       latestGame.current = next;
@@ -650,11 +621,26 @@ export default function RiskClient() {
     }
   };
 
+  const stepComputer = async () => {
+    const current = latestGame.current;
+    if (!current) return null;
+    try {
+      const next = await RiskRoomService.computerStep(current.roomCode);
+      if (next) {
+        setGame(next);
+        latestGame.current = next;
+      }
+      return next;
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Could not advance the computer.");
+      return null;
+    }
+  };
+
   const createRoom = async () => {
     setError("");
     try {
-      const roomCode = await RiskRoomService.createCode();
-      await persist(createLobby(roomCode, playerId, usePlayerName()));
+      adopt((await RiskRoomService.create(usePlayerName())).state);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Could not create a room.");
     }
@@ -665,34 +651,15 @@ export default function RiskClient() {
     const code = joinCode.trim().toUpperCase();
     if (!code) return setError("Enter a room code first.");
     try {
-      const existing = await RiskRoomService.load(code);
-      if (!existing) return setError(`Room ${code} was not found.`);
-      const returning = existing.players.find((player) => player.id === playerId);
-      if (returning) {
-        setGame(existing);
-        latestGame.current = existing;
-        setName(returning.name);
-        window.history.replaceState(null, "", `?room=${code}`);
+      if (RiskRoomService.hasSeat(code)) {
+        const existing = await RiskRoomService.load(code);
+        if (!existing) return setError(`Room ${code} was not found.`);
+        const returning = existing.players.find((player) => player.id === existing.viewerId);
+        if (returning) setName(returning.name);
+        adopt(existing);
         return;
       }
-      if (existing.phase !== "lobby") return setError("That campaign has already started.");
-      if (existing.players.length >= 6) return setError("That room already has six commanders.");
-      const cleanName = usePlayerName();
-      const next = await RiskRoomService.update(code, (state) => {
-        if (state.phase !== "lobby" || state.players.length >= 6) return state;
-        const usedColors = new Set(state.players.map((player) => player.color));
-        const style = PLAYER_STYLES.find((candidate) => !usedColors.has(candidate.color)) ?? PLAYER_STYLES[0];
-        return {
-          ...state,
-          players: [...state.players, { id: playerId, name: cleanName, color: style.color, colorName: style.name, isBot: false, cards: [] }],
-          log: [`${cleanName} joined the room.`, ...state.log].slice(0, 40),
-        };
-      });
-      if (next) {
-        setGame(next);
-        latestGame.current = next;
-        window.history.replaceState(null, "", `?room=${code}`);
-      }
+      adopt((await RiskRoomService.join(code, usePlayerName())).state);
     } catch (joinError) {
       setError(joinError instanceof Error ? joinError.message : "Could not join the room.");
     }
@@ -700,39 +667,27 @@ export default function RiskClient() {
 
   const addComputer = () => {
     if (!isHost || game?.phase !== "lobby") return;
-    void updateGame((current) => {
-      if (current.phase !== "lobby" || current.players.length >= 6) return current;
-      const usedColors = new Set(current.players.map((player) => player.color));
-      const style = PLAYER_STYLES.find((candidate) => !usedColors.has(candidate.color)) ?? PLAYER_STYLES[0];
-      const number = current.players.filter((player) => player.isBot).length + 1;
-      const computer = { id: `computer-${Date.now()}-${number}`, name: `Computer ${number}`, color: style.color, colorName: style.name, isBot: true, cards: [] };
-      return { ...current, players: [...current.players, computer], log: [`${computer.name} joined the room.`, ...current.log].slice(0, 40) };
-    });
+    void act("addComputer");
   };
 
   const removeComputer = (computerId) => {
     if (!isHost || game?.phase !== "lobby") return;
-    void updateGame((current) => current.phase === "lobby"
-      ? { ...current, players: current.players.filter((player) => player.id !== computerId) }
-      : current);
+    void act("removeComputer", { playerId: computerId });
   };
 
   const chooseColor = (style) => {
     if (game?.phase !== "lobby") return;
-    void updateGame((current) => {
-      if (current.phase !== "lobby" || current.players.some((player) => player.id !== playerId && player.color === style.color)) return current;
-      return { ...current, players: current.players.map((player) => player.id === playerId ? { ...player, color: style.color, colorName: style.name } : player) };
-    });
+    void act("color", { color: style.color });
   };
 
   const chooseCardTradeMode = (cardTradeMode) => {
-    if (!isHost || game?.phase !== "lobby" || !["normal", "progressive"].includes(cardTradeMode)) return;
-    void updateGame((current) => current.phase === "lobby" ? { ...current, cardTradeMode } : current);
+    if (!isHost || game?.phase !== "lobby") return;
+    void act("tradeMode", { mode: cardTradeMode });
   };
 
   const startGame = () => {
     if (!isHost || game?.phase !== "lobby" || game.players.length < 2) return;
-    void updateGame((current) => current.phase === "lobby" ? createRiskGameFromLobby(current) : current);
+    void act("start");
   };
 
   const leaveRoom = () => {
@@ -744,17 +699,11 @@ export default function RiskClient() {
 
   const restartLobby = () => {
     if (!isHost || !game) return;
-    void updateGame((current) => ({
-      ...createLobby(current.roomCode, current.hostId, current.players.find((player) => player.id === current.hostId)?.name || "Host"),
-      createdAt: current.createdAt,
-      cardTradeMode: current.cardTradeMode ?? "progressive",
-      players: current.players.map((player) => ({ ...player, cards: [] })),
-      log: ["The room is ready for another campaign."],
-    }));
+    void act("restart");
   };
 
   if (!game) {
-    return <Setup name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} onCreate={createRoom} onJoin={joinRoom} error={error} ready={isReady && Boolean(playerId)} />;
+    return <Setup name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} onCreate={createRoom} onJoin={joinRoom} error={error} ready={isReady} />;
   }
 
   if (game.phase === "lobby") {
@@ -847,7 +796,7 @@ export default function RiskClient() {
 
   const confirmReinforcement = async () => {
     if (!selectedFrom || game.phase !== "reinforce") return;
-    const next = await updateGame((current) => placeReinforcement(current, selectedFrom, reinforceCount));
+    const next = await act("reinforce", { territoryId: selectedFrom, count: reinforceCount });
     if (!next) return;
     setReinforceCount(clampArmySelection(reinforceCount, next.reinforcements));
     if (next.reinforcements === 0) setSelectedFrom(null);
@@ -859,7 +808,7 @@ export default function RiskClient() {
     setIsBattleRolling(true);
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 700));
-      const next = await updateGame((current) => attackTerritory(current, selectedFrom, selectedTo, { attackDice: attackDiceCount }));
+      const next = await act("attack", { from: selectedFrom, to: selectedTo, attackDice: attackDiceCount });
       if (!next) return;
       if (next.pendingConquest) {
         setConquestMoveCount(next.pendingConquest.minimum);
@@ -877,7 +826,7 @@ export default function RiskClient() {
   const confirmConquestMove = async () => {
     if (!game.pendingConquest) return;
     const destination = game.pendingConquest.toId;
-    const next = await updateGame((current) => resolveConquestMove(current, conquestMoveCount));
+    const next = await act("conquestMove", { count: conquestMoveCount });
     if (!next) return;
     setSelectedFrom(destination);
     setSelectedTo(null);
@@ -885,14 +834,14 @@ export default function RiskClient() {
   };
 
   const changePhase = async () => {
-    await updateGame(advancePhase);
+    await act("advance");
     setSelectedFrom(null);
     setSelectedTo(null);
   };
 
   const confirmFortify = async () => {
     if (!selectedFrom || !selectedTo) return;
-    await updateGame((current) => fortifyTerritory(current, selectedFrom, selectedTo, fortifyCount));
+    await act("fortify", { from: selectedFrom, to: selectedTo, count: fortifyCount });
     setSelectedFrom(null);
     setSelectedTo(null);
   };
@@ -986,7 +935,7 @@ export default function RiskClient() {
             <div className="command-heading"><PhaseIcon size={22} /><div><h2>{phase.label}</h2><span>Step {game.phase === "reinforce" ? 1 : game.phase === "attack" ? 2 : 3} of 3</span></div></div>
 
             {isMyTurn && availableTrade && (game.phase === "reinforce" || mandatoryTrade) && (
-              <button type="button" className={`risk-trade-button ${mandatoryTrade ? "mandatory" : ""}`} onClick={() => void updateGame(tradeCards)}>
+              <button type="button" className={`risk-trade-button ${mandatoryTrade ? "mandatory" : ""}`} onClick={() => void act("trade")}>
                 <span>{availableTrade.map((card) => CARD_TYPES[card.type].symbol).join(" ")}</span>
                 {mandatoryTrade ? "Trade required" : "Trade card set"} <b>+{nextTradeBonus}</b>
               </button>
@@ -1119,7 +1068,7 @@ export default function RiskClient() {
               {game.log.slice(0, 7).map((entry, index) => <p key={`${entry}-${index}`} className={index === 0 ? "latest" : ""}>{entry}</p>)}
             </div>
           </section>
-          <CardHand cards={viewerPlayer?.cards ?? []} deckCount={game.deck.length} tradeMode={game.cardTradeMode} />
+          <CardHand cards={viewerPlayer?.cards ?? []} deckCount={game.deckCount} tradeMode={game.cardTradeMode} />
         </aside>
       </section>
 

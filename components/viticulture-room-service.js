@@ -1,5 +1,5 @@
 "use client";
 
-import { createCardGameRoomService } from "./card-game-room-service";
+import { createEngineRoomService } from "./engine-room-service.js";
 
-export const ViticultureRoomService = createCardGameRoomService("viticulture", "Viticulture");
+export const ViticultureRoomService = createEngineRoomService("viticulture", "Viticulture");

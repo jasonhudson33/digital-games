@@ -38,24 +38,25 @@ There are two room models here, and the difference decides whether a player can
 read a rival's hand.
 
 - **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Cover
-  Your Assets**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and Foot**,
-  **Killer Bunnies**, **Phase 10**, **Pinochle**, **Qwirkle**, **Scum**, **Secret
-  Hitler**, **Sequence**, **Skull King**, **Stratego**, and **UNO** keep the whole
+  Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and
+  Foot**, **Killer Bunnies**, **Phase 10**, **Pinochle**, **Qwirkle**, **Risk**,
+  **Scum**, **Secret Hitler**, **Sequence**, **Skull King**, **Splendor**,
+  **Stratego**, **Ticket to Ride**, **UNO**, and **Viticulture** keep the whole
   game on the server. A request carries a seat token, the
   server decides what that seat may see, and returns only that. Private hands
   and hidden roles stay private.
 
 - **Client-authoritative, fully readable.** Every other online game —
-  **Catan**, **Dominion**, **Life**, **Monopoly**, **No Thanks!**, **Risk**,
-  **Splendor**, **Spyrium**, **Ticket to Ride**, and **Viticulture** —
+  **Catan**, **Life**, **Monopoly**, **No Thanks!**, and **Spyrium** —
   computes state in the browser and stores it whole. `GET`/`PUT` on
   `/api/<game>/rooms/<code>` read and replace the entire game object. Once a game
   has started, both need a seat token (`X-Seat-Token`, issued when a player
   creates or joins), so a stranger with the code is turned away
   ([ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md)).
-  Seated players still receive every hand and hidden role, so these rooms are
-  **not private between players**. **Catan** and **Monopoly** keep their own
-  browser-side Supabase tables and are not token-gated yet.
+  These games hold no hidden hands, but a seated player can still replace the
+  whole game with a `PUT`, so they trust every seated player. **Catan** and
+  **Monopoly** keep their own browser-side Supabase tables and are not
+  token-gated yet.
 
 - **Hearts** has no shared rooms: it runs in one browser against computer players.
 

@@ -32,3 +32,17 @@ Each rack SHALL hold six tiles, and the game SHALL end when the bag is empty and
 #### Scenario: Empty rack
 - **WHEN** the bag is empty and a player plays their last tile
 - **THEN** that player receives 6 points and the game ends
+
+### Requirement: Qwirkle hidden information
+Qwirkle SHALL be played with its rules on the server, and each seat's view SHALL show its own rack, other seats' rack sizes, the full board and the tile bag size.
+
+#### Scenario: Opponent rack
+- **WHEN** a seat reads a started game
+- **THEN** other seats' racks are empty with a tile count and the bag is a count
+
+### Requirement: Moves validated against the real rack
+A tile move or exchange SHALL be accepted only with tiles the acting seat holds, and a move SHALL be validated and scored on the server.
+
+#### Scenario: Tile not held
+- **WHEN** a seat places a tile it does not hold
+- **THEN** the move is rejected

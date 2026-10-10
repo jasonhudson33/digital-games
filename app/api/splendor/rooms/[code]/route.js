@@ -1,11 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { splendorRoomStore } from "../../../../../lib/splendor-room-store.js";
+import { splendorRoutes } from "../../../../../lib/splendor-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: splendorRoomStore,
-  label: "Splendor",
-  validate: (state) => state.game === "splendor",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = splendorRoutes.item.GET;
+export const POST = splendorRoutes.item.POST;

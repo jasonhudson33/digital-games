@@ -1,11 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { viticultureRoomStore } from "../../../../../lib/viticulture-room-store.js";
+import { viticultureRoutes } from "../../../../../lib/viticulture-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: viticultureRoomStore,
-  label: "Viticulture",
-  validate: (state) => state.game === "viticulture",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = viticultureRoutes.item.GET;
+export const POST = viticultureRoutes.item.POST;

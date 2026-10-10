@@ -10,7 +10,7 @@ Splendor is a 2–4 player, turn-based engine-building game. Players share a gem
 
 ## Room boundary
 
-`components/splendor-room-service.js` provides compare-and-set room updates, local caching, broadcast/poll subscriptions, and five-character room codes. `lib/splendor-room-store.js` stores rooms in the shared server-side Supabase table in production and an isolated in-memory namespace during local development.
+The rules run on the server (`lib/splendor-room-adapter.js` over `lib/splendor.js`): a seat sends named actions and receives only its own view. Other seats' reserved developments are counts and the three face-down decks are counts; the markets, bank, nobles and tableaux are public. A card reserved from the market is public in the physical game, but the engine does not record where a reservation came from, so all of another seat's reservations are hidden. The host's browser asks for each computer turn with one `computerStep`. `lib/splendor-room-store.js` stores rooms in the shared server-side Supabase table in production and an isolated in-memory namespace during local development.
 
 ## User interface
 

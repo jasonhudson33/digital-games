@@ -20,3 +20,10 @@ Dominion owns the shared supply, deck cycling, action and buy turns, and end-of-
 
 > **Dev:** "Two players tie on points. Who wins?"
 > **Domain expert:** "The one who took fewer turns; equal turns share it."
+
+## Rooms
+
+- The rules run on the server (`lib/dominion-room-adapter.js` over `lib/dominion.js`). A seat sends named actions and receives only its own view.
+- Other seats' hands are counts. Every draw pile is a count, including the viewer's own, because nobody may know the order or contents of their own deck. Discard piles, cards in play, the supply and the trash are public. Each player's total card count is sent so the table can still show it.
+- A computer takes its whole turn, including any choice it owes, in one host-requested `computerStep`.
+

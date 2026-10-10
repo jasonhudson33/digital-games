@@ -19,7 +19,7 @@ npm run build
 
 ## Multiplayer storage
 
-Seven Up, BANG!, Cover Your Assets, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Scum, Secret Hitler, Sequence, Skull King, Stratego, and UNO store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
+Seven Up, BANG!, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Stratego, Ticket to Ride, UNO, and Viticulture store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
 
 ```bash
 SUPABASE_URL=

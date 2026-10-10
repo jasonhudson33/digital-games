@@ -11,24 +11,16 @@ import {
   CARD_DEFINITIONS,
   KINGDOM_CARD_IDS,
   MAX_PLAYERS,
-  addComputerPlayer,
-  addPlayer,
-  advanceToBuy,
   allPlayerCards,
-  buyCard,
   computerPlayerToAct,
-  createLobby,
   currentPlayer,
-  endTurn,
   emptyPileLimit,
-  playAction,
-  removeComputerPlayer,
-  resolveChoice,
-  runComputerTurn,
-  scorePlayer,
-  startGame,
 } from "../lib/dominion";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
+
+/** Opponents' hands and every draw pile are not sent, only counts. */
+const handSize = (player) => player.handCount ?? player.hand.length;
+const cardTotal = (player) => player.cardTotal ?? allPlayerCards(player).length;
 
 const ICONS = {
   copper: Coins, silver: Coins, gold: Coins, estate: Landmark, duchy: Castle, province: Crown,
@@ -38,9 +30,9 @@ const ICONS = {
 
 export default function DominionClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode, busy, error, setError,
-    createRoom, joinRoom, update,
-  } = useGameRoom({ service: DominionRoomService, storageKey: "dominion", createLobby, addPlayer, maxPlayers: MAX_PLAYERS });
+    room, playerId, name, setName, joinCode, setJoinCode, busy, error, setError,
+    createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: DominionRoomService, storageKey: "dominion" });
   const [showRules, setShowRules] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [computerThinking, setComputerThinking] = useState(false);
@@ -57,7 +49,7 @@ export default function DominionClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, 650);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -67,13 +59,12 @@ export default function DominionClient() {
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this realm? You can return later with the room code.")) return;
-    try { localStorage.removeItem("dominion-active-room"); } catch { /* nothing to forget */ }
-    setRoom(null);
+    leaveEngineRoom();
     setError("");
   }
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update(addComputerPlayer)} onRemoveComputer={(id) => update((current) => removeComputerPlayer(current, id))} onStart={() => update(startGame)} onLeave={leaveRoom} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const myChoice = room.pendingChoice?.playerId === playerId;
@@ -100,29 +91,29 @@ export default function DominionClient() {
 
       <section className="dom-supply">
         <div className="dom-supply-heading"><div><p className="dom-kicker">Shared card piles</p><h2>The Supply</h2></div><span>{Object.values(room.supply).filter((count) => count === 0).length} / {emptyPileLimit(room)} piles empty</span></div>
-        <div className="dom-base-row">{BASE_CARD_IDS.map((id) => <SupplyPile key={id} id={id} count={room.supply[id]} player={me} canBuy={myTurn && !room.pendingChoice && room.turnPhase === "buy"} busy={busy} onBuy={() => update((current) => buyCard(current, playerId, id))} />)}</div>
+        <div className="dom-base-row">{BASE_CARD_IDS.map((id) => <SupplyPile key={id} id={id} count={room.supply[id]} player={me} canBuy={myTurn && !room.pendingChoice && room.turnPhase === "buy"} busy={busy} onBuy={() => act("buy", { cardId: id })} />)}</div>
         <div className="dom-kingdom-label"><Sparkles /><span><small>First-game kingdom</small>Actions that shape your deck</span></div>
-        <div className="dom-kingdom-grid">{KINGDOM_CARD_IDS.map((id) => <SupplyPile key={id} id={id} count={room.supply[id]} player={me} canBuy={myTurn && !room.pendingChoice && room.turnPhase === "buy"} busy={busy} onBuy={() => update((current) => buyCard(current, playerId, id))} />)}</div>
+        <div className="dom-kingdom-grid">{KINGDOM_CARD_IDS.map((id) => <SupplyPile key={id} id={id} count={room.supply[id]} player={me} canBuy={myTurn && !room.pendingChoice && room.turnPhase === "buy"} busy={busy} onBuy={() => act("buy", { cardId: id })} />)}</div>
       </section>
 
       <aside className="dom-turn-panel">
         <PanelTitle icon={Crown} eyebrow={`Turn ${room.turnNumber}`} title={myTurn ? "Your council" : `${actor?.name}'s council`} />
         <div className="dom-turn-resources"><Resource value={actor?.actions ?? 0} label="Actions" /><Resource value={actor?.buys ?? 0} label="Buys" /><Resource value={actor?.coins ?? 0} label="Coins" icon /></div>
         <div className={`dom-phase-card phase-${room.turnPhase}`}><small>Current phase</small><strong>{room.turnPhase === "action" ? "A. Play actions" : "B. Buy cards"}</strong><p>{room.turnPhase === "action" ? "Play an Action from your hand, or move on. Treasures are played automatically." : "Choose an affordable Supply pile, then end your turn."}</p></div>
-        {myTurn && !room.pendingChoice && room.turnPhase === "action" && <button className="dom-primary" disabled={busy} onClick={() => update((current) => advanceToBuy(current, playerId))}><Coins /> Enter Buy phase</button>}
-        {myTurn && !room.pendingChoice && room.turnPhase === "buy" && <button className="dom-primary" disabled={busy} onClick={() => update((current) => endTurn(current, playerId))}><Check /> End turn</button>}
+        {myTurn && !room.pendingChoice && room.turnPhase === "action" && <button className="dom-primary" disabled={busy} onClick={() => act("toBuy")}><Coins /> Enter Buy phase</button>}
+        {myTurn && !room.pendingChoice && room.turnPhase === "buy" && <button className="dom-primary" disabled={busy} onClick={() => act("endTurn")}><Check /> End turn</button>}
         {myTurn && room.turnPhase === "action" && !actionCards.length && <p className="dom-coach">No Actions in hand. Enter the Buy phase to play all Treasure cards automatically.</p>}
         <div className="dom-trash"><span><Swords /> Trash</span><strong>{room.trash.length}</strong><small>{room.trash.length ? CARD_DEFINITIONS[room.trash.at(-1)]?.name : "No cards trashed"}</small></div>
       </aside>
     </div>
 
     <section className="dom-player-area">
-      <div className="dom-hand-heading"><div><p className="dom-kicker">Your private cards</p><h2>Your hand <span>{me.hand.length}</span></h2></div><div className="dom-zone-counts"><span><strong>{me.deck.length}</strong> deck</span><span><strong>{me.discard.length}</strong> discard</span><span><strong>{me.inPlay.length}</strong> in play</span></div></div>
-      <div className="dom-hand">{me.hand.map((id, index) => <CardFace key={`${id}-${index}`} id={id} compact disabled={!myTurn || busy || room.turnPhase !== "action" || me.actions < 1 || !CARD_DEFINITIONS[id].types.includes("action") || Boolean(room.pendingChoice)} onClick={() => update((current) => playAction(current, playerId, index))} />)}</div>
+      <div className="dom-hand-heading"><div><p className="dom-kicker">Your private cards</p><h2>Your hand <span>{me.hand.length}</span></h2></div><div className="dom-zone-counts"><span><strong>{me.deckCount}</strong> deck</span><span><strong>{me.discard.length}</strong> discard</span><span><strong>{me.inPlay.length}</strong> in play</span></div></div>
+      <div className="dom-hand">{me.hand.map((id, index) => <CardFace key={`${id}-${index}`} id={id} compact disabled={!myTurn || busy || room.turnPhase !== "action" || me.actions < 1 || !CARD_DEFINITIONS[id].types.includes("action") || Boolean(room.pendingChoice)} onClick={() => act("play", { handIndex: index })} />)}</div>
       {me.inPlay.length > 0 && <div className="dom-in-play"><strong>In play</strong><div>{me.inPlay.map((id, index) => <span key={`${id}-${index}`}>{CARD_DEFINITIONS[id].name}</span>)}</div></div>}
     </section>
 
-    {myChoice && <ChoiceDialog room={room} player={me} selected={selectedIndices} setSelected={setSelectedIndices} busy={busy} onResolve={(payload) => update((current) => resolveChoice(current, playerId, payload))} />}
+    {myChoice && <ChoiceDialog room={room} player={me} selected={selectedIndices} setSelected={setSelectedIndices} busy={busy} onResolve={(payload) => act("resolve", payload)} />}
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
@@ -141,7 +132,7 @@ function PanelTitle({ icon: Icon, eyebrow, title }) { return <div className="dom
 function Resource({ value, label, icon }) { return <div><strong>{icon && <Coins />}{value}</strong><small>{label}</small></div>; }
 
 function PlayerSummary({ player, active, isMe, isHost, winner }) {
-  return <div className={`dom-player ${active ? "active" : ""} ${winner ? "winner" : ""}`}><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.hand.length} in hand · {allPlayerCards(player).length} cards</small></p><b>{player.isComputer ? <Bot /> : isHost ? <Crown /> : null}</b></div>;
+  return <div className={`dom-player ${active ? "active" : ""} ${winner ? "winner" : ""}`}><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{handSize(player)} in hand · {cardTotal(player)} cards</small></p><b>{player.isComputer ? <Bot /> : isHost ? <Crown /> : null}</b></div>;
 }
 
 function SupplyPile({ id, count, player, canBuy, busy, onBuy }) {
@@ -182,7 +173,7 @@ function RulesDrawer({ onClose }) {
 function Results({ room, playerId, onLeave }) {
   const ranked = [...room.players].sort((a, b) => room.scores[b.id] - room.scores[a.id] || a.turnsTaken - b.turnsTaken);
   const won = room.winners.includes(playerId);
-  return <div className="dom-overlay"><section className="dom-results"><div className="dom-results-crown"><Crown /></div><p className="dom-kicker">The realm is complete</p><h2>{won ? "Your Dominion prevails" : `${ranked[0].name} claims the realm`}</h2><p>Victory cards across every deck, hand, discard pile, and play area determine the final standing.</p><div>{ranked.map((player, index) => <article className={room.winners.includes(player.id) ? "winner" : ""} key={player.id}><b>{index + 1}</b><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{allPlayerCards(player).length} cards · {player.turnsTaken} turns</small></p><em>{room.scores[player.id]}<small> VP</small></em>{room.winners.includes(player.id) && <Crown />}</article>)}</div><button className="dom-primary" onClick={onLeave}>Return to the great hall</button></section></div>;
+  return <div className="dom-overlay"><section className="dom-results"><div className="dom-results-crown"><Crown /></div><p className="dom-kicker">The realm is complete</p><h2>{won ? "Your Dominion prevails" : `${ranked[0].name} claims the realm`}</h2><p>Victory cards across every deck, hand, discard pile, and play area determine the final standing.</p><div>{ranked.map((player, index) => <article className={room.winners.includes(player.id) ? "winner" : ""} key={player.id}><b>{index + 1}</b><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{cardTotal(player)} cards · {player.turnsTaken} turns</small></p><em>{room.scores[player.id]}<small> VP</small></em>{room.winners.includes(player.id) && <Crown />}</article>)}</div><button className="dom-primary" onClick={onLeave}>Return to the great hall</button></section></div>;
 }
 
 function choiceName(type) {

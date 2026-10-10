@@ -1,7 +1,7 @@
 # platform/server-authoritative-rooms Specification
 
 ## Purpose
-Defines the room model for games with private information (7-Up, BANG!, Cover Your Assets, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Scum, Secret Hitler, Sequence, Skull King, Stratego, UNO), where the server holds the whole game and each seat sees only its own view.
+Defines the room model for games with private information (7-Up, BANG!, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Stratego, Ticket to Ride, UNO, Viticulture), where the server holds the whole game and each seat sees only its own view.
 
 ## Requirements
 
@@ -72,3 +72,14 @@ A room stored in the previous whole-state format for an engine-backed game SHALL
 #### Scenario: Old room
 - **WHEN** a client opens a room stored before the change
 - **THEN** it receives that message and no game state
+
+### Requirement: Hidden roles and pieces until revealed
+A view of an engine-backed game SHALL withhold a hidden role or an unrevealed piece's identity from every seat except its owner, and SHALL disclose it only when a rule reveals it, such as an elimination, a battle or the end of the game.
+
+#### Scenario: Another seat's role
+- **WHEN** a seat reads a started BANG! room
+- **THEN** other living seats' roles are absent unless the role is the Sheriff
+
+#### Scenario: Role revealed on elimination
+- **WHEN** a player is eliminated
+- **THEN** their role appears in every seat's view

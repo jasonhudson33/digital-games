@@ -6,28 +6,15 @@ import { SplendorRoomService } from "./splendor-room-service";
 import {
   GEM_COLORS,
   GEM_INFO,
-  addComputerPlayer,
-  addPlayer,
   canPurchase,
-  chooseNoble,
-  createLobby,
   currentPlayer,
   paymentForCard,
-  purchaseCard,
-  removeComputerPlayer,
-  reserveCard,
-  returnTokens,
-  runComputerTurn,
-  startGame,
-  takeDifferentTokens,
-  takePairTokens,
   tokenCount,
 } from "../lib/splendor";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "splendor-player-id";
-const playerNameKey = "splendor-player-name";
-const activeRoomKey = "splendor-active-room";
+/** Opponents' reservations are not sent, only a count. */
+const reservedCount = (player) => player.reservedCount ?? player.reserved.length;
 const cardArt = {
   white: "/splendor/cards/white.webp",
   blue: "/splendor/cards/blue.webp",
@@ -38,15 +25,9 @@ const cardArt = {
 
 export default function SplendorClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: SplendorRoomService,
-    storageKey: "splendor",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: 4,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: SplendorRoomService, storageKey: "splendor" });
   const [selectedGems, setSelectedGems] = useState([]);
   const [returns, setReturns] = useState({});
   const [showRules, setShowRules] = useState(false);
@@ -64,7 +45,7 @@ export default function SplendorClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, 720);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -76,18 +57,17 @@ export default function SplendorClient() {
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this table? You can return later with the same room code.")) return;
-    localStorage.removeItem(activeRoomKey);
-    setRoom(null); setSelectedGems([]); setError("");
+    leaveEngineRoom(); setSelectedGems([]); setError("");
   }
 
   function buy(source, card) {
     if (!room || !me || currentPlayer(room)?.id !== playerId || room.phase !== "playing") return;
     if (!canPurchase(me, card)) { setError("You cannot afford that development yet."); return; }
-    update((current) => purchaseCard(current, playerId, source));
+    act("purchase", { source });
   }
 
   if (!room || !me) return <Landing name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} createRoom={createRoom} joinRoom={joinRoom} busy={busy} error={error} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update(addComputerPlayer)} onRemoveComputer={(id) => update((current) => removeComputerPlayer(current, id))} onStart={() => update(startGame)} onLeave={leaveRoom} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const leadScore = Math.max(...room.players.map((player) => player.score));
@@ -147,8 +127,8 @@ export default function SplendorClient() {
         <PlayerStrip player={me} prestige={me.score} tokens={tokenCount(me)} />
         <div className="splendor-nobles"><div className="splendor-row-label"><Crown /><span><small>Attract patrons</small>Nobles</span></div><div className="splendor-noble-list">{room.nobles.map((noble) => <NobleTile key={noble.id} noble={noble} player={me} />)}</div></div>
         {[3, 2, 1].map((level) => <div className="splendor-market-row" key={level}>
-          <Deck level={level} count={room.decks[level].length} disabled={!myTurn || busy || me.reserved.length >= 3} onReserve={() => update((current) => reserveCard(current, playerId, { kind: "deck", level }))} />
-          <div className="splendor-development-list">{room.market[level].map((card, index) => <DevelopmentCard key={card.id} card={card} player={me} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "market", level, index }, card)} onReserve={() => update((current) => reserveCard(current, playerId, { kind: "market", level, index }))} canReserve={myTurn && me.reserved.length < 3} />)}</div>
+          <Deck level={level} count={room.deckCounts[level]} disabled={!myTurn || busy || me.reserved.length >= 3} onReserve={() => act("reserve", { source: { kind: "deck", level } })} />
+          <div className="splendor-development-list">{room.market[level].map((card, index) => <DevelopmentCard key={card.id} card={card} player={me} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "market", level, index }, card)} onReserve={() => act("reserve", { source: { kind: "market", level, index } })} canReserve={myTurn && me.reserved.length < 3} />)}</div>
         </div>)}
       </section>
 
@@ -156,7 +136,7 @@ export default function SplendorClient() {
         <div className="splendor-panel-title"><Landmark /><span><small>Shared supply</small>Gem bank</span></div>
         <p className="splendor-bank-help">{myTurn ? "Click three different gems — or the same gem twice to take two of it, when four or more remain." : "The bank is ready for the active merchant."}</p>
         <div className="splendor-token-bank">{GEM_COLORS.map((color) => <BankToken key={color} color={color} count={room.bank[color]} picked={selectedGems.filter((item) => item === color).length} disabled={!myTurn || busy || room.bank[color] === 0} onPick={() => pickGem(color)} />)}<BankToken color="gold" count={room.bank.gold} picked={0} disabled note="Gold comes with a reservation" /></div>
-        <button className="splendor-primary splendor-take" disabled={!myTurn || busy || !take.legal} onClick={() => update((current) => (take.pair ? takePairTokens(current, playerId, take.pair) : takeDifferentTokens(current, playerId, selectedGems)))}><Gem /> {take.label}</button>
+        <button className="splendor-primary splendor-take" disabled={!myTurn || busy || !take.legal} onClick={() => take.pair ? act("takePair", { color: take.pair }) : act("takeDifferent", { colors: selectedGems })}><Gem /> {take.label}</button>
         {selectedGems.length > 0 && <button className="splendor-quiet splendor-clear" onClick={() => setSelectedGems([])}>Clear selection</button>}
         <div className="splendor-action-note"><Sparkles /><p><strong>{myTurn ? "Choose one action" : `${actor?.name} is at the market`}</strong><span>{myTurn ? "Gather gems, buy one development, or reserve one for later." : "You can inspect every cost while you wait."}</span></p></div>
       </aside>
@@ -168,8 +148,8 @@ export default function SplendorClient() {
       <div className="splendor-reserved"><div><LockKeyhole /><span><strong>Reserved developments</strong><small>Private to you · {me.reserved.length}/3</small></span></div>{me.reserved.length ? <div className="splendor-reserved-list">{me.reserved.map((card, index) => <DevelopmentCard key={card.id} card={card} player={me} affordable={myTurn && canPurchase(me, card)} disabled={!myTurn || busy} onBuy={() => buy({ kind: "reserved", index }, card)} reserved />)}</div> : <p>Reserve a face-up card—or draw blindly from a deck—to secure it and take one gold.</p>}</div>
     </section>
 
-    {room.pendingReturn?.playerId === playerId && <ReturnModal player={me} count={room.pendingReturn.count} selected={returns} setSelected={setReturns} busy={busy} onConfirm={() => { update((current) => returnTokens(current, playerId, returns)); setReturns({}); }} />}
-    {room.pendingNoble?.playerId === playerId && <NobleChoice nobles={room.nobles.filter((noble) => room.pendingNoble.nobleIds.includes(noble.id))} onChoose={(id) => update((current) => chooseNoble(current, playerId, id))} />}
+    {room.pendingReturn?.playerId === playerId && <ReturnModal player={me} count={room.pendingReturn.count} selected={returns} setSelected={setReturns} busy={busy} onConfirm={() => { act("returnTokens", { returned: returns }); setReturns({}); }} />}
+    {room.pendingNoble?.playerId === playerId && <NobleChoice nobles={room.nobles.filter((noble) => room.pendingNoble.nobleIds.includes(noble.id))} onChoose={(id) => act("chooseNoble", { nobleId: id })} />}
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
@@ -225,7 +205,7 @@ function PlayerSummary({ player, active, isMe, isHost, winner, leading }) {
      start the last round. That is the number that should change your move, and
      nothing on the board used to say it. */
   const threat = player.score >= 11 && player.score < 15;
-  return <div className={`splendor-player ${active ? "active" : ""} ${winner ? "winner" : ""} ${threat ? "threat" : ""} ${leading ? "leading" : ""}`}><span className="splendor-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{tokenCount(player)} tokens · {player.reserved.length} reserved</small><div className="splendor-mini-bonuses">{GEM_COLORS.map((color) => <i key={color} className={color}>{player.bonuses[color]}</i>)}</div></div><b>{player.score}<small>PP</small>{threat && <em title={`${15 - player.score} prestige from the final round`}>{15 - player.score} to go</em>}</b>{isHost && <Crown className="splendor-host" />}</div>;
+  return <div className={`splendor-player ${active ? "active" : ""} ${winner ? "winner" : ""} ${threat ? "threat" : ""} ${leading ? "leading" : ""}`}><span className="splendor-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{tokenCount(player)} tokens · {reservedCount(player)} reserved</small><div className="splendor-mini-bonuses">{GEM_COLORS.map((color) => <i key={color} className={color}>{player.bonuses[color]}</i>)}</div></div><b>{player.score}<small>PP</small>{threat && <em title={`${15 - player.score} prestige from the final round`}>{15 - player.score} to go</em>}</b>{isHost && <Crown className="splendor-host" />}</div>;
 }
 
 /*

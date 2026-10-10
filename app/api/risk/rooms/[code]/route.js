@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { riskRoomStore } from "../../../../../lib/risk-room-store.js";
+import { riskRoutes } from "../../../../../lib/risk-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: riskRoomStore,
-  label: "Risk",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = riskRoutes.item.GET;
+export const POST = riskRoutes.item.POST;

@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { ticketToRideRoomStore } from "../../../../../lib/ticket-to-ride-room-store.js";
+import { ticketToRideRoutes } from "../../../../../lib/ticket-to-ride-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: ticketToRideRoomStore,
-  label: "Ticket to Ride",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = ticketToRideRoutes.item.GET;
+export const POST = ticketToRideRoutes.item.POST;

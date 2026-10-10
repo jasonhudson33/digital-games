@@ -13,28 +13,17 @@ import {
   ROUTE_POINTS,
   TRAIN_COLORS,
   TRAIN_COLOR_INFO,
-  addComputerPlayer,
-  addPlayer,
-  chooseDrawnDestinations,
-  chooseOpeningDestinations,
-  claimRoute,
-  createLobby,
   currentPlayer,
   destinationLabel,
-  drawDestinations,
-  drawTrainCard,
   hasConnection,
   isRouteAvailable,
-  removeComputerPlayer,
-  runComputerTurn,
-  startGame,
   validPaymentColors,
 } from "../lib/ticket-to-ride";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "ticket-to-ride-player-id";
-const playerNameKey = "ticket-to-ride-player-name";
-const activeRoomKey = "ticket-to-ride-active-room";
+/** Opponents' cards and tickets are not sent, only counts. */
+const cardCount = (player) => player.cardCount ?? player.cards.length;
+const pendingTicketCount = (player) => player.pendingDestinationCount ?? player.pendingDestinations?.length ?? 0;
 
 const pairKey = (first, second) => [first, second].sort().join(":");
 const ROUTE_BENDS = new Map([
@@ -108,15 +97,9 @@ function choiceHighlights(choices, selected, hovered) {
 
 export default function TicketToRideClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: TicketToRideRoomService,
-    storageKey: "ticket-to-ride",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: 5,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: TicketToRideRoomService, storageKey: "ticket-to-ride" });
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [openingSelection, setOpeningSelection] = useState([]);
   const [ticketSelection, setTicketSelection] = useState([]);
@@ -127,7 +110,7 @@ export default function TicketToRideClient() {
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const computerToAct = room?.phase === "choosing-destinations"
-    ? room.players.find((player) => player.isComputer && player.pendingDestinations?.length)
+    ? room.players.find((player) => player.isComputer && pendingTicketCount(player))
     : room?.phase === "playing" && currentPlayer(room)?.isComputer
       ? currentPlayer(room)
       : null;
@@ -141,7 +124,7 @@ export default function TicketToRideClient() {
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
       try {
-        await update((current) => runComputerTurn(current));
+        await stepComputer();
       } finally {
         if (!cancelled) setComputerThinking(false);
       }
@@ -154,13 +137,12 @@ export default function TicketToRideClient() {
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this room and return to the Ticket to Ride home screen? You can rejoin with the room code.")) return;
-    localStorage.removeItem(activeRoomKey);
     setSelectedRouteId(null);
     setSelectedDestinationId(null);
     setOpeningSelection([]);
     setTicketSelection([]);
     setHoveredChoiceId(null);
-    setRoom(null);
+    leaveEngineRoom();
   }
 
   if (!room || !me) {
@@ -168,7 +150,7 @@ export default function TicketToRideClient() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)} onRemoveComputer={(computerId) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, computerId) : current)} onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)} onLeave={leaveRoom} />;
+    return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(computerId) => act("removeComputer", { playerId: computerId })} onStart={() => act("start")} onLeave={leaveRoom} />;
   }
 
   if (room.phase === "choosing-destinations" && me.pendingDestinations.length) {
@@ -183,7 +165,7 @@ export default function TicketToRideClient() {
       setHovered={setHoveredChoiceId}
       minimum={2}
       busy={busy}
-      onConfirm={() => { setHoveredChoiceId(null); update((current) => chooseOpeningDestinations(current, playerId, openingSelection)); }}
+      onConfirm={() => { setHoveredChoiceId(null); act("chooseOpening", { destinationIds: openingSelection }); }}
       onLeave={leaveRoom}
     />;
   }
@@ -237,7 +219,7 @@ export default function TicketToRideClient() {
             const final = room.finalScores?.find((score) => score.playerId === player.id);
             return <div className={`ttr-player-row ${currentPlayer(room)?.id === player.id && room.phase !== "finished" ? "active" : ""}`} key={player.id}>
               <span className="ttr-player-train" style={{ color: player.color }}>{player.isComputer ? <Bot size={24} /> : <TrainFront size={24} />}</span>
-              <div><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{player.trains} trains · {player.cards.length} cards</small></div>
+              <div><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.isComputer ? "Computer · " : ""}{player.trains} trains · {cardCount(player)} cards</small></div>
               <b>{final?.total ?? player.score}</b>
               {index === 0 && <Crown size={13} className="ttr-host-crown" />}
             </div>;
@@ -265,13 +247,13 @@ export default function TicketToRideClient() {
         </section>
 
         <aside className="ttr-market-panel">
-          <div className="ttr-panel-heading"><div><p className="ttr-kicker">Train cards</p><h2>Station market</h2></div><span>{room.trainDeck.length} left</span></div>
+          <div className="ttr-panel-heading"><div><p className="ttr-kicker">Train cards</p><h2>Station market</h2></div><span>{room.trainDeckCount} left</span></div>
           <div className="ttr-face-up">
-            {room.faceUp.map((card, index) => <TrainCard key={card.id} card={card} compact disabled={!myTurn || busy || (room.drawsThisTurn === 1 && card.color === "locomotive")} onClick={() => update((current) => drawTrainCard(current, playerId, index))} />)}
+            {room.faceUp.map((card, index) => <TrainCard key={card.id} card={card} compact disabled={!myTurn || busy || (room.drawsThisTurn === 1 && card.color === "locomotive")} onClick={() => act("drawTrain", { source: index })} />)}
           </div>
           <div className="ttr-draw-piles">
-            <DrawDeck type="train" count={room.trainDeck.length} disabled={!myTurn || busy} onClick={() => update((current) => drawTrainCard(current, playerId, "deck"))} />
-            <DrawDeck type="destination" count={room.destinationDeck.length} disabled={!myTurn || busy || room.drawsThisTurn > 0} onClick={() => update((current) => drawDestinations(current, playerId))} />
+            <DrawDeck type="train" count={room.trainDeckCount} disabled={!myTurn || busy} onClick={() => act("drawTrain", { source: "deck" })} />
+            <DrawDeck type="destination" count={room.destinationDeckCount} disabled={!myTurn || busy || room.drawsThisTurn > 0} onClick={() => act("drawDestinations")} />
           </div>
           <div className="ttr-log"><h3>Travel log</h3>{room.log.slice(0, 5).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div>
         </aside>
@@ -294,11 +276,11 @@ export default function TicketToRideClient() {
         </div>
       </section>
 
-      {selectedRoute && !pendingChoices && !room.claimedRoutes[selectedRoute.id] && <ClaimPanel route={selectedRoute} colors={paymentColors} busy={busy} onClose={() => setSelectedRouteId(null)} onClaim={(color) => { update((current) => claimRoute(current, playerId, selectedRoute.id, color)); setSelectedRouteId(null); }} />}
+      {selectedRoute && !pendingChoices && !room.claimedRoutes[selectedRoute.id] && <ClaimPanel route={selectedRoute} colors={paymentColors} busy={busy} onClose={() => setSelectedRouteId(null)} onClaim={(color) => { act("claim", { routeId: selectedRoute.id, paymentColor: color }); setSelectedRouteId(null); }} />}
       {/* Docked rather than a modal over the table: choosing which journeys to
           keep is a question about the board you have already built, and the old
           full-screen overlay was the one moment the map went away. */}
-      {pendingChoices && <DestinationDock choices={pendingChoices} selected={ticketSelection} setSelected={setTicketSelection} hovered={hoveredChoiceId} setHovered={setHoveredChoiceId} busy={busy} onConfirm={() => { update((current) => chooseDrawnDestinations(current, playerId, ticketSelection)); setTicketSelection([]); setHoveredChoiceId(null); }} />}
+      {pendingChoices && <DestinationDock choices={pendingChoices} selected={ticketSelection} setSelected={setTicketSelection} hovered={hoveredChoiceId} setHovered={setHoveredChoiceId} busy={busy} onConfirm={() => { act("chooseDrawn", { destinationIds: ticketSelection }); setTicketSelection([]); setHoveredChoiceId(null); }} />}
       {room.phase === "finished" && <FinalScores room={room} playerId={playerId} onLeave={leaveRoom} />}
     </main>
   );

@@ -1,11 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { dominionRoomStore } from "../../../../../lib/dominion-room-store.js";
+import { dominionRoutes } from "../../../../../lib/dominion-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: dominionRoomStore,
-  label: "Dominion",
-  validate: (state) => state.game === "dominion",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = dominionRoutes.item.GET;
+export const POST = dominionRoutes.item.POST;

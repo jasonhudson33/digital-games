@@ -19,3 +19,10 @@ Viticulture owns seasonal worker placement, vineyard and cellar upkeep, orders, 
 
 > **Dev:** "Does the game stop the moment someone hits 20?"
 > **Domain expert:** "No, it ends when that year ends."
+
+## Rooms
+
+- The rules run on the server (`lib/viticulture-room-adapter.js` over `lib/viticulture.js`). A seat sends named actions and receives only its own view.
+- Other seats' vine, order and visitor cards are counts per kind, and the four decks and their discard piles are counts. Fields, structures, grapes, wine, workers and board placements are public.
+- Only the host's browser asks for computer moves, one `computerStep` at a time.
+

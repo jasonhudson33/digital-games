@@ -7,15 +7,13 @@ import {
   ThermometerSnowflake, Trophy, Users, Warehouse, Wine, X,
 } from "lucide-react";
 
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 import {
-  ACTION_SPACES, BUILDINGS, addComputerPlayer, addPlayer, canFillOrder, canPlant,
-  actionCapacity, canUseAction, chooseWakeUp, createLobby, currentPlayer, passSeason,
-  removeComputerPlayer, runComputerTurn, startGame, takeAction, wineOptions,
+  ACTION_SPACES, BUILDINGS, canFillOrder, canPlant,
+  actionCapacity, canUseAction, currentPlayer, wineOptions,
 } from "../lib/viticulture.js";
 import { ViticultureRoomService } from "./viticulture-room-service";
 
-const activeRoomKey = "viticulture-active-room";
 const CARD_ART = {
   vine: "/viticulture/vine-card-art.png",
   order: "/viticulture/order-card-art.png",
@@ -30,15 +28,9 @@ const SEASONS = {
 
 export default function ViticultureClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: ViticultureRoomService,
-    storageKey: "viticulture",
-    createLobby,
-    addPlayer,
-    maxPlayers: 6,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: ViticultureRoomService, storageKey: "viticulture" });
   const [selectedAction, setSelectedAction] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
@@ -55,7 +47,7 @@ export default function ViticultureClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, 680);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -65,14 +57,13 @@ export default function ViticultureClient() {
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this vineyard? You can return later with the room code.")) return;
-    localStorage.removeItem(activeRoomKey);
-    setRoom(null);
+    leaveEngineRoom();
     setSelectedAction(null);
     setError("");
   }
 
   if (!room || !me) return <Landing name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} createRoom={createRoom} joinRoom={joinRoom} busy={busy} error={error} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update(addComputerPlayer)} onRemoveComputer={(id) => update((current) => removeComputerPlayer(current, id))} onStart={() => update(startGame)} onLeave={leaveRoom} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const season = SEASONS[room.season];
@@ -101,13 +92,13 @@ export default function ViticultureClient() {
         <div className="viti-season-banner">
           <div><SeasonIcon /><span><small>Year {room.year}</small><strong>{season.label}</strong></span></div>
           <p>{season.note}</p>
-          {room.season !== "spring" && <button disabled={!myTurn || busy} onClick={() => update((current) => passSeason(current, playerId))}>Pass to {room.season === "summer" ? "winter" : "year end"}<ChevronRight /></button>}
+          {room.season !== "spring" && <button disabled={!myTurn || busy} onClick={() => act("pass")}>Pass to {room.season === "summer" ? "winter" : "year end"}<ChevronRight /></button>}
         </div>
 
         <BoardDecks room={room} />
 
         {room.season === "spring"
-          ? <WakeUpChart room={room} myTurn={myTurn} busy={busy} onChoose={(row) => update((current) => chooseWakeUp(current, playerId, row))} />
+          ? <WakeUpChart room={room} myTurn={myTurn} busy={busy} onChoose={(row) => act("wakeUp", { row })} />
           : <ActionBoard room={room} playerId={playerId} myTurn={myTurn} busy={busy} onSelect={setSelectedAction} />}
 
         <VictoryTrack room={room} />
@@ -122,7 +113,7 @@ export default function ViticultureClient() {
 
     <Estate player={me} year={room.year} />
 
-    {selectedAction && <ActionResolver room={room} player={me} action={selectedAction} busy={busy} onClose={() => setSelectedAction(null)} onResolve={(payload, workerType) => { update((current) => takeAction(current, playerId, selectedAction.id, payload, workerType)); setSelectedAction(null); }} />}
+    {selectedAction && <ActionResolver room={room} player={me} action={selectedAction} busy={busy} onClose={() => setSelectedAction(null)} onResolve={(payload, workerType) => { act("action", { actionId: selectedAction.id, payload, workerType }); setSelectedAction(null); }} />}
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
@@ -224,7 +215,7 @@ function BoardDecks({ room }) {
   return <div className="viti-board-decks" aria-label="Card decks">
     {decks.map((deck) => <div className={`viti-board-deck deck-${deck.type} ${room.season === deck.season ? "in-season" : ""}`} key={deck.id}>
       <span className="viti-board-card" style={{ backgroundImage: `url(${CARD_ART[deck.type]})` }} />
-      <span><strong>{deck.label}</strong><small>{room.decks[deck.id]?.length ?? 0} draw · {room.discard[deck.id]?.length ?? 0} discard</small></span>
+      <span><strong>{deck.label}</strong><small>{room.deckCounts?.[deck.id] ?? 0} draw · {room.discardCounts?.[deck.id] ?? 0} discard</small></span>
     </div>)}
   </div>;
 }
