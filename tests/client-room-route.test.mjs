@@ -2,13 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { GET as getCatan, PUT as putCatan } from "../app/api/catan/rooms/[code]/route.js";
-import { GET as getMonopoly, PUT as putMonopoly } from "../app/api/monopoly/rooms/[code]/route.js";
 
-// Catan and Monopoly are the games that still use whole-state rooms.
-const games = [
-  { name: "Catan", get: getCatan, put: putCatan, base: "catan" },
-  { name: "Monopoly", get: getMonopoly, put: putMonopoly, base: "monopoly" },
-];
+// Catan is the only game left that uses a whole-state room.
+const games = [{ name: "Catan", get: getCatan, put: putCatan, base: "catan" }];
 
 const ctx = (code) => ({ params: Promise.resolve({ code }) });
 const unique = (prefix) => `${prefix}${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1e4)}`;

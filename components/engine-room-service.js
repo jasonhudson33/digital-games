@@ -96,20 +96,27 @@ export function createEngineRoomService(gameKey, gameName) {
     );
 
   const service = {
-    /** @param {string} name */
-    async create(name) {
+    /**
+     * @param {string} name
+     * @param {Record<string, any>} [options] game-defined choices made when sitting down
+     */
+    async create(name, options) {
       const payload = await request(
         base,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) },
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, options }) },
         `Could not create the ${gameName} room.`,
       );
       storeToken(payload.state.roomCode, payload.token);
       return payload;
     },
 
-    /** @param {string} roomCode @param {string} name */
-    async join(roomCode, name) {
-      const payload = await post(roomCode, { action: "join", name }, `Could not join the ${gameName} room.`);
+    /**
+     * @param {string} roomCode
+     * @param {string} name
+     * @param {Record<string, any>} [options] game-defined choices made when sitting down
+     */
+    async join(roomCode, name, options) {
+      const payload = await post(roomCode, { action: "join", name, options }, `Could not join the ${gameName} room.`);
       storeToken(payload.state.roomCode, payload.token);
       return payload;
     },

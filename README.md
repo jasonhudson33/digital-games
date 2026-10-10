@@ -19,7 +19,7 @@ npm run build
 
 ## Multiplayer storage
 
-Every online game except Mafia stores its rooms in Supabase through the app's room routes Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
+Every online game except Mafia stores its rooms in Supabase through the app's room routes. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
 
 ```bash
 SUPABASE_URL=
@@ -28,7 +28,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable. In-memory storage is used only during local development when the server credentials are absent. Rooms expire after 24 hours and are cleaned up opportunistically.
 
-Twenty-five of those games run their rules on the server, so each seat receives only its own view (see [CONTEXT-MAP.md](./CONTEXT-MAP.md)). Catan and Monopoly still keep their state in the browser and store it whole, but only through their `/api/<game>/rooms/<code>` routes: there is no browser database access, and other players' changes arrive by polling. A room for those two is protected only by its five-character code, so anyone who knows the code can read and replace that room.
+Twenty-six of those games run their rules on the server, so each seat receives only its own view and every move is checked there (see [CONTEXT-MAP.md](./CONTEXT-MAP.md)). Catan still keeps its state in the browser and stores it whole, but only through its `/api/catan/rooms/<code>` route: there is no browser database access, and other players' changes arrive by polling. A Catan room is protected only by its five-character code, so anyone who knows the code can read and replace that room.
 
 Mafia is the only game that uses the public Supabase variables, because its browser calls token-checked RPCs and Realtime directly:
 

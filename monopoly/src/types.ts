@@ -153,6 +153,8 @@ export type TurnStage = 'manage' | 'roll';
 
 export type GameState = {
   roomStateVersion?: number;
+  /** Set by the server: the id of the seat this view was built for. */
+  viewerId?: string;
   roomCode: string;
   hostId: string;
   players: Player[];

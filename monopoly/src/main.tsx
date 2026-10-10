@@ -35,74 +35,30 @@ import {
 import { board, cornerIds } from './board';
 import { canPurchaseBuilding, getBuildingSupply } from './buildingRules';
 import {
-  acknowledgeCard,
-  acknowledgeRent,
-  addComputerPlayer,
-  addLocalPlayer,
-  acceptTrade,
-  bidAuction,
-  buyPendingProperty,
-  buyImprovement,
-  completeAuctionPurchase,
   computerShouldAct,
-  declineTrade,
-  declinePendingProperty,
-  expireTrade,
-  finishDebtPayment,
-  finishManagementStage,
   getPlayerLiquidationValue,
-  joinPlayer,
   MAX_MONOPOLY_PLAYERS,
-  makeId,
-  makeInitialState,
-  mortgageProperty,
-  payForcedJailExit,
-  payToLeaveJail,
-  payFlatIncomeTax,
-  payPercentIncomeTax,
-  passAuction,
-  playerPieces,
-  proposeTrade,
-  rollDice,
-  rollUtilityRent,
-  restartGame,
-  sellImprovement,
-  setHouseRules,
-  stayInJailAndRoll,
-  startGame,
-  takeComputerAction,
-  unmortgageProperty,
-  useCardForForcedJailExit,
-  useGetOutOfJailFree
+  playerPieces
 } from './game';
 import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
 import { RoomService } from './roomService';
 import { GameState, Player, PlayerColor, PlayerPiece, Space } from './types';
-const storagePlayerId = 'monopoly-player-id';
 const storagePlayerName = 'monopoly-player-name';
 const storagePlayerPiece = 'monopoly-player-piece';
 
 const canUseBrowser = () => typeof window !== 'undefined';
-
-const getPlayerId = () => {
-  if (!canUseBrowser()) return '';
-  const existing = localStorage.getItem(storagePlayerId);
-  if (existing) return existing;
-  const id = makeId();
-  localStorage.setItem(storagePlayerId, id);
-  return id;
-};
 
 const getStoredName = () => (canUseBrowser() ? localStorage.getItem(storagePlayerName) || '' : '');
 const getInitialRoomCode = () => (canUseBrowser() ? new URLSearchParams(window.location.search).get('room') || '' : '');
 
 export default function App() {
   const [isReady, setIsReady] = React.useState(false);
-  const [playerId, setPlayerId] = React.useState('');
   const [name, setName] = React.useState('');
   const [selectedPiece, setSelectedPiece] = React.useState<PlayerPiece>('car');
   const [joinCode, setJoinCode] = React.useState('');
   const [game, setGame] = React.useState<GameState | null>(null);
+  // The server tells each browser which seat it holds.
+  const playerId = game?.viewerId ?? '';
   const [error, setError] = React.useState('');
   const [isRolling, setIsRolling] = React.useState(false);
   const [activeTradeTargetId, setActiveTradeTargetId] = React.useState('');
@@ -114,7 +70,6 @@ export default function App() {
   const activeTradeSubmit = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
-    setPlayerId(getPlayerId());
     setName(getStoredName());
     setSelectedPiece(getStoredPiece());
     setJoinCode(getInitialRoomCode());
@@ -127,13 +82,13 @@ export default function App() {
 
   React.useEffect(() => {
     const code = joinCode.trim().toUpperCase();
-    if (!isReady || !playerId || !code) return;
+    if (!isReady || !code || !RoomService.hasSeat(code)) return;
 
     let cancelled = false;
     void RoomService.load(code)
-      .then((existing) => {
+      .then((existing: GameState | null) => {
         if (cancelled || !existing) return;
-        const returningPlayer = existing.players.find((player) => player.id === playerId);
+        const returningPlayer = existing.players.find((player) => player.id === existing.viewerId);
         if (!returningPlayer) return;
 
         setGame(existing);
@@ -151,21 +106,14 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isReady, joinCode, playerId]);
+  }, [isReady, joinCode]);
 
   React.useEffect(() => {
     if (!game?.roomCode) return;
-    return RoomService.subscribe(game.roomCode, (remote) => {
+    return RoomService.subscribe(game.roomCode, (remote: GameState) => {
       setGame((current) => (!current || remote.updatedAt >= current.updatedAt ? remote : current));
     });
   }, [game?.roomCode]);
-
-  const persist = async (next: GameState) => {
-    await RoomService.save(next);
-    setGame(next);
-    latestGame.current = next;
-    if (canUseBrowser()) window.history.replaceState(null, '', `?room=${next.roomCode}`);
-  };
 
   React.useEffect(() => {
     const trade = game?.pendingTrade;
@@ -176,9 +124,19 @@ export default function App() {
       Boolean(game.hostId === playerId && trade.toPlayerId.startsWith('local-'));
     if (!canExpire) return;
 
-    const timeoutId = window.setTimeout(() => {
-      void updateGame((state) => expireTrade(state, trade.id));
-    }, Math.max(0, trade.expiresAt - Date.now()));
+    // The server judges expiry on its own clock, so a request made a moment early
+    // (this browser's clock running ahead) is refused quietly and asked again.
+    let timeoutId = 0;
+    let attempts = 0;
+    const askToExpire = () => {
+      timeoutId = window.setTimeout(() => {
+        void expireTrade(trade.id).then((cleared) => {
+          attempts += 1;
+          if (!cleared && attempts < 6) askToExpire();
+        });
+      }, attempts === 0 ? Math.max(0, trade.expiresAt - Date.now()) : 1_500);
+    };
+    askToExpire();
     return () => window.clearTimeout(timeoutId);
   }, [game?.hostId, game?.pendingTrade, playerId]);
 
@@ -192,11 +150,19 @@ export default function App() {
     return clean;
   };
 
+  const adopt = (state: GameState) => {
+    setGame(state);
+    latestGame.current = state;
+    const mine = state.players.find((player) => player.id === state.viewerId);
+    if (mine) setSelectedPiece(getPlayerPiece(mine));
+    if (canUseBrowser()) window.history.replaceState(null, '', `?room=${state.roomCode}`);
+  };
+
   const createRoom = async () => {
     setError('');
-    const next = makeInitialState(playerId, useName(), undefined, selectedPiece);
     try {
-      await persist(next);
+      const created = await RoomService.create(useName(), { piece: selectedPiece });
+      adopt(created.state);
     } catch (createError) {
       setError(roomErrorMessage(createError, 'Could not create the room.'));
     }
@@ -209,56 +175,80 @@ export default function App() {
       setError('Enter a room code first.');
       return;
     }
-    let existing: GameState | null;
     try {
-      existing = await RoomService.load(code);
-    } catch (loadError) {
-      setError(roomErrorMessage(loadError, `Could not join room ${code}.`));
-      return;
-    }
-    if (!existing) {
-      setError(`Room ${code} was not found.`);
-      return;
-    }
-    const returningPlayer = existing.players.find((player) => player.id === playerId);
-    if (returningPlayer) {
-      setGame(existing);
-      latestGame.current = existing;
-      setName(returningPlayer.name);
-      setSelectedPiece(getPlayerPiece(returningPlayer));
-      if (canUseBrowser()) {
-        localStorage.setItem(storagePlayerName, returningPlayer.name);
-        localStorage.setItem(storagePlayerPiece, getPlayerPiece(returningPlayer));
-        window.history.replaceState(null, '', `?room=${existing.roomCode}`);
+      if (RoomService.hasSeat(code)) {
+        const existing: GameState | null = await RoomService.load(code);
+        if (!existing) {
+          setError(`Room ${code} was not found.`);
+          return;
+        }
+        const returningPlayer = existing.players.find((player) => player.id === existing.viewerId);
+        if (returningPlayer) {
+          setName(returningPlayer.name);
+          if (canUseBrowser()) {
+            localStorage.setItem(storagePlayerName, returningPlayer.name);
+            localStorage.setItem(storagePlayerPiece, getPlayerPiece(returningPlayer));
+          }
+        }
+        adopt(existing);
+        return;
       }
-      return;
-    }
-    if (existing.players.length >= MAX_MONOPOLY_PLAYERS) {
-      setError(`Room ${code} is full. Monopoly supports up to ${MAX_MONOPOLY_PLAYERS} players.`);
-      return;
-    }
-    if (existing.players.some((player) => getPlayerPiece(player) === selectedPiece)) {
-      setError(`${pieceLabel(selectedPiece)} is already taken in room ${code}. Choose a different piece.`);
-      return;
-    }
-    const next = joinPlayer(existing, playerId, useName(), selectedPiece);
-    try {
-      await persist(next);
+      const joined = await RoomService.join(code, useName(), { piece: selectedPiece });
+      adopt(joined.state);
     } catch (joinError) {
       setError(roomErrorMessage(joinError, `Could not join room ${code}.`));
     }
   };
 
-  const updateGame = async (updater: (state: GameState) => GameState) => {
+  /**
+   * Send one named action. `actAs` names the seat making the move when it is not
+   * this browser's own: the host controls the local seats it added.
+   */
+  const act = async (action: string, args: Record<string, unknown> = {}, actAs?: string): Promise<boolean> => {
+    const current = latestGame.current;
+    if (!current) return false;
+    try {
+      const next: GameState | null = await RoomService.action(current.roomCode, action, {
+        ...args,
+        ...(actAs && actAs !== current.viewerId ? { asPlayerId: actAs } : {})
+      });
+      if (!next) return false;
+      setGame(next);
+      latestGame.current = next;
+      return true;
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Could not save that game action.');
+      return false;
+    }
+  };
+
+  /** Ask the server to clear a trade whose time is up. Quiet: it may be a moment early on the server's clock. */
+  const expireTrade = async (tradeId: string): Promise<boolean> => {
+    const current = latestGame.current;
+    if (!current) return true;
+    try {
+      const next: GameState | null = await RoomService.action(current.roomCode, 'expireTrade', { tradeId });
+      if (next) {
+        setGame(next);
+        latestGame.current = next;
+      }
+      return !next?.pendingTrade || next.pendingTrade.id !== tradeId;
+    } catch {
+      return false;
+    }
+  };
+
+  const stepComputer = async () => {
     const current = latestGame.current;
     if (!current) return;
     try {
-      const next = await RoomService.update(current.roomCode, updater);
-      if (!next) return;
-      setGame(next);
-      latestGame.current = next;
-    } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Could not save that game action.');
+      const next: GameState | null = await RoomService.computerStep(current.roomCode);
+      if (next) {
+        setGame(next);
+        latestGame.current = next;
+      }
+    } catch (stepError) {
+      setError(stepError instanceof Error ? stepError.message : 'Could not advance the computer.');
     }
   };
 
@@ -352,7 +342,7 @@ export default function App() {
   React.useEffect(() => {
     if (!game || !isHost || !computerShouldAct(game)) return;
     const timeoutId = window.setTimeout(() => {
-      void updateGame(takeComputerAction);
+      void stepComputer();
     }, game.turnStage === 'manage' && !game.pendingTrade ? 4_000 : 850);
     return () => window.clearTimeout(timeoutId);
   }, [game, isHost]);
@@ -382,7 +372,7 @@ export default function App() {
     ) return;
     setIsRolling(true);
     window.setTimeout(() => {
-      void updateGame(rollDice).finally(() => setIsRolling(false));
+      void act('roll', {}, activePlayer?.id).finally(() => setIsRolling(false));
     }, 1100);
   };
 
@@ -436,7 +426,7 @@ export default function App() {
     if (!mortgageConfirmation) return;
     const { playerId: mortgagePlayerId, spaceId } = mortgageConfirmation;
     setMortgageConfirmation(null);
-    void updateGame((state) => mortgageProperty(state, mortgagePlayerId, spaceId));
+    void act('mortgage', { playerId: mortgagePlayerId, spaceId }, mortgagePlayerId);
   };
 
   const leaveRoom = () => {
@@ -514,7 +504,7 @@ export default function App() {
         winner={winner}
         isWinner={winner.id === playerId}
         canPlayAgain={Boolean(isHost)}
-        onPlayAgain={() => void updateGame(restartGame)}
+        onPlayAgain={() => void act('restart')}
         onLeaveRoom={leaveRoom}
       />
     )}
@@ -544,28 +534,28 @@ export default function App() {
           canAcknowledgeCard={canAcknowledgeCard}
           canAnswerPurchase={canAnswerPurchase}
           canAcknowledgeRent={canAcknowledgeRent}
-          onAcknowledgeCard={() => void updateGame(acknowledgeCard)}
-          onBuyProperty={() => void updateGame(buyPendingProperty)}
-          onAuctionProperty={() => void updateGame(declinePendingProperty)}
-          onAcknowledgeRent={() => void updateGame(acknowledgeRent)}
+          onAcknowledgeCard={() => void act('acknowledgeCard', {}, game.pendingCard?.playerId)}
+          onBuyProperty={() => void act('buyProperty', {}, game.pendingPurchase?.playerId)}
+          onAuctionProperty={() => void act('declineProperty', {}, game.pendingPurchase?.playerId)}
+          onAcknowledgeRent={() => void act('acknowledgeRent', {}, game.pendingRent?.payerId)}
           showFinishTurnButton={showBoardFinishTurnButton}
           canFinishTurn={Boolean(canControlTurn && game.phase !== 'gameOver')}
           finishTurnLabel={finishTurnLabel}
           onFinishTurn={() => {
-            if (activePlayer) void updateGame((state) => finishManagementStage(state, activePlayer.id));
+            if (activePlayer) void act('finishManagement', {}, activePlayer.id);
           }}
           needsJailChoice={needsJailChoice}
           canChooseJail={canChooseJail}
-          onPayToLeaveJail={() => void updateGame(payToLeaveJail)}
-          onUseGetOutOfJailFree={() => void updateGame(useGetOutOfJailFree)}
-          onStayInJailAndRoll={() => void updateGame(stayInJailAndRoll)}
+          onPayToLeaveJail={() => void act('payToLeaveJail', {}, activePlayer?.id)}
+          onUseGetOutOfJailFree={() => void act('useJailCard', {}, activePlayer?.id)}
+          onStayInJailAndRoll={() => void act('stayInJail', {}, activePlayer?.id)}
           canResolveJailExit={canResolveJailExit}
-          onPayForcedJailExit={() => void updateGame(payForcedJailExit)}
-          onUseCardForForcedJailExit={() => void updateGame(useCardForForcedJailExit)}
+          onPayForcedJailExit={() => void act('payForcedJailExit', {}, game.pendingJailExit?.playerId)}
+          onUseCardForForcedJailExit={() => void act('useCardForForcedJailExit', {}, game.pendingJailExit?.playerId)}
           canManageBuildings={Boolean(canControlTurn && game.phase === 'playing' && game.turnStage === 'manage')}
           buildingPlayerId={activePlayer?.id}
           onBuild={(spaceId) => {
-            if (activePlayer) void updateGame((state) => buyImprovement(state, activePlayer.id, spaceId));
+            if (activePlayer) void act('buyImprovement', { playerId: activePlayer.id, spaceId }, activePlayer.id);
           }}
           canManageMortgages={Boolean(canControlTurn && game.phase === 'playing')}
           mortgagePlayerId={activePlayer?.id}
@@ -573,7 +563,7 @@ export default function App() {
             if (activePlayer) requestMortgage(activePlayer.id, spaceId);
           }}
           onUnmortgage={(spaceId) => {
-            if (activePlayer) void updateGame((state) => unmortgageProperty(state, activePlayer.id, spaceId));
+            if (activePlayer) void act('unmortgage', { playerId: activePlayer.id, spaceId }, activePlayer.id);
           }}
           canSelectTradeProperties={canSelectTradeProperties}
           tradePlayerId={boardTradePlayer?.id}
@@ -591,8 +581,8 @@ export default function App() {
           canRespondTrade={canRespondTrade}
           onToggleTradeMode={handleBoardTradeModeToggle}
           onProposeTrade={handleBoardTradeSubmit}
-          onAcceptTrade={() => updateGame(acceptTrade)}
-          onDeclineTrade={() => updateGame(declineTrade)}
+          onAcceptTrade={() => void act('acceptTrade', {}, game.pendingTrade?.toPlayerId)}
+          onDeclineTrade={() => void act('declineTrade', {}, game.pendingTrade?.toPlayerId)}
           onRoll={handleRoll}
         />
 
@@ -627,7 +617,7 @@ export default function App() {
                     disabled={!isHost}
                     onChange={(event) => {
                       const enabled = event.currentTarget.checked;
-                      void updateGame((state) => setHouseRules(state, enabled));
+                      void act('setHouseRules', { enabled });
                     }}
                   />
                   <span>
@@ -643,16 +633,16 @@ export default function App() {
                       : `${MAX_MONOPOLY_PLAYERS - game.players.length} ${MAX_MONOPOLY_PLAYERS - game.players.length === 1 ? 'seat' : 'seats'} available`}
                   </span>
                 </div>
-                <button disabled={!isHost || lobbyIsFull} onClick={() => updateGame(addLocalPlayer)}>
+                <button disabled={!isHost || lobbyIsFull} onClick={() => void act('addLocal')}>
                   <Users size={18} /> Add player
                 </button>
-                <button disabled={!isHost || lobbyIsFull} onClick={() => updateGame(addComputerPlayer)}>
+                <button disabled={!isHost || lobbyIsFull} onClick={() => void act('addComputer')}>
                   <Bot size={18} /> Add computer
                 </button>
                 <button
                   className="primary full"
                   disabled={!isHost || game.players.length < 2 || game.players.length > MAX_MONOPOLY_PLAYERS}
-                  onClick={() => updateGame(startGame)}
+                  onClick={() => void act('start')}
                 >
                   <Play size={18} /> Start game
                 </button>
@@ -663,28 +653,28 @@ export default function App() {
               <p className="board-action-note">Choose Buy or Auction from the center of the board.</p>
             ) : game.pendingTax ? (
               game.pendingTax.flatAmount === 75 ? (
-                <button className="primary full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => updateGame(payFlatIncomeTax)}>
+                <button className="primary full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => void act('payFlatTax', {}, game.pendingTax?.playerId)}>
                   Pay $75
                 </button>
               ) : (
                 <div className="decision-actions">
-                  <button className="primary full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => updateGame(payPercentIncomeTax)}>
+                  <button className="primary full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => void act('payPercentTax', {}, game.pendingTax?.playerId)}>
                     Pay 10%
                   </button>
-                  <button className="full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => updateGame(payFlatIncomeTax)}>
+                  <button className="full" disabled={!canAnswerTax || game.phase === 'gameOver'} onClick={() => void act('payFlatTax', {}, game.pendingTax?.playerId)}>
                     Pay ${game.pendingTax.flatAmount}
                   </button>
                 </div>
               )
             ) : game.pendingUtilityRent ? (
-              <button className="primary full" disabled={!canRollUtilityRent || game.phase === 'gameOver'} onClick={() => updateGame(rollUtilityRent)}>
+              <button className="primary full" disabled={!canRollUtilityRent || game.phase === 'gameOver'} onClick={() => void act('rollUtilityRent', {}, game.pendingUtilityRent?.payerId)}>
                 Roll utility rent
               </button>
             ) : game.pendingDebt ? (
               <button
                 className="primary full"
                 disabled={!canFinishDebt || !pendingDebtPlayer || game.phase === 'gameOver'}
-                onClick={() => updateGame(finishDebtPayment)}
+                onClick={() => void act('finishDebt', {}, game.pendingDebt?.playerId)}
               >
                 {pendingDebtIsInsolvent ? 'Transfer assets and leave game' : 'Finish payment'}
               </button>
@@ -695,14 +685,14 @@ export default function App() {
             ) : game.pendingAuction ? (
               <div className="decision-actions">
                 {game.pendingAuction.highBidderId === game.pendingAuction.activePlayerId && (
-                  <button className="primary full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => updateGame(completeAuctionPurchase)}>
+                  <button className="primary full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => void act('completeAuction', {}, game.pendingAuction?.activePlayerId)}>
                     Complete purchase
                   </button>
                 )}
-                <button className="primary full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => updateGame(bidAuction)}>
+                <button className="primary full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => void act('bid', {}, game.pendingAuction?.activePlayerId)}>
                   Bid $10
                 </button>
-                <button className="full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => updateGame(passAuction)}>
+                <button className="full" disabled={!canActInAuction || game.phase === 'gameOver'} onClick={() => void act('passAuction', {}, game.pendingAuction?.activePlayerId)}>
                   Pass
                 </button>
               </div>
@@ -763,9 +753,9 @@ export default function App() {
                 canManage={player.id === playerId || Boolean(isHost && player.id.startsWith('local-'))}
                 game={game}
                 onMortgage={(spaceId) => requestMortgage(player.id, spaceId)}
-                onUnmortgage={(spaceId) => updateGame((state) => unmortgageProperty(state, player.id, spaceId))}
-                onBuild={(spaceId) => updateGame((state) => buyImprovement(state, player.id, spaceId))}
-                onSellImprovement={(spaceId) => updateGame((state) => sellImprovement(state, player.id, spaceId))}
+                onUnmortgage={(spaceId) => void act('unmortgage', { playerId: player.id, spaceId }, player.id)}
+                onBuild={(spaceId) => void act('buyImprovement', { playerId: player.id, spaceId }, player.id)}
+                onSellImprovement={(spaceId) => void act('sellImprovement', { playerId: player.id, spaceId }, player.id)}
                 boardTradeDraft={player.id === boardTradePlayer?.id ? {
                   targetId: activeTradeTargetId,
                   offeredPropertyIds: activeOfferedPropertyIds,
@@ -776,8 +766,10 @@ export default function App() {
                   registerSubmit: registerActiveTradeSubmit
                 } : undefined}
                 onProposeTrade={(toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards) =>
-                  updateGame((state) =>
-                    proposeTrade(state, player.id, toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards)
+                  void act(
+                    'proposeTrade',
+                    { toPlayerId, offeredPropertyIds, requestedPropertyIds, offeredMoney, requestedMoney, offeredJailCards, requestedJailCards },
+                    player.id
                   )
                 }
               />

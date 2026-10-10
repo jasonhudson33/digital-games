@@ -39,16 +39,16 @@ player can read a rival's hand.
 
 - **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Cover
   Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and
-  Foot**, **Killer Bunnies**, **Life**, **No Thanks!**, **Phase 10**, **Pinochle**,
+  Foot**, **Killer Bunnies**, **Life**, **Monopoly**, **No Thanks!**, **Phase 10**, **Pinochle**,
   **Qwirkle**, **Risk**, **Scum**, **Secret Hitler**, **Sequence**, **Skull King**,
   **Splendor**, **Spyrium**, **Stratego**, **Ticket to Ride**, **UNO**, and
   **Viticulture** keep the whole game on the server. A request carries a seat token, the
   server decides what that seat may see, and returns only that. Private hands
   and hidden roles stay private.
 
-- **Client-authoritative, fully readable.** Only **Catan** and **Monopoly** still
-  compute state in the browser. They store it whole through `GET`/`PUT` on
-  `/api/<game>/rooms/<code>` (server-only storage, no database access from the
+- **Client-authoritative, fully readable.** Only **Catan** still computes state
+  in the browser. It stores it whole through `GET`/`PUT` on
+  `/api/catan/rooms/<code>` (server-only storage, no database access from the
   browser, changes arrive by polling), so anyone holding a room code can read and
   replace that room. See
   [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how

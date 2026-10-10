@@ -16,8 +16,13 @@ for (const [name, path] of services) {
     for (const forbidden of ["getConfiguredSupabaseClient", "isSupabaseConfigured", "supabase.from", "@supabase", "catan_rooms", "monopoly_rooms", "supabase-room-sync"]) {
       assert.equal(source.includes(forbidden), false, `${name} service mentions ${forbidden}`);
     }
-    assert.match(source, new RegExp(`/api/${name.toLowerCase()}/rooms/`), `${name} uses its room route`);
-    assert.match(source, /room-sync/, `${name} subscribes through the poll helper`);
+    // Catan reads its room route directly and polls through room-sync; Monopoly uses the engine room service.
+    if (name === "Catan") {
+      assert.match(source, /\/api\/catan\/rooms\//, "Catan uses its room route");
+      assert.match(source, /room-sync/, "Catan subscribes through the poll helper");
+    } else {
+      assert.match(source, /engine-room-service/, "Monopoly uses the engine room service");
+    }
   });
 }
 

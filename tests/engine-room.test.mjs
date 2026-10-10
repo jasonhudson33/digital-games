@@ -168,3 +168,50 @@ test("routes: bad bodies, unknown actions, missing tokens and old rooms get the 
   assert.equal((await r.item.GET(new Request("http://t/x"), ctx(code))).status, 403);
   assert.equal((await r.item.GET(new Request("http://t/x", { headers: { "x-seat-token": created.token } }), ctx("ZZZZZ"))).status, 404);
 });
+
+// Create and join options: only an adapter that asks for them receives them.
+function optionAdapter(accepts) {
+  const seen = { create: null, join: null };
+  const adapter = {
+    ...toy,
+    acceptsOptions: accepts,
+    createLobby: (host, roomCode) => { seen.create = host; return toy.createLobby(host, roomCode); },
+    addPlayer: (game, player) => {
+      seen.join = player;
+      if (player.options?.piece === "taken") throw new Error("That piece is already taken.");
+      return toy.addPlayer(game, player);
+    },
+  };
+  const store = createSupabaseRoomStore({ namespace: "engine-opt", memoryKey: `__opt${Math.random()}`, environment: {} });
+  return { seen, room: createEngineRoom({ store, adapter }), routes: createEngineRoomRoutes(createEngineRoom({ store, adapter })) };
+}
+
+test("options reach createLobby and addPlayer for an adapter that accepts them", async () => {
+  const { seen, room } = optionAdapter(true);
+  const host = await room.create({ name: "Host", options: { piece: "car" } });
+  assert.deepEqual(seen.create.options, { piece: "car" });
+  await room.join({ roomCode: host.state.roomCode, name: "Guest", options: { piece: "hat" } });
+  assert.deepEqual(seen.join.options, { piece: "hat" });
+});
+
+test("an adapter that does not accept options never sees them, and non-objects are dropped", async () => {
+  const { seen, room } = optionAdapter(false);
+  const host = await room.create({ name: "Host", options: { piece: "car" } });
+  assert.equal("options" in seen.create, false);
+  await room.join({ roomCode: host.state.roomCode, name: "Guest", options: { piece: "hat" } });
+  assert.equal("options" in seen.join, false);
+  const accepting = optionAdapter(true);
+  const other = await accepting.room.create({ name: "Host", options: ["not", "an", "object"] });
+  assert.equal("options" in accepting.seen.create, false);
+  void other;
+});
+
+test("an adapter's own error message reaches the client as a 400", async () => {
+  const { room, routes } = optionAdapter(true);
+  const created = await (await routes.collection.POST(new Request("http://t/x", json({ name: "Host", options: { piece: "car" } })))).json();
+  void room;
+  const code = created.state.roomCode;
+  const response = await routes.item.POST(new Request("http://t/x", json({ action: "join", name: "G", options: { piece: "taken" } })), ctx(code));
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, "That piece is already taken.");
+});

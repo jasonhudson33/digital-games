@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { monopolyRoomStore } from "../../../../../lib/monopoly-room-store.js";
+import { monopolyRoutes } from "../../../../../lib/monopoly-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: monopolyRoomStore,
-  label: "Monopoly",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = monopolyRoutes.item.GET;
+export const POST = monopolyRoutes.item.POST;
