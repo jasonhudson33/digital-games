@@ -1,7 +1,5 @@
 import type { Player } from '../types';
 
-export const MAX_MAFIA_PLAYERS = 20;
-
 const nextComputerName = (players: Player[]): string => {
   const usedNames = new Set(players.map((player) => player.name.toLocaleLowerCase()));
   let number = 1;
@@ -10,7 +8,7 @@ const nextComputerName = (players: Player[]): string => {
 };
 
 export const addComputerPlayer = (players: Player[], id: string): Player[] => {
-  if (players.length >= MAX_MAFIA_PLAYERS || players.some((player) => player.id === id)) return players;
+  if (players.some((player) => player.id === id)) return players;
 
   return [
     ...players,

@@ -1,19 +1,30 @@
 "use client";
 
-import { subscribeToRoomState } from "../lib/supabase-room-sync";
-import { asRoomError, isOffline, readCachedRoom, writeCachedRoom } from "../lib/room-cache";
-import { ROOM_CODE_ALPHABET, randomString } from "../lib/random";
+import { subscribeToRoomState } from "../lib/supabase-room-sync.js";
+import { asRoomError, isOffline, readCachedRoom, writeCachedRoom } from "../lib/room-cache.js";
+import { ROOM_CODE_ALPHABET, randomString } from "../lib/random.js";
+
+/** The server refused this browser's seat: no token, or not a seated player. */
+export class RoomAccessError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RoomAccessError";
+  }
+}
 
 export function createCardGameRoomService(gameKey, gameName) {
   const channelName = `${gameKey}-room-updates`;
   const service = {
     async createCode() {
-      // For these games the room code is the whole of the access control: the
-      // room API has no token, so anyone who can guess a code can read every
-      // hand in it. Math.random is not a defence against guessing.
+      // A started room answers a tokenless read with 403, which still means the
+      // code is taken.
       for (let attempt = 0; attempt < 20; attempt += 1) {
         const code = randomString(5, ROOM_CODE_ALPHABET);
-        if (!(await service.load(code))) return code;
+        try {
+          if (!(await service.load(code))) return code;
+        } catch (error) {
+          if (!(error instanceof RoomAccessError)) throw error;
+        }
       }
       throw new Error("Could not create a unique room code. Try again.");
     },
@@ -78,24 +89,51 @@ export function createCardGameRoomService(gameKey, gameName) {
   async function saveRoom(state, expectedUpdatedAt) {
     const response = await fetch(`/api/${gameKey}/rooms/${state.roomCode}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...seatHeaders(state.roomCode) },
       body: JSON.stringify({ state, expectedUpdatedAt }),
     });
     if (response.status === 409) return null;
     const payload = await readJson(response);
-    if (!response.ok) throw new Error(payload.error || `Could not save the ${gameName} room.`);
+    if (!response.ok) throw accessOrPlainError(response, payload, `Could not save the ${gameName} room.`);
+    if (payload.seatToken) storeSeatToken(state.roomCode, payload.seatToken);
     return payload.state;
   }
 
   async function loadRoom(code) {
     try {
-      const response = await fetch(`/api/${gameKey}/rooms/${code}`, { cache: "no-store" });
+      const response = await fetch(`/api/${gameKey}/rooms/${code}`, { cache: "no-store", headers: seatHeaders(code) });
       const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload.error || `Could not load the ${gameName} room.`);
+      if (!response.ok) throw accessOrPlainError(response, payload, `Could not load the ${gameName} room.`);
       return payload.state ?? null;
     } catch (error) {
       throw asRoomError(error);
     }
+  }
+
+  function seatKey(code) {
+    return `digital-games:seat:${gameKey}:${normalizeCode(code)}`;
+  }
+
+  function seatHeaders(code) {
+    try {
+      const token = window.localStorage.getItem(seatKey(code));
+      return token ? { "X-Seat-Token": token } : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function storeSeatToken(code, token) {
+    try {
+      window.localStorage.setItem(seatKey(code), token);
+    } catch {
+      // Private mode or a full quota: the seat works until the page reloads.
+    }
+  }
+
+  function accessOrPlainError(response, payload, fallback) {
+    const message = payload.error || fallback;
+    return response.status === 401 || response.status === 403 ? new RoomAccessError(message) : new Error(message);
   }
 
   async function readJson(response) {

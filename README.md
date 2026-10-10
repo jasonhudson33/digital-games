@@ -19,7 +19,7 @@ npm run build
 
 ## Multiplayer storage
 
-Seven Up, Scum, and Hand and Foot store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
+Seven Up, Hand and Foot, Killer Bunnies, Pinochle, Scum, Secret Hitler, and Skull King store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
 
 ```bash
 SUPABASE_URL=
@@ -28,7 +28,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable. In-memory storage is used only during local development when the server credentials are absent. Rooms expire after 24 hours and are cleaned up opportunistically.
 
-Catan and Monopoly use Supabase when these variables are configured, with a Next.js in-memory room route for local development:
+The other online games (see [CONTEXT-MAP.md](./CONTEXT-MAP.md)) keep their state in the browser and store it whole in a shared room; once a game starts those rooms need a seat token, but seated players can still see every hand. Catan and Monopoly use Supabase when these variables are configured, with a Next.js in-memory room route for local development:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=

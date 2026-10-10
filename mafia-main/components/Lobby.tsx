@@ -2,7 +2,6 @@
 import React from 'react';
 import { Player } from '../types';
 import Button from './Button';
-import { MAX_MAFIA_PLAYERS } from '../services/LobbyRules';
 
 interface LobbyProps {
   roomCode: string;
@@ -72,16 +71,9 @@ const Lobby: React.FC<LobbyProps> = ({
         </div>
         {isHost && (
           <div className="mt-4 text-center">
-            <Button
-              variant="secondary"
-              onClick={onAddComputer}
-              disabled={players.length >= MAX_MAFIA_PLAYERS}
-            >
+            <Button variant="secondary" onClick={onAddComputer}>
               Add Computer
             </Button>
-            {players.length >= MAX_MAFIA_PLAYERS && (
-              <p className="mt-2 text-xs text-slate-500">Maximum {MAX_MAFIA_PLAYERS} players.</p>
-            )}
           </div>
         )}
       </div>

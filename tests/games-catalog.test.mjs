@@ -26,7 +26,7 @@ test("every game has the fields the hub and metadata depend on", () => {
 
     const [minPlayers, maxPlayers] = game.players;
     assert.ok(Number.isInteger(minPlayers) && minPlayers >= 1, `${game.slug} min players`);
-    assert.ok(maxPlayers >= minPlayers, `${game.slug} player range is inverted`);
+    assert.ok(maxPlayers === null || maxPlayers >= minPlayers, `${game.slug} player range is inverted`);
 
     const [minMinutes, maxMinutes] = game.minutes;
     assert.ok(minMinutes > 0 && maxMinutes >= minMinutes, `${game.slug} minute range`);
@@ -154,4 +154,36 @@ test("every catalogue entry has a route, and every route a catalogue entry", asy
 
   assert.deepEqual(slugs.filter((slug) => !routes.includes(slug)), [], "catalogue entries with no page");
   assert.deepEqual(routes.filter((route) => !slugs.includes(route)), [], "pages with no catalogue entry");
+});
+
+test("ranges verified against the code are no longer flagged as estimates", () => {
+  const expected = { hearts: [3, 8], catan: [2, 6], mafia: [5, null], monopoly: [2, 8], risk: [2, 6] };
+  for (const [slug, range] of Object.entries(expected)) {
+    const game = getGame(slug);
+    assert.deepEqual(game.players, range, `${slug} player range`);
+    assert.notEqual(game.estimated?.includes("players"), true, `${slug} players should not be estimated`);
+  }
+});
+
+test("Hearts range covers Classic (3-4) and Killer (5-8) and it offers no online rooms", async () => {
+  const { createHeartsMatch } = await import("../lib/hearts.js");
+  const hearts = getGame("hearts");
+  for (let count = 3; count <= 8; count += 1) {
+    const variant = count <= 4 ? "classic" : "killer";
+    assert.doesNotThrow(() => createHeartsMatch({ variant, playerCount: count }), `${count} players ${variant}`);
+  }
+  assert.throws(() => createHeartsMatch({ variant: "classic", playerCount: 5 }));
+  assert.equal(hearts.modes.includes("online"), false);
+});
+
+test("no tool or admin route is listed as a game", () => {
+  assert.equal(GAMES.some((game) => game.slug.includes("/")), false);
+});
+
+test("an open-ended game has no upper player limit", () => {
+  const mafia = getGame("mafia");
+  assert.equal(playersLabel(mafia), "5+ players");
+  assert.equal(supportsPlayerCount(mafia, 4), false);
+  assert.equal(supportsPlayerCount(mafia, 5), true);
+  assert.equal(supportsPlayerCount(mafia, 500), true);
 });

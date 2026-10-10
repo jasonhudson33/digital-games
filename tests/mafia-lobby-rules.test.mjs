@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  MAX_MAFIA_PLAYERS,
   addComputerPlayer,
   removeComputerPlayer,
 } from '../mafia-main/services/LobbyRules.ts';
@@ -33,12 +32,12 @@ test('only host-added computer seats can be removed with the lobby control', () 
   assert.deepEqual(removeComputerPlayer(players, 'bot-1'), [human]);
 });
 
-test('the lobby enforces its maximum player count', () => {
-  const players = Array.from({ length: MAX_MAFIA_PLAYERS }, (_, index) => ({
+test('the lobby has no maximum player count', () => {
+  const players = Array.from({ length: 40 }, (_, index) => ({
     ...human,
     id: `player-${index}`,
     name: `Player ${index}`,
   }));
 
-  assert.equal(addComputerPlayer(players, 'extra'), players);
+  assert.equal(addComputerPlayer(players, 'extra').length, 41);
 });

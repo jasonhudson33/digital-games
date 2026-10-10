@@ -1,5 +1,7 @@
 # Digital Games — UX/UI & Front-End Audit
 
+> Snapshot note: this audit was written when the app had 24 games; it now has 29 (see `lib/games.js`).
+
 **Reviewed:** `~/code/digital-games` @ `186520c` · Next.js 15.5 (App Router), React 19, 24 games
 **Reviewer brief:** improve functionality and look-and-feel · mixed phone/laptop audience
 **Scope of this pass:** hub page, app shell, and the CSS/design-system foundation everything else inherits
