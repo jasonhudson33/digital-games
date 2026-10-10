@@ -7,6 +7,7 @@ import { getSkullKingCardArt } from "../lib/skull-king-art";
 import { getSkullKingCardHelp } from "../lib/skull-king-card-help";
 import { SkullKingRoomService } from "./skull-king-room-service";
 import {
+  SKULL_KING_DECK_MODES,
   SKULL_KING_SPECIALS,
   SKULL_KING_SUIT_DETAILS,
   chooseBotPirateAbility,
@@ -33,6 +34,7 @@ const PLAYER_NAME_KEY = "skull-king-player-name";
 export default function SkullKingClient() {
   const [playerName, setPlayerName] = useState("");
   const [playerCount, setPlayerCount] = useState(4);
+  const [deckMode, setDeckMode] = useState("full");
   const [isReady, setIsReady] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [roomToken, setRoomToken] = useState("");
@@ -149,6 +151,7 @@ export default function SkullKingClient() {
       playerName: cleanName,
       playerCount,
       startingPlayerIndex: Math.floor(Math.random() * playerCount),
+      deckMode,
     }));
     setBid(0);
     setChoiceCardId(null);
@@ -324,7 +327,17 @@ export default function SkullKingClient() {
               <label>
                 <span>Players</span>
                 <select value={playerCount} onChange={(event) => setPlayerCount(Number(event.target.value))}>
-                  {[2, 3, 4, 5, 6, 7, 8, 9].map((count) => <option key={count} value={count}>{count} players</option>)}
+                  {[2, 3, 4, 5, 6, 7, 8, 9].filter((count) => count <= SKULL_KING_DECK_MODES[deckMode].maxPlayers).map((count) => <option key={count} value={count}>{count} players</option>)}
+                </select>
+              </label>
+              <label className="skull-deck-select">
+                <span>Cards</span>
+                <select value={deckMode} onChange={(event) => {
+                  const nextMode = event.target.value;
+                  setDeckMode(nextMode);
+                  setPlayerCount((count) => Math.min(count, SKULL_KING_DECK_MODES[nextMode].maxPlayers));
+                }}>
+                  {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => <option key={value} value={value}>{mode.label}</option>)}
                 </select>
               </label>
               <button type="button" className="skull-primary" onClick={startGame}>Play with computers <span aria-hidden="true">→</span></button>
@@ -358,7 +371,7 @@ export default function SkullKingClient() {
             <span className="art-banner">Bid true. Sail bold.</span>
           </div>
         </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
+        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} deckMode={deckMode} />
       </main>
     );
   }
@@ -548,13 +561,14 @@ export default function SkullKingClient() {
         />
       )}
       {abilityCard && <CardAbilityDialog card={abilityCard} onClose={() => setAbilityCard(null)} />}
-      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
+      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} deckMode={game.deckMode} />
     </main>
   );
 }
 
 function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
-  const canStart = game.players.length >= 2 && game.players.length <= 9;
+  const selectedMode = SKULL_KING_DECK_MODES[game.deckMode] ?? SKULL_KING_DECK_MODES.full;
+  const canStart = game.players.length >= 2 && game.players.length <= selectedMode.maxPlayers;
   return (
     <main className="skull-app skull-intro-shell skull-lobby-shell">
       <section className="skull-lobby-card">
@@ -579,11 +593,22 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
           ))}
         </div>
 
-        {game.players.length < 9 && game.hostControls && (
+        {game.players.length < selectedMode.maxPlayers && game.hostControls && (
           <button type="button" className="skull-add-computer" onClick={() => onAction("addComputer")}><UserPlus size={17} /> Add computer</button>
         )}
 
-        <div className="skull-lobby-summary"><span>{game.players.length} captains</span>{game.players.length === 2 && <span>+ Ghost Crew</span>}<span>10 rounds</span><span>Private hands</span></div>
+        <section className="skull-deck-options" aria-label="Card set">
+          <div><strong>Card set</strong><small>{selectedMode.description}</small></div>
+          {game.hostControls ? <div className="skull-deck-option-buttons">
+            {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => (
+              <button type="button" key={value} className={game.deckMode === value ? "selected" : ""} disabled={game.players.length > mode.maxPlayers} onClick={() => onAction("setDeckMode", { deckMode: value })}>
+                <strong>{mode.label}</strong><small>Up to {mode.maxPlayers}</small>
+              </button>
+            ))}
+          </div> : <b>{selectedMode.label}</b>}
+        </section>
+
+        <div className="skull-lobby-summary"><span>{game.players.length} captains</span>{game.players.length === 2 && <span>+ Ghost Crew</span>}<span>{selectedMode.label}</span><span>10 rounds</span><span>Private hands</span></div>
         {game.hostControls ? (
           <button type="button" className="skull-primary skull-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start game</button>
         ) : (
@@ -593,7 +618,7 @@ function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRule
         {error && <div className="skull-error" role="alert">{error}</div>}
         <div className="skull-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave game</button></div>
       </section>
-      <RulesDialog open={rulesOpen} onClose={onCloseRules} />
+      <RulesDialog open={rulesOpen} onClose={onCloseRules} deckMode={game.deckMode} />
     </main>
   );
 }
@@ -965,51 +990,55 @@ function CardAbilityDialog({ card, onClose }) {
   );
 }
 
-function RulesDialog({ open, onClose }) {
+function RulesDialog({ open, onClose, deckMode = "full" }) {
   if (!open) return null;
+  const resolvedDeckMode = SKULL_KING_DECK_MODES[deckMode] ? deckMode : "full";
+  const hasMermaidsAndMonsters = resolvedDeckMode !== "classic";
+  const hasFullDeck = resolvedDeckMode === "full";
   return (
     <div className="skull-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="skull-rules-dialog" role="dialog" aria-modal="true" aria-labelledby="skull-rules-title">
         <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
         <span className="panel-kicker">Captain&apos;s guide</span>
         <h2 id="skull-rules-title">Bid true. Take exactly that many tricks.</h2>
+        <p><strong>{SKULL_KING_DECK_MODES[resolvedDeckMode].label}:</strong> {SKULL_KING_DECK_MODES[resolvedDeckMode].description}</p>
         <p>There are ten rounds. Round one deals one card to each player, round two deals two, and so on. The player left of the dealer leads; the trick winner leads next.</p>
         <div className="rules-grid">
           <div><span className="rule-icon green">✶</span><strong>Four suits</strong><p>Follow the led suit when you can. Black trumps green, yellow, and purple. Specials may always be played.</p></div>
-          <div><span className="rule-icon pirate">☠</span><strong>Royal hierarchy</strong><p>Mermaids beat numbers and the Skull King. Pirates beat Mermaids. The Skull King beats Pirates—but is always lured by a Mermaid.</p></div>
+          <div><span className="rule-icon pirate">☠</span><strong>Royal hierarchy</strong><p>{hasMermaidsAndMonsters ? "Mermaids beat numbers and the Skull King. Pirates beat Mermaids. The Skull King beats Pirates—but is always lured by a Mermaid." : "Pirates beat numbered cards, and the Skull King beats every Pirate and numbered card."}</p></div>
           <div><span className="rule-icon tigress">◐</span><strong>Tigress chooses</strong><p>When played, declare her as a Pirate or an Escape. She takes on that role&apos;s hierarchy and character bonuses for the trick.</p></div>
           <div><span className="rule-icon ghost">G</span><strong>Graybeard&apos;s Ghost</strong><p>Deal a third face-down hand and alternate which human starts each round. Flip Graybeard&apos;s top card second without following suit. The trick winner leads next; if Graybeard wins, he leads and the prior human leader plays second. He never bids or scores, and his Tigress is always an Escape.</p></div>
-          <div><span className="rule-icon monster">⌘</span><strong>Last monster rules</strong><p>When several monsters appear, only the last one played has an effect on the trick.</p></div>
+          {hasMermaidsAndMonsters && <div><span className="rule-icon monster">⌘</span><strong>Last monster rules</strong><p>When several monsters appear, only the last one played has an effect on the trick.</p></div>}
           <div><span className="rule-icon bonus">+20</span><strong>Treasure the 14s</strong><p>Captured green, yellow, and purple 14s are worth +10. The black 14 is +20. Bonuses score only with an exact bid.</p></div>
-          <div><span className="rule-icon wild">15</span><strong>Wild Monkey 15</strong><p>It adopts green, yellow, or purple—never black. It follows an existing non-black lead automatically and is highest under White Whale.</p></div>
-          <div><span className="rule-icon expansion">7/8</span><strong>Expansion numbers</strong><p>Each suit has a second 7 and 8. Capturing the expansion 7 gives −5; capturing its 8 gives +5 when the bid is exact.</p></div>
-          <div><span className="rule-icon mermaid">♆</span><strong>Character bonuses</strong><p>Pirate takes Mermaid: +20. Skull King takes each Pirate: +30. Mermaid takes Skull King: +40.</p></div>
+          {hasFullDeck && <div><span className="rule-icon wild">15</span><strong>Wild Monkey 15</strong><p>It adopts green, yellow, or purple—never black. It follows an existing non-black lead automatically and is highest under White Whale.</p></div>}
+          {hasFullDeck && <div><span className="rule-icon expansion">7/8</span><strong>Expansion numbers</strong><p>Each suit has a second 7 and 8. Capturing the expansion 7 gives −5; capturing its 8 gives +5 when the bid is exact.</p></div>}
+          {hasMermaidsAndMonsters && <div><span className="rule-icon mermaid">♆</span><strong>Character bonuses</strong><p>Pirate takes Mermaid: +20. Skull King takes each Pirate: +30. Mermaid takes Skull King: +40.</p></div>}
           <div><span className="rule-icon doubloon">◉</span><strong>Doubloon alliance</strong><p>It plays as an Escape. Its player and the trick winner each earn +20 when both make their bids. Winning your own Doubloon forms no alliance.</p></div>
         </div>
-        <div className="monster-rules">
+        {hasMermaidsAndMonsters && <div className="monster-rules">
           <p><b>Kraken</b> destroys the trick. No one wins; the player to its left leads next.</p>
           <p><b>White Whale</b> nullifies specials and suits; the highest number wins. All-special tricks have no winner.</p>
-          <p><b>Spotted Stingray</b> nullifies specials and suits; the lowest number wins. Among several Sea Monsters, only the last played applies.</p>
-          <p><b>Davy Jones’ Locker</b> destroys every Sea Monster instead and awards its player +20 per creature when their bid is exact.</p>
-        </div>
+          {hasFullDeck && <p><b>Spotted Stingray</b> nullifies specials and suits; the lowest number wins. Among several Sea Monsters, only the last played applies.</p>}
+          {hasFullDeck && <p><b>Davy Jones’ Locker</b> destroys every Sea Monster instead and awards its player +20 per creature when their bid is exact.</p>}
+        </div>}
         <div className="named-pirate-rules">
-          <strong>The six Pirates</strong>
+          <strong>The {hasFullDeck ? "six" : "five"} Pirates</strong>
           <p className="pirate-rule-note">A Pirate unlocks its ability only when it wins the trick. Only Harry may act after the round&apos;s final trick.</p>
           <p><b>Rosie D’ Laney</b> chooses who leads next.</p>
           <p><b>Bendt the Bandit</b> draws two cards, then discards two.</p>
           <p><b>Rascal of Roatan</b> wagers 0, 10, or 20 points on making the bid.</p>
           <p><b>Juanita Jade</b> privately inspects the undealt deck.</p>
           <p><b>Harry the Giant</b> adjusts the bid by −1, 0, or +1.</p>
-          <p><b>Mary Thorne</b> forces a randomly selected card from any player&apos;s hand into the next trick.</p>
+          {hasFullDeck && <p><b>Mary Thorne</b> forces a randomly selected card from any player&apos;s hand into the next trick.</p>}
         </div>
-        <div className="expansion-rules">
+        {hasFullDeck && <div className="expansion-rules">
           <strong>Expansion tactics</strong>
           <p><b>Two players</b> remove Loot/Doubloons, the Wild 15, Walk the Plank, and every 0/14 choice card before dealing.</p>
           <p><b>First Mate Con</b> beats Pirates but loses to Mermaids and the Skull King. When he wins, he may use every captured named Pirate ability. A Mermaid or Skull King capturing Con earns +30.</p>
           <p><b>Walk the Plank</b> cannot win. Its player removes one Pirate before resolving the trick.</p>
           <p><b>The Last Volley</b> cannot win. Its player adds a second card after everyone plays, then skips the final trick.</p>
-        </div>
-        <p className="rules-footnote">Exact nonzero bid: 20 points per trick plus captured bonuses. Miss a nonzero bid: lose 10 points per trick off. Bid zero: gain 10 × the round if correct, or lose that amount if you take a trick. Each suit also has a 0/14 choice card; choose its value when played, but it has no bonus.</p>
+        </div>}
+        <p className="rules-footnote">Exact nonzero bid: 20 points per trick plus captured bonuses. Miss a nonzero bid: lose 10 points per trick off. Bid zero: gain 10 × the round if correct, or lose that amount if you take a trick.{hasFullDeck ? " Each suit also has a 0/14 choice card; choose its value when played, but it has no bonus." : ""}</p>
         <button type="button" className="skull-primary full" onClick={onClose}>Back to the ship</button>
       </section>
     </div>

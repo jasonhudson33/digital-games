@@ -18,6 +18,7 @@ import {
   playSkullKingRoomCard,
   resolveSkullKingRoomPirateAbility,
   resolveSkullKingRoomWalkThePlank,
+  setSkullKingDeckMode,
   startNextSkullKingRoomRound,
   startSkullKingRoom,
 } from "../lib/skull-king-rooms.js";
@@ -127,6 +128,37 @@ test("the host can add computers while human players remain room participants", 
   assert.equal(started.state.players.length, 3);
   assert.equal(started.state.players.filter((player) => player.isComputer).length, 2);
   assert.equal(started.state.players[0].hand.length, 1);
+});
+
+test("the host selects among three card sets and every captain sees the choice", async () => {
+  const host = await createSkullKingRoom({ name: "Host" });
+  const guest = await joinSkullKingRoom({ roomCode: host.state.roomCode, name: "Guest" });
+
+  const selected = await setSkullKingDeckMode({ roomCode: host.state.roomCode, token: host.token, deckMode: "classic" });
+  const guestView = await getSkullKingRoom({ roomCode: host.state.roomCode, token: guest.token });
+
+  assert.equal(selected.state.deckMode, "classic");
+  assert.equal(guestView.state.deckMode, "classic");
+  await assert.rejects(
+    setSkullKingDeckMode({ roomCode: host.state.roomCode, token: guest.token, deckMode: "full" }),
+    /Only the host/,
+  );
+
+  const started = await startSkullKingRoom({ roomCode: host.state.roomCode, token: host.token, random: () => 0 });
+  assert.equal(started.state.deckMode, "classic");
+});
+
+test("reduced card sets cap rooms at seven captains", async () => {
+  const host = await createSkullKingRoom({ name: "Host" });
+  await setSkullKingDeckMode({ roomCode: host.state.roomCode, token: host.token, deckMode: "mermaids" });
+  for (let index = 0; index < 6; index += 1) {
+    await addSkullKingComputer({ roomCode: host.state.roomCode, token: host.token });
+  }
+
+  await assert.rejects(
+    addSkullKingComputer({ roomCode: host.state.roomCode, token: host.token }),
+    /at most 7/,
+  );
 });
 
 test("a room voyage can complete all ten rounds without expansion-card deadlocks", async () => {

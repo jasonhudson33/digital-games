@@ -1,6 +1,6 @@
 # Skull King
 
-Skull King owns ten-round trick bidding, the complete 93-card expansion deck, four custom suits, capture bonuses, dual-value cards, Doubloon alliances, and special-card resolution.
+Skull King owns ten-round trick bidding, three selectable card sets, four custom suits, capture bonuses, dual-value cards, Doubloon alliances, and special-card resolution.
 
 ## Language
 
@@ -33,6 +33,10 @@ Skull King owns ten-round trick bidding, the complete 93-card expansion deck, fo
 - Walk the Plank removes one Pirate before the trick is resolved. The Last Volley grants its player one extra play, after which that player skips the final trick.
 
 ## Deck inventory
+
+- **First Release**: 70 cards. It omits Mermaids, Kraken, White Whale, and every full-expansion card, so the Skull King is highest. Supports up to seven captains.
+- **Mermaids & Monsters**: 74 cards. It adds two Mermaids, Kraken, and White Whale to First Release. Supports up to seven captains.
+- **All Cards**: The complete 93-card deck and the only set large enough for eight or nine captains.
 
 - Four suits with standard ranks 1–14, one choice 0/14, and duplicate expansion 7 and 8 cards: 68 cards.
 - Wild Monkey 15: 1 card.

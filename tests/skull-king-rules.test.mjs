@@ -56,6 +56,34 @@ test("the full expansion deck contains all 93 gameplay cards", () => {
   assert.ok(deck.filter((card) => card.kind === "pirate").every((card) => card.ability));
 });
 
+test("the three card-set options use the requested deck tiers", () => {
+  const classic = createSkullKingDeck("classic");
+  const mermaids = createSkullKingDeck("mermaids");
+  const full = createSkullKingDeck("full");
+
+  assert.equal(classic.length, 70);
+  assert.equal(mermaids.length, 74);
+  assert.equal(full.length, 93);
+  assert.equal(classic.some((card) => ["mermaid", "kraken", "whiteWhale"].includes(card.kind)), false);
+  assert.deepEqual(
+    mermaids.filter((card) => ["mermaid", "kraken", "whiteWhale"].includes(card.kind)).map((card) => card.kind),
+    ["mermaid", "mermaid", "kraken", "whiteWhale"],
+  );
+  assert.equal(mermaids.some((card) => card.expansion), false);
+  assert.equal(full.filter((card) => card.expansion).length, 19);
+});
+
+test("a selected card set persists across rounds and limits the captain count", () => {
+  const classic = createSkullKingMatch({ playerCount: 7, deckMode: "classic", random: () => 0.5 });
+  const nextRound = startNextSkullKingRound({ ...classic, phase: "roundComplete" }, () => 0.5);
+
+  assert.equal(classic.deckMode, "classic");
+  assert.equal(nextRound.deckMode, "classic");
+  assert.ok(nextRound.players.flatMap((player) => player.hand).every((card) => !["mermaid", "kraken", "whiteWhale"].includes(card.kind)));
+  assert.throws(() => createSkullKingMatch({ playerCount: 8, deckMode: "classic" }), /at most 7|two to 7/);
+  assert.doesNotThrow(() => createSkullKingMatch({ playerCount: 9, deckMode: "full" }));
+});
+
 test("every card in the full deck resolves to an existing illustration", () => {
   const deck = createSkullKingDeck();
   const missingArt = deck.filter((card) => !getSkullKingCardArt(card)).map((card) => card.id);

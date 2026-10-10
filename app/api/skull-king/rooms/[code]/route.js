@@ -10,6 +10,7 @@ import {
   resolveSkullKingRoomPirateAbility,
   resolveSkullKingRoomWalkThePlank,
   restartSkullKingRoom,
+  setSkullKingDeckMode,
   startNextSkullKingRoomRound,
   startSkullKingRoom,
 } from "../../../../../lib/skull-king-rooms";
@@ -26,6 +27,7 @@ export async function POST(request, context) {
     join: joinSkullKingRoom,
     addComputer: addSkullKingComputer,
     removeComputer: removeSkullKingComputer,
+    setDeckMode: setSkullKingDeckMode,
     start: startSkullKingRoom,
     bid: bidSkullKingRoom,
     playCard: playSkullKingRoomCard,
