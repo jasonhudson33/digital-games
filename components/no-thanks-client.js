@@ -20,37 +20,19 @@ import { NoThanksRoomService } from "./no-thanks-room-service";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
-  addComputerPlayer,
-  addPlayer,
   canPassCard,
   cardScore,
-  createLobby,
   currentPlayer,
   finalScore,
   groupRuns,
-  passCard,
-  removeComputerPlayer,
-  runComputerStep,
-  startGame,
-  takeCard,
 } from "../lib/no-thanks";
-import { useGameRoom } from "../lib/use-game-room.js";
-
-const playerIdKey = "no-thanks-player-id";
-const playerNameKey = "no-thanks-player-name";
-const activeRoomKey = "no-thanks-active-room";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
 export default function NoThanksClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: NoThanksRoomService,
-    storageKey: "no-thanks",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: MAX_PLAYERS,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: NoThanksRoomService, storageKey: "no-thanks" });
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
 
@@ -69,7 +51,7 @@ export default function NoThanksClient() {
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
       try {
-        await update((current) => runComputerStep(current));
+        await stepComputer();
       } finally {
         if (!cancelled) setComputerThinking(false);
       }
@@ -85,8 +67,7 @@ export default function NoThanksClient() {
       room?.phase === "playing" &&
       !window.confirm("Leave the table? You can rejoin with the room code.")
     ) return;
-    localStorage.removeItem(activeRoomKey);
-    setRoom(null);
+    leaveEngineRoom();
   }
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
@@ -112,15 +93,9 @@ export default function NoThanksClient() {
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => update((current) =>
-        current.hostId === playerId ? addComputerPlayer(current) : current
-      )}
-      onRemoveComputer={(id) => update((current) =>
-        current.hostId === playerId ? removeComputerPlayer(current, id) : current
-      )}
-      onStart={() => update((current) =>
-        current.hostId === playerId ? startGame(current) : current
-      )}
+      onAddComputer={() => act("addComputer")}
+      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
       onLeave={leaveRoom}
       onRules={() => setShowRules(true)}
       showRules={showRules}
@@ -163,7 +138,7 @@ export default function NoThanksClient() {
     <section className="nt-table">
       <aside className="nt-deck-panel">
         <p className="nt-kicker">Cards remaining</p>
-        <div className="nt-mini-deck"><span>NO</span><strong>{room.deck.length}</strong><small>after this one</small></div>
+        <div className="nt-mini-deck"><span>NO</span><strong>{room.deckCount}</strong><small>after this one</small></div>
         <p>Nine cards were removed unseen, so every run has a little uncertainty.</p>
       </aside>
 
@@ -191,14 +166,14 @@ export default function NoThanksClient() {
         {me.chips > 0 ? <button
           className="nt-pass-button"
           disabled={busy || !canPass}
-          onClick={() => update((current) => passCard(current, playerId))}
+          onClick={() => act("pass")}
         ><Ban /> No thanks <small>Pay 1 of {me.chips}</small></button> : <div className="nt-must-take" aria-live="polite">
           <Coins /><span><strong>No chips left</strong><small>Take is required</small></span>
         </div>}
         <button
           className="nt-take-button"
           disabled={busy || !myTurn}
-          onClick={() => update((current) => takeCard(current, playerId))}
+          onClick={() => act("take")}
         ><Hand /> Take it <small>Collect {room.centerChips} chip{room.centerChips === 1 ? "" : "s"}</small></button>
       </div>
     </section>}

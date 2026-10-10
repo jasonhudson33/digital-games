@@ -1,7 +1,7 @@
 # platform/server-authoritative-rooms Specification
 
 ## Purpose
-Defines the room model for games with private information (7-Up, BANG!, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Stratego, Ticket to Ride, UNO, Viticulture), where the server holds the whole game and each seat sees only its own view.
+Defines the room model for games with private information (7-Up, BANG!, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Stratego, Ticket to Ride, UNO, Viticulture, Life, No Thanks!), where the server holds the whole game and each seat sees only its own view.
 
 ## Requirements
 
@@ -83,3 +83,10 @@ A view of an engine-backed game SHALL withhold a hidden role or an unrevealed pi
 #### Scenario: Role revealed on elimination
 - **WHEN** a player is eliminated
 - **THEN** their role appears in every seat's view
+
+### Requirement: Randomness chosen by the server
+Every die roll, spin, shuffle and draw in an engine-backed game SHALL be chosen by the server, and a request SHALL NOT be able to supply or influence the result.
+
+#### Scenario: Client-supplied result
+- **WHEN** a request carries a number, roll or random source alongside a move
+- **THEN** the server ignores it and uses its own

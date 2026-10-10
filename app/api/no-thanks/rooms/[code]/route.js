@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { noThanksRoomStore } from "../../../../../lib/no-thanks-room-store.js";
+import { noThanksRoutes } from "../../../../../lib/no-thanks-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: noThanksRoomStore,
-  label: "No Thanks!",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = noThanksRoutes.item.GET;
+export const POST = noThanksRoutes.item.POST;

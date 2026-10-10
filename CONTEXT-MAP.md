@@ -34,37 +34,32 @@
 
 ## Relationships
 
-There are two room models here, and the difference decides whether a player can
-read a rival's hand.
+There are three online room models here, and the difference decides whether a
+player can read a rival's hand.
 
 - **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Cover
   Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and
-  Foot**, **Killer Bunnies**, **Phase 10**, **Pinochle**, **Qwirkle**, **Risk**,
-  **Scum**, **Secret Hitler**, **Sequence**, **Skull King**, **Splendor**,
-  **Stratego**, **Ticket to Ride**, **UNO**, and **Viticulture** keep the whole
-  game on the server. A request carries a seat token, the
+  Foot**, **Killer Bunnies**, **Life**, **No Thanks!**, **Phase 10**, **Pinochle**,
+  **Qwirkle**, **Risk**, **Scum**, **Secret Hitler**, **Sequence**, **Skull King**,
+  **Splendor**, **Spyrium**, **Stratego**, **Ticket to Ride**, **UNO**, and
+  **Viticulture** keep the whole game on the server. A request carries a seat token, the
   server decides what that seat may see, and returns only that. Private hands
   and hidden roles stay private.
 
-- **Client-authoritative, fully readable.** Every other online game —
-  **Catan**, **Life**, **Monopoly**, **No Thanks!**, and **Spyrium** —
-  computes state in the browser and stores it whole. `GET`/`PUT` on
-  `/api/<game>/rooms/<code>` read and replace the entire game object. Once a game
-  has started, both need a seat token (`X-Seat-Token`, issued when a player
-  creates or joins), so a stranger with the code is turned away
-  ([ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md)).
-  These games hold no hidden hands, but a seated player can still replace the
-  whole game with a `PUT`, so they trust every seated player. **Catan** and
-  **Monopoly** keep their own browser-side Supabase tables and are not
-  token-gated yet.
+- **Client-authoritative, fully readable.** Only **Catan** and **Monopoly** still
+  compute state in the browser. Each keeps its own browser-side Supabase tables
+  (with an in-memory route for local development), so a room code gives read and
+  write access to the whole game, with no seat tokens. See
+  [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how
+  the other games moved off this model.
 
 - **Hearts** has no shared rooms: it runs in one browser against computer players.
 
 - **Mafia** uses a separate token-validated Supabase RPC model because roles and
   intents are private.
 
-- Every online game persists through `lib/supabase-server-room-store.js`, which
-  expires rooms after 24 hours and cleans up opportunistically.
+- Every server-authoritative game persists through `lib/supabase-server-room-store.js`,
+  which expires rooms after 24 hours and cleans up opportunistically.
 
 - All contexts share the Next.js shell, site header, deployment, and root
   quality pipeline; game rules remain context-owned.

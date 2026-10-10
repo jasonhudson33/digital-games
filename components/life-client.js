@@ -3,38 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, BriefcaseBusiness, CircleHelp, Copy, GraduationCap, Home, LogOut, Plus, Sparkles, TrendingUp, Users, X } from "lucide-react";
 import { LifeRoomService } from "./life-room-service";
-import { BOARD, addLifeComputer, addLifePlayer, buyInvestment, chooseCareer, chooseLifePath, chooseRetirement, createLifeLobby, currentLifePlayer, money, playerNetWorth, removeLifeComputer, runLifeComputerTurn, spinLife, startLifeGame } from "../lib/life";
+import { BOARD, currentLifePlayer, money, playerNetWorth } from "../lib/life";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const idKey = "life-player-id";
-const nameKey = "life-player-name";
-const roomKey = "life-active-room";
+/** Other seats' LIFE tile values are hidden until the game ends, so only a count is sent. */
+const tileCount = (player) => player.lifeTileCount ?? player.lifeTiles.length;
 
 export default function LifeClient() {
-  const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
-  const [name, setName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leave,
+  } = useEngineRoom({ service: LifeRoomService, storageKey: "life" });
   const [showRules, setShowRules] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [spinPreview, setSpinPreview] = useState(null);
   const [computerThinking, setComputerThinking] = useState(false);
-
-  useEffect(() => {
-    const storedId = localStorage.getItem(idKey) || crypto.randomUUID();
-    localStorage.setItem(idKey, storedId);
-    setPlayerId(storedId);
-    setName(localStorage.getItem(nameKey) || "");
-    const code = localStorage.getItem(roomKey);
-    if (!code) return;
-    LifeRoomService.load(code).then((loaded) => { if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded); }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!room?.roomCode) return undefined;
-    return LifeRoomService.subscribe(room.roomCode, (next) => setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current));
-  }, [room?.roomCode]);
 
   const me = room?.players.find((player) => player.id === playerId) || null;
   const active = room ? currentLifePlayer(room) : null;
@@ -44,49 +27,22 @@ export default function LifeClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runLifeComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, room.pending ? 800 : 1300);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [active?.id, room?.pending?.type, room?.updatedAt, playerId]);
 
-  async function createRoom() {
-    if (!name.trim()) return setError("Enter your name first.");
-    setBusy(true); setError("");
-    try { const code = await LifeRoomService.createCode(); remember(await LifeRoomService.save(createLifeLobby({ id: playerId, name: name.trim() }, code))); }
-    catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  async function joinRoom() {
-    if (!name.trim() || !joinCode.trim()) return setError("Enter your name and a room code.");
-    setBusy(true); setError("");
-    try {
-      const code = joinCode.trim().toUpperCase();
-      const loaded = await LifeRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (loaded.players.some((player) => player.id === playerId)) remember(loaded);
-      else {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= 6) throw new Error("That room is full.");
-        remember(await LifeRoomService.update(code, (current) => addLifePlayer(current, { id: playerId, name: name.trim() })));
-      }
-    } catch (caught) { setError(caught.message); } finally { setBusy(false); }
-  }
-
-  function remember(next) { localStorage.setItem(nameKey, name.trim()); localStorage.setItem(roomKey, next.roomCode); setRoom(next); }
-  async function update(action) { if (!room) return; setBusy(true); setError(""); try { const next = await LifeRoomService.update(room.roomCode, action); if (next) setRoom(next); } catch (caught) { setError(caught.message); } finally { setBusy(false); } }
-  function leave() { localStorage.removeItem(roomKey); setRoom(null); }
-
   async function handleSpin() {
     if (spinning || busy) return;
-    const result = Math.floor(Math.random() * 10) + 1;
-    setSpinPreview(result);
+    // The server chooses the number. The wheel spins until it answers, then settles on the result.
+    setSpinPreview(null);
     setSpinning(true);
-    window.setTimeout(async () => { await update((current) => spinLife(current, playerId, result)); setSpinning(false); setSpinPreview(null); }, 1050);
+    try { await act("spin"); } finally { setSpinning(false); }
   }
 
   if (!room || !me) return <LifeLanding {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <LifeLobby room={room} me={me} busy={busy} error={error} onAdd={() => update(addLifeComputer)} onRemove={(id) => update((current) => removeLifeComputer(current, id))} onStart={() => update(startLifeGame)} onLeave={leave} onRules={() => setShowRules(true)} />;
+  if (room.phase === "lobby") return <LifeLobby room={room} me={me} busy={busy} error={error} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leave} onRules={() => setShowRules(true)} />;
 
   const myTurn = room.phase === "playing" && active?.id === playerId;
   const pendingMine = myTurn && room.pending?.playerId === playerId;
@@ -113,12 +69,12 @@ export default function LifeClient() {
             <p className="life-kicker">{myTurn ? "Your move" : "On the road"}</p>
             <h2>{myTurn ? room.pending ? "A decision awaits" : "Spin when you're ready" : `${active?.name} is at ${BOARD[active?.position || 0].label}`}</h2>
             <p>{myTurn ? room.pending ? "Choose below to keep your journey moving." : "Click the spinner. The bank and board will handle the rest." : "Everyone sees the same spin, movement, and event."}</p>
-            {myTurn && !room.pending && !me.investment && <InvestmentPicker disabled={busy} onBuy={(number) => update((current) => buyInvestment(current, playerId, number))} />}
+            {myTurn && !room.pending && !me.investment && <InvestmentPicker disabled={busy} onBuy={(number) => act("invest", { number })} />}
           </div>
         </div>
       </section>
     </section>
-    {pendingMine && <Decision pending={room.pending} player={me} busy={busy} onPath={(path) => update((current) => chooseLifePath(current, playerId, path))} onCareer={(careerId) => update((current) => chooseCareer(current, playerId, careerId))} onRetire={(destination) => update((current) => chooseRetirement(current, playerId, destination))} />}
+    {pendingMine && <Decision pending={room.pending} player={me} busy={busy} onPath={(path) => act("path", { path })} onCareer={(careerId) => act("career", { careerId })} onRetire={(destination) => act("retirement", { destination })} />}
     {room.phase === "finished" && <Winner room={room} me={me} onLeave={leave} />}
     {showRules && <Rules onClose={() => setShowRules(false)} />}
   </main>;
@@ -207,7 +163,7 @@ function Spinner({ value, spinning, disabled, onSpin }) {
 }
 
 function PlayerCard({ player, active, isMe, finished }) {
-  return <article className={`life-player-card ${active ? "active" : ""}`} style={{ "--player": player.color }}><div className="life-player-top"><span className="life-avatar">{player.isComputer ? <Bot /> : "🚗"}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.status === "retired" ? "Retired" : player.career ? `${player.career.icon} ${player.career.name}` : player.path === "college" ? "🎓 In college" : "Choosing a path"}</small></div><b>{finished ? money(playerNetWorth(player)) : money(player.cash)}</b></div><div className="life-player-details"><span>💵 {player.career ? money(player.career.salary) : "No salary"}</span><span>💛 {player.lifeTiles.length} LIFE</span><span>{player.house ? `${player.house.icon} ${player.house.name}` : "🏠 No house"}</span><span>{player.spouse ? "💍 Married" : "○ Single"}{player.children ? ` · ${player.children} ${player.children === 1 ? "child" : "children"}` : ""}</span>{player.loans > 0 && <span className="loan">Loan balance {money(player.loans * 25000)}</span>}{player.investment && <span>📈 Invested in {player.investment}</span>}</div></article>;
+  return <article className={`life-player-card ${active ? "active" : ""}`} style={{ "--player": player.color }}><div className="life-player-top"><span className="life-avatar">{player.isComputer ? <Bot /> : "🚗"}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{player.status === "retired" ? "Retired" : player.career ? `${player.career.icon} ${player.career.name}` : player.path === "college" ? "🎓 In college" : "Choosing a path"}</small></div><b>{finished ? money(playerNetWorth(player)) : money(player.cash)}</b></div><div className="life-player-details"><span>💵 {player.career ? money(player.career.salary) : "No salary"}</span><span>💛 {player.tileCount(player)} LIFE</span><span>{player.house ? `${player.house.icon} ${player.house.name}` : "🏠 No house"}</span><span>{player.spouse ? "💍 Married" : "○ Single"}{player.children ? ` · ${player.children} ${player.children === 1 ? "child" : "children"}` : ""}</span>{player.loans > 0 && <span className="loan">Loan balance {money(player.loans * 25000)}</span>}{player.investment && <span>📈 Invested in {player.investment}</span>}</div></article>;
 }
 
 function InvestmentPicker({ disabled, onBuy }) {

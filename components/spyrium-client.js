@@ -27,46 +27,25 @@ import {
 import { SpyriumRoomService } from "./spyrium-room-service";
 import {
   RESIDENCE_VALUES,
-  activateMarketCard,
   activationCost,
-  addComputerPlayer,
-  addPlayer,
-  beginActivation,
   canUseBuilding,
-  chooseBonus,
-  createLobby,
   currentPlayer,
-  gainMoney,
   marketSlots,
-  pass,
-  placeWorker,
   playerMarketWorkers,
   projectedFinalScore,
-  removeComputerPlayer,
-  runComputerTurn,
-  startGame,
   techniqueEndScore,
-  useBuilding,
-  useEvent,
   workerAdjacentCardIndexes,
 } from "../lib/spyrium";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
 const playerIdKey = "spyrium-player-id";
 const playerNameKey = "spyrium-player-name";
-const activeRoomKey = "spyrium-active-room";
 
 export default function SpyriumClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: SpyriumRoomService,
-    storageKey: "spyrium",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: 5,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: SpyriumRoomService, storageKey: "spyrium" });
   const [showRules, setShowRules] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
@@ -82,7 +61,7 @@ export default function SpyriumClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, 620);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -92,12 +71,11 @@ export default function SpyriumClient() {
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this industrial concern? You can return later with the same room code.")) return;
-    localStorage.removeItem(activeRoomKey);
-    setRoom(null); setError(""); setSelectedWorker(null); setSelectedCard(null);
+    leaveEngineRoom(); setError(""); setSelectedWorker(null); setSelectedCard(null);
   }
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update(addComputerPlayer)} onRemoveComputer={(id) => update((current) => removeComputerPlayer(current, id))} onStart={() => update(startGame)} onLeave={leaveRoom} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const activation = myTurn && me.phase === "activation";
@@ -115,7 +93,7 @@ export default function SpyriumClient() {
 
   function activate(options = {}) {
     if (!selectedWorker || selectedCard == null) return;
-    update((current) => activateMarketCard(current, playerId, selectedWorker.id, selectedCard, options));
+    act("activate", { workerId: selectedWorker.id, cardIndex: selectedCard, options });
   }
 
   return <main className="spyrium-game-shell">
@@ -146,19 +124,19 @@ export default function SpyriumClient() {
         </div>
 
         <div className="spyrium-market-heading"><div><p className="spyrium-kicker">Period {room.period} market</p><h2>The London Exchange</h2></div><p>{myTurn ? me.phase === "placement" ? "Place an active worker between two cards, or enter activation." : selectedWorker ? "Choose an adjacent card to activate—or withdraw for money." : "Select one of your green workers in the market." : "Watch the active industrialist shape the market."}</p></div>
-        <Market room={room} me={me} myTurn={myTurn} busy={busy} selectedWorker={selectedWorker} selectedCard={selectedCard} onPlace={(slotId) => update((current) => placeWorker(current, playerId, slotId))} onWorker={selectWorker} onCard={selectCard} />
+        <Market room={room} me={me} myTurn={myTurn} busy={busy} selectedWorker={selectedWorker} selectedCard={selectedCard} onPlace={(slotId) => act("place", { slotId })} onWorker={selectWorker} onCard={selectCard} />
 
         {myTurn && <div className="spyrium-action-bar">
           {me.phase === "placement" ? <>
             <span><UserRound /> {me.activeWorkers} active worker{me.activeWorkers === 1 ? "" : "s"}</span>
-            <button className="spyrium-primary" disabled={busy} onClick={() => update((current) => beginActivation(current, playerId))}><Zap /> Begin activation</button>
+            <button className="spyrium-primary" disabled={busy} onClick={() => act("beginActivation")}><Zap /> Begin activation</button>
           </> : <>
             <span>{selectedWorker ? <><Check /> Worker selected</> : <><UserRound /> {playerMarketWorkers(room, playerId)} in market</>}</span>
             {selectedWorker && selectedCard != null && <>
-              <button onClick={() => update((current) => gainMoney(current, playerId, selectedWorker.id, selectedCard))}><Coins /> Withdraw for £{Math.max(0, activationCost(room, playerId, selectedWorker.id, selectedCard)?.congestion || 0) + (me.techniques.some((card) => card.slug === "capitalization") ? 2 : 0)}</button>
+              <button onClick={() => act("gainMoney", { workerId: selectedWorker.id, cardIndex: selectedCard })}><Coins /> Withdraw for £{Math.max(0, activationCost(room, playerId, selectedWorker.id, selectedCard)?.congestion || 0) + (me.techniques.some((card) => card.slug === "capitalization") ? 2 : 0)}</button>
               <button className="spyrium-primary" onClick={() => setActionCard({ kind: "market", card: room.market[selectedCard] })}><Wrench /> Activate card</button>
             </>}
-            {!playerMarketWorkers(room, playerId) && <button className="spyrium-pass" onClick={() => update((current) => pass(current, playerId))}>Pass round <ChevronRight /></button>}
+            {!playerMarketWorkers(room, playerId) && <button className="spyrium-pass" onClick={() => act("pass")}>Pass round <ChevronRight /></button>}
           </>}
         </div>}
       </section>
@@ -166,15 +144,15 @@ export default function SpyriumClient() {
       <aside className="spyrium-neighborhood">
         <PanelTitle icon={<Factory />} eyebrow="Your company" title="Neighborhood" />
         <div className="spyrium-resource-bank"><Resource icon={<Coins />} value={`£${me.money}`} label="Capital" /><Resource icon={<Gem />} value={me.spyrium} label="Spyrium" /><Resource icon={<Crown />} value={me.score} label="Victory" /><Resource icon={<UserRound />} value={`${me.activeWorkers}/${me.totalWorkers}`} label="Workers" /></div>
-        <div className="spyrium-estate-section"><h3>Buildings <small>{me.buildings.length}</small></h3>{me.buildings.length ? <div className="spyrium-building-list">{me.buildings.map((building) => <OwnedBuilding key={building.id} building={building} player={me} disabled={!activation || busy} onUse={(actionIndex, options) => update((current) => useBuilding(current, playerId, building.id, actionIndex, options))} />)}</div> : <EmptyState icon={<Factory />} text="Construct market buildings to grow your neighborhood." />}</div>
+        <div className="spyrium-estate-section"><h3>Buildings <small>{me.buildings.length}</small></h3>{me.buildings.length ? <div className="spyrium-building-list">{me.buildings.map((building) => <OwnedBuilding key={building.id} building={building} player={me} disabled={!activation || busy} onUse={(actionIndex, options) => act("useBuilding", { buildingId: building.id, actionIndex, options })} />)}</div> : <EmptyState icon={<Factory />} text="Construct market buildings to grow your neighborhood." />}</div>
         <div className="spyrium-estate-section"><h3>Techniques <small>{me.techniques.length}</small></h3>{me.techniques.length ? <div className="spyrium-technique-list">{me.techniques.map((technique) => <article key={technique.id}><FlaskConical /><div><strong>{technique.name}</strong><small>{technique.description}</small></div><b>+{techniqueEndScore(me, technique)}</b></article>)}</div> : <EmptyState icon={<FlaskConical />} text="Patent techniques for lasting advantages and end-game points." />}</div>
         <div className="spyrium-projection"><span>Projected final score</span><strong>{projectedFinalScore(me)} VP</strong></div>
       </aside>
     </div>
 
     {actionCard?.kind === "market" && <MarketActionModal room={room} player={me} worker={selectedWorker} cardIndex={selectedCard} card={actionCard.card} busy={busy} onClose={() => setActionCard(null)} onActivate={(options) => { activate(options); setActionCard(null); }} />}
-    {actionCard?.kind === "event" && <EventModal event={actionCard.event} player={me} slots={marketSlots()} onClose={() => setActionCard(null)} onUse={(options) => { update((current) => useEvent(current, playerId, options)); setActionCard(null); }} />}
-    {room.pendingBonus?.playerId === playerId && <BonusModal player={me} onChoose={(choice) => update((current) => chooseBonus(current, playerId, choice))} />}
+    {actionCard?.kind === "event" && <EventModal event={actionCard.event} player={me} slots={marketSlots()} onClose={() => setActionCard(null)} onUse={(options) => { act("useEvent", { options }); setActionCard(null); }} />}
+    {room.pendingBonus?.playerId === playerId && <BonusModal player={me} onChoose={(choice) => act("bonus", { choice })} />}
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;

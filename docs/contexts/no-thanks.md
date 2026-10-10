@@ -15,7 +15,7 @@ No Thanks! is a single-round, room-based implementation of Thorsten Gimmler's ca
 
 ## Room model
 
-Rooms use the shared `server_game_rooms` storage adapter under the `no-thanks` namespace. Local development falls back to in-memory storage, while deployed rooms require the configured Supabase service-role environment variables. Room updates use optimistic version checks and browser polling/broadcast synchronization, consistent with the newer room games.
+The rules run on the server (`lib/no-thanks-room-adapter.js` over `lib/no-thanks.js`) in the shared `server_game_rooms` storage under the `no-thanks` namespace, which falls back to memory in local development. A seat sends take and pass actions and receives only the draw pile as a count; the active card, the chips on it and every seat's taken cards and chips are public, as the table shows them.
 
 ## Computer players
 

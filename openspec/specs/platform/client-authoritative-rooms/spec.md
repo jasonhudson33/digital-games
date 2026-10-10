@@ -1,12 +1,12 @@
 # platform/client-authoritative-rooms Specification
 
 ## Purpose
-Records the current behavior of the games whose browser computes game state and stores it whole in a shared room (Catan, Life, Monopoly, No Thanks!, Spyrium), so later changes can modify it deliberately.
+Records the current behavior of the games whose browser computes game state and stores it whole in a shared room (Catan and Monopoly), so later changes can modify it deliberately.
 
 ## Requirements
 
 ### Requirement: Whole-state room API
-Each client-authoritative game SHALL expose `GET` and `PUT` on `/api/<game>/rooms/<code>` that read and replace the complete game object. UNO, DOS, Flip 7, Phase 10, BANG!, Cover Your Assets, Five Crowns, Sequence, Qwirkle and Stratego are not client-authoritative and SHALL NOT expose whole-state `GET` or `PUT`.
+Each client-authoritative game SHALL expose `GET` and `PUT` on `/api/<game>/rooms/<code>` that read and replace the complete game object. Every other game, including UNO, DOS, Flip 7, Phase 10, BANG!, Cover Your Assets, Five Crowns, Sequence, Qwirkle, Stratego, Dominion, Risk, Splendor, Ticket to Ride, Viticulture, Life, No Thanks! and Spyrium, is not client-authoritative and SHALL NOT expose whole-state `GET` or `PUT`.
 
 #### Scenario: Read
 - **WHEN** a client sends GET for an existing room
@@ -22,6 +22,14 @@ Each client-authoritative game SHALL expose `GET` and `PUT` on `/api/<game>/room
 
 #### Scenario: Engine-backed hidden-information game
 - **WHEN** a client sends PUT with a whole state to the Stratego room API
+- **THEN** the request is rejected and no state is replaced
+
+#### Scenario: Engine-backed card and ticket game
+- **WHEN** a client sends PUT with a whole state to the Ticket to Ride room API
+- **THEN** the request is rejected and no state is replaced
+
+#### Scenario: Engine-backed board game
+- **WHEN** a client sends PUT with a whole state to the Life room API
 - **THEN** the request is rejected and no state is replaced
 
 ### Requirement: Write validation

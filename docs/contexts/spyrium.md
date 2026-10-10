@@ -18,6 +18,7 @@ Spyrium owns a six-round Victorian industrial strategy game for two to five huma
 ## Boundaries
 
 - `components/spyrium-client.js` renders the game and translates deliberate player choices into pure rules actions.
-- `components/spyrium-room-service.js` coordinates optimistic browser updates with the game-specific API route.
+- `lib/spyrium-room-adapter.js` runs the rules module on the server behind the shared engine room. A seat sends named actions and receives only its own view: the three period decks and every event beyond the next one are counts, while the market, workers, tableaux, the current event and the next event are public. Activation and event options are filtered to a fixed set of keys before they reach the rules.
+- `components/spyrium-room-service.js` is the engine room service; the host's browser asks for each computer turn with one `computerStep`.
 - `lib/spyrium-room-store.js` provides server-side persistence using the shared room-store adapter.
 - Other game contexts must not import Spyrium rules or card data.
