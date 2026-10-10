@@ -14,4 +14,4 @@ Sequence is a room-based card-and-board game for official table sizes of 2, 3, 4
 
 ## Rooms and computers
 
-Rooms use the shared server-only Supabase room store and five-character codes. The host can add or remove computer seats in the lobby. Computer turns are chosen from the same legal target functions used for human turns and prioritize strong lines, blocking moves, and removal of threats.
+Rooms use the shared server-only Supabase room store and five-character codes. The rules run on the server (`lib/sequence-room-adapter.js` over `lib/sequence.js`): a seat sends named actions and receives only its own view, so other seats' hands and the draw pile are counts while the board, chips and completed sequences are public. The host can add or remove computer seats in the lobby and, from their browser, asks for each computer move with one `computerStep`. Computer turns are chosen from the same legal target functions used for human turns and prioritize strong lines, blocking moves, and removal of threats.

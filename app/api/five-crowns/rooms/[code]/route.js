@@ -1,6 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { fiveCrownsRoomStore } from "../../../../../lib/five-crowns-room-store.js";
+import { fiveCrownsRoutes } from "../../../../../lib/five-crowns-engine-room.js";
 
-const handlers = createClientRoomRoute({ store: fiveCrownsRoomStore, label: "Five Crowns" });
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = fiveCrownsRoutes.item.GET;
+export const POST = fiveCrownsRoutes.item.POST;

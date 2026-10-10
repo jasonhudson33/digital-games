@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bot, CircleHelp, Copy, Crosshair, DoorOpen, Heart, LogOut, Plus, Shield, Sparkles, Users, X } from "lucide-react";
 import { BangRoomService } from "./bang-room-service";
 import {
@@ -8,69 +8,42 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   ROLE_LABELS,
-  addComputerPlayer,
-  addPlayer,
   canPlayCard,
   cardSuitSymbol,
-  chooseGeneralStoreCard,
-  createLobby,
   currentPlayer,
-  declineResponse,
-  discardFromHand,
   distanceBetween,
-  endTurn,
   legalTargets,
-  playCard,
-  removeComputerPlayer,
-  respondWithCard,
   responseCards,
-  runComputerStep,
-  startGame,
-  useSidKetchum,
   weaponRange,
 } from "../lib/bang";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "bang-player-id";
-const playerNameKey = "bang-player-name";
-const activeRoomKey = "bang-active-room";
+/** Whether a computer is due to act: it holds the pending response, or it is its turn. */
+function computerIsDue(room) {
+  if (room.phase !== "playing") return false;
+  return room.pending
+    ? Boolean(room.players.find((player) => player.id === room.pending.responderId)?.isComputer)
+    : Boolean(currentPlayer(room)?.isComputer);
+}
 
 export default function BangClient() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: BangRoomService,
-    storageKey: "bang",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: MAX_PLAYERS,
-  });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: BangRoomService, storageKey: "bang", computerDelay: 560, computerDue: computerIsDue });
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [sidCards, setSidCards] = useState([]);
   const [showRules, setShowRules] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
-  const botNeedsAction = room?.phase === "playing" && (
-    room.pending
-      ? room.players.find((player) => player.id === room.pending.responderId)?.isComputer
-      : currentPlayer(room)?.isComputer
-  );
-
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !botNeedsAction) return undefined;
-    const timer = window.setTimeout(() => update((current) => runComputerStep(current)), 560);
-    return () => window.clearTimeout(timer);
-  }, [botNeedsAction, playerId, room?.pending?.responderId, room?.turnIndex, room?.turnPhase, room?.updatedAt]);
 
   function leaveRoom() {
-    localStorage.removeItem(activeRoomKey);
     setSelectedCardId(null);
-    setRoom(null);
+    leaveEngineRoom();
   }
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update((game) => game.hostId === playerId ? addComputerPlayer(game) : game)} onRemoveComputer={(id) => update((game) => game.hostId === playerId ? removeComputerPlayer(game, id) : game)} onStart={() => update((game) => game.hostId === playerId ? startGame(game) : game)} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
 
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId && !room.pending;
@@ -81,7 +54,7 @@ export default function BangClient() {
 
   async function chooseCard(card) {
     if (room.turnPhase === "discard" && myTurn) {
-      await update((game) => discardFromHand(game, playerId, card.id));
+      await act("discard", { cardId: card.id });
       return;
     }
     if (!myTurn || responding) return;
@@ -96,14 +69,14 @@ export default function BangClient() {
     const legal = canPlayCard(room, playerId, card);
     if (legal && legalTargets(room, playerId, card).length === 0) {
       setSelectedCardId(null);
-      await update((game) => playCard(game, playerId, card.id));
+      await act("play", { cardId: card.id });
     } else setSelectedCardId((id) => id === card.id ? null : card.id);
   }
 
   async function chooseTarget(target, targetCardId) {
     if (!selectedCard || !targetIds.has(target.id)) return;
     setSelectedCardId(null);
-    await update((game) => playCard(game, playerId, selectedCard.id, { targetId: target.id, targetCardId }));
+    await act("play", { cardId: selectedCard.id, targetId: target.id, targetCardId });
   }
 
   async function sidHeal() {
@@ -111,7 +84,7 @@ export default function BangClient() {
     const chosen = sidCards.filter((id) => id !== "selecting");
     if (chosen.length !== 2) { setSidCards([]); return; }
     setSidCards([]);
-    await update((game) => useSidKetchum(game, playerId, chosen));
+    await act("sid", { cardIds: chosen });
   }
 
   return <main className="bang-game">
@@ -128,7 +101,7 @@ export default function BangClient() {
       <div className={`bang-role-chip role-${me.role}`}><span>Your role</span><strong>{ROLE_LABELS[me.role]}</strong></div>
       <div><span>Your character</span><strong>{me.character.name}</strong><small>{me.character.ability}</small></div>
       <div><span>Weapon range</span><strong>{weaponRange(me)}</strong><small>Distance modifies legal targets</small></div>
-      <div><span>Deck</span><strong>{room.deck.length}</strong><small>{room.discard.length} discarded</small></div>
+      <div><span>Deck</span><strong>{room.deckCount}</strong><small>{room.discard.length} discarded</small></div>
     </section>
 
     <div className="bang-table-layout">
@@ -142,11 +115,11 @@ export default function BangClient() {
     </div>
 
     <section className="bang-hand">
-      <div className="bang-hand-header"><div><p className="bang-kicker">Your hand · {me.hand.length} cards</p><h2>{room.turnPhase === "discard" && myTurn ? `Discard down to ${me.lives}` : responding ? "Choose your response" : myTurn ? selectedCard ? "Choose a highlighted target" : "Play a card or end your turn" : "Watch the showdown"}</h2></div><div className="bang-hand-actions">{me.character?.id === "sid" && myTurn && me.lives < me.maxLives && me.hand.length >= 2 && <button className={sidCards.length ? "active" : ""} onClick={sidHeal}><Heart /> {!sidCards.length ? "Sid: choose 2" : sidCards.filter((id) => id !== "selecting").length === 2 ? "Heal now" : "Cancel healing"}</button>}<button className="bang-end-turn" disabled={!myTurn || busy || room.turnPhase === "discard"} onClick={() => update((game) => endTurn(game, playerId))}>End turn</button></div></div>
+      <div className="bang-hand-header"><div><p className="bang-kicker">Your hand · {me.hand.length} cards</p><h2>{room.turnPhase === "discard" && myTurn ? `Discard down to ${me.lives}` : responding ? "Choose your response" : myTurn ? selectedCard ? "Choose a highlighted target" : "Play a card or end your turn" : "Watch the showdown"}</h2></div><div className="bang-hand-actions">{me.character?.id === "sid" && myTurn && me.lives < me.maxLives && me.hand.length >= 2 && <button className={sidCards.length ? "active" : ""} onClick={sidHeal}><Heart /> {!sidCards.length ? "Sid: choose 2" : sidCards.filter((id) => id !== "selecting").length === 2 ? "Heal now" : "Cancel healing"}</button>}<button className="bang-end-turn" disabled={!myTurn || busy || room.turnPhase === "discard"} onClick={() => act("endTurn")}>End turn</button></div></div>
       <div className="bang-hand-cards">{me.hand.map((card) => <button key={card.id} className={`bang-card-button ${selectedCardId === card.id || sidCards.includes(card.id) ? "selected" : ""}`} disabled={!myTurn || busy} onClick={() => chooseCard(card)}><Card card={card} /><small>{CARD_RULES[card.name]}</small></button>)}</div>
     </section>
 
-    {responding && <ResponseModal room={room} me={me} busy={busy} onRespond={(cardId) => update((game) => respondWithCard(game, playerId, cardId))} onDecline={() => update((game) => declineResponse(game, playerId))} onStore={(cardId) => update((game) => chooseGeneralStoreCard(game, playerId, cardId))} />}
+    {responding && <ResponseModal room={room} me={me} busy={busy} onRespond={(cardId) => act("respond", { cardId })} onDecline={() => act("decline")} onStore={(cardId) => act("generalStore", { cardId })} />}
     {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <FinishedModal room={room} me={me} onLeave={leaveRoom} />}
   </main>;

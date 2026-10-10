@@ -1,5 +1,5 @@
 "use client";
 
-import { createCardGameRoomService } from "./card-game-room-service";
+import { createEngineRoomService } from "./engine-room-service.js";
 
-export const QwirkleRoomService = createCardGameRoomService("qwirkle", "Qwirkle");
+export const QwirkleRoomService = createEngineRoomService("qwirkle", "Qwirkle");

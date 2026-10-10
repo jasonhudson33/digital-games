@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { bangRoomStore } from "../../../../../lib/bang-room-store.js";
+import { bangRoutes } from "../../../../../lib/bang-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: bangRoomStore,
-  label: "BANG!",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = bangRoutes.item.GET;
+export const POST = bangRoutes.item.POST;

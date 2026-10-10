@@ -1,7 +1,7 @@
 # platform/client-authoritative-rooms Specification
 
 ## Purpose
-Records the current behavior of the games whose browser computes game state and stores it whole in a shared room (BANG!, Catan, Cover Your Assets, Dominion, Five Crowns, Life, Monopoly, No Thanks!, Qwirkle, Risk, Sequence, Splendor, Spyrium, Stratego, Ticket to Ride, Viticulture), so later changes can modify it deliberately.
+Records the current behavior of the games whose browser computes game state and stores it whole in a shared room (Catan, Dominion, Life, Monopoly, No Thanks!, Risk, Splendor, Spyrium, Ticket to Ride, Viticulture), so later changes can modify it deliberately.
 
 ## Requirements
 

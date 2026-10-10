@@ -1,11 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { qwirkleRoomStore } from "../../../../../lib/qwirkle-room-store.js";
+import { qwirkleRoutes } from "../../../../../lib/qwirkle-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: qwirkleRoomStore,
-  label: "Qwirkle",
-  validate: (state) => state.game === "qwirkle",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = qwirkleRoutes.item.GET;
+export const POST = qwirkleRoutes.item.POST;

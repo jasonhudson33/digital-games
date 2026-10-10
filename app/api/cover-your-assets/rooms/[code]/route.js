@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { coverYourAssetsRoomStore } from "../../../../../lib/cover-your-assets-room-store.js";
+import { coverYourAssetsRoutes } from "../../../../../lib/cover-your-assets-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: coverYourAssetsRoomStore,
-  label: "Cover Your Assets",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = coverYourAssetsRoutes.item.GET;
+export const POST = coverYourAssetsRoutes.item.POST;

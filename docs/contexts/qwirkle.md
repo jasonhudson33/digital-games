@@ -10,7 +10,7 @@ Qwirkle is a room-based tile game for 2–4 players. Rooms can mix human players
 
 ## Room boundary
 
-`components/qwirkle-room-service.js` provides compare-and-set room updates, local caching, broadcast/poll subscriptions, and five-character room codes. `lib/qwirkle-room-store.js` stores rooms in the shared server-side table in production and an isolated in-memory namespace during local development.
+The rules run on the server (`lib/qwirkle-room-adapter.js` over `lib/qwirkle.js`): a seat sends named actions and receives only its own view, so other seats' racks and the tile bag are counts while the board, scores and last move are public. The server validates and scores every move. The host's browser asks for each computer turn with one `computerStep`. `lib/qwirkle-room-store.js` stores rooms in the shared server-side table in production and an isolated in-memory namespace during local development.
 
 ## User interface
 

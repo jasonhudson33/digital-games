@@ -18,9 +18,10 @@ computer players. A match spans scored rounds until one player passes $1,000,000
 
 ## Rooms
 
-`components/cover-your-assets-room-service.js` uses optimistic version checks and the shared
-`server_game_rooms` storage adapter. Local development falls back to an in-memory room store;
-configured deployments use Supabase server credentials.
+The rules run on the server (`lib/cover-your-assets-room-adapter.js` over `lib/cover-your-assets.js`)
+in the shared `server_game_rooms` storage, which falls back to memory in local development. A seat
+sends named actions and receives only its own view: other seats' hands and the draw pile are counts,
+the top of the discard pile is public, and so are stacks and cards played into a challenge.
 
-The room host is responsible for advancing computer decisions. A computer move is saved through the
-same room update path as a human move, including every counter or yield within an asset challenge.
+The room host's browser asks for each computer decision with one `computerStep`, including every
+counter or yield within an asset challenge.

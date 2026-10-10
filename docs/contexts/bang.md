@@ -21,3 +21,9 @@ BANG! owns hidden-role assignment, character abilities, distance and weapon rang
 
 > **Dev:** "Can a board where nobody can reach anybody run forever?"
 > **Domain expert:** "No, sixty quiet turns call it a draw."
+
+## Rooms
+
+- The rules run on the server (`lib/bang-room-adapter.js` over `lib/bang.js`). A seat sends named actions and receives only its own view.
+- Other seats' roles are hidden except the Sheriff, eliminated players and, once the game ends, everyone. Other seats' hands arrive as face-down placeholders (the browser needs the count to decide whether Panic and Cat Balou have a target), and the draw pile is a count.
+- Equipment and characters are public. A computer seat moves only when the host's browser asks for one `computerStep`.

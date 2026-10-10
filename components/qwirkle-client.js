@@ -6,38 +6,23 @@ import { QwirkleRoomService } from "./qwirkle-room-service";
 import {
   QWIRKLE_COLOR_INFO,
   QWIRKLE_SHAPE_INFO,
-  addComputerPlayer,
-  addPlayer,
   boardBounds,
-  createLobby,
   currentPlayer,
-  exchangeTiles,
   legalTargetsForTile,
-  playTiles,
   positionKey,
-  removeComputerPlayer,
-  runComputerTurn,
   scoreMove,
-  startGame,
   validateMove,
 } from "../lib/qwirkle";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "qwirkle-player-id";
-const playerNameKey = "qwirkle-player-name";
-const activeRoomKey = "qwirkle-active-room";
+/** Opponents' racks are not sent, only a count. */
+const rackSize = (player) => player.handCount ?? player.hand.length;
 
 export default function QwirkleClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: QwirkleRoomService,
-    storageKey: "qwirkle",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: 4,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: QwirkleRoomService, storageKey: "qwirkle" });
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [staged, setStaged] = useState([]);
   const [exchangeMode, setExchangeMode] = useState(false);
@@ -64,7 +49,7 @@ export default function QwirkleClient() {
     let cancelled = false;
     setThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setThinking(false); }
     }, 700);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -72,14 +57,13 @@ export default function QwirkleClient() {
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
-    localStorage.removeItem(activeRoomKey);
-    setRoom(null);
+    leaveEngineRoom();
     setStaged([]);
     setSelectedTileId(null);
   }
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)} onRemoveComputer={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)} onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
 
   const myTurn = room.phase === "playing" && activePlayer?.id === playerId;
   const bounds = displayedBounds(room, staged);
@@ -115,7 +99,7 @@ export default function QwirkleClient() {
     if (!exactValidation.valid) return;
     const placements = staged;
     clearTurn();
-    await update((current) => playTiles(current, playerId, placements));
+    await act("play", { placements });
   }
 
   async function commitExchange() {
@@ -123,7 +107,7 @@ export default function QwirkleClient() {
     const ids = exchangeIds;
     setExchangeIds([]);
     setExchangeMode(false);
-    await update((current) => exchangeTiles(current, playerId, ids));
+    await act("exchange", { tileIds: ids });
   }
 
   return <main className="qwirkle-game-shell">
@@ -138,8 +122,8 @@ export default function QwirkleClient() {
     <div className="qwirkle-layout">
       <aside className="qwirkle-sidebar">
         <div className="qwirkle-panel-heading"><p className="qwirkle-kicker">Scoreboard</p><h2>The table</h2></div>
-        <div className="qwirkle-player-list">{room.players.map((player) => <div key={player.id} className={`qwirkle-player ${activePlayer?.id === player.id ? "active" : ""} ${room.winners.includes(player.id) ? "winner" : ""}`} style={{ "--player": player.color }}><span>{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.hand.length} tiles</small></p><b>{player.score}<small>pts</small></b></div>)}</div>
-        <div className="qwirkle-bag"><Tile back /><p><strong>{room.bag.length}</strong><small>tiles in bag</small></p></div>
+        <div className="qwirkle-player-list">{room.players.map((player) => <div key={player.id} className={`qwirkle-player ${activePlayer?.id === player.id ? "active" : ""} ${room.winners.includes(player.id) ? "winner" : ""}`} style={{ "--player": player.color }}><span>{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{rackSize(player)} tiles</small></p><b>{player.score}<small>pts</small></b></div>)}</div>
+        <div className="qwirkle-bag"><Tile back /><p><strong>{room.bagCount}</strong><small>tiles in bag</small></p></div>
         <section className="qwirkle-log"><h3>Latest plays</h3>{room.log.slice(0, 7).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</section>
       </aside>
       <section className="qwirkle-board-panel">
@@ -161,7 +145,7 @@ export default function QwirkleClient() {
       </section>
     </div>
     <section className="qwirkle-rack">
-      <div className="qwirkle-rack-heading"><div><p className="qwirkle-kicker">Your rack</p><h2>{myTurn ? exchangeMode ? "Choose tiles to exchange" : "Shape your turn" : "Waiting for your turn"}</h2></div><div className="qwirkle-rack-actions">{exchangeMode ? <><button onClick={() => { setExchangeMode(false); setExchangeIds([]); }}>Cancel</button><button className="qwirkle-primary" disabled={!exchangeIds.length || exchangeIds.length > room.bag.length || busy} onClick={commitExchange}><RotateCcw /> Exchange {exchangeIds.length || ""}</button></> : <button disabled={!myTurn || busy || staged.length > 0 || room.bag.length === 0} onClick={() => { setExchangeMode(true); setSelectedTileId(null); }}><RotateCcw /> Exchange tiles</button>}</div></div>
+      <div className="qwirkle-rack-heading"><div><p className="qwirkle-kicker">Your rack</p><h2>{myTurn ? exchangeMode ? "Choose tiles to exchange" : "Shape your turn" : "Waiting for your turn"}</h2></div><div className="qwirkle-rack-actions">{exchangeMode ? <><button onClick={() => { setExchangeMode(false); setExchangeIds([]); }}>Cancel</button><button className="qwirkle-primary" disabled={!exchangeIds.length || exchangeIds.length > room.bagCount || busy} onClick={commitExchange}><RotateCcw /> Exchange {exchangeIds.length || ""}</button></> : <button disabled={!myTurn || busy || staged.length > 0 || room.bagCount === 0} onClick={() => { setExchangeMode(true); setSelectedTileId(null); }}><RotateCcw /> Exchange tiles</button>}</div></div>
       <div className="qwirkle-hand">{me.hand.map((tile) => { const placed = staged.some((placement) => placement.tileId === tile.id); const selected = selectedTileId === tile.id || exchangeIds.includes(tile.id); return <button key={tile.id} className={`${selected ? "selected" : ""} ${placed ? "placed" : ""}`} disabled={!myTurn || busy || placed} onClick={() => chooseTile(tile.id)} aria-label={`${QWIRKLE_COLOR_INFO[tile.color].name} ${QWIRKLE_SHAPE_INFO[tile.shape].name}`}><Tile tile={tile} /><small>{placed ? "On grid" : exchangeMode && exchangeIds.includes(tile.id) ? "Exchange" : QWIRKLE_SHAPE_INFO[tile.shape].name}</small></button>; })}</div>
       {myTurn && !exchangeMode && <p className="qwirkle-rack-tip">{!Object.keys(room.board).length ? `Opening play: place a matching set of exactly ${room.openingRequiredCount} tiles.` : selectedTile ? `${QWIRKLE_COLOR_INFO[selectedTile.color].name} ${QWIRKLE_SHAPE_INFO[selectedTile.shape].name} selected—choose a glowing grid space.` : staged.length ? "Add another matching tile or play the staged turn." : "Select a tile, then choose where it belongs on the grid."}</p>}
     </section>

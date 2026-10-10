@@ -1,5 +1,5 @@
 "use client";
 
-import { createCardGameRoomService } from "./card-game-room-service";
+import { createEngineRoomService } from "./engine-room-service.js";
 
-export const CoverYourAssetsRoomService = createCardGameRoomService("cover-your-assets", "Cover Your Assets");
+export const CoverYourAssetsRoomService = createEngineRoomService("cover-your-assets", "Cover Your Assets");

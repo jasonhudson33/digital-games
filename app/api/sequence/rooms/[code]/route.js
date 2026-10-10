@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { sequenceRoomStore } from "../../../../../lib/sequence-room-store.js";
+import { sequenceRoutes } from "../../../../../lib/sequence-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: sequenceRoomStore,
-  label: "Sequence",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = sequenceRoutes.item.GET;
+export const POST = sequenceRoutes.item.POST;

@@ -22,48 +22,28 @@ import { CoverYourAssetsRoomService } from "./cover-your-assets-room-service";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
-  addComputerPlayer,
-  addPlayer,
   canChallenge,
   cardDefinition,
   cardName,
-  createLobby,
   currentPlayer,
-  discardCard,
   eligibleTurnActions,
   formatMoney,
-  makePairFromDiscard,
-  makePairFromHand,
   matchingChallengeCards,
-  playChallengeCard,
-  removeComputerPlayer,
-  runComputerStep,
   setValue,
   stackValue,
-  startChallenge,
-  startGame,
-  startNextRound,
   topDiscard,
   topSet,
-  yieldChallenge,
 } from "../lib/cover-your-assets";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "cover-your-assets-player-id";
-const playerNameKey = "cover-your-assets-player-name";
-const activeRoomKey = "cover-your-assets-active-room";
+/** Opponents' hands are not sent, only a count. */
+const handSize = (player) => player.handCount ?? player.hand.length;
 
 export default function CoverYourAssetsClient() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: CoverYourAssetsRoomService,
-    storageKey: "cover-your-assets",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: MAX_PLAYERS,
-  });
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: CoverYourAssetsRoomService, storageKey: "cover-your-assets" });
   const [selected, setSelected] = useState([]);
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
@@ -91,7 +71,7 @@ export default function CoverYourAssetsClient() {
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
       try {
-        await update((current) => runComputerStep(current));
+        await stepComputer();
       } finally {
         if (!cancelled) setComputerThinking(false);
       }
@@ -104,9 +84,8 @@ export default function CoverYourAssetsClient() {
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
-    localStorage.removeItem(activeRoomKey);
     setSelected([]);
-    setRoom(null);
+    leaveEngineRoom();
   }
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
@@ -121,9 +100,9 @@ export default function CoverYourAssetsClient() {
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)}
-      onRemoveComputer={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)}
-      onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)}
+      onAddComputer={() => act("addComputer")}
+      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
       onLeave={leaveRoom}
       setShowRules={setShowRules}
     />;
@@ -155,7 +134,7 @@ export default function CoverYourAssetsClient() {
     </header>
 
     {error && <p className="cya-error" role="alert">{error}</p>}
-    {room.pendingChallenge && <ChallengeBanner room={room} me={me} busy={busy} selected={selected} toggleCard={toggleCard} onPlay={(cardId) => update((current) => playChallengeCard(current, playerId, cardId))} onYield={() => update((current) => yieldChallenge(current, playerId))} />}
+    {room.pendingChallenge && <ChallengeBanner room={room} me={me} busy={busy} selected={selected} toggleCard={toggleCard} onPlay={(cardId) => act("challengeCard", { cardId })} onYield={() => act("yield")} />}
 
     <div className="cya-table-grid">
       <aside className="cya-bank-panel">
@@ -164,12 +143,12 @@ export default function CoverYourAssetsClient() {
         <p className="cya-million-note">{formatMoney(Math.max(0, room.targetScore - me.score))} to millionaire</p>
         <div className="cya-deck-row">
           <CardFace back />
-          <div><strong>{room.deck.length}</strong><small>cards in draw pile</small></div>
+          <div><strong>{room.deckCount}</strong><small>cards in draw pile</small></div>
         </div>
         <div className="cya-discard-area">
           <span>Discard pile</span>
           {topDiscard(room) ? <CardFace card={topDiscard(room)} compact /> : <div className="cya-empty-card">Empty</div>}
-          {myTurn && canLiftDiscard && <button className="cya-small-action" disabled={busy} onClick={() => update((current) => makePairFromDiscard(current, playerId, selected[0]))}>Pair with discard</button>}
+          {myTurn && canLiftDiscard && <button className="cya-small-action" disabled={busy} onClick={() => act("pairFromDiscard", { handCardId: selected[0] })}>Pair with discard</button>}
         </div>
         <section className="cya-log"><h2>Vault chatter</h2>{room.log.slice(0, 7).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</section>
       </aside>
@@ -183,7 +162,7 @@ export default function CoverYourAssetsClient() {
           active={active?.id === player.id}
           canAttack={myTurn && canChallenge(room, playerId, player.id)}
           attackCard={selectedCards.length === 1 && matchingChallengeCards(me, topSet(player)?.asset).some((card) => card.id === selected[0]) ? selected[0] : null}
-          onAttack={(cardId) => update((current) => startChallenge(current, playerId, player.id, cardId))}
+          onAttack={(cardId) => act("startChallenge", { defenderId: player.id, cardId })}
         />)}
       </section>
     </div>
@@ -197,14 +176,14 @@ export default function CoverYourAssetsClient() {
         })}
       </div>
       {myTurn && <div className="cya-hand-actions">
-        <button className="cya-primary" disabled={busy || !canPair} onClick={() => update((current) => makePairFromHand(current, playerId, selected))}><HandCoins /> Bank selected pair</button>
-        <button className="cya-secondary" disabled={busy || selected.length !== 1} onClick={() => update((current) => discardCard(current, playerId, selected[0]))}>Discard selected</button>
+        <button className="cya-primary" disabled={busy || !canPair} onClick={() => act("pairFromHand", { cardIds: selected })}><HandCoins /> Bank selected pair</button>
+        <button className="cya-secondary" disabled={busy || selected.length !== 1} onClick={() => act("discard", { cardId: selected[0] })}>Discard selected</button>
         <p>{selected.length === 0 ? "Choose two matching assets, or one asset and a Wild." : selected.length === 1 ? "Choose a match, pair with the discard, challenge a top set, or discard." : canPair ? "This pair is ready to bank." : "Those cards do not make a pair."}</p>
       </div>}
     </section>
 
     {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-    {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} busy={busy} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
+    {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} busy={busy} onNext={() => act("nextRound")} onLeave={leaveRoom} />}
   </main>;
 }
 
@@ -249,7 +228,7 @@ function PlayerVault({ room, player, isMe, active, canAttack, attackCard, onAtta
   const visibleSets = player.stack.slice(-2);
   const firstVisibleIndex = player.stack.length - visibleSets.length;
   return <article className={`cya-vault ${isMe ? "mine" : ""} ${active ? "active" : ""}`}>
-    <header><span className="cya-player-avatar">{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{formatMoney(player.score)} total · {player.hand.length} cards</small></div><b>{formatMoney(stackValue(player))}</b></header>
+    <header><span className="cya-player-avatar">{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span><div><strong>{player.name}{isMe ? " (you)" : ""}</strong><small>{formatMoney(player.score)} total · {handSize(player)} cards</small></div><b>{formatMoney(stackValue(player))}</b></header>
     <div className="cya-stack-view">
       {!player.stack.length && <div className="cya-empty-vault"><Coins /><span>No assets yet</span></div>}
       {visibleSets.map((set, visibleIndex) => {

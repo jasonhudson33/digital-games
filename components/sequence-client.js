@@ -7,45 +7,26 @@ import {
   BOARD,
   TEAM_COLORS,
   VALID_PLAYER_COUNTS,
-  addComputerPlayer,
-  addPlayer,
   cardLabel,
   compatibleTeamCounts,
   completedForTeam,
-  createLobby,
   currentPlayer,
-  exchangeDeadCard,
   isDeadCard,
   isOneEyedJack,
   isProtectedChip,
   isTwoEyedJack,
   legalTargetsForCard,
-  playCard,
   positionKey,
-  removeComputerPlayer,
-  runComputerTurn,
   sequencesRequired,
-  setTeamCount,
-  startGame,
   teamPlayers,
 } from "../lib/sequence";
-import { useGameRoom } from "../lib/use-game-room.js";
-
-const playerIdKey = "sequence-player-id";
-const playerNameKey = "sequence-player-name";
-const activeRoomKey = "sequence-active-room";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
 export default function SequenceClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: SequenceRoomService,
-    storageKey: "sequence",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: 12,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: SequenceRoomService, storageKey: "sequence" });
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [computerThinking, setComputerThinking] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -61,7 +42,7 @@ export default function SequenceClient() {
     let cancelled = false;
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
-      try { await update((current) => runComputerTurn(current)); }
+      try { await stepComputer(); }
       finally { if (!cancelled) setComputerThinking(false); }
     }, 650);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -69,13 +50,12 @@ export default function SequenceClient() {
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
-    localStorage.removeItem(activeRoomKey);
     setSelectedCardId(null);
-    setRoom(null);
+    leaveEngineRoom();
   }
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)} onRemoveComputer={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)} onTeamCount={(count) => update((current) => current.hostId === playerId ? setTeamCount(current, count) : current)} onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onTeamCount={(count) => act("setTeamCount", { teamCount: count })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
 
   const activePlayer = currentPlayer(room);
   const myTurn = room.phase === "playing" && activePlayer?.id === playerId;
@@ -86,7 +66,7 @@ export default function SequenceClient() {
   async function chooseSpace(row, column) {
     if (!selectedCard || !targetKeys.has(positionKey(row, column))) return;
     setSelectedCardId(null);
-    await update((current) => playCard(current, playerId, selectedCard.id, row, column));
+    await act("play", { cardId: selectedCard.id, row, column });
   }
 
   return <main className="sequence-game-shell">
@@ -102,7 +82,7 @@ export default function SequenceClient() {
       <aside className="sequence-sidebar">
         <p className="sequence-kicker">Score</p><h2>Teams</h2>
         {Array.from({ length: room.teamCount }, (_, teamIndex) => <TeamPanel key={teamIndex} room={room} teamIndex={teamIndex} playerId={playerId} />)}
-        <div className="sequence-deck-status"><CardFace back /><div><strong>{room.deck.length}</strong><small>cards left</small></div></div>
+        <div className="sequence-deck-status"><CardFace back /><div><strong>{room.deckCount}</strong><small>cards left</small></div></div>
         <section className="sequence-log"><h3>Table talk</h3>{room.log.slice(0, 6).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</section>
       </aside>
       <section className="sequence-board-wrap">
@@ -122,7 +102,7 @@ export default function SequenceClient() {
         <p className="sequence-board-hint">{!myTurn ? "Watch the board while the next player chooses." : selectedCard ? isOneEyedJack(selectedCard.code) ? "Choose a black-outlined opponent chip to remove." : "Choose a black-outlined space for this card." : "Choose a card from your hand, then choose its board space."}</p>
       </section>
     </div>
-    <HandPanel room={room} me={me} myTurn={myTurn} selectedCardId={selectedCardId} setSelectedCardId={setSelectedCardId} busy={busy} onExchange={(cardId) => update((current) => exchangeDeadCard(current, playerId, cardId))} />
+    <HandPanel room={room} me={me} myTurn={myTurn} selectedCardId={selectedCardId} setSelectedCardId={setSelectedCardId} busy={busy} onExchange={(cardId) => act("exchange", { cardId })} />
     {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <FinishedModal room={room} me={me} onLeave={leaveRoom} />}
   </main>;

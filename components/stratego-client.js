@@ -3,45 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Check, CircleHelp, Copy, Flag, LogOut, RotateCcw, Shield, Shuffle, Swords, Users, X } from "lucide-react";
 import { StrategoRoomService } from "./stratego-room-service";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 import {
   BOARD_SIZE,
   STRATEGO_ARMY_SIZE,
   STRATEGO_PIECE_TYPES,
-  addStrategoComputer,
-  addStrategoPlayer,
-  autoPlaceStrategoArmy,
   capturedByPlayer,
-  clearStrategoDeployment,
-  createStrategoLobby,
   currentStrategoPlayer,
   deploymentCount,
   deploymentRows,
   isLake,
   legalStrategoMoves,
-  moveStrategoPiece,
   pieceAt,
   piecePosition,
-  placeStrategoPiece,
   positionKey,
   resolveStrategoCombat,
-  runStrategoComputerTurn,
-  setStrategoReady,
   unplacedPieces,
   visibleStrategoPiece,
 } from "../lib/stratego";
 
 export default function StrategoClient() {
   const {
-    room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, update, leaveRoom, copyRoomCode,
-  } = useGameRoom({
-    service: StrategoRoomService,
-    storageKey: "stratego",
-    createLobby: createStrategoLobby,
-    addPlayer: addStrategoPlayer,
-    maxPlayers: 2,
-  });
+    room, playerId, name, setName, joinCode, setJoinCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom, copyRoomCode,
+  } = useEngineRoom({ service: StrategoRoomService, storageKey: "stratego" });
   const [selectedPieceId, setSelectedPieceId] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [dismissedBattleAt, setDismissedBattleAt] = useState(null);
@@ -57,13 +42,13 @@ export default function StrategoClient() {
 
   useEffect(() => {
     if (!room || room.hostId !== playerId || !computerToAct || battleToShow) return undefined;
-    const timer = window.setTimeout(() => update((current) => runStrategoComputerTurn(current)), 850);
+    const timer = window.setTimeout(() => stepComputer(), 850);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleToShow?.at, computerToAct?.id, dismissedBattleAt, playerId, room?.updatedAt]);
 
   if (!room || !me) return <StrategoLanding {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <StrategoLobby room={room} me={me} busy={busy} error={error} onAddComputer={() => update((current) => current.hostId === playerId ? addStrategoComputer(current) : current)} onCopy={copyRoomCode} onLeave={leaveRoom} onRules={() => setShowRules(true)} />;
+  if (room.phase === "lobby") return <StrategoLobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onCopy={copyRoomCode} onLeave={leaveRoom} onRules={() => setShowRules(true)} />;
 
   async function chooseBoardSpace(row, column) {
     if (busy || !room) return;
@@ -72,7 +57,7 @@ export default function StrategoClient() {
     if (room.phase === "setup") {
       if (me.ready) return;
       if (selectedPieceId) {
-        await update((current) => placeStrategoPiece(current, playerId, selectedPieceId, row, column));
+        await act("place", { pieceId: selectedPieceId, row, column });
         setSelectedPieceId(null);
         return;
       }
@@ -84,7 +69,7 @@ export default function StrategoClient() {
     const target = targetKeys.get(positionKey(row, column));
     if (selectedPieceId && target) {
       setSelectedPieceId(null);
-      await update((current) => moveStrategoPiece(current, playerId, selectedPieceId, row, column));
+      await act("move", { pieceId: selectedPieceId, row, column });
       return;
     }
     if (occupant?.ownerId === playerId) {
@@ -101,17 +86,17 @@ export default function StrategoClient() {
 
   async function autoArrange() {
     setSelectedPieceId(null);
-    await update((current) => autoPlaceStrategoArmy(current, playerId));
+    await act("autoPlace");
   }
 
   async function clearArmy() {
     setSelectedPieceId(null);
-    await update((current) => clearStrategoDeployment(current, playerId));
+    await act("clear");
   }
 
   async function toggleReady() {
     setSelectedPieceId(null);
-    await update((current) => setStrategoReady(current, playerId, !me.ready));
+    await act("ready", { ready: !me.ready });
   }
 
   return <main className="stratego-game">
