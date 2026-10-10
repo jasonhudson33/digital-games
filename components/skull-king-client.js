@@ -120,16 +120,6 @@ export default function SkullKingClient() {
   }, [game]);
 
   useEffect(() => {
-    if (!game || game.phase !== "collecting") return undefined;
-    if (game.roomCode && !game.hostControls) return undefined;
-    const timer = window.setTimeout(() => {
-      if (game.roomCode) void roomAction("collectTrick");
-      else setGame((current) => collectSkullKingTrick(current));
-    }, 1250);
-    return () => window.clearTimeout(timer);
-  }, [game]);
-
-  useEffect(() => {
     if (!game || game.roomCode || game.phase !== "pirateAbility") return undefined;
     const ghostIndex = getSkullKingGhostIndex(game);
     if (game.pendingPirateAbility?.playerIndex !== ghostIndex && decisionControllerIndex(game, game.pendingPirateAbility?.playerIndex) === 0) return undefined;
@@ -429,7 +419,15 @@ export default function SkullKingClient() {
         <SkullKingTable
           game={game}
           viewerIndex={viewerPlayerIndex}
-          dock={game.phase === "bidding" && viewer.bid === null ? (
+          dock={game.phase === "collecting" ? (
+            <div className="tbl-felt-dock wide skull-bid-dock">
+              <h2>Trick complete</h2>
+              <p>Review the cards, then clear the trick to continue.</p>
+              <button type="button" className="skull-primary full" onClick={() => updateGame("collectTrick", {}, (current) => collectSkullKingTrick(current))}>
+                Clear trick
+              </button>
+            </div>
+          ) : game.phase === "bidding" && viewer.bid === null ? (
             /* The auction goes in the middle of the table and is gone the moment
                you lock, which is what the crew's chairs then say for you. */
             <div className="tbl-felt-dock wide skull-bid-dock">
@@ -1003,6 +1001,20 @@ function RulesDialog({ open, onClose, deckMode = "full" }) {
         <h2 id="skull-rules-title">Bid true. Take exactly that many tricks.</h2>
         <p><strong>{SKULL_KING_DECK_MODES[resolvedDeckMode].label}:</strong> {SKULL_KING_DECK_MODES[resolvedDeckMode].description}</p>
         <p>There are ten rounds. Round one deals one card to each player, round two deals two, and so on. The player left of the dealer leads; the trick winner leads next.</p>
+        <div className="deck-option-rules">
+          <strong>Choose your card set</strong>
+          <div>
+            {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => (
+              <article key={value} className={resolvedDeckMode === value ? "selected" : ""}>
+                <span>{value === "classic" ? "70 cards" : value === "mermaids" ? "74 cards" : "93 cards"}</span>
+                <h3>{mode.label}</h3>
+                <p>{mode.inventory}</p>
+                <small>Supports up to {mode.maxPlayers} captains.</small>
+              </article>
+            ))}
+          </div>
+          <p><b>Two-player games:</b> Graybeard&apos;s Ghost uses a third hand. Remove both Doubloons from every card set; All Cards also removes Wild Monkey 15, Walk the Plank, and all four 0/14 Choice cards.</p>
+        </div>
         <div className="rules-grid">
           <div><span className="rule-icon green">✶</span><strong>Four suits</strong><p>Follow the led suit when you can. Black trumps green, yellow, and purple. Specials may always be played.</p></div>
           <div><span className="rule-icon pirate">☠</span><strong>Royal hierarchy</strong><p>{hasMermaidsAndMonsters ? "Mermaids beat numbers and the Skull King. Pirates beat Mermaids. The Skull King beats Pirates—but is always lured by a Mermaid." : "Pirates beat numbered cards, and the Skull King beats every Pirate and numbered card."}</p></div>

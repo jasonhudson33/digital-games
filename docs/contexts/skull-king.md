@@ -34,9 +34,9 @@ Skull King owns ten-round trick bidding, three selectable card sets, four custom
 
 ## Deck inventory
 
-- **First Release**: 70 cards. It omits Mermaids, Kraken, White Whale, and every full-expansion card, so the Skull King is highest. Supports up to seven captains.
-- **Mermaids & Monsters**: 74 cards. It adds two Mermaids, Kraken, and White Whale to First Release. Supports up to seven captains.
-- **All Cards**: The complete 93-card deck and the only set large enough for eight or nine captains.
+- **First Release**: 70 cards: 56 numbered cards (1–14 in each suit), 5 Escapes, 2 Doubloons, the 5 original named Pirates, Tigress, and the Skull King. With no Mermaid, the Skull King is highest. Supports up to seven captains.
+- **Mermaids & Monsters**: 74 cards. It adds 2 Mermaids, Kraken, and White Whale to First Release. Supports up to seven captains.
+- **All Cards**: 93 cards. It adds duplicate 7s and 8s, four 0/14 Choice Cards, Wild Monkey 15, Mary Thorne, First Mate Con, Spotted Stingray, Walk the Plank, The Last Volley, and Davy Jones’ Locker. It is the only set large enough for eight or nine captains.
 
 - Four suits with standard ranks 1–14, one choice 0/14, and duplicate expansion 7 and 8 cards: 68 cards.
 - Wild Monkey 15: 1 card.

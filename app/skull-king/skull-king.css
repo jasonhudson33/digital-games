@@ -765,6 +765,17 @@
 
 .skull-rules-dialog { max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); overflow-y: auto; }
 .skull-rules-dialog > p:first-of-type { margin: 0 0 22px; }
+.deck-option-rules { margin: 18px 0; padding: 17px; border: 1px solid rgba(235,199,111,.14); border-radius: 16px; background: rgba(0,0,0,.12); }
+.deck-option-rules > strong { display: block; margin-bottom: 11px; color: var(--skull-gold); font-family: var(--font-ui); }
+.deck-option-rules > div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.deck-option-rules article { padding: 13px; border: 1px solid rgba(235,199,111,.1); border-radius: 12px; background: rgba(255,255,255,.035); }
+.deck-option-rules article.selected { border-color: rgba(228,184,75,.7); box-shadow: inset 0 0 0 1px rgba(228,184,75,.2); }
+.deck-option-rules article > span { color: #8fc7bb; font-size: .58rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.deck-option-rules h3 { margin: 6px 0; color: #e8dcc7; font-size: .82rem; }
+.deck-option-rules article p { margin: 0 0 9px; color: var(--sk-ink-rust-2); font-size: .68rem; line-height: 1.5; }
+.deck-option-rules article small { color: #958a79; font-size: .6rem; }
+.deck-option-rules > p { margin: 13px 0 0; color: #aa9e8c; font-size: .68rem; line-height: 1.5; }
+.deck-option-rules > p b { color: #d9c483; }
 .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .rules-grid > div { padding: 17px; border: 1px solid rgba(235,199,111,.11); border-radius: 15px; background: rgba(255,255,255,.035); }
 .rules-grid strong { display: block; margin: 9px 0 4px; font-size: .85rem; }
@@ -854,6 +865,7 @@
   .card-ability-content { grid-template-columns: 98px minmax(0, 1fr); gap: 16px; }
   .card-ability-content .ability-preview-card { width: 98px; }
   .rules-grid { grid-template-columns: 1fr; }
+  .deck-option-rules > div { grid-template-columns: 1fr; }
   .round-results > div { grid-template-columns: 32px 1fr auto auto; }
   .round-results small { grid-column: 2 / 3; grid-row: 2; }
   .dialog-actions { flex-direction: column; }
