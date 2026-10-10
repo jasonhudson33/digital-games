@@ -135,6 +135,20 @@ test("combat uses classic rank order and equal ranks remove both pieces", () => 
   });
 });
 
+test("moving into an equal-ranked piece removes both pieces from the board", () => {
+  let room = readyRoom();
+  room = { ...room, board: { "4:0": "red-captain-1", "3:0": "blue-captain-1", "0:0": "blue-scout-1" } };
+
+  room = moveStrategoPiece(room, "red", "red-captain-1", 3, 0);
+
+  assert.equal(pieceAt(room, 4, 0), null);
+  assert.equal(pieceAt(room, 3, 0), null);
+  assert.ok(room.captured.includes("red-captain-1"));
+  assert.ok(room.captured.includes("blue-captain-1"));
+  assert.equal(room.lastBattle.attackerSurvives, false);
+  assert.equal(room.lastBattle.defenderSurvives, false);
+});
+
 test("only a Miner defuses a Bomb and an attacking Spy defeats the Marshal", () => {
   assert.equal(resolveStrategoCombat(battlePiece("miner"), battlePiece("bomb")).attackerSurvives, true);
   assert.equal(resolveStrategoCombat(battlePiece("captain"), battlePiece("bomb")).defenderSurvives, true);
