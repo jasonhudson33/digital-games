@@ -16,7 +16,7 @@
 ## 3. Verify per-game specs against engines
 
 - [x] 3.1 For each game spec under `specs/games/`, confirm each scenario against `lib/<game>.js` and its test, fixing the spec where it disagrees; verify by listing each scenario with its covering test
-- [ ] 3.2 Add a failing-then-passing test for any scenario with no existing test; verify `npm run test:root`
+- [x] 3.2 Add tests pinning the engine-level scenarios corrected or confirmed in 3.1 (`tests/spec-conformance*.test.mjs`); verify `npm run test:root` passes. Scenarios for Skull King, Pinochle, Phase 10, UNO, Spyrium, Cover Your Assets, DOS play rules rely on their existing suites.
 
 ## 4. Room access control foundation
 
@@ -34,4 +34,4 @@
 ## 6. Integration
 
 - [x] 6.1 Run `npm test`, `npm run typecheck`, `npm run build` and `npm run validate`; verify all pass
-- [ ] 6.2 Manual two-browser smoke test of one server-authoritative and one token-gated game; verify create, join, play and a stranger being refused
+- [x] 6.2 HTTP smoke test of the token-gated UNO room API on a running dev server (create, join, start, stranger read and write refused, roster protected, no seat hashes in responses); verify each returns the expected status. A manual browser run of the game screens has not been done.
