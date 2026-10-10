@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { flip7RoomStore } from "../../../../../lib/flip-7-room-store.js";
+import { flip7Routes } from "../../../../../lib/flip-7-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: flip7RoomStore,
-  label: "Flip 7",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = flip7Routes.item.GET;
+export const POST = flip7Routes.item.POST;

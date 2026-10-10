@@ -37,16 +37,17 @@
 There are two room models here, and the difference decides whether a player can
 read a rival's hand.
 
-- **Server-authoritative, filtered per viewer.** **7-Up**, **Hand and Foot**,
-  **Killer Bunnies**, **Pinochle**, **Scum**, **Secret Hitler**, and **Skull
-  King** keep the whole game on the server. A request carries a seat token, the
+- **Server-authoritative, filtered per viewer.** **7-Up**, **DOS**, **Flip 7**,
+  **Hand and Foot**, **Killer Bunnies**, **Phase 10**, **Pinochle**, **Scum**,
+  **Secret Hitler**, **Skull King**, and **UNO** keep the whole game on the
+  server. A request carries a seat token, the
   server decides what that seat may see, and returns only that. Private hands
   and hidden roles stay private.
 
 - **Client-authoritative, fully readable.** Every other online game — **BANG!**,
-  **Catan**, **Cover Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Life**,
-  **Monopoly**, **No Thanks!**, **Phase 10**, **Qwirkle**, **Risk**, **Sequence**,
-  **Splendor**, **Spyrium**, **Stratego**, **Ticket to Ride**, **UNO**, and **Viticulture** —
+  **Catan**, **Cover Your Assets**, **Dominion**, **Five Crowns**, **Life**,
+  **Monopoly**, **No Thanks!**, **Qwirkle**, **Risk**, **Sequence**,
+  **Splendor**, **Spyrium**, **Stratego**, **Ticket to Ride**, and **Viticulture** —
   computes state in the browser and stores it whole. `GET`/`PUT` on
   `/api/<game>/rooms/<code>` read and replace the entire game object. Once a game
   has started, both need a seat token (`X-Seat-Token`, issued when a player

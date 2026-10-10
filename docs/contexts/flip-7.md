@@ -20,3 +20,9 @@ Flip 7 owns the press-your-luck draw loop, busting, action and modifier cards, a
 
 > **Dev:** "Two players tie at 210?"
 > **Domain expert:** "Another round settles it."
+
+## Rooms
+
+- The rules run on the server (`lib/flip-7-room-adapter.js` over `lib/flip-7.js`). A seat sends named actions and receives the shared table plus counts: the draw pile and discard pile are not sent, only their sizes.
+- The bust-risk percentage is computed on the server from the real draw pile and sent to each seat for its own line.
+- Only the host's browser asks for computer moves, one `computerStep` at a time.

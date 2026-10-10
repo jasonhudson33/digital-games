@@ -4,7 +4,7 @@
 
 - UNO is a private room game for 2–10 human or computer players with a host-selectable Classic UNO or UNO Flip ruleset.
 - The host creates a five-character room code, manages computer seats in the lobby, and deals each later round.
-- Room state uses the shared `server_game_rooms` storage through the `uno` namespace and client polling/broadcast sync.
+- The rules run on the server (`lib/uno-room-adapter.js` over `lib/uno.js`). A seat sends named actions and receives only its own view: other seats' hands and the draw pile are counts, a pending Wild Draw penalty does not say whether it was legal, and in UNO Flip only the face showing is sent. Rooms are stored in `server_game_rooms` under the `uno` namespace.
 
 ## Rules model
 
@@ -27,4 +27,4 @@
 ## Computer play
 
 - Computer players prefer legal high-value discards, select the active-side color most represented in their remaining hand, call UNO automatically, draw/pass correctly, and resolve Classic or Flip wild challenges.
-- Only the host advances computer actions, preventing multiple clients from racing the same bot turn.
+- Only the host's browser asks for computer moves, one `computerStep` at a time, so clients cannot race a bot turn and the table keeps its pause between computer moves.

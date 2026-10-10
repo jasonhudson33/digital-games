@@ -1,5 +1,5 @@
 "use client";
 
-import { createCardGameRoomService } from "./card-game-room-service";
+import { createEngineRoomService } from "./engine-room-service.js";
 
-export const Flip7RoomService = createCardGameRoomService("flip-7", "Flip 7");
+export const Flip7RoomService = createEngineRoomService("flip-7", "Flip 7");

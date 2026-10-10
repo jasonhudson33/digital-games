@@ -4,20 +4,26 @@ import { useEffect, useState } from "react";
 import { Bot, Check, CircleHelp, Crown, Layers3, Plus, Sparkles, Target, Users, X } from "lucide-react";
 
 import {
-  MAX_PLAYERS, MIN_PLAYERS, PHASES, addComputerPlayer, addPlayer, canHitGroup, currentPlayer,
-  createLobby, discardCard, drawCard, eligibleSkipTargets, findPhaseLayout, hitCard, layPhase,
-  removeComputerPlayer, runComputerTurn, startGame, startNextRound, takeDiscard,
+  MAX_PLAYERS, MIN_PLAYERS, PHASES, canHitGroup, currentPlayer, eligibleSkipTargets, findPhaseLayout,
 } from "../lib/phase-10";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, EntryCard, GameHeader, Lobby } from "./ui/table-shell";
 import { Phase10Card, Phase10CardBack } from "./phase-10-card";
 import { Phase10RoomService } from "./phase-10-room-service";
 
+/** Opponents' hands are not sent, only a count. */
+const handSize = (player) => player.handCount ?? player.hand.length;
+
 export default function Phase10Client() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, update, leaveRoom,
-  } = useGameRoom({ service: Phase10RoomService, storageKey: "phase-10", createLobby, addPlayer, maxPlayers: MAX_PLAYERS });
+    createRoom, joinRoom, act, leaveRoom,
+  } = useEngineRoom({
+    service: Phase10RoomService,
+    storageKey: "phase-10",
+    computerDelay: 480,
+    computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer),
+  });
   const [rulesOpen, setRulesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -26,19 +32,14 @@ export default function Phase10Client() {
   const myTurn = room?.phase === "playing" && actor?.id === playerId;
 
   useEffect(() => { setSelectedIds([]); }, [room?.currentPlayerIndex, room?.round]);
-  useEffect(() => {
-    if (room?.phase !== "playing" || room.hostId !== playerId || !actor?.isComputer) return undefined;
-    const timer = window.setTimeout(() => update((current) => runComputerTurn(current)), 480);
-    return () => window.clearTimeout(timer);
-  }, [room?.updatedAt, room?.phase, actor?.id, actor?.isComputer, playerId]);
 
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }} />;
   if (room.phase === "lobby") return (
     <div className="p10-theme">
       <Lobby
         gameName="Phase 10" room={room} me={me} busy={busy} error={error} min={MIN_PLAYERS} max={MAX_PLAYERS}
-        onAdd={() => update(addComputerPlayer)} onRemove={(id) => update((game) => removeComputerPlayer(game, id))}
-        onStart={() => update(startGame)} onLeave={leaveRoom} onRules={() => setRulesOpen(true)}
+        onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })}
+        onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setRulesOpen(true)}
         rules={rulesOpen ? <Rules onClose={() => setRulesOpen(false)} /> : null}
       />
     </div>
@@ -56,7 +57,7 @@ export default function Phase10Client() {
   }
 
   function discard(cardId, skipId = null) {
-    update((game) => discardCard(game, playerId, cardId, skipId));
+    act("discard", { cardId, skipPlayerId: skipId });
     setSelectedIds([]);
   }
 
@@ -85,10 +86,10 @@ export default function Phase10Client() {
         <section className="p10-table">
           <div className="p10-table-glow" aria-hidden="true" />
           <div className="p10-piles">
-            <button type="button" disabled={!myTurn || room.turnDrawn || busy} onClick={() => update((game) => drawCard(game, playerId))}>
-              <Phase10CardBack /><strong>Draw pile</strong><small>{room.deck.length} cards</small>
+            <button type="button" disabled={!myTurn || room.turnDrawn || busy} onClick={() => act("draw")}>
+              <Phase10CardBack /><strong>Draw pile</strong><small>{room.deckCount} cards</small>
             </button>
-            <button type="button" disabled={!myTurn || room.turnDrawn || busy || room.discard.at(-1)?.type === "skip"} onClick={() => update((game) => takeDiscard(game, playerId))}>
+            <button type="button" disabled={!myTurn || room.turnDrawn || busy || room.discard.at(-1)?.type === "skip"} onClick={() => act("takeDiscard")}>
               <Phase10Card card={room.discard.at(-1)} /><strong>Discard</strong><small>{room.discard.at(-1)?.type === "skip" ? "Skip cannot be picked up" : "Take top card"}</small>
             </button>
           </div>
@@ -102,7 +103,7 @@ export default function Phase10Client() {
                   <PhaseGroup
                     key={`${player.id}-${index}`} group={group}
                     selectedCard={myTurn && me.phaseLaid ? selectedCard : null}
-                    onHit={(side) => { update((game) => hitCard(game, playerId, selectedCard.id, player.id, index, side)); setSelectedIds([]); }}
+                    onHit={(side) => { act("hitCard", { cardId: selectedCard.id, targetPlayerId: player.id, groupIndex: index, side }); setSelectedIds([]); }}
                   />
                 ))}</div> : <div className="p10-awaiting"><Layers3 /> No phase laid yet</div>}
               </article>
@@ -118,7 +119,7 @@ export default function Phase10Client() {
         </div>
         {myTurn && room.turnDrawn && (
           <div className="p10-actions">
-            {!me.phaseLaid && <button type="button" className="p10-primary" disabled={!validPhase || busy} onClick={() => { update((game) => layPhase(game, playerId, selectedIds)); setSelectedIds([]); }}><Sparkles /> Lay down Phase {me.phaseNumber}</button>}
+            {!me.phaseLaid && <button type="button" className="p10-primary" disabled={!validPhase || busy} onClick={() => { act("layPhase", { cardIds: selectedIds }); setSelectedIds([]); }}><Sparkles /> Lay down Phase {me.phaseNumber}</button>}
             {me.phaseLaid && selectedCard && selectedCard.type !== "skip" && <span><Target /> Choose a highlighted phase group above to hit.</span>}
             {selectedCard?.type !== "skip" && <button type="button" className="p10-discard" disabled={!selectedCard || busy} onClick={() => discard(selectedCard.id)}>Discard selected</button>}
             {selectedCard?.type === "skip" && <div className="p10-skip-targets"><strong>Who loses a turn?</strong>{skipTargets.map((player) => <button type="button" disabled={busy} onClick={() => discard(selectedCard.id, player.id)} key={player.id}>{player.name}</button>)}</div>}
@@ -127,13 +128,13 @@ export default function Phase10Client() {
       </section>
 
       {rulesOpen && <Rules onClose={() => setRulesOpen(false)} />}
-      {(room.phase === "roundEnd" || room.phase === "finished") && <Results room={room} me={me} busy={busy} onNext={() => update((game) => startNextRound(game, playerId))} onLeave={leaveRoom} />}
+      {(room.phase === "roundEnd" || room.phase === "finished") && <Results room={room} me={me} busy={busy} onNext={() => act("nextRound")} onLeave={leaveRoom} />}
     </main>
   );
 }
 
 function PlayerProgress({ player, active, mine }) {
-  return <article className={`${active ? "active" : ""} ${mine ? "mine" : ""}`}><span>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{mine ? " (you)" : ""}</strong><small>{player.hand.length} cards · {player.score} pts</small></div><b>{player.phaseNumber}<small>/10</small></b></article>;
+  return <article className={`${active ? "active" : ""} ${mine ? "mine" : ""}`}><span>{player.isComputer ? <Bot /> : player.name[0]}</span><div><strong>{player.name}{mine ? " (you)" : ""}</strong><small>{handSize(player)} cards · {player.score} pts</small></div><b>{player.phaseNumber}<small>/10</small></b></article>;
 }
 
 function PhaseGroup({ group, selectedCard, onHit }) {

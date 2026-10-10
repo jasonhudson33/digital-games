@@ -19,7 +19,7 @@ npm run build
 
 ## Multiplayer storage
 
-Seven Up, Hand and Foot, Killer Bunnies, Pinochle, Scum, Secret Hitler, and Skull King store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
+Seven Up, DOS, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Scum, Secret Hitler, Skull King, and UNO store private, server-authoritative rooms in Supabase. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
 
 ```bash
 SUPABASE_URL=

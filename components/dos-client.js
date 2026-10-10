@@ -7,17 +7,15 @@ import { CardBack, ColorGameCard, cardName } from "./color-game-card";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import { DosRoomService } from "./dos-room-service";
 import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
-import {
-  MAX_PLAYERS, MIN_PLAYERS, addComputerPlayer, addPlayer, callDos, catchDos, createLobby, currentPlayer,
-  drawCard, endTurn, matchOptions, placeCenterCard, playMatch, removeComputerPlayer, runComputerStep,
-  startGame, startNextRound,
-} from "../lib/dos";
+import { MAX_PLAYERS, MIN_PLAYERS, currentPlayer, matchOptions } from "../lib/dos";
 
-const keys = { id: "dos-player-id", name: "dos-player-name", room: "dos-active-room" };
+const keys = { name: "dos-player-name", room: "dos-active-room" };
+
+/** Opponents' hands are not sent, only a count. */
+const handSize = (player) => player.cardCount ?? player.cards.length;
 
 export default function DosClient() {
   const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,15 +25,14 @@ export default function DosClient() {
   const [selectedHand, setSelectedHand] = useState([]);
 
   useEffect(() => {
-    const storedId = localStorage.getItem(keys.id) || crypto.randomUUID();
-    localStorage.setItem(keys.id, storedId);
-    setPlayerId(storedId);
     setName(localStorage.getItem(keys.name) || "");
     const activeCode = localStorage.getItem(keys.room);
     if (activeCode) DosRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
+      if (loaded) setRoom(loaded);
+    }).catch(() => localStorage.removeItem(keys.room));
   }, []);
+
+  const playerId = room?.viewerId || "";
 
   useEffect(() => room?.roomCode ? DosRoomService.subscribe(room.roomCode, (next) => setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current)) : undefined, [room?.roomCode]);
   useEffect(() => { setSelectedCenter(null); setSelectedHand([]); }, [room?.currentPlayerIndex, room?.turn?.matchedCount, room?.turn?.placementRemaining]);
@@ -49,7 +46,7 @@ export default function DosClient() {
 
   useEffect(() => {
     if (!room || room.hostId !== playerId || !computerToAct) return undefined;
-    const timer = window.setTimeout(() => update((current) => runComputerStep(current)), 650);
+    const timer = window.setTimeout(() => stepComputer(), 650);
     return () => window.clearTimeout(timer);
   }, [room?.updatedAt, computerToAct?.id, playerId]);
 
@@ -61,8 +58,7 @@ export default function DosClient() {
   async function createRoom() {
     if (!name.trim()) return setError("Enter your name first.");
     await withBusy(async () => {
-      const code = await DosRoomService.createCode();
-      remember(await DosRoomService.save(createLobby({ id: playerId, name: name.trim() }, code)));
+      remember((await DosRoomService.create(name.trim())).state);
     });
   }
 
@@ -70,20 +66,29 @@ export default function DosClient() {
     if (!name.trim() || !joinCode.trim()) return setError("Enter your name and a room code.");
     await withBusy(async () => {
       const code = joinCode.trim().toUpperCase();
-      const loaded = await DosRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= MAX_PLAYERS) throw new Error("That room is full.");
-        remember(await DosRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else remember(loaded);
+      if (DosRoomService.hasSeat(code)) {
+        const loaded = await DosRoomService.load(code);
+        if (!loaded) throw new Error("That room could not be found.");
+        remember(loaded);
+      } else {
+        remember((await DosRoomService.join(code, name.trim())).state);
+      }
     });
   }
 
-  async function update(action) {
+  async function act(action, args) {
     if (!room) return null;
     return withBusy(async () => {
-      const next = await DosRoomService.update(room.roomCode, action);
+      const next = await DosRoomService.action(room.roomCode, action, args);
+      if (next) setRoom(next);
+      return next;
+    });
+  }
+
+  async function stepComputer() {
+    if (!room) return null;
+    return withBusy(async () => {
+      const next = await DosRoomService.computerStep(room.roomCode);
       if (next) setRoom(next);
       return next;
     });
@@ -94,7 +99,7 @@ export default function DosClient() {
 
   const me = room?.players.find((player) => player.id === playerId) || null;
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby gameName="DOS" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} onAdd={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)} onRemove={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)} onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
+  if (room.phase === "lobby") return <Lobby gameName="DOS" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
 
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId;
@@ -135,7 +140,7 @@ export default function DosClient() {
         {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
       </aside>
 
-      {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchDos(current, playerId))}>Catch missed DOS — make them draw 2</button>}
+      {canCatch && <button type="button" className="tbl-catch" onClick={() => act("catchDos")}>Catch missed DOS — make them draw 2</button>}
 
       <section className="tbl-hand-zone">
         <header className="tbl-hand-header">
@@ -143,14 +148,14 @@ export default function DosClient() {
             <p>Your hand</p>
             <strong>{me.cards.length} cards · {me.score} points</strong>
           </div>
-          <button type="button" className={`tbl-call${me.dosSafe ? " is-armed" : ""}`} disabled={me.cards.length !== 2 || me.dosSafe} onClick={() => update((current) => callDos(current, playerId))}>
+          <button type="button" className={`tbl-call${me.dosSafe ? " is-armed" : ""}`} disabled={me.cards.length !== 2 || me.dosSafe} onClick={() => act("callDos")}>
             DOS{me.dosSafe ? " called!" : "!"}
           </button>
         </header>
 
         <div className="tbl-hand">
           {me.cards.map((held) => (
-            <ColorGameCard key={held.id} card={held} selected={selectedHand.includes(held.id)} disabled={busy || !myTurn} onClick={myTurn ? () => mustPlace ? update((current) => placeCenterCard(current, playerId, held.id)) : toggleHand(held.id) : undefined} label={`${cardName(held)}${mustPlace ? ", place in center" : ""}`} />
+            <ColorGameCard key={held.id} card={held} selected={selectedHand.includes(held.id)} disabled={busy || !myTurn} onClick={myTurn ? () => mustPlace ? act("placeCenterCard", { cardId: held.id }) : toggleHand(held.id) : undefined} label={`${cardName(held)}${mustPlace ? ", place in center" : ""}`} />
           ))}
         </div>
 
@@ -167,9 +172,9 @@ export default function DosClient() {
                     <p>{selectedHand.length && selectedCenter ? "Those cards do not match. Try another combination." : "Select cards to build a match, or draw if you want to pass."}</p>
                   )}
                 </div>
-                <button type="button" className="tbl-primary" disabled={busy || !selectedOption} onClick={() => update((current) => playMatch(current, playerId, selectedOption.id))}>Play match</button>
-                <button type="button" className="tbl-secondary" disabled={busy || room.turn.drawn || room.turn.matchedCount > 0} onClick={() => update((current) => drawCard(current, playerId))}>Draw one</button>
-                {canEnd && <button type="button" className="tbl-secondary" disabled={busy} onClick={() => update((current) => endTurn(current, playerId))}>{room.turn.matchedCount ? "End turn" : "Add a card & end"}</button>}
+                <button type="button" className="tbl-primary" disabled={busy || !selectedOption} onClick={() => act("playMatch", { optionId: selectedOption.id })}>Play match</button>
+                <button type="button" className="tbl-secondary" disabled={busy || room.turn.drawn || room.turn.matchedCount > 0} onClick={() => act("draw")}>Draw one</button>
+                {canEnd && <button type="button" className="tbl-secondary" disabled={busy} onClick={() => act("endTurn")}>{room.turn.matchedCount ? "End turn" : "Add a card & end"}</button>}
               </>
             )}
           </div>
@@ -177,7 +182,7 @@ export default function DosClient() {
       </section>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
+      {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => act("nextRound")} onLeave={leaveRoom} />}
     </main>
   );
 }
@@ -191,8 +196,8 @@ function DosTable({ room, viewerId, active }) {
       viewerIndex={viewerIndex < 0 ? 0 : viewerIndex}
       className="dos-felt"
       middle={(
-        <b className="tbl-felt-mark" title={`${room.deck.length} left in the draw pile`}>
-          {room.deck.length}
+        <b className="tbl-felt-mark" title={`${room.deckCount} left in the draw pile`}>
+          {room.deckCount}
         </b>
       )}
       foot={(
@@ -213,7 +218,7 @@ function DosTable({ room, viewerId, active }) {
                 name={player.name}
                 avatar={player.isComputer ? <Bot size={14} /> : player.name.slice(0, 1).toUpperCase()}
                 note={`${player.score} pts`}
-                hand={player.cards.length}
+                hand={handSize(player)}
                 tone={active?.id === player.id ? "turn" : ""}
                 marks={[
                   spot.index === room.dealerIndex && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
@@ -221,7 +226,7 @@ function DosTable({ room, viewerId, active }) {
                   room.missedDosPlayerId === player.id && { key: "miss", label: "!", title: `${player.name} missed DOS`, tone: "out" },
                 ].filter(Boolean)}
               >
-                <span className="tbl-chair-pill">{player.cards.length} {player.cards.length === 1 ? "card" : "cards"}</span>
+                <span className="tbl-chair-pill">{handSize(player)} {handSize(player) === 1 ? "card" : "cards"}</span>
               </Seat>
             );
           })}

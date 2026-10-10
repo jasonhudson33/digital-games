@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { dosRoomStore } from "../../../../../lib/dos-room-store.js";
+import { dosRoutes } from "../../../../../lib/dos-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: dosRoomStore,
-  label: "DOS",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = dosRoutes.item.GET;
+export const POST = dosRoutes.item.POST;

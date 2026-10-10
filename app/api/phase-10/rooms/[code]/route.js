@@ -1,11 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { phase10RoomStore } from "../../../../../lib/phase-10-room-store.js";
+import { phase10Routes } from "../../../../../lib/phase-10-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: phase10RoomStore,
-  label: "Phase 10",
-  validate: (state) => state.game === "phase-10",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = phase10Routes.item.GET;
+export const POST = phase10Routes.item.POST;

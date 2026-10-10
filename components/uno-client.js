@@ -8,16 +8,16 @@ import { Seat, SeatedTable } from "./ui/seated-table";
 import { UnoRoomService } from "./uno-room-service";
 import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
 import {
-  MAX_PLAYERS, MIN_PLAYERS, addComputerPlayer, addPlayer, cardFace, catchUno, chooseOpeningColor,
-  colorsForGame, createLobby, currentPlayer, drawCard, isPlayable, passAfterDraw, playCard,
-  removeComputerPlayer, resolveDrawFour, runComputerStep, setRuleset, startGame, startNextRound, topDiscard,
+  MAX_PLAYERS, MIN_PLAYERS, cardFace, colorsForGame, currentPlayer, isPlayable, topDiscard,
 } from "../lib/uno";
 
-const keys = { id: "uno-player-id", name: "uno-player-name", room: "uno-active-room" };
+const keys = { name: "uno-player-name", room: "uno-active-room" };
+
+/** Opponents' hands are not sent, only a count. */
+const handSize = (player) => player.cardCount ?? player.cards.length;
 
 export default function UnoClient() {
   const [room, setRoom] = useState(null);
-  const [playerId, setPlayerId] = useState("");
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,15 +27,14 @@ export default function UnoClient() {
   const [unoArmed, setUnoArmed] = useState(false);
 
   useEffect(() => {
-    const storedId = localStorage.getItem(keys.id) || crypto.randomUUID();
-    localStorage.setItem(keys.id, storedId);
-    setPlayerId(storedId);
     setName(localStorage.getItem(keys.name) || "");
     const activeCode = localStorage.getItem(keys.room);
     if (activeCode) UnoRoomService.load(activeCode).then((loaded) => {
-      if (loaded?.players.some((player) => player.id === storedId)) setRoom(loaded);
-    }).catch(() => {});
+      if (loaded) setRoom(loaded);
+    }).catch(() => localStorage.removeItem(keys.room));
   }, []);
+
+  const playerId = room?.viewerId || "";
 
   useEffect(() => room?.roomCode ? UnoRoomService.subscribe(room.roomCode, (next) => setRoom((current) => !current || Number(next.updatedAt || 0) >= Number(current.updatedAt || 0) ? next : current)) : undefined, [room?.roomCode]);
 
@@ -50,15 +49,14 @@ export default function UnoClient() {
 
   useEffect(() => {
     if (!room || room.hostId !== playerId || !computerToAct) return undefined;
-    const timer = window.setTimeout(() => update((current) => runComputerStep(current)), 680);
+    const timer = window.setTimeout(() => stepComputer(), 680);
     return () => window.clearTimeout(timer);
   }, [room?.updatedAt, computerToAct?.id, playerId]);
 
   async function createRoom() {
     if (!name.trim()) return setError("Enter your name first.");
     await withBusy(async () => {
-      const code = await UnoRoomService.createCode();
-      remember(await UnoRoomService.save(createLobby({ id: playerId, name: name.trim() }, code)));
+      remember((await UnoRoomService.create(name.trim())).state);
     });
   }
 
@@ -66,13 +64,13 @@ export default function UnoClient() {
     if (!name.trim() || !joinCode.trim()) return setError("Enter your name and a room code.");
     await withBusy(async () => {
       const code = joinCode.trim().toUpperCase();
-      const loaded = await UnoRoomService.load(code);
-      if (!loaded) throw new Error("That room could not be found.");
-      if (!loaded.players.some((player) => player.id === playerId)) {
-        if (loaded.phase !== "lobby") throw new Error("That game has already started.");
-        if (loaded.players.length >= MAX_PLAYERS) throw new Error("That room is full.");
-        remember(await UnoRoomService.update(code, (current) => addPlayer(current, { id: playerId, name: name.trim() })));
-      } else remember(loaded);
+      if (UnoRoomService.hasSeat(code)) {
+        const loaded = await UnoRoomService.load(code);
+        if (!loaded) throw new Error("That room could not be found.");
+        remember(loaded);
+      } else {
+        remember((await UnoRoomService.join(code, name.trim())).state);
+      }
     });
   }
 
@@ -81,10 +79,19 @@ export default function UnoClient() {
     try { return await action(); } catch (caught) { setError(caught.message); return null; } finally { setBusy(false); }
   }
 
-  async function update(action) {
+  async function act(action, args) {
     if (!room) return null;
     return withBusy(async () => {
-      const next = await UnoRoomService.update(room.roomCode, action);
+      const next = await UnoRoomService.action(room.roomCode, action, args);
+      if (next) setRoom(next);
+      return next;
+    });
+  }
+
+  async function stepComputer() {
+    if (!room) return null;
+    return withBusy(async () => {
+      const next = await UnoRoomService.computerStep(room.roomCode);
       if (next) setRoom(next);
       return next;
     });
@@ -109,16 +116,16 @@ export default function UnoClient() {
           <strong>{ruleset === "flip" ? "UNO Flip" : "Classic UNO"}</strong>
         </div>
         <div className="tbl-ruleset-options">
-          <button type="button" className={ruleset === "classic" ? "is-selected" : ""} disabled={!isHost || busy} onClick={() => update((current) => setRuleset(current, "classic"))}>
+          <button type="button" className={ruleset === "classic" ? "is-selected" : ""} disabled={!isHost || busy} onClick={() => act("setRuleset", { ruleset: "classic" })}>
             Classic<small>One side · familiar actions</small>
           </button>
-          <button type="button" className={ruleset === "flip" ? "is-selected" : ""} disabled={!isHost || busy} onClick={() => update((current) => setRuleset(current, "flip"))}>
+          <button type="button" className={ruleset === "flip" ? "is-selected" : ""} disabled={!isHost || busy} onClick={() => act("setRuleset", { ruleset: "flip" })}>
             UNO Flip<small>Light + dark double-sided deck</small>
           </button>
         </div>
       </section>
     );
-    return <Lobby gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} settings={settings} onAdd={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)} onRemove={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)} onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
+    return <Lobby gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} settings={settings} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
   }
 
   const active = currentPlayer(room);
@@ -132,7 +139,7 @@ export default function UnoClient() {
   const darkSide = flipMode && room.side === "dark";
 
   function play(held, color) {
-    update((current) => playCard(current, playerId, held.id, { color, calledUno: unoArmed }));
+    act("play", { cardId: held.id, color, calledUno: unoArmed });
     setWildCardId(null); setUnoArmed(false);
   }
 
@@ -145,7 +152,7 @@ export default function UnoClient() {
         <UnoTable room={room} viewerId={playerId} active={active} darkSide={darkSide} flipMode={flipMode} />
       </section>
 
-      {canCatch && <button type="button" className="tbl-catch" onClick={() => update((current) => catchUno(current, playerId))}>Catch missed UNO — make them draw 2</button>}
+      {canCatch && <button type="button" className="tbl-catch" onClick={() => act("catchUno")}>Catch missed UNO — make them draw 2</button>}
 
       <section className="tbl-hand-zone">
         <header className="tbl-hand-header">
@@ -169,8 +176,8 @@ export default function UnoClient() {
 
         {myTurn && (
           <div className="tbl-actions">
-            <button type="button" className="tbl-secondary" disabled={busy || Boolean(room.drawnCardId)} onClick={() => update((current) => drawCard(current, playerId))}>Draw one</button>
-            {room.drawnCardId && <button type="button" className="tbl-secondary" disabled={busy} onClick={() => update((current) => passAfterDraw(current, playerId))}>{drawn && isPlayable(room, drawn, me) ? "Keep card & pass" : "Pass turn"}</button>}
+            <button type="button" className="tbl-secondary" disabled={busy || Boolean(room.drawnCardId)} onClick={() => act("draw")}>Draw one</button>
+            {room.drawnCardId && <button type="button" className="tbl-secondary" disabled={busy} onClick={() => act("pass")}>{drawn && isPlayable(room, drawn, me) ? "Keep card & pass" : "Pass turn"}</button>}
           </div>
         )}
       </section>
@@ -180,10 +187,10 @@ export default function UnoClient() {
         {room.log.slice(0, 5).map((line, index) => <span className="tbl-log-line" key={`${line}-${index}`}>{line}</span>)}
       </aside>
 
-      {(wildCardId || mustChooseOpening) && <ColorChooser colors={colorsForGame(room)} onChoose={(color) => mustChooseOpening ? update((current) => chooseOpeningColor(current, playerId, color)) : play(me.cards.find((held) => held.id === wildCardId), color)} onClose={mustChooseOpening ? null : () => setWildCardId(null)} />}
-      {mustResolveFour && <ChoiceModal title={penaltyTitle(room.pendingDrawFour)} text={penaltyExplanation(room.pendingDrawFour)} actions={<><button type="button" className="tbl-primary" onClick={() => update((current) => resolveDrawFour(current, playerId, false))}>{penaltyAcceptLabel(room.pendingDrawFour)}</button><button type="button" className="tbl-secondary" onClick={() => update((current) => resolveDrawFour(current, playerId, true))}>Challenge</button></>} />}
+      {(wildCardId || mustChooseOpening) && <ColorChooser colors={colorsForGame(room)} onChoose={(color) => mustChooseOpening ? act("chooseOpeningColor", { color }) : play(me.cards.find((held) => held.id === wildCardId), color)} onClose={mustChooseOpening ? null : () => setWildCardId(null)} />}
+      {mustResolveFour && <ChoiceModal title={penaltyTitle(room.pendingDrawFour)} text={penaltyExplanation(room.pendingDrawFour)} actions={<><button type="button" className="tbl-primary" onClick={() => act("resolveDrawFour", { challenge: false })}>{penaltyAcceptLabel(room.pendingDrawFour)}</button><button type="button" className="tbl-secondary" onClick={() => act("resolveDrawFour", { challenge: true })}>Challenge</button></>} />}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
+      {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} onNext={() => act("nextRound")} onLeave={leaveRoom} />}
     </main>
   );
 }
@@ -209,7 +216,7 @@ function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
       middle={top && (
         <div className="tbl-felt-discard">
           <ColorGameCard card={cardFace(room, top)} dark={darkSide} small />
-          <span className="tbl-felt-discard-count" title={`${room.deck.length} left in the draw pile`}>{room.deck.length}</span>
+          <span className="tbl-felt-discard-count" title={`${room.deckCount} left in the draw pile`}>{room.deckCount}</span>
         </div>
       )}
       foot={(
@@ -232,14 +239,14 @@ function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
                 name={player.name}
                 avatar={player.isComputer ? <Bot size={14} /> : player.name.slice(0, 1).toUpperCase()}
                 note={`${player.score} pts`}
-                hand={player.cards.length}
+                hand={handSize(player)}
                 tone={active?.id === player.id ? "turn" : ""}
                 marks={[
                   spot.index === room.dealerIndex && { key: "deal", label: "D", title: "Dealer", tone: "deal" },
                   flipMode && player.id === room.lastPlayerId && { key: "side", label: room.side === "dark" ? "●" : "○", title: `${room.side} side`, tone: "lead" },
                 ].filter(Boolean)}
               >
-                <span className="tbl-chair-pill">{player.cards.length} {player.cards.length === 1 ? "card" : "cards"}</span>
+                <span className="tbl-chair-pill">{handSize(player)} {handSize(player) === 1 ? "card" : "cards"}</span>
               </Seat>
             );
           })}

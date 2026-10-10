@@ -1,10 +1,4 @@
-import { createClientRoomRoute } from "../../../../../lib/client-room-route.js";
-import { unoRoomStore } from "../../../../../lib/uno-room-store.js";
+import { unoRoutes } from "../../../../../lib/uno-engine-room.js";
 
-const handlers = createClientRoomRoute({
-  store: unoRoomStore,
-  label: "UNO",
-});
-
-export const GET = handlers.GET;
-export const PUT = handlers.PUT;
+export const GET = unoRoutes.item.GET;
+export const POST = unoRoutes.item.POST;

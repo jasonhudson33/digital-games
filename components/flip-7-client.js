@@ -24,40 +24,21 @@ import { Flip7RoomService } from "./flip-7-room-service";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
-  addComputerPlayer,
-  addPlayer,
   calculateRoundScore,
-  chooseActionTarget,
-  createLobby,
   currentPlayer,
-  flipCard,
   hasSecondChance,
   numberCards,
-  removeComputerPlayer,
-  riskPercent,
-  runComputerStep,
-  startGame,
-  startNextRound,
-  stay,
   targetOptions,
 } from "../lib/flip-7";
-import { useGameRoom } from "../lib/use-game-room.js";
+import { useEngineRoom } from "../lib/use-engine-room.js";
 
-const playerIdKey = "flip-7-player-id";
-const playerNameKey = "flip-7-player-name";
 const activeRoomKey = "flip-7-active-room";
 
 export default function Flip7Client() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, setBusy, error, setError, createRoom, joinRoom, update,
-  } = useGameRoom({
-    service: Flip7RoomService,
-    storageKey: "flip-7",
-    createLobby: createLobby,
-    addPlayer: addPlayer,
-    maxPlayers: MAX_PLAYERS,
-  });
+    busy, error, createRoom, joinRoom, act, stepComputer,
+  } = useEngineRoom({ service: Flip7RoomService, storageKey: "flip-7" });
   const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
 
@@ -77,7 +58,7 @@ export default function Flip7Client() {
     setComputerThinking(true);
     const timer = window.setTimeout(async () => {
       try {
-        await update((current) => runComputerStep(current));
+        await stepComputer();
       } finally {
         if (!cancelled) setComputerThinking(false);
       }
@@ -106,9 +87,9 @@ export default function Flip7Client() {
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => update((current) => current.hostId === playerId ? addComputerPlayer(current) : current)}
-      onRemoveComputer={(id) => update((current) => current.hostId === playerId ? removeComputerPlayer(current, id) : current)}
-      onStart={() => update((current) => current.hostId === playerId ? startGame(current) : current)}
+      onAddComputer={() => act("addComputer")}
+      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
       onLeave={leaveRoom}
       onRules={() => setShowRules(true)}
       showRules={showRules}
@@ -144,7 +125,7 @@ export default function Flip7Client() {
     {myChoice && <section className="f7-target-banner">
       <div><p className="f7-kicker">Action card</p><h2>{targetPrompt(room.pendingTarget.action)}</h2></div>
       <div className="f7-target-options">
-        {options.map((player) => <button key={player.id} disabled={busy} onClick={() => update((current) => chooseActionTarget(current, playerId, player.id))}>
+        {options.map((player) => <button key={player.id} disabled={busy} onClick={() => act("chooseTarget", { targetId: player.id })}>
           {player.isComputer ? <Bot /> : <Users />}<span>{player.name}{player.id === playerId ? " (you)" : ""}<small>{calculateRoundScore(player)} showing</small></span>
         </button>)}
       </div>
@@ -162,24 +143,24 @@ export default function Flip7Client() {
         <small>{Math.max(0, room.targetScore - me.score)} to the finish</small>
       </aside>
 
-      <div className="f7-deck-stage" aria-label={`${room.deck.length} cards left in the deck`}>
+      <div className="f7-deck-stage" aria-label={`${room.deckCount} cards left in the deck`}>
         <div className="f7-deck-shadow shadow-two" /><div className="f7-deck-shadow shadow-one" />
-        <div className="f7-card f7-card-back"><span>FLIP</span><b>7</b><small>{room.deck.length} cards</small></div>
+        <div className="f7-card f7-card-back"><span>FLIP</span><b>7</b><small>{room.deckCount} cards</small></div>
       </div>
 
       <aside className="f7-table-log"><p className="f7-kicker">Table talk</p>{room.log.slice(0, 6).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</aside>
     </section>
 
     {room.phase === "playing" && <section className={`f7-decision-dock ${myTurn ? "ready" : ""}`}>
-      <div><p className="f7-kicker">Your line</p><strong>{calculateRoundScore(me)} points</strong><span>{numberCards(me).length}/7 unique numbers · {riskPercent(room, me)}% visible-deck bust risk</span></div>
+      <div><p className="f7-kicker">Your line</p><strong>{calculateRoundScore(me)} points</strong><span>{numberCards(me).length}/7 unique numbers · {room.riskPercent}% visible-deck bust risk</span></div>
       <div className="f7-decision-buttons">
-        <button className="f7-stay-button" disabled={busy || !myTurn} onClick={() => update((current) => stay(current, playerId))}><Hand /> Stay <small>Bank {calculateRoundScore(me)}</small></button>
-        <button className="f7-flip-button" disabled={busy || !myTurn} onClick={() => update((current) => flipCard(current, playerId))}><Flame /> Flip <small>Press your luck</small></button>
+        <button className="f7-stay-button" disabled={busy || !myTurn} onClick={() => act("stay")}><Hand /> Stay <small>Bank {calculateRoundScore(me)}</small></button>
+        <button className="f7-flip-button" disabled={busy || !myTurn} onClick={() => act("flip")}><Flame /> Flip <small>Press your luck</small></button>
       </div>
     </section>}
 
     {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-    {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} busy={busy} onNext={() => update((current) => startNextRound(current, playerId))} onLeave={leaveRoom} />}
+    {(room.phase === "roundEnd" || room.phase === "finished") && <RoundModal room={room} me={me} busy={busy} onNext={() => act("nextRound")} onLeave={leaveRoom} />}
   </main>;
 }
 

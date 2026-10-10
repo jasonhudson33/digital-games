@@ -14,6 +14,6 @@ Phase 10 provides the classic ten-phase rummy race for two to six human or compu
 
 ## Boundaries
 
-- `components/phase-10-client.js` renders private hands and translates player choices into pure engine actions.
-- `components/phase-10-room-service.js` uses the shared optimistic room service.
-- `lib/phase-10-room-store.js` persists room state through the shared server room store.
+- `lib/phase-10-room-adapter.js` runs the engine on the server behind the shared engine room (`lib/engine-room.js`). A seat sends named actions and receives only its own view: other seats' hands and the draw pile are counts, only the top discard is sent, and laid phases are public. A computer takes its whole turn in one host-requested `computerStep`.
+- `components/phase-10-client.js` renders the seat view and sends actions through `lib/use-engine-room.js`.
+- `components/phase-10-room-service.js` is the engine room service; `lib/phase-10-room-store.js` persists rooms through the shared server room store.

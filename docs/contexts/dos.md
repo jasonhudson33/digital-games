@@ -4,7 +4,7 @@
 
 - DOS is the original 2018 center-row game for 2–4 human or computer players.
 - The host creates a five-character room code, manages computer seats, and starts rounds.
-- Room state uses the shared `server_game_rooms` storage through the `dos` namespace and client polling/broadcast sync.
+- The rules run on the server (`lib/dos-room-adapter.js` over `lib/dos.js`). A seat sends named actions and receives only its own view: other seats' hands, the draw pile and the discard pile are counts, while the center row is public. Rooms are stored in `server_game_rooms` under the `dos` namespace.
 
 ## Rules model
 
@@ -19,4 +19,4 @@
 ## Computer play
 
 - Computer players favor matches that shed two cards and earn color bonuses, call DOS, complete required center placements, and otherwise draw/place legally.
-- Only the host advances computer actions.
+- Only the host's browser asks for computer moves, one `computerStep` at a time.

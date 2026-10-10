@@ -28,7 +28,7 @@
 ## 5. Roll out per game
 
 - [x] 5.1 Send and store seat tokens in the shared card-game room service used by all 18 token-gated games; verify with a two-browser service test (create, join, start, stranger refused)
-- [ ] 5.2 (Deferred to a follow-up change: needs server-side game engines, see design decision 2) Hide opponents' private cards from other seats; verify each game with a test that an opponent's hand is absent from another seat's GET
+- [ ] 5.2 (Deferred to a follow-up change; since done for UNO, DOS, Flip 7 and Phase 10 by `server-authoritative-hand-games`: needs server-side game engines, see design decision 2) Hide opponents' private cards from other seats; verify each game with a test that an opponent's hand is absent from another seat's GET
 - [x] 5.3 Confirm host-driven computer turns still work under token gating; verify with a route test where the host token drives a computer seat through a started game
 
 ## 6. Integration
