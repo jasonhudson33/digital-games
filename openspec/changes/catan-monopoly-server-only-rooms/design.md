@@ -19,7 +19,7 @@ Both services already contain two code paths: a Supabase path (used when `NEXT_P
 
 **2. Poll-only subscription.** The poll interval already used by every other game (1.2 s, backing off when quiet, paused on hidden tabs) replaces realtime. The latency is the same as the other twenty-four games. A new `lib/room-sync.js` holds a `subscribeToRoomState` with the poll and broadcast parts only and the same call signature, so the two services change only their import.
 
-**3. One migration that revokes and drops.** It drops the three policies per table, revokes the grants, removes both tables from `supabase_realtime` (guarded so it succeeds when they are already absent) and drops the tables. Dropping is safe because nothing reads these tables after the code change and rooms live 24 hours. Rollback is reverting the code and re-running the original migrations, which recreate empty tables.
+**3. One migration that drops the tables.** `drop table if exists` removes each table together with its policies, grants and realtime publication membership, so no separate revoke or publication statements are needed, and it succeeds when the tables are already gone. Dropping is safe because nothing reads these tables after the code change and rooms live 24 hours. Rollback is reverting the code and re-running the original migrations, which recreate empty tables.
 
 **4. Deploy order: code, then migration.** Browsers running the old bundle would fail once the tables are gone, so the migration runs after the new code is live and players have reloaded; a stale tab shows the existing "could not save the room" error. This is documented in the migration's header and the README.
 

@@ -47,9 +47,10 @@ player can read a rival's hand.
   and hidden roles stay private.
 
 - **Client-authoritative, fully readable.** Only **Catan** and **Monopoly** still
-  compute state in the browser. Each keeps its own browser-side Supabase tables
-  (with an in-memory route for local development), so a room code gives read and
-  write access to the whole game, with no seat tokens. See
+  compute state in the browser. They store it whole through `GET`/`PUT` on
+  `/api/<game>/rooms/<code>` (server-only storage, no database access from the
+  browser, changes arrive by polling), so anyone holding a room code can read and
+  replace that room. See
   [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how
   the other games moved off this model.
 

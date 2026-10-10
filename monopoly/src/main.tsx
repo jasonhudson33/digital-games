@@ -76,7 +76,7 @@ import {
   useGetOutOfJailFree
 } from './game';
 import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
-import { isOnlineSyncEnabled, RoomService } from './roomService';
+import { RoomService } from './roomService';
 import { GameState, Player, PlayerColor, PlayerPiece, Space } from './types';
 const storagePlayerId = 'monopoly-player-id';
 const storagePlayerName = 'monopoly-player-name';
@@ -217,11 +217,7 @@ export default function App() {
       return;
     }
     if (!existing) {
-      setError(
-        isOnlineSyncEnabled
-          ? `Room ${code} was not found.`
-          : `Room ${code} was not found. Online room sync is not configured, so both players must use the same running local server.`
-      );
+      setError(`Room ${code} was not found.`);
       return;
     }
     const returningPlayer = existing.players.find((player) => player.id === playerId);
@@ -2358,9 +2354,6 @@ function calculateImprovedRent(baseRent: number, improvementLevel: number) {
 
 function roomErrorMessage(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : '';
-  if (message.includes('monopoly_rooms') || message.includes('schema cache')) {
-    return 'Monopoly room storage is not set up in Supabase. Run the Monopoly database migration, then try again.';
-  }
   return message ? `${fallback} ${message}` : fallback;
 }
 

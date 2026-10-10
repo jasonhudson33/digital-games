@@ -11,7 +11,7 @@ The games moved are UNO, DOS, Flip 7, Phase 10, BANG!, Cover Your Assets, Five C
 
 ## Consequences
 
-- Every online game except Catan and Monopoly is server-authoritative. Catan and Monopoly use their own browser-side Supabase tables and are neither token-gated nor server-run; locking them down needs Supabase row-level security changes.
+- Every online game except Catan and Monopoly is server-authoritative. Catan and Monopoly used browser-side Supabase tables that anyone with the public key could list and overwrite; they now go only through their room routes, so the tables were dropped and the browser holds no database client. They are still whole-state rooms protected only by the room code. Closing that needs server-side rules for the two games.
 - A player who clears their browser storage loses their seat.
 - If the host's browser closes, computer players stall until the host returns.
 - Rooms created before each game moved cannot be resumed; they expired within 24 hours.

@@ -1,4 +1,4 @@
-import { getConfiguredSupabaseClient, isSupabaseConfigured, subscribeToRoomState } from '../../lib/supabase-room-sync';
+import { subscribeToRoomState } from '../../lib/room-sync.js';
 import { migrateMonopolyRoomState } from './stateMigrations';
 import { GameState } from './types';
 
@@ -7,75 +7,31 @@ type Updater = (state: GameState) => GameState;
 
 const channelName = 'monopoly-room-updates';
 
-export const isOnlineSyncEnabled = isSupabaseConfigured();
-
+/**
+ * Monopoly rooms are read and written only through /api/monopoly/rooms/<code>.
+ * The browser holds no database client, and other players' changes arrive by
+ * polling that route (see lib/room-sync.js).
+ */
 export const RoomService = {
   async save(state: GameState) {
-    const supabase = await getConfiguredSupabaseClient();
-    if (!supabase) {
-      await saveLocalRoom(state);
-      cacheRoom(state);
-      return;
-    }
-
-    const { error } = await supabase.from('monopoly_rooms').upsert({
-      code: state.roomCode,
-      state,
-      updated_at: new Date().toISOString()
-    });
-    if (error) throw error;
+    await saveLocalRoom(state);
     cacheRoom(state);
   },
 
   async update(roomCode: string, updater: Updater): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
-    const supabase = await getConfiguredSupabaseClient();
-    if (!supabase) {
-      for (let attempt = 0; attempt < 4; attempt += 1) {
-        const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
-        if (!current) return null;
-        const updated = updater(current);
-        if (updated === current) return current;
-        const next = migrateMonopolyRoomState({
-          ...updated,
-          updatedAt: Math.max(Date.now(), current.updatedAt + 1)
-        });
-        if (await saveLocalRoom(next, current.updatedAt)) {
-          cacheRoom(next);
-          return next;
-        }
-      }
-      throw new Error('The room changed while this action was being saved. Please try again.');
-    }
-
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      const { data: loaded, error: loadError } = await supabase
-        .from('monopoly_rooms')
-        .select('state')
-        .eq('code', code)
-        .maybeSingle();
-      if (loadError) throw loadError;
-      if (!loaded?.state) return null;
-
-      const current = migrateMonopolyRoomState(loaded.state as GameState);
-      const next = updater(current);
-      if (next === current) {
-        cacheRoom(current);
-        return current;
-      }
-
-      const { data: saved, error: saveError } = await supabase
-        .from('monopoly_rooms')
-        .update({ state: next, updated_at: new Date().toISOString() })
-        .eq('code', code)
-        .eq('state->>updatedAt', String(current.updatedAt))
-        .select('state')
-        .maybeSingle();
-      if (saveError) throw saveError;
-      if (saved?.state) {
-        const normalized = migrateMonopolyRoomState(saved.state as GameState);
-        cacheRoom(normalized);
-        return normalized;
+      const current = await loadLocalRoom(code) ?? loadCachedRoom(code);
+      if (!current) return null;
+      const updated = updater(current);
+      if (updated === current) return current;
+      const next = migrateMonopolyRoomState({
+        ...updated,
+        updatedAt: Math.max(Date.now(), current.updatedAt + 1)
+      });
+      if (await saveLocalRoom(next, current.updatedAt)) {
+        cacheRoom(next);
+        return next;
       }
     }
 
@@ -84,13 +40,6 @@ export const RoomService = {
 
   async load(roomCode: string): Promise<GameState | null> {
     const code = roomCode.trim().toUpperCase();
-    const supabase = await getConfiguredSupabaseClient();
-    if (supabase) {
-      const { data, error } = await supabase.from('monopoly_rooms').select('state').eq('code', code).maybeSingle();
-      if (error) throw error;
-      return data?.state ? migrateMonopolyRoomState(data.state as GameState) : null;
-    }
-
     const localRoom = await loadLocalRoom(code);
     if (localRoom) return localRoom;
 
@@ -98,10 +47,8 @@ export const RoomService = {
   },
 
   subscribe(roomCode: string, handler: Handler) {
-    return subscribeToRoomState({
+    return subscribeToRoomState<GameState>({
       roomCode,
-      table: 'monopoly_rooms',
-      channelPrefix: 'monopoly',
       broadcastName: channelName,
       load: (code) => RoomService.load(code),
       migrate: migrateMonopolyRoomState,
