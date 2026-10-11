@@ -18,6 +18,7 @@ import { Bot, CircleHelp, Copy, DoorOpen, LogOut, Sparkles, Users, X } from "luc
  * which stopped being accurate the moment this became shared.
  */
 
+/** @param {Record<string, any>} props */
 export function EntryCard({
   gameName,
   name,
@@ -29,7 +30,7 @@ export function EntryCard({
   busy,
   error,
   onRules,
-  localPlay,
+  extra,
 }) {
   return (
     <section className="tbl-entry" data-layout="entry">
@@ -49,15 +50,11 @@ export function EntryCard({
         />
       </label>
 
+      {extra}
+
       <button type="button" className="tbl-primary" disabled={busy} onClick={createRoom}>
         <Users aria-hidden="true" /> Create a room
       </button>
-
-      {localPlay && (
-        <button type="button" className="tbl-secondary tbl-local-play" disabled={busy} onClick={localPlay.onPlay}>
-          <Bot aria-hidden="true" /> {localPlay.label ?? "Play against computers"}
-        </button>
-      )}
 
       <p className="tbl-or">or join a room</p>
 
@@ -125,19 +122,19 @@ export function Hero({ kicker, title, copy, badges = [], art, artLayout = "fan",
  * @param {import("react").ReactNode} props.hero      usually <Hero />
  * @param {object} props.entry         name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error
  * @param {() => void} [props.onRules]
- * @param {{ onPlay: () => void, label?: string }} [props.localPlay]  offered only by games playable without a room
  * @param {import("react").ReactNode} [props.dialogs]   rules and other dialogs
  */
-export function Landing({ gameName, theme = "", hero, entry, onRules, localPlay, dialogs }) {
+export function Landing({ gameName, theme = "", hero, entry, onRules, dialogs }) {
   return (
     <main className={`tbl-landing ${theme}`.trim()} data-layout="landing">
       <section className="tbl-hero">{hero}</section>
-      <EntryCard gameName={gameName} {...entry} onRules={onRules} localPlay={localPlay} />
+      <EntryCard gameName={gameName} {...entry} onRules={onRules} />
       {dialogs}
     </main>
   );
 }
 
+/** @param {Record<string, any>} props */
 export function Lobby({
   gameName,
   theme = "",
@@ -151,6 +148,7 @@ export function Lobby({
   seatNote,
   canStart,
   autoStart,
+  canRemove = true,
   onAdd,
   onRemove,
   onStart,
@@ -205,7 +203,7 @@ export function Lobby({
                   {player.isComputer ? "Computer" : "Human"}
                 </small>
               </div>
-              {isHost && player.isComputer ? (
+              {isHost && canRemove && player.isComputer ? (
                 <button
                   type="button"
                   className="tbl-seat-remove"
@@ -264,6 +262,7 @@ export function Lobby({
   );
 }
 
+/** @param {Record<string, any>} props */
 export function GameHeader({ title, room, status, subtitle, actions, onRules, onLeave }) {
   return (
     <header className="tbl-game-header" data-layout="game-bar">
@@ -306,6 +305,8 @@ const noop = () => {};
  * title-and-text layout built on it.
  *
  * @param {object} props
+ * @param {import("react").ReactNode} [props.children]
+ * @param {boolean} [props.wide]
  * @param {string} [props.label]        accessible name when the content has no heading
  * @param {string} [props.labelledBy]   id of the heading inside the content
  * @param {string} [props.className]    the game's own classes for its content
@@ -340,6 +341,7 @@ export function Dialog({ label, labelledBy, className = "", onClose, wide = fals
   );
 }
 
+/** @param {Record<string, any>} props */
 export function ChoiceModal({ title, text, actions, children, onClose, wide = false }) {
   return (
     <Dialog label={typeof title === "string" ? title : undefined} onClose={onClose} wide={wide}>
@@ -377,6 +379,7 @@ export function Results({ title, text, rows = [], children }) {
   );
 }
 
+/** @param {Record<string, any>} props */
 export function RoundModal({ room, me, onNext, onLeave }) {
   const winner = room.players.find((player) => player.id === (room.winnerId || room.roundWinnerId));
   const finished = room.phase === "finished";

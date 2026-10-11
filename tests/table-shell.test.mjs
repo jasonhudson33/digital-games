@@ -26,18 +26,9 @@ test("landing renders the hero, then create, then join", () => {
   assert.ok(create > 0 && join > create, "Create a room comes before the room code field");
 });
 
-test("landing offers local play only when the game provides it", () => {
-  const without = render(shell.Landing, { gameName: "Test", hero: hero(), entry });
-  assert.doesNotMatch(without, /Play against computers/);
-
-  const withLocal = render(shell.Landing, { gameName: "Test", hero: hero(), entry, localPlay: { onPlay() {} } });
-  assert.match(withLocal, /Play against computers/);
-  assert.ok(withLocal.indexOf("Play against computers") < withLocal.indexOf('placeholder="ROOM CODE"'));
-});
-
-test("local play uses the game's own label when it gives one", () => {
-  const html = render(shell.Landing, { gameName: "Test", hero: hero(), entry, localPlay: { onPlay() {}, label: "Deal me in" } });
-  assert.match(html, /Deal me in/);
+test("landing has no separate local-play option", () => {
+  const html = render(shell.Landing, { gameName: "Test", hero: hero(), entry });
+  assert.doesNotMatch(html, /Play against computers|local/i);
 });
 
 const room = {

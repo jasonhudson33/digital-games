@@ -1,7 +1,7 @@
 # games/hearts Specification
 
 ## Purpose
-Defines Hearts in Classic (3–4 players) and Killer (5–8 players) variants, played in one browser against computer players with no shared rooms.
+Defines Hearts in Classic (3–4 players) and Killer (5–8 players) variants, played in a server-authoritative room where the host adds computer players in the lobby.
 
 ## Requirements
 

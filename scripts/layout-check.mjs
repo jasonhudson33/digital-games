@@ -13,14 +13,19 @@
 /** Parts every game must show, in the order the audit meets them. */
 export const LAYOUT_PARTS = ["entry", "lobby", "game-bar", "dialog"];
 
-/** Games with no rooms, so no lobby is expected. */
-export const NO_LOBBY = ["hearts"];
 
 /** Games not yet moved onto the shared components. */
-export const UNMIGRATED = [
-  "hearts", "mafia", "monopoly",
-  "seven-up",
-];
+export const UNMIGRATED = [];
+
+/**
+ * Parts the audit cannot reach for a migrated game, with the reason. Mafia keeps
+ * its rooms in Supabase through the browser, so without that project's keys the
+ * audit stops at the landing; its lobby and game bar are covered by
+ * tests/mafia-layout.test.mjs instead.
+ */
+export const UNREACHABLE = {
+  mafia: ["lobby", "game-bar"],
+};
 
 /**
  * @param {string} slug
@@ -29,9 +34,9 @@ export const UNMIGRATED = [
  *   missing: required parts the game did not show
  *   stale:   the game is allowlisted but already complete
  */
-export function checkLayout(slug, seen, unmigrated = UNMIGRATED) {
-  const shown = new Set(seen);
-  const required = LAYOUT_PARTS.filter((part) => !(part === "lobby" && NO_LOBBY.includes(slug)));
+export function checkLayout(slug, seen, unmigrated = UNMIGRATED, unreachable = UNREACHABLE) {
+  const shown = new Set([...seen, ...(unreachable[slug] ?? [])]);
+  const required = LAYOUT_PARTS;
   const missing = required.filter((part) => !shown.has(part));
   const allowlisted = unmigrated.includes(slug);
   return {

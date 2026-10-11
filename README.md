@@ -26,8 +26,7 @@ Every game renders its landing, lobby, game bar and dialogs through `components/
 <Landing gameName="Flip 7" theme="tbl-light flip-7-theme"
   hero={<Hero kicker=".." title={<>Flip.<br /><em>Don&apos;t flop.</em></>} copy=".." badges={[{ icon: Users, label: "2–10 players" }]} art={cards} />}
   entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
-  onRules={openRules} dialogs={showRules && <RulesModal />}
-  localPlay={{ onPlay }} />        {/* only for games playable without a room */}
+  onRules={openRules} dialogs={showRules && <RulesModal />} />
 
 // Lobby: room code + copy, seats, computer controls, Start, Leave
 <Lobby gameName=".." theme=".." room={room} me={me} min={2} max={10}
@@ -71,7 +70,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable. In-memory storage is used only during local development when the server credentials are absent. Rooms expire after 24 hours and are cleaned up opportunistically.
 
-Every online game except Mafia and Hearts runs its rules on the server, so each seat receives only its own view and every move is checked there (see [CONTEXT-MAP.md](./CONTEXT-MAP.md)). There is no browser database access for room state, and a room's code alone does not let anyone read or replace it.
+Every online game except Mafia runs its rules on the server, so each seat receives only its own view and every move is checked there (see [CONTEXT-MAP.md](./CONTEXT-MAP.md)). There is no browser database access for room state, and a room's code alone does not let anyone read or replace it.
 
 Camel Up uses that engine-room path: the race, pyramid dice and computer choices stay on the server, while each seat view masks other players' finish-card colors until final scoring.
 

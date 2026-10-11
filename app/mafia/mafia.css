@@ -36,13 +36,13 @@
     box-sizing: border-box;
   }
 
-  .mafia-route input[type="text"] {
+  .mafia-route input[type="text"]:not(.tbl-entry input, .tbl-lobby input) {
     background-color: rgba(2, 6, 23, 0.6) !important;
     color: #f8fafc !important;
     border-color: #334155 !important;
   }
 
-  .mafia-route input[type="text"]::placeholder {
+  .mafia-route input[type="text"]:not(.tbl-entry input, .tbl-lobby input)::placeholder {
     color: #94a3b8 !important;
   }
 
@@ -68,4 +68,15 @@
   .mafia-route {
     padding: 20px 12px;
   }
+}
+
+/* Mafia's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.mafia-theme {
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+  --on-accent: #ffffff;
+  --tbl-hue: 265;
+  --tbl-accent-hue: 90;
 }

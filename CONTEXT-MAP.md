@@ -2,7 +2,7 @@
 
 ## Contexts
 
-- [7-Up](./docs/contexts/seven-up.md) - Classic card play with local seats, computer players, and shared online rooms.
+- [7-Up](./docs/contexts/seven-up.md) - Classic card play in shared online rooms, with computer players added by the host.
 - [BANG!](./docs/contexts/bang.md) - Draw fast in a hidden-role western showdown with friends or computer gunslingers.
 - [Catan](./docs/contexts/catan.md) - Settle a randomized island, gather resources, trade with the bank, and race to ten victory points.
 - [Cover Your Assets](./docs/contexts/cover-your-assets.md) - Pair a fortune, cover your stack, and challenge exposed assets with friends or computer rivals.
@@ -39,7 +39,7 @@ player can read a rival's hand.
 
 - **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Catan**, **Cover
   Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and
-  Foot**, **Killer Bunnies**, **Life**, **Monopoly**, **No Thanks!**, **Phase 10**, **Pinochle**,
+  Foot**, **Hearts**, **Killer Bunnies**, **Life**, **Monopoly**, **No Thanks!**, **Phase 10**, **Pinochle**,
   **Qwirkle**, **Risk**, **Scum**, **Secret Hitler**, **Sequence**, **Skull King**,
   **Splendor**, **Spyrium**, **Stratego**, **Ticket to Ride**, **UNO**, and
   **Viticulture** keep the whole game on the server. A request carries a seat token, the
@@ -49,8 +49,6 @@ player can read a rival's hand.
 - No game keeps its state in the browser any more. See
   [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how the
   games moved off that model.
-
-- **Hearts** has no shared rooms: it runs in one browser against computer players.
 
 - **Mafia** uses a separate token-validated Supabase RPC model because roles and
   intents are private.

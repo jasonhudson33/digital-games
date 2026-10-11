@@ -187,7 +187,11 @@ try {
         report("lobby", await page.evaluate(inspect, MIN_TEXT), errors, seen);
         await shot(page, slug, vp, "lobby");
 
-        if (slug === "mafia") continue; // needs Supabase
+        if (slug === "mafia") {
+          // Rooms need Supabase keys; check the landing's Rules dialog and stop.
+          await openRules(page, seen);
+          continue;
+        }
 
         await page.locator("input").first().fill("Tester").catch(() => {});
         await page.getByRole("button", { name: CREATE }).first().click({ timeout: 15000 });

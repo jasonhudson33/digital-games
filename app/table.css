@@ -140,6 +140,7 @@
 
 .tbl-hero,
 .tbl-entry {
+  color: var(--ink);
   position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -498,6 +499,7 @@
 }
 
 .tbl-lobby > section {
+  color: var(--ink);
   padding: clamp(var(--sp-6), 5vw, 50px);
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
@@ -720,10 +722,15 @@
 }
 
 .tbl-game-title {
+  flex: 1 1 120px;
   margin-right: auto;
+  min-width: 0;
 }
 
 .tbl-game-title p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   color: var(--muted);
   font-size: 0.66rem;
@@ -1631,17 +1638,12 @@
 /* The hero fan, dealt with the real <playing-card> element rather than the
    .tbl-card divs UNO and DOS fan out — so it needs its own positioning. Height
    is left to the element so the face keeps its own proportions. */
-.seven-up-hero-fan playing-card {
-  position: absolute;
+.seven-up-theme .tbl-hero-fan playing-card {
   display: block;
   width: 125px;
   height: auto;
   filter: drop-shadow(0 22px 35px rgba(0, 0, 0, .32));
 }
-
-.seven-up-hero-fan playing-card:nth-child(1) { left: 0; top: 28px; rotate: -18deg; }
-.seven-up-hero-fan playing-card:nth-child(2) { left: 95px; top: 0; rotate: -1deg; }
-.seven-up-hero-fan playing-card:nth-child(3) { left: 190px; top: 25px; rotate: 17deg; }
 
 /* Felt-shell offset for the two games that use the shared shell without a
    dedicated stylesheet of their own — see the seated table below. */

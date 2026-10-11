@@ -1,7 +1,7 @@
 # platform/server-authoritative-rooms Specification
 
 ## Purpose
-Defines the room model for games with private information (7-Up, BANG!, Catan, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Stratego, Ticket to Ride, UNO, Viticulture, Life, No Thanks!, Monopoly), where the server holds the whole game and each seat sees only its own view.
+Defines the room model for games with private information (7-Up, BANG!, Catan, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Hearts, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Stratego, Ticket to Ride, UNO, Viticulture, Life, No Thanks!, Monopoly), where the server holds the whole game and each seat sees only its own view.
 
 ## Requirements
 

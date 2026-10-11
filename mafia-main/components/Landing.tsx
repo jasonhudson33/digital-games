@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import Button from './Button';
+import { Landing as SharedLanding, Hero } from '../../components/ui/table-shell';
+import MafiaRules from './MafiaRules';
 
 interface LandingProps {
   initialName?: string;
@@ -9,70 +10,47 @@ interface LandingProps {
   connectionReady?: boolean;
 }
 
+/** Mafia's landing: the shared entry card, wired to its Supabase room calls. */
 const Landing: React.FC<LandingProps> = ({ initialName = '', onCreate, onJoin, connectionError, connectionReady = false }) => {
   const [name, setName] = useState(initialName);
   const [code, setCode] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [hint, setHint] = useState('');
+
+  const create = () => {
+    if (!name.trim()) return setHint('Enter your name first.');
+    setHint('');
+    onCreate(name);
+  };
+  const join = () => {
+    if (!name.trim() || code.trim().length < 4) return setHint('Enter your name and a room code.');
+    setHint('');
+    onJoin(name, code.trim());
+  };
 
   return (
-    <div className="max-w-md mx-auto bg-slate-900/50 p-8 rounded-3xl border border-slate-800 backdrop-blur-md shadow-2xl animate-in fade-in zoom-in duration-500">
-      <div className="text-center mb-10">
-        <div className="w-20 h-20 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/30">
-          <svg className="w-10 h-10 text-indigo-400" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12S6.48 22 12 22 22 17.52 22 12 17.52 2 12 2M12 20C7.59 20 4 16.41 4 12S7.59 4 12 4 20 7.59 20 12 16.41 20 12 20M11 7H13V13H11V7M11 15H13V17H11V15Z" />
-          </svg>
-        </div>
-        <h2 className="text-3xl font-serif font-bold text-white mb-2">Welcome, Stranger</h2>
-        <p className="text-slate-400">Enter your name to step into the shadows.</p>
-      </div>
-
-      <div className="space-y-6">
-        {connectionError ? (
-          <div className="rounded-xl border border-red-500/40 bg-red-950/50 p-4 text-sm text-red-200" role="alert">
-            {connectionError}
-          </div>
-        ) : !connectionReady ? (
-          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-center text-sm text-slate-400">
-            Connecting to the game server…
-          </div>
-        ) : null}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Your Identity</label>
-          <input
-            type="text"
-            placeholder="e.g. Inspector Noir"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full bg-slate-950/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-          />
-        </div>
-
-        {!isJoining ? (
-          <div className="space-y-3">
-            <Button fullWidth onClick={() => onCreate(name)} disabled={!name.trim() || !connectionReady}>Create New Room</Button>
-            <Button fullWidth variant="ghost" onClick={() => setIsJoining(true)} disabled={!connectionReady}>Join Existing Room</Button>
-          </div>
-        ) : (
-          <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Room Code</label>
-              <input
-                type="text"
-                placeholder="4-CHAR CODE"
-                maxLength={4}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full bg-slate-950/60 border border-slate-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center font-mono text-2xl tracking-widest placeholder:text-slate-400"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button fullWidth onClick={() => onJoin(name, code)} disabled={!name.trim() || code.length < 4 || !connectionReady}>Join Game</Button>
-              <Button variant="secondary" onClick={() => setIsJoining(false)}>Back</Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <SharedLanding
+      gameName="Mafia"
+      theme="mafia-theme"
+      hero={<Hero
+        kicker="A game of hidden roles"
+        title={<>Welcome,<br /><em>Stranger.</em></>}
+        copy="Enter your name to step into the shadows. Deal secret roles, survive the night, and vote out the Killers before they take the town."
+        badges={[{ label: '5+ players' }, { label: 'Computer seats' }, { label: 'Night and day' }]}
+      />}
+      entry={{
+        name,
+        setName,
+        joinCode: code,
+        setJoinCode: setCode,
+        createRoom: create,
+        joinRoom: join,
+        busy: !connectionReady && !connectionError,
+        error: connectionError || hint,
+      }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesOpen && <MafiaRules onClose={() => setRulesOpen(false)} />}
+    />
   );
 };
 

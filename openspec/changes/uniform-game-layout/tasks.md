@@ -27,12 +27,12 @@
 - [x] 4.1 Migrate uno to the shared landing, lobby, game bar and dialog, delete its replaced markup and CSS, remove it from the allowlist, and verify `npm run audit:mobile -- --games uno` and `npm run validate` pass
 - [x] 4.2 Migrate dos to the shared landing, lobby, game bar and dialog, delete its replaced markup and CSS, remove it from the allowlist, and verify `npm run audit:mobile -- --games dos` and `npm run validate` pass
 
-- [ ] 4.3 Add Hearts engine-backed rooms: `lib/hearts-engine-room.js`, room adapter and store, `/api/hearts/rooms` routes, a client room service, host-managed computer seats, the variant chosen in the lobby, and private pass selection exchanged only when every seat has chosen, and verify with new engine-room tests (seat views hide other hands, a four-seat Classic and a five-seat Killer start, a pass waits for the last seat, a non-host `computerStep` is rejected) alongside the existing `tests/hearts-rules.test.mjs`
-- [ ] 4.4 Move the Hearts client onto `useEngineRoom` and the shared landing, lobby, game bar and dialogs, delete its local-game setup screen and replaced CSS, remove it from the allowlist and `NO_LOBBY`, and verify `npm run audit:mobile -- --games hearts` and `npm run validate` pass
-- [ ] 4.5 Port 7-Up rooms to the engine-backed model: `lib/seven-up-engine-room.js`, adapter and store, `/api/seven-up/rooms` routes, host-managed computer seats and a three-to-seven seat start, and verify with new engine-room tests (seat views hide other hands, host adds and removes computers, a two-seat start is rejected, an old-format room reports that it predates an update) and a rewritten `tests/seven-up-rooms.test.mjs`
-- [ ] 4.6 Move the 7-Up client onto `useEngineRoom` and the shared landing, lobby, game bar and dialogs, add the Rules dialog it lacks, delete its local mode, seat-type setup and replaced CSS, remove it from the allowlist, and verify `npm run audit:mobile -- --games seven-up` and `npm run validate` pass
-- [ ] 4.7 Retire the 7-Up seat-claiming code (`lib/rooms.js`, `lib/room-store.js` if unused, and the generic `/api/create-room`, `join-room`, `start-room`, `room`, `play-card`, `pass-turn`, `add-computer`, `remove-computer` routes) once nothing imports them, and verify `npm run check` passes
-- [ ] 4.8 Remove the unused `localPlay` option from `Landing` and `EntryCard` and its tests, update the Purpose lines of `openspec/specs/games/hearts/spec.md`, `openspec/specs/games/seven-up/spec.md` and `openspec/specs/platform/server-authoritative-rooms/spec.md` to describe room play, and update the README's room-storage section, and verify `npm test` and the README match
+- [x] 4.3 Add Hearts engine-backed rooms: `lib/hearts-engine-room.js`, room adapter and store, `/api/hearts/rooms` routes, a client room service, host-managed computer seats, the variant chosen in the lobby, and private pass selection exchanged only when every seat has chosen, and verify with new engine-room tests (seat views hide other hands, a four-seat Classic and a five-seat Killer start, a pass waits for the last seat, a non-host `computerStep` is rejected) alongside the existing `tests/hearts-rules.test.mjs`
+- [x] 4.4 Move the Hearts client onto `useEngineRoom` and the shared landing, lobby, game bar and dialogs, delete its local-game setup screen and replaced CSS, remove it from the allowlist and `NO_LOBBY`, and verify `npm run audit:mobile -- --games hearts` and `npm run validate` pass
+- [x] 4.5 Port 7-Up rooms to the engine-backed model: `lib/seven-up-engine-room.js`, adapter and store, `/api/seven-up/rooms` routes, host-managed computer seats and a three-to-seven seat start, and verify with new engine-room tests (seat views hide other hands, host adds and removes computers, a two-seat start is rejected, an old-format room reports that it predates an update) and a rewritten `tests/seven-up-rooms.test.mjs`
+- [x] 4.6 Move the 7-Up client onto `useEngineRoom` and the shared landing, lobby, game bar and dialogs, add the Rules dialog it lacks, delete its local mode, seat-type setup and replaced CSS, remove it from the allowlist, and verify `npm run audit:mobile -- --games seven-up` and `npm run validate` pass
+- [x] 4.7 Retire the 7-Up seat-claiming code (`lib/rooms.js`, `lib/room-store.js` if unused, and the generic `/api/create-room`, `join-room`, `start-room`, `room`, `play-card`, `pass-turn`, `add-computer`, `remove-computer` routes) once nothing imports them, and verify `npm run check` passes
+- [x] 4.8 Remove the unused `localPlay` option from `Landing` and `EntryCard` and its tests, update the Purpose lines of `openspec/specs/games/hearts/spec.md`, `openspec/specs/games/seven-up/spec.md` and `openspec/specs/platform/server-authoritative-rooms/spec.md` to describe room play, and update the README's room-storage section, and verify `npm test` and the README match
 
 ## 5. Games with light custom lobbies
 
@@ -64,10 +64,10 @@
 
 ## 7. Mafia and Monopoly
 
-- [ ] 7.1 Render Mafia's landing, lobby, game bar and dialogs through the shared components while keeping its Supabase transport, and verify `npm run audit:mobile -- --games mafia` and `npm test` pass
-- [ ] 7.2 Render Monopoly's landing, lobby, game bar and dialogs through the shared components without changing the board, and verify `npm run audit:mobile -- --games monopoly` and `npm run test:monopoly` pass
+- [x] 7.1 Render Mafia's landing, lobby, game bar and dialogs through the shared components while keeping its Supabase transport, and verify `npm run audit:mobile -- --games mafia` and `npm test` pass
+- [x] 7.2 Render Monopoly's landing, lobby, game bar and dialogs through the shared components without changing the board, and verify `npm run audit:mobile -- --games monopoly` and `npm run test:monopoly` pass
 
 ## 8. Finish
 
-- [ ] 8.1 Confirm the audit allowlist is empty, make the structure check a hard failure, and verify `npm run audit:mobile` reports no failures at 390x844, 320x568 and 844x390
-- [ ] 8.2 Run `npm run check` (tests, typecheck, validate, build) and verify it passes
+- [x] 8.1 Confirm the audit allowlist is empty, make the structure check a hard failure, and verify `npm run audit:mobile` reports no failures at 390x844, 320x568 and 844x390
+- [x] 8.2 Run `npm run check` (tests, typecheck, validate, build) and verify it passes

@@ -1,7 +1,7 @@
 # games/seven-up Specification
 
 ## Purpose
-Defines 7-Up's sequential suit-card play for three to seven players with private hands, computer players and shared rooms.
+Defines 7-Up's sequential suit-card play for three to seven players with private hands, a room whose host adds computer players in the lobby, and people joining by code.
 
 ## Requirements
 

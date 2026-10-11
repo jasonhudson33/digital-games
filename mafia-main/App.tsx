@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GamePhase, GameState, Player, Role, RoleMap, RoomMeta, DayIntent, NightIntent, PresenceMap } from './types';
 import Landing from './components/Landing';
 import Lobby from './components/Lobby';
+import GameBar from './components/GameBar';
 import Setup from './components/Setup';
 import RoleReveal from './components/RoleReveal';
 import NightPhase from './components/NightPhase';
@@ -51,21 +52,6 @@ const forgetRoom = () => {
   window.localStorage.removeItem(LAST_ROOM_KEY);
   window.history.replaceState(null, '', window.location.pathname);
 };
-
-const RoomLeaveButton: React.FC<{
-  gameStarted: boolean;
-  isLeaving: boolean;
-  onLeave: () => void;
-}> = ({ gameStarted, isLeaving, onLeave }) => (
-  <Button
-    variant="danger"
-    className="fixed bottom-4 right-4 z-50 shadow-2xl"
-    disabled={isLeaving}
-    onClick={onLeave}
-  >
-    {isLeaving ? 'Leaving...' : gameStarted ? 'Leave Game' : 'Leave Room'}
-  </Button>
-);
 
 const App: React.FC = () => {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
@@ -885,9 +871,11 @@ const App: React.FC = () => {
     return gameState.players.find(p => p.id === myPlayerId) || null;
   }, [gameState.players, myPlayerId]);
 
-  const gameStarted = ![GamePhase.LOBBY, GamePhase.SETUP].includes(gameState.phase);
-  const leaveButton = (
-    <RoomLeaveButton gameStarted={gameStarted} isLeaving={isLeaving} onLeave={handleLeaveRoom} />
+  const withBar = (content: React.ReactElement) => (
+    <>
+      <GameBar roomCode={gameState.roomCode} phase={gameState.phase} round={gameState.round} isLeaving={isLeaving} onLeave={handleLeaveRoom} />
+      {content}
+    </>
   );
 
   // ---------- Render ----------
@@ -910,30 +898,30 @@ const App: React.FC = () => {
           roomCode={gameState.roomCode}
           players={gameState.players}
           isHost={isActingHost}
+          myPlayerId={myPlayerId}
           onStart={handleLobbyStart}
           onAddComputer={handleAddComputer}
           onRemoveComputer={handleRemoveComputer}
+          onLeave={handleLeaveRoom}
         />
-        {leaveButton}
       </>
     );
   }
 
   if (!myPlayerId || !myPlayer) {
     // The host may still be processing this player when the phase changes.
-    return (
+    return withBar(
       <div className="min-h-screen flex items-center justify-center text-slate-200">
         <div className="text-center">
           <p className="text-xl mb-2">Joining room…</p>
           <p className="text-slate-500">Waiting for host approval.</p>
-          {leaveButton}
         </div>
       </div>
     );
   }
 
   if (gameState.phase === GamePhase.SETUP) {
-    return (
+    return withBar(
       <>
         {isActingHost ? (
           <Setup players={gameState.players} onStart={handleStartGame} />
@@ -945,21 +933,19 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        {leaveButton}
       </>
     );
   }
 
   if (gameState.phase === GamePhase.ROLE_REVEAL && myPlayer) {
     if (!myRole) {
-      return (
+      return withBar(
         <div className="min-h-screen flex items-center justify-center text-slate-200">
           <p className="text-xl">Syncing your role...</p>
-          {leaveButton}
         </div>
       );
     }
-    return (
+    return withBar(
       <>
         <RoleReveal
           player={myPlayer}
@@ -971,7 +957,6 @@ const App: React.FC = () => {
           onComplete={handleBeginNight}
           teammates={gameState.players.filter((player) => player.id !== myPlayerId && rolesMap[player.id] === myRole)}
         />
-        {leaveButton}
       </>
     );
   }
@@ -980,27 +965,25 @@ const App: React.FC = () => {
     [GamePhase.NIGHT_TRANSITION, GamePhase.NIGHT_KILLER, GamePhase.NIGHT_DETECTIVE, GamePhase.NIGHT_ANGEL].includes(gameState.phase)
   ) {
     if (gameState.phase === GamePhase.NIGHT_TRANSITION) {
-      return (
+      return withBar(
         <div className="min-h-screen flex items-center justify-center text-slate-200">
           <div className="text-center">
             <h2 className="text-4xl font-serif mb-4">Night Falls</h2>
             <p className="text-slate-500">Preparing the next phase…</p>
           </div>
-          {leaveButton}
         </div>
       );
     }
 
     if (!myRole) {
-      return (
+      return withBar(
         <div className="min-h-screen flex items-center justify-center text-slate-200">
           <p className="text-xl">Syncing your role...</p>
-          {leaveButton}
         </div>
       );
     }
 
-    return (
+    return withBar(
       <>
         <NightPhase
           state={gameState}
@@ -1009,13 +992,12 @@ const App: React.FC = () => {
           roomCode={gameState.roomCode}
           rolesMap={rolesMap}
         />
-        {leaveButton}
       </>
     );
   }
 
   if ([GamePhase.DAY_RESULTS, GamePhase.DAY_DELIBERATION, GamePhase.DAY_VOTING].includes(gameState.phase)) {
-    return (
+    return withBar(
       <>
         <DayPhase
           state={gameState}
@@ -1025,13 +1007,12 @@ const App: React.FC = () => {
           onHostAction={hostUpdateState}
           onAcknowledgeResult={handleAcknowledgeResult}
         />
-        {leaveButton}
       </>
     );
   }
 
   if (gameState.phase === GamePhase.GAME_OVER) {
-    return (
+    return withBar(
       <>
         <GameOver
           winner={gameState.winner}
@@ -1040,15 +1021,13 @@ const App: React.FC = () => {
           isHost={isActingHost}
           onReplay={handleReplay}
         />
-        {leaveButton}
       </>
     );
   }
 
-  return (
+  return withBar(
     <div className="min-h-screen flex flex-col items-center justify-center text-slate-200">
       <p>Unknown state.</p>
-      {leaveButton}
     </div>
   );
 };

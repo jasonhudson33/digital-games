@@ -32,6 +32,8 @@ import {
   X,
   type LucideIcon
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChoiceModal, Dialog, GameHeader, Hero, Landing, Lobby, Results } from '../../components/ui/table-shell';
 import { board, cornerIds } from './board';
 import { canPurchaseBuilding, getBuildingSupply } from './buildingRules';
 import {
@@ -65,6 +67,7 @@ export default function App() {
   const [activeOfferedPropertyIds, setActiveOfferedPropertyIds] = React.useState<number[]>([]);
   const [activeRequestedPropertyIds, setActiveRequestedPropertyIds] = React.useState<number[]>([]);
   const [isBoardTradeMode, setIsBoardTradeMode] = React.useState(false);
+  const [rulesOpen, setRulesOpen] = React.useState(false);
   const [mortgageConfirmation, setMortgageConfirmation] = React.useState<{ playerId: string; spaceId: number } | null>(null);
   const latestGame = React.useRef<GameState | null>(null);
   const activeTradeSubmit = React.useRef<(() => void) | null>(null);
@@ -457,48 +460,93 @@ export default function App() {
     );
   }
 
+  const rulesDialog = rulesOpen && <MonopolyRules onClose={() => setRulesOpen(false)} />;
+
   if (!game) {
     return (
-      <div className="monopoly-page">
-      <main className="entry-shell">
-        <section className="entry-panel">
-          <div className="brand-row">
-            <div className="brand-mark">M</div>
-            <div>
-              <h1>Monopoly Online</h1>
-              <p>Create a room or join one with a room code.</p>
-            </div>
+      <Landing
+        gameName="Monopoly"
+        theme="tbl-light monopoly-theme"
+        hero={<Hero
+          kicker="Buy it. Build it. Bankrupt them."
+          title={<>Monopoly<br /><em>Online.</em></>}
+          copy="Roll, buy properties, collect rent, build houses and hotels, and trade your way to the last fortune standing."
+          badges={[{ icon: Users, label: '2–8 players' }, { icon: Bot, label: 'Computer players' }, { icon: Home, label: 'Houses & hotels' }]}
+        />}
+        entry={{
+          name,
+          setName,
+          joinCode,
+          setJoinCode,
+          createRoom,
+          joinRoom,
+          busy: false,
+          error,
+          extra: <div className="monopoly-page monopoly-piece-picker"><PiecePicker selectedPiece={selectedPiece} onSelect={setSelectedPiece} /></div>
+        }}
+        onRules={() => setRulesOpen(true)}
+        dialogs={rulesDialog}
+      />
+    );
+  }
+
+  if (game.phase === 'lobby') {
+    return (
+      <Lobby
+        gameName="Monopoly"
+        theme="tbl-light monopoly-theme"
+        room={{ ...game, players: game.players.map((player) => ({ ...player, isComputer: Boolean(player.isComputer) })) }}
+        me={{ id: playerId }}
+        busy={false}
+        error={error}
+        min={2}
+        max={MAX_MONOPOLY_PLAYERS}
+        canRemove={false}
+        options={
+          <div className="monopoly-page monopoly-lobby-options">
+            <label className="house-rules-option">
+              <input
+                type="checkbox"
+                checked={game.houseRules}
+                disabled={!isHost}
+                onChange={(event) => {
+                  const enabled = event.currentTarget.checked;
+                  void act('setHouseRules', { enabled });
+                }}
+              />
+              <span>
+                <strong>Play with house rules</strong>
+                <small>Bank fees from Chance and Community Chest build a Free Parking jackpot.</small>
+              </span>
+            </label>
+            {isHost && (
+              <button disabled={lobbyIsFull} onClick={() => void act('addLocal')}>
+                <Users size={18} /> Add a player on this device
+              </button>
+            )}
           </div>
-
-          <label>
-            Player name
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Rich Uncle Pennybags" />
-          </label>
-
-          <PiecePicker selectedPiece={selectedPiece} onSelect={setSelectedPiece} />
-
-          <div className="entry-actions">
-            <button className="primary" onClick={createRoom}>
-              <Play size={18} /> Create room
-            </button>
-          </div>
-
-          <div className="join-row">
-            <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" />
-            <button onClick={joinRoom}>
-              <DoorOpen size={18} /> Join
-            </button>
-          </div>
-
-          {error && <p className="error">{error}</p>}
-        </section>
-      </main>
-      </div>
+        }
+        onAdd={() => void act('addComputer')}
+        onRemove={() => undefined}
+        onStart={() => void act('start')}
+        onLeave={leaveRoom}
+        onRules={() => setRulesOpen(true)}
+        rules={rulesDialog}
+      />
     );
   }
 
   return (
-    <div className="monopoly-page">
+    <>
+    <GameHeader
+      title="Monopoly"
+      room={game}
+      subtitle={`Room ${game.roomCode}`}
+      status={winner ? 'Game over' : `${activePlayer?.name ?? 'Waiting'}'s turn`}
+      onRules={() => setRulesOpen(true)}
+      onLeave={leaveRoom}
+    />
+    {rulesDialog}
     {winner && (
       <WinnerOverlay
         winner={winner}
@@ -516,16 +564,8 @@ export default function App() {
         onConfirm={confirmMortgage}
       />
     )}
+    <div className="monopoly-page">
     <main className="game-shell">
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Room</span>
-          <button className="room-code" onClick={() => navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?room=${game.roomCode}`)}>
-            {game.roomCode} <Copy size={15} />
-          </button>
-        </div>
-      </header>
-
       <section className="layout">
         <Board
           game={game}
@@ -608,46 +648,7 @@ export default function App() {
             {game.pendingDebt && <DebtPanel game={game} />}
             {game.pendingAuction && <AuctionPanel game={game} />}
 
-            {game.phase === 'lobby' ? (
-              <div className="lobby-actions">
-                <label className="house-rules-option">
-                  <input
-                    type="checkbox"
-                    checked={game.houseRules}
-                    disabled={!isHost}
-                    onChange={(event) => {
-                      const enabled = event.currentTarget.checked;
-                      void act('setHouseRules', { enabled });
-                    }}
-                  />
-                  <span>
-                    <strong>Play with house rules</strong>
-                    <small>Bank fees from Chance and Community Chest build a Free Parking jackpot.</small>
-                  </span>
-                </label>
-                <div className={`lobby-capacity${lobbyIsFull ? ' full' : ''}`} aria-live="polite">
-                  <strong>{game.players.length} / {MAX_MONOPOLY_PLAYERS} players</strong>
-                  <span>
-                    {lobbyIsFull
-                      ? 'Room full'
-                      : `${MAX_MONOPOLY_PLAYERS - game.players.length} ${MAX_MONOPOLY_PLAYERS - game.players.length === 1 ? 'seat' : 'seats'} available`}
-                  </span>
-                </div>
-                <button disabled={!isHost || lobbyIsFull} onClick={() => void act('addLocal')}>
-                  <Users size={18} /> Add player
-                </button>
-                <button disabled={!isHost || lobbyIsFull} onClick={() => void act('addComputer')}>
-                  <Bot size={18} /> Add computer
-                </button>
-                <button
-                  className="primary full"
-                  disabled={!isHost || game.players.length < 2 || game.players.length > MAX_MONOPOLY_PLAYERS}
-                  onClick={() => void act('start')}
-                >
-                  <Play size={18} /> Start game
-                </button>
-              </div>
-            ) : game.pendingCard ? (
+            {game.pendingCard ? (
               <p className="board-action-note">Acknowledge the card from the center of the board.</p>
             ) : game.pendingPurchase ? (
               <p className="board-action-note">Choose Buy or Auction from the center of the board.</p>
@@ -705,11 +706,7 @@ export default function App() {
             ) : null}
 
             <p className="hint">
-              {game.phase === 'lobby'
-                ? isHost
-                  ? 'Share the room link, then start when everyone is in.'
-                  : 'Waiting for the host to start.'
-                : game.pendingCard
+              {game.pendingCard
                   ? 'Waiting for the card to be acknowledged.'
                   : game.pendingPurchase
                     ? 'Waiting for the property decision.'
@@ -788,6 +785,7 @@ export default function App() {
       </section>
     </main>
     </div>
+    </>
   );
 }
 
@@ -805,31 +803,38 @@ function WinnerOverlay({
   onLeaveRoom: () => void;
 }) {
   return (
-    <div className="winner-overlay" role="dialog" aria-modal="true" aria-label={`${winner.name} won the game`}>
-      <section className="winner-card">
-        <div className="winner-trophy"><Trophy size={54} strokeWidth={1.8} /></div>
-        <span className="eyebrow">Game Over</span>
-        <h2>{isWinner ? 'You won!' : `${winner.name} won!`}</h2>
-        <p>{isWinner ? 'You are the last player standing.' : `${winner.name} is the last player standing.`}</p>
-        <div className="winner-player">
-          <PlayerToken player={winner} />
-          <strong>{winner.name}</strong>
-          <span>${winner.money}</span>
-        </div>
-        <div className="winner-actions">
-          {canPlayAgain ? (
-            <button className="primary" onClick={onPlayAgain}>
-              <Play size={18} /> Play again
-            </button>
-          ) : (
-            <p className="winner-host-note">The host can start another game in this room.</p>
-          )}
-          <button onClick={onLeaveRoom}>
-            <DoorOpen size={18} /> Leave room
-          </button>
-        </div>
-      </section>
-    </div>
+    <Results
+      title={isWinner ? 'You won!' : `${winner.name} won!`}
+      text={isWinner ? 'Game over. You are the last player standing.' : `Game over. ${winner.name} is the last player standing.`}
+      rows={[{ id: winner.id, name: winner.name, value: `$${winner.money}` }]}
+    >
+      {canPlayAgain ? (
+        <button type="button" className="tbl-primary" onClick={onPlayAgain}>
+          <Play size={18} /> Play again
+        </button>
+      ) : (
+        <p className="tbl-wait">The host can start another game in this room.</p>
+      )}
+      <button type="button" className="tbl-link" onClick={onLeaveRoom}>
+        Leave room
+      </button>
+    </Results>
+  );
+}
+
+function MonopolyRules({ onClose }: { onClose: () => void }) {
+  return (
+    <ChoiceModal wide title="How to play Monopoly" text="Be the last player with money." onClose={onClose}>
+      <div className="tbl-rule-grid">
+        <article><b>Roll and move</b><p>Roll two dice and move that many spaces. Doubles give you another turn; three in a row sends you to Jail.</p></article>
+        <article><b>Buy or auction</b><p>Land on an unowned property and you may buy it. If you decline, it goes to auction among all players.</p></article>
+        <article><b>Collect rent</b><p>Landing on an owned property means paying its owner rent. Owning a whole color group doubles unimproved rent and lets you build.</p></article>
+        <article><b>Build</b><p>Build houses evenly across a color group, then hotels. Mortgage deeds to raise cash; unmortgage them for the value plus interest.</p></article>
+        <article><b>Trade</b><p>Offer properties, money and Get Out of Jail Free cards to any player.</p></article>
+        <article><b>Win</b><p>Players who cannot pay their debts go bankrupt. The last player left wins.</p></article>
+      </div>
+      <p className="tbl-modal-copy">House rules, when the host turns them on, send bank fees from Chance and Community Chest to a Free Parking jackpot.</p>
+    </ChoiceModal>
   );
 }
 
@@ -1642,20 +1647,12 @@ function PropertyCardModal({
 }) {
   const isMortgaged = Boolean(owner?.mortgagedProperties.includes(space.id));
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
-  return (
-    <div className="property-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="property-card-modal" role="dialog" aria-modal="true" aria-labelledby="property-card-title">
-        <button className="property-modal-close" aria-label="Close property details" onClick={onClose} autoFocus>
-          <X size={22} />
-        </button>
+  // Rendered into <body>, outside the board's page styles, so the shared dialog
+  // keeps its own look; the deed itself keeps Monopoly's.
+  return createPortal(
+    <Dialog className="monopoly-deed-dialog" labelledBy="property-card-title" onClose={onClose}>
+      <div className="monopoly-page monopoly-dialog-content property-card-modal">
         <div className="property-card-heading" style={{ backgroundColor: space.color ?? '#26332d' }}>
           <span>{space.kind === 'property' ? 'Title Deed' : space.kind === 'railroad' ? 'Railroad Deed' : 'Utility Deed'}</span>
           <h2 id="property-card-title">{space.name}</h2>
@@ -1711,8 +1708,9 @@ function PropertyCardModal({
             )}
           </div>
         )}
-      </section>
-    </div>
+      </div>
+    </Dialog>,
+    document.body
   );
 }
 
@@ -1734,33 +1732,18 @@ function MortgageConfirmationDialog({
       ? 'will not collect rent or count toward railroad rent levels'
       : 'will not collect rent or count toward utility rent levels';
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
-
   return (
-    <div className="mortgage-confirmation-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onCancel()}>
-      <section className="mortgage-confirmation" role="dialog" aria-modal="true" aria-labelledby="mortgage-confirmation-title">
-        <div className="mortgage-warning-icon" aria-hidden="true">
-          <TriangleAlert size={28} />
-        </div>
-        <div>
-          <span className="eyebrow">Mortgage warning</span>
-          <h2 id="mortgage-confirmation-title">Mortgage {space.name}?</h2>
-        </div>
-        <p>
-          {player?.name ?? 'The player'} will receive <strong>${mortgageValue}</strong>, but this deed {mortgageConsequence} until it is unmortgaged.
-        </p>
-        <div className="mortgage-confirmation-actions">
-          <button onClick={onCancel} autoFocus>Cancel</button>
-          <button className="mortgage-confirm-button" onClick={onConfirm}>Mortgage property</button>
-        </div>
-      </section>
-    </div>
+    <ChoiceModal
+      title={`Mortgage ${space.name}?`}
+      text={<>{player?.name ?? 'The player'} will receive <strong>${mortgageValue}</strong>, but this deed {mortgageConsequence} until it is unmortgaged.</>}
+      onClose={onCancel}
+      actions={
+        <>
+          <button type="button" className="tbl-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="tbl-primary" onClick={onConfirm}>Mortgage property</button>
+        </>
+      }
+    />
   );
 }
 
