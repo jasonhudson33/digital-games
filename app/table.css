@@ -1491,7 +1491,7 @@
 
 .seven-up-lane-empty {
   color: var(--felt-ink-dim);
-  font-size: calc(11 * var(--px));
+  font-size: max(9px, calc(11 * var(--px)));
   font-style: italic;
 }
 
@@ -1738,14 +1738,14 @@
   --seat-gap: calc(8 * var(--px));
   --seat-round: calc(11 * var(--px));
   --seat-avatar: calc(30 * var(--px));
-  --seat-name: calc(13.4 * var(--px));
-  --seat-note: calc(9.6 * var(--px));
+  --seat-name: max(9px, calc(13.4 * var(--px)));
+  --seat-note: max(9px, calc(9.6 * var(--px)));
   --card-w: calc(62 * var(--px));
   --card-h: calc(86 * var(--px));
   --mark-w: calc(22 * var(--px));
   --mark-h: calc(20 * var(--px));
   --fan-h: calc(30 * var(--px));
-  --pill-font: calc(9.9 * var(--px));
+  --pill-font: max(9px, calc(9.9 * var(--px)));
   /* Above a plate is also where the fan of card backs peeks out, so a pill on
      that side has to clear it. This is the height the fan shows. */
   --pill-lift: calc(32 * var(--px));
@@ -1768,7 +1768,7 @@
   --seat-w: calc(112 * var(--px));
   --seat-pad: calc(4 * var(--px)) calc(7 * var(--px));
   --seat-avatar: calc(22 * var(--px));
-  --seat-name: calc(10.2 * var(--px));
+  --seat-name: max(9px, calc(10.2 * var(--px)));
   --card-w: calc(52 * var(--px));
   --card-h: calc(72 * var(--px));
   --mark-w: calc(18 * var(--px));

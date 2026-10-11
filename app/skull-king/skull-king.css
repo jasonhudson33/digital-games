@@ -648,7 +648,7 @@
 .skull-hand-card.forced { filter: drop-shadow(0 0 10px rgba(228,184,75,.9)); }
 .skull-hand-card.forced::after { content: "FORCED"; position: absolute; z-index: 8; top: -7px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 999px; background: var(--skull-gold); transform: translateX(-50%); font-size: 0.625rem; font-weight: 900; }
 .skull-hand-card .skull-playing-card { width: 102px; }
-.skull-card-help-link { max-width: 102px; margin-top: 19px; padding: 2px 1px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: 0.625rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
+.skull-card-help-link { max-width: 102px; margin-top: 19px; padding: 6px 2px; min-height: 24px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: 0.625rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
 .skull-card-help-link:hover, .skull-card-help-link:focus-visible { color: #ffe4a0; text-decoration-color: currentColor; }
 .skull-ghost-area { margin-top: 5px; padding: 12px 10px 2px; border: 1px solid rgba(168,221,215,.15); border-radius: 18px 18px 0 0; background: linear-gradient(180deg,rgba(104,184,178,.075),rgba(255,255,255,.012)); }
 .skull-ghost-area.active { border-color: rgba(147,226,216,.46); box-shadow: inset 0 0 28px rgba(75,178,169,.08), 0 0 18px rgba(75,178,169,.08); }

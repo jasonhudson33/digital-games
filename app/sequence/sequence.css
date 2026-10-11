@@ -122,7 +122,7 @@ button, input { font: inherit; }
 .sequence-space.free { border-color: transparent; color: #987028; background: transparent; box-shadow: none; }
 .sequence-free-card { position: absolute; top: 50%; left: 50%; width: 87%; aspect-ratio: 334 / 240; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #9b7432; border-radius: .22rem; background: radial-gradient(circle, #fff4c4, #e5bd66); box-shadow: inset 0 0 0 .09rem #f7d98d, 0 .08rem .15rem #61431f45; transform: translate(-50%, -50%); }
 .sequence-free-card svg { width: 35%; height: 35%; }
-.sequence-free-card small { font-size: clamp(.3rem, .8vw, .55rem); font-weight: 900; }
+.sequence-free-card small { font-size: max(.5625rem, clamp(.3rem, .8vw, .55rem)); font-weight: 900; }
 .sequence-space.eligible { z-index: 2; cursor: pointer; border-color: #050505; box-shadow: inset 0 0 0 clamp(.14rem, .3vw, .23rem) #050505, 0 0 .55rem #0009; }
 .sequence-space.matching-target > playing-card { width: 69%; filter: drop-shadow(0 0 .11rem #000) drop-shadow(0 .12rem .14rem #0008); }
 .sequence-space.eligible:hover { transform: scale(1.04); }
@@ -198,4 +198,10 @@ button, input { font: inherit; }
   .sequence-cards { justify-content: start; }
   .sequence-hand-card-wrap { flex-basis: 5.25rem; }
   .sequence-rules-grid { grid-template-columns: 1fr; }
+}
+
+/* The corner's star already says FREE; at 4.8px the word was noise in a ~34px cell. */
+@media (max-width: 560px) {
+  .sequence-free-card small { display: none; }
+  .sequence-free-card svg { width: 60%; height: 60%; }
 }

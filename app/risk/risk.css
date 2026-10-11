@@ -424,3 +424,6 @@
 
 /* A 21px Remove button is easy to miss and easy to hit by accident next to a row. */
 .risk-lobby-list button { min-height: 32px; }
+
+/* Landscape phones: the clamp's vw term bottoms out near 6px. */
+.territory-name { font-size: max(.5625rem, clamp(.38rem, .54vw, .52rem)); }

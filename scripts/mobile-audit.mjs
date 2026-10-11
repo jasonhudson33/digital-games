@@ -88,6 +88,10 @@ function inspect(MIN_TEXT) {
       if (!clipped) wide.push(`${label(el)} right=${Math.round(r.right)}`);
     }
 
+    // Monopoly keeps the whole 40-space board on screen by design (pinch to
+    // zoom), so its space and owner names are inherently small.
+    if (el.closest(".monopoly-page .board")) continue;
+
     const ownText = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     const size = parseFloat(cs.fontSize);
     if (ownText && size > 0 && size < MIN_TEXT) {
