@@ -10,6 +10,8 @@ import {
   removeHandFootComputer,
   startHandFootRoom,
   startNextHandFootRoomRound,
+  setHandFootComputerSpeed,
+  stepHandFootComputer,
 } from "../../../../../lib/hand-and-foot-rooms";
 
 export async function GET(request, context) {
@@ -30,5 +32,7 @@ export async function POST(request, context) {
     play: playHandFootRoomCards,
     discard: discardHandFootRoomCard,
     nextRound: startNextHandFootRoomRound,
+    computerStep: stepHandFootComputer,
+    setComputerSpeed: setHandFootComputerSpeed,
   });
 }

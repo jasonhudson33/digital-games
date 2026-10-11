@@ -26,6 +26,8 @@ import { KILLER_BUNNIES_EXPANSIONS } from "../lib/killer-bunnies-expansions";
 import { KillerBunniesRoomService } from "./killer-bunnies-room-service";
 import { Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const NAME_KEY = "killer-bunnies-player-name";
 const TOKEN_PREFIX = "killer-bunnies-room-token:";
@@ -149,6 +151,17 @@ export default function KillerBunniesClient() {
     } finally { setBusy(false); }
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => action("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => action("setComputerSpeed", { ms }) });
+
 
   function leaveRoom() {
     setGame(null); latestGame.current = null; setRoomToken(""); setJoinCode(""); setError("");
@@ -176,7 +189,7 @@ export default function KillerBunniesClient() {
 
   if (game.phase === "lobby") {
     const viewer = game.players.find((player) => player.isViewer) ?? game.players[0];
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Killer Bunnies"
       theme="tbl-light killer-bunnies-theme"
       room={{ roomCode: game.roomCode, hostId: game.hostControls ? viewer.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
@@ -196,10 +209,10 @@ export default function KillerBunniesClient() {
     />;
   }
 
-  return <GameTable game={game} error={error} busy={busy} onAction={action} onLeave={leaveRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
+  return <GameTable game={game} error={error} busy={busy} computerSpeed={computerSpeed} onAction={action} onLeave={leaveRoom} onRules={() => setRulesOpen(true)} rulesOpen={rulesOpen} onCloseRules={() => setRulesOpen(false)} />;
 }
 
-function GameTable({ game, error, busy, onAction, onLeave, onRules, rulesOpen, onCloseRules }) {
+function GameTable({ game, error, busy, computerSpeed, onAction, onLeave, onRules, rulesOpen, onCloseRules }) {
   const [openingTopId, setOpeningTopId] = useState("");
   const [openingBottomId, setOpeningBottomId] = useState("");
   const viewerIndex = game.viewerPlayerIndex;
@@ -292,7 +305,7 @@ function GameTable({ game, error, busy, onAction, onLeave, onRules, rulesOpen, o
 
   return (
     <main className="kb-app kb-game-shell tbl-light killer-bunnies-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Killer Bunnies"
         room={game}
         subtitle={`Room ${game.roomCode} · ${game.cardCounts.numbered} numbered cards · ${game.expansionSummary?.packCount || 0} expansions`}

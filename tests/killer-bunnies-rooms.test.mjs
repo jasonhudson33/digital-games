@@ -7,9 +7,12 @@ import {
   createKillerBunniesRoom,
   getKillerBunniesRoom,
   joinKillerBunniesRoom,
+  setKillerBunniesComputerSpeed,
   setKillerBunniesExpansions,
   startKillerBunniesRoom,
+  stepKillerBunniesComputer,
 } from "../lib/killer-bunnies-rooms.js";
+import { computerRoomTests } from "./room-computer-helpers.mjs";
 
 test("rooms accept humans and computer players while keeping programmed runs private", async () => {
   const host = await createKillerBunniesRoom({ name: "Host" });
@@ -47,8 +50,13 @@ test("rooms accept humans and computer players while keeping programmed runs pri
     topCardId: guestCards[2].id,
     bottomCardId: guestCards[4].id,
   });
-  assert.equal(ready.state.phase, "play");
-  assert.equal(ready.state.players[1].hand.length, 5);
+  // The computer still has to choose its runs, and that is the host's browser's step, not this request's.
+  assert.equal(ready.state.phase, "setupRun");
+  assert.equal(ready.state.computerDue, true);
+  await stepKillerBunniesComputer({ roomCode: host.state.roomCode, token: host.token });
+  const playing = await getKillerBunniesRoom({ roomCode: host.state.roomCode, token: guest.token });
+  assert.equal(playing.state.phase, "play");
+  assert.equal(playing.state.players[1].hand.length, 5);
   assert.equal(guestView.state.magicCarrotDeck.every((card) => card.hidden), true);
 });
 
@@ -77,4 +85,19 @@ test("only the host can select expansion packs and every player sees the selecti
   assert.deepEqual(started.state.expansionIds, ["red", "green"]);
   assert.equal(started.state.cardCounts.numbered, 275);
   assert.equal(started.state.cardCounts.total, 321);
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+computerRoomTests({
+  name: "Killer Bunnies",
+  create: createKillerBunniesRoom,
+  join: joinKillerBunniesRoom,
+  addComputer: addKillerBunniesComputer,
+  start: startKillerBunniesRoom,
+  get: getKillerBunniesRoom,
+  step: stepKillerBunniesComputer,
+  setSpeed: setKillerBunniesComputerSpeed,
+  computers: 2,
+  startLeavesComputersDue: false,
 });

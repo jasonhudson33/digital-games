@@ -1,6 +1,7 @@
 "use client";
 
 import { useDialog } from "../../lib/use-dialog.js";
+import ComputerSpeedControl from "./computer-speed-control.js";
 import { Bot, CircleHelp, Copy, DoorOpen, LogOut, Sparkles, Users, X } from "lucide-react";
 
 /*
@@ -149,6 +150,7 @@ export function Lobby({
   canStart,
   autoStart,
   canRemove = true,
+  computerSpeed,
   onAdd,
   onRemove,
   onStart,
@@ -219,6 +221,8 @@ export function Lobby({
           ))}
         </div>
 
+        {computerSpeed && <ComputerSpeedControl variant="inline" value={computerSpeed.value} onChange={computerSpeed.onChange} />}
+
         {isHost && room.players.length < max && (
           <button type="button" className="tbl-add-seat" disabled={busy} onClick={onAdd}>
             <Bot aria-hidden="true" /> Add computer player
@@ -263,7 +267,7 @@ export function Lobby({
 }
 
 /** @param {Record<string, any>} props */
-export function GameHeader({ title, room, status, subtitle, actions, onRules, onLeave }) {
+export function GameHeader({ title, room, status, subtitle, actions, computerSpeed, onRules, onLeave }) {
   return (
     <header className="tbl-game-header" data-layout="game-bar">
       <div className="tbl-game-title">
@@ -277,6 +281,7 @@ export function GameHeader({ title, room, status, subtitle, actions, onRules, on
       </strong>
 
       {actions}
+      {computerSpeed && <ComputerSpeedControl value={computerSpeed.value} onChange={computerSpeed.onChange} />}
       <button type="button" className="tbl-header-action" onClick={onRules}>
         <CircleHelp aria-hidden="true" />
         <span className="tbl-header-action-label">Rules</span>

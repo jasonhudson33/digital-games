@@ -30,13 +30,12 @@ const rackSize = (player) => player.handCount ?? player.hand.length;
 export default function QwirkleClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: QwirkleRoomService, storageKey: "qwirkle" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: QwirkleRoomService, storageKey: "qwirkle", computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer) });
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [staged, setStaged] = useState([]);
   const [exchangeMode, setExchangeMode] = useState(false);
   const [exchangeIds, setExchangeIds] = useState([]);
-  const [thinking, setThinking] = useState(false);
   const [showRules, setShowRules] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
@@ -50,19 +49,6 @@ export default function QwirkleClient() {
     setExchangeIds([]);
   }, [room?.turnNumber, room?.phase]);
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setThinking(false); }
-    }, 700);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [computerToAct?.id, playerId, room?.phase, room?.turnNumber]);
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
@@ -89,7 +75,7 @@ export default function QwirkleClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Qwirkle"
       theme="tbl-light qwirkle-theme"
       room={room}
@@ -153,11 +139,11 @@ export default function QwirkleClient() {
   }
 
   return <main className="qwirkle-game-shell tbl-light qwirkle-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Qwirkle"
       room={room}
       subtitle={`Room ${room.roomCode}`}
-      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : thinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
+      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : computerWaiting ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

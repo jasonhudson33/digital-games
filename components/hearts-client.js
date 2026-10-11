@@ -43,11 +43,10 @@ const computerIsDue = (room) =>
 export default function HeartsClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, act, leaveRoom,
+    createRoom, joinRoom, act, leaveRoom, computerSpeed,
   } = useEngineRoom({
     service: HeartsRoomService,
     storageKey: "hearts",
-    computerDelay: 700,
     computerDue: computerIsDue,
   });
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -96,7 +95,7 @@ export default function HeartsClient() {
   if (room.phase === "lobby") {
     const isHost = room.hostId === playerId;
     const allowed = heartsPlayerCountAllowed(room.variant, room.players.length);
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Hearts"
       theme="tbl-light hearts-theme"
       room={room}
@@ -147,7 +146,7 @@ export default function HeartsClient() {
 
   return (
     <main className={`hearts-app hearts-game-shell tbl-felt-shell hearts-theme ${room.variant === "killer" ? "is-killer" : ""}`}>
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Hearts"
         room={room}
         subtitle={`${VARIANTS[room.variant].name} · ${room.playerCount} players · Round ${room.roundNumber}`}

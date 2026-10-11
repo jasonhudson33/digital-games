@@ -44,7 +44,11 @@ import {
 } from './game';
 import { countRentBearingProperties, getUtilityRentMultiplier } from './rentRules';
 import { RoomService } from './roomService';
+import { computerDelayOf, computerSpeedProp } from '../../lib/computer-speed.js';
+import { useComputerPacer } from '../../lib/use-computer-pacer.js';
 import { GameState, Player, PlayerColor, PlayerPiece, Space } from './types';
+/** How long a computer waits in the manage stage so humans can still trade with it (ms). */
+const MANAGE_WINDOW_MS = 4_000;
 const storagePlayerName = 'monopoly-player-name';
 const storagePlayerPiece = 'monopoly-player-piece';
 
@@ -342,13 +346,23 @@ export default function App() {
   const canResolveJailExit =
     Boolean(game?.pendingJailExit?.playerId === playerId) || Boolean(isHost && pendingJailExitPlayer?.id.startsWith('local-'));
 
-  React.useEffect(() => {
-    if (!game || !isHost || !computerShouldAct(game)) return;
-    const timeoutId = window.setTimeout(() => {
-      void stepComputer();
-    }, game.turnStage === 'manage' && !game.pendingTrade ? 4_000 : 850);
-    return () => window.clearTimeout(timeoutId);
-  }, [game, isHost]);
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing). A computer
+  // in the manage stage still holds for MANAGE_WINDOW_MS, which is the time humans have to propose a
+  // trade before it ends its turn, so a faster room speed never closes that window.
+  const inManageWindow = game?.turnStage === 'manage' && !game.pendingTrade;
+  useComputerPacer({
+    enabled: Boolean(isHost),
+    due: Boolean(game && computerShouldAct(game)),
+    delayMs: inManageWindow ? Math.max(computerDelayOf(game), MANAGE_WINDOW_MS) : computerDelayOf(game),
+    step: stepComputer,
+    key: game?.updatedAt
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({
+    players: game?.players,
+    delayMs: game?.computerDelayMs,
+    onChange: (ms: number) => act('setComputerSpeed', { ms })
+  });
 
   React.useEffect(() => {
     activeTradeSubmit.current = null;
@@ -492,7 +506,7 @@ export default function App() {
 
   if (game.phase === 'lobby') {
     return (
-      <Lobby
+      <Lobby computerSpeed={computerSpeed}
         gameName="Monopoly"
         theme="tbl-light monopoly-theme"
         room={{ ...game, players: game.players.map((player) => ({ ...player, isComputer: Boolean(player.isComputer) })) }}
@@ -538,7 +552,7 @@ export default function App() {
 
   return (
     <>
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Monopoly"
       room={game}
       subtitle={`Room ${game.roomCode}`}

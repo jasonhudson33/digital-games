@@ -26,40 +26,23 @@ import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/tab
 
 const activeRoomKey = "flip-7-active-room";
 
+/** The computer that is due to act in this room, or null. Shared by the pacing hook and the labels. */
+function computerToActIn(room) {
+  if (room?.phase !== "playing") return null;
+  if (room.pendingTarget) return room.players.find((player) => player.id === room.pendingTarget.chooserId && player.isComputer) ?? null;
+  const active = currentPlayer(room);
+  return room.stage === "turns" && active?.isComputer ? active : null;
+}
+
 export default function Flip7Client() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer,
-  } = useEngineRoom({ service: Flip7RoomService, storageKey: "flip-7" });
+    busy, error, createRoom, joinRoom, act, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: Flip7RoomService, storageKey: "flip-7", computerDue: (current) => Boolean(computerToActIn(current)) });
   const [showRules, setShowRules] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
 
-  const computerToAct = useMemo(() => {
-    if (room?.phase !== "playing") return null;
-    if (room.pendingTarget) return room.players.find((player) => player.id === room.pendingTarget.chooserId && player.isComputer) ?? null;
-    const active = currentPlayer(room);
-    return room.stage === "turns" && active?.isComputer ? active : null;
-  }, [room]);
+  const computerToAct = room ? computerToActIn(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        await stepComputer();
-      } finally {
-        if (!cancelled) setComputerThinking(false);
-      }
-    }, 760);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [computerToAct?.id, room?.updatedAt, room?.pendingTarget?.action, playerId]);
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
@@ -91,7 +74,7 @@ export default function Flip7Client() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Flip 7"
       theme="tbl-light flip-7-theme"
       room={room}
@@ -113,7 +96,7 @@ export default function Flip7Client() {
   const myTurn = room.phase === "playing" && room.stage === "turns" && !room.pendingTarget && active?.id === playerId;
   const myChoice = room.phase === "playing" && room.pendingTarget?.chooserId === playerId;
   const options = targetOptions(room);
-  const statusMessage = computerThinking
+  const statusMessage = computerWaiting
     ? `${computerToAct?.name} is thinking…`
     : myChoice
       ? `Choose who gets ${actionName(room.pendingTarget.action)}`
@@ -124,7 +107,7 @@ export default function Flip7Client() {
           : `${active?.name}'s turn`;
 
   return <main className="f7-game-shell tbl-light flip-7-theme">
-    <GameHeader title="Flip 7" room={room} status={statusMessage} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+    <GameHeader computerSpeed={computerSpeed} title="Flip 7" room={room} status={statusMessage} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
 
     {error && <p className="f7-error" role="alert">{error}</p>}
 

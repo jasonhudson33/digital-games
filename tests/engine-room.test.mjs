@@ -215,3 +215,73 @@ test("an adapter's own error message reaches the client as a 400", async () => {
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error, "That piece is already taken.");
 });
+
+/* ── Room computer speed (platform/computer-pacing) ─────────────────────────── */
+
+test("a new room, and a room saved without a speed, read as Normal", async () => {
+  const { room, store } = setup();
+  const host = await room.create({ name: "Host" });
+  assert.equal(host.state.computerDelayMs, 600);
+  const stored = await store.load(host.state.roomCode);
+  assert.equal("__computerMs" in stored, false, "nothing is stored until someone changes it");
+  const view = (await room.get({ roomCode: host.state.roomCode, token: host.token })).state;
+  assert.equal(view.computerDelayMs, 600);
+});
+
+test("any seated player changes the speed and every seat sees it", async () => {
+  const { room } = setup();
+  const host = await room.create({ name: "Host" });
+  const guest = await room.join({ roomCode: host.state.roomCode, name: "Guest" });
+  const changed = (await room.act({ roomCode: host.state.roomCode, token: guest.token, action: "setComputerSpeed", args: { ms: 1000 } })).state;
+  assert.equal(changed.computerDelayMs, 1000);
+  for (const seat of [host, guest]) {
+    assert.equal((await room.get({ roomCode: host.state.roomCode, token: seat.token })).state.computerDelayMs, 1000);
+  }
+});
+
+test("only a seat may change it, and only to a listed speed", async () => {
+  const { room } = setup();
+  const host = await room.create({ name: "Host" });
+  const code = host.state.roomCode;
+  await assert.rejects(() => room.act({ roomCode: code, action: "setComputerSpeed", args: { ms: 300 } }), /not seated/);
+  await assert.rejects(() => room.act({ roomCode: code, token: "nope", action: "setComputerSpeed", args: { ms: 300 } }), /not seated/);
+  for (const ms of [5, 0, 2000, "fast-ish", null, undefined]) {
+    await assert.rejects(() => room.act({ roomCode: code, token: host.token, action: "setComputerSpeed", args: { ms } }), /listed computer speeds/, String(ms));
+  }
+  assert.equal((await room.get({ roomCode: code, token: host.token })).state.computerDelayMs, 600, "unchanged");
+});
+
+test("the speed survives a reload, a join and a move, and asking for the current speed saves nothing", async () => {
+  const { room, store } = setup();
+  const host = await room.create({ name: "Host" });
+  const code = host.state.roomCode;
+  await room.act({ roomCode: code, token: host.token, action: "setComputerSpeed", args: { ms: 300 } });
+  const guest = await room.join({ roomCode: code, name: "Guest" });
+  assert.equal(guest.state.computerDelayMs, 300, "a join does not lose it");
+  await room.act({ roomCode: code, token: host.token, action: "start" });
+  await room.act({ roomCode: code, token: guest.token, action: "bump" });
+  const stored = await store.load(code);
+  assert.equal(stored.__computerMs, 300);
+  assert.equal((await room.get({ roomCode: code, token: guest.token })).state.computerDelayMs, 300);
+  const before = (await store.load(code)).updatedAt;
+  await room.act({ roomCode: code, token: host.token, action: "setComputerSpeed", args: { ms: 300 } });
+  assert.equal((await store.load(code)).updatedAt, before, "the same speed is not a change");
+});
+
+test("the speed is bookkeeping: the adapter never sees it, and it works in the lobby and in play", async () => {
+  const { room } = setup();
+  let seen = null;
+  const spy = { ...toy, view: (game, viewerId) => { seen = game; return toy.view(game, viewerId); } };
+  const store = createSupabaseRoomStore({ namespace: "engine-test", memoryKey: `__engine${Math.random()}`, environment: {} });
+  const spied = createEngineRoom({ store, adapter: spy });
+  const host = await spied.create({ name: "Host" });
+  await spied.act({ roomCode: host.state.roomCode, token: host.token, action: "setComputerSpeed", args: { ms: 1500 } }); // lobby
+  assert.equal("__computerMs" in seen, false);
+  await spied.act({ roomCode: host.state.roomCode, token: host.token, action: "start" });
+  assert.equal((await spied.act({ roomCode: host.state.roomCode, token: host.token, action: "setComputerSpeed", args: { ms: 300 } })).state.computerDelayMs, 300); // in play
+  void room;
+});
+
+test("setComputerSpeed is a reserved action name", () => {
+  assert.throws(() => createEngineRoom({ store: {}, adapter: { ...toy, actions: { setComputerSpeed: { run: (g) => g } } } }), /reserved/);
+});

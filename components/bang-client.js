@@ -36,8 +36,8 @@ function computerIsDue(room) {
 export default function BangClient() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: BangRoomService, storageKey: "bang", computerDelay: 560, computerDue: computerIsDue });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerSpeed,
+  } = useEngineRoom({ service: BangRoomService, storageKey: "bang", computerDue: computerIsDue });
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [sidCards, setSidCards] = useState([]);
   const [showRules, setShowRules] = useState(false);
@@ -67,7 +67,7 @@ export default function BangClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="BANG!"
       theme="tbl-light bang-theme"
       room={room}
@@ -128,7 +128,7 @@ export default function BangClient() {
   }
 
   return <main className="bang-game tbl-light bang-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="BANG!"
       room={room}
       subtitle={`Room ${room.roomCode}`}

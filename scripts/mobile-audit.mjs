@@ -20,6 +20,8 @@
  *   FAIL  page scrolls sideways (document wider than the viewport)
  *   FAIL  uncaught page error, or a React error boundary on screen
  *   FAIL  text field under 16px — iOS Safari zooms the page on focus
+ *   FAIL  the computer speed control is missing from a room that has computer
+ *         players, or shown in one that has none (platform/computer-pacing)
  *   FAIL  a card hand (.tbl-fan) scrolls sideways, has a card outside its box,
  *         or leaves under 24px of a card showing (platform/card-hands)
  *   FAIL  a game does not show the landing entry, lobby, game bar or Rules
@@ -233,14 +235,19 @@ try {
         // Some games start as soon as the second seat fills, so look at the
         // lobby before adding anyone.
         report("room", await page.evaluate(inspect, MIN_TEXT), errors, seen);
+        const speedControl = page.locator('[data-layout="computer-speed"]');
+        if (await speedControl.count()) fail("room: the computer speed control is shown before any computer player is seated");
+        let added = 0;
         for (let i = 0; i < (COMPUTERS[slug] ?? 3); i++) {
           const add = page.getByRole("button", { name: ADD }).first();
           if (await add.count() && await add.isEnabled().catch(() => false)) {
             await add.click().catch(() => {});
+            added += 1;
             await page.waitForTimeout(300);
           }
         }
         report("room (seated)", await page.evaluate(inspect, MIN_TEXT), errors, seen);
+        if (added && !(await speedControl.count())) fail("room (seated): no computer speed control although a computer player is seated");
 
         const start = page.getByRole("button", { name: START_OVERRIDE[slug] ?? START }).first();
         if (await start.count()) {
@@ -248,6 +255,7 @@ try {
           await page.waitForTimeout(2500);
         }
         report("game", await page.evaluate(inspect, MIN_TEXT), errors, seen);
+        if (added && !(await page.locator('.tbl-game-header [data-layout="computer-speed"]').count())) fail("game: the game bar shows no computer speed control although a computer player is seated");
         await openRules(page, seen);
         await shot(page, slug, vp, "game");
       } catch (e) {

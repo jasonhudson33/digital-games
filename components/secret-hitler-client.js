@@ -18,6 +18,8 @@ import {
 import { eligibleChancellorIndices, getSecretHitlerPower } from "../lib/secret-hitler";
 import { SecretHitlerRoomService } from "./secret-hitler-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby } from "./ui/table-shell";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const NAME_KEY = "secret-hitler-player-name";
 
@@ -101,6 +103,17 @@ export default function SecretHitlerClient() {
     await perform(async () => enterState(await SecretHitlerRoomService.action(current.roomCode, token, name, values)));
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => action("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => action("setComputerSpeed", { ms }) });
+
   async function perform(work) {
     setBusy(true);
     setError("");
@@ -147,7 +160,7 @@ export default function SecretHitlerClient() {
   if (game.phase === "lobby") {
     const me = game.players.find((player) => player.isViewer) ?? game.players[0];
     const missing = 5 - game.players.length;
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Secret Hitler"
       theme="tbl-light secret-hitler-theme"
       room={{ roomCode: game.roomCode, hostId: game.hostControls ? me.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
@@ -168,7 +181,7 @@ export default function SecretHitlerClient() {
 
   return (
     <main className="sh-app sh-game tbl-light secret-hitler-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Secret Hitler"
         room={game}
         subtitle={`Government ${game.turnNumber} · ${game.players.filter((player) => player.alive).length} alive`}

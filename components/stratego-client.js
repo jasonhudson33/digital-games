@@ -14,6 +14,8 @@ import {
 import { StrategoRoomService } from "./stratego-room-service";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
+import { computerDelayOf } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 import {
   BOARD_SIZE,
   STRATEGO_ARMY_SIZE,
@@ -35,7 +37,7 @@ import {
 export default function StrategoClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom, copyRoomCode,
+    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom, copyRoomCode, computerSpeed,
   } = useEngineRoom({ service: StrategoRoomService, storageKey: "stratego" });
   const [selectedPieceId, setSelectedPieceId] = useState(null);
   const [showRules, setShowRules] = useState(false);
@@ -50,12 +52,15 @@ export default function StrategoClient() {
   const legalTargets = useMemo(() => room && selectedPieceId && myTurn ? legalStrategoMoves(room, playerId, selectedPieceId) : [], [room, selectedPieceId, myTurn, playerId]);
   const targetKeys = useMemo(() => new Map(legalTargets.map((move) => [positionKey(move.row, move.column), move])), [legalTargets]);
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct || battleToShow) return undefined;
-    const timer = window.setTimeout(() => stepComputer(), 850);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [battleToShow?.at, computerToAct?.id, dismissedBattleAt, playerId, room?.updatedAt]);
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing),
+  // and holds off while a battle result is still on screen.
+  useComputerPacer({
+    enabled: Boolean(room && room.hostId === playerId),
+    due: Boolean(computerToAct) && !battleToShow,
+    delayMs: computerDelayOf(room),
+    step: stepComputer,
+    key: room?.updatedAt,
+  });
 
   if (!room || !me) {
     return <Landing
@@ -75,7 +80,7 @@ export default function StrategoClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Stratego"
       theme="tbl-light stratego-theme"
       room={room}
@@ -143,7 +148,7 @@ export default function StrategoClient() {
   }
 
   return <main className="stratego-game tbl-light stratego-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Stratego"
       room={room}
       subtitle={`Room ${room.roomCode}`}

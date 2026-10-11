@@ -26,11 +26,10 @@ const handSize = (player) => player.handCount ?? player.hand.length;
 export default function Phase10Client() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, act, leaveRoom,
+    createRoom, joinRoom, act, leaveRoom, computerSpeed,
   } = useEngineRoom({
     service: Phase10RoomService,
     storageKey: "phase-10",
-    computerDelay: 480,
     computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer),
   });
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -45,7 +44,7 @@ export default function Phase10Client() {
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }} />;
   if (room.phase === "lobby") return (
     <div className="p10-theme">
-      <Lobby
+      <Lobby computerSpeed={computerSpeed}
         gameName="Phase 10" room={room} me={me} busy={busy} error={error} min={MIN_PLAYERS} max={MAX_PLAYERS}
         onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })}
         onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setRulesOpen(true)}
@@ -72,7 +71,7 @@ export default function Phase10Client() {
 
   return (
     <main className="p10-game p10-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Phase 10" room={room}
         status={room.phase === "finished" ? "Game complete" : myTurn ? (room.turnDrawn ? "Build, hit, or discard" : "Draw a card") : `${actor?.name}'s turn`}
         onRules={() => setRulesOpen(true)} onLeave={leaveRoom}

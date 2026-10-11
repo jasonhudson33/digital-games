@@ -27,6 +27,8 @@ import { HandFootRoomService } from "./hand-and-foot-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const PLAYER_NAME_KEY = "hand-foot-player-name";
 
@@ -159,6 +161,17 @@ export default function HandAndFootClient() {
     }
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => roomAction("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
+
   function leaveGame() {
     setGame(null);
     latestGame.current = null;
@@ -214,7 +227,7 @@ export default function HandAndFootClient() {
     const viewer = game.players.find((player) => player.isViewer) ?? game.players[0];
     const playerNameById = Object.fromEntries(game.players.map((player) => [player.playerId, player.name]));
     const canStart = game.players.length >= 4 && game.players.length <= 16 && game.players.length % 2 === 0;
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Hand & Foot"
       theme="tbl-light hand-and-foot-theme"
       room={{ roomCode: game.roomCode, hostId: game.hostControls ? viewer.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
@@ -245,7 +258,7 @@ export default function HandAndFootClient() {
   if (game.phase === "round-over" || game.phase === "game-over") {
     return (
       <main className="hf-app hf-game-shell tbl-light hand-and-foot-theme">
-        <GameHeader title="Hand & Foot" room={game} subtitle={`Round ${game.roundNumber} of 4`} status={game.phase === "game-over" ? "Game complete" : "Round complete"} onRules={() => setRulesOpen(true)} onLeave={leaveGame} />
+        <GameHeader computerSpeed={computerSpeed} title="Hand & Foot" room={game} subtitle={`Round ${game.roundNumber} of 4`} status={game.phase === "game-over" ? "Game complete" : "Round complete"} onRules={() => setRulesOpen(true)} onLeave={leaveGame} />
         <RoundResults game={game} onNext={() => roomAction("nextRound")} onLeave={leaveGame} />
         {rulesDialog}
       </main>
@@ -302,7 +315,7 @@ export default function HandAndFootClient() {
 
   return (
     <main className="hf-app hf-game-shell tbl-light hand-and-foot-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Hand & Foot"
         room={game}
         subtitle={`Round ${game.roundNumber} of 4 · Open with ${game.roundRequirement} points`}

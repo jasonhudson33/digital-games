@@ -11,6 +11,8 @@ import {
   MAX_PLAYERS, MIN_PLAYERS, cardFace, colorsForGame, currentPlayer, isPlayable, topDiscard,
 } from "../lib/uno";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const keys = { name: "uno-player-name", room: "uno-active-room" };
 
@@ -48,11 +50,16 @@ export default function UnoClient() {
     return active?.isComputer ? active : null;
   }, [room]);
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) return undefined;
-    const timer = window.setTimeout(() => stepComputer(), 680);
-    return () => window.clearTimeout(timer);
-  }, [room?.updatedAt, computerToAct?.id, playerId]);
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(room && room.hostId === playerId),
+    due: Boolean(computerToAct),
+    delayMs: computerDelayOf(room),
+    step: stepComputer,
+    key: room?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: room?.players, delayMs: room?.computerDelayMs, onChange: (ms) => act("setComputerSpeed", { ms }) });
 
   async function createRoom() {
     if (!name.trim()) return setError("Enter your name first.");
@@ -126,7 +133,7 @@ export default function UnoClient() {
         </div>
       </section>
     );
-    return <Lobby gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} options={settings} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
+    return <Lobby computerSpeed={computerSpeed} gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} options={settings} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
   }
 
   const active = currentPlayer(room);
@@ -146,7 +153,7 @@ export default function UnoClient() {
 
   return (
     <main className="tbl-game uno-theme tbl-felt-shell">
-      <GameHeader title={flipMode ? "UNO FLIP" : "UNO"} room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+      <GameHeader computerSpeed={computerSpeed} title={flipMode ? "UNO FLIP" : "UNO"} room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
       {error && <p className="tbl-error" role="alert">{error}</p>}
 
       <section className="uno-table tbl-felt-fit" aria-label="UNO table">

@@ -20,26 +20,15 @@ const tileCount = (player) => player.lifeTileCount ?? player.lifeTiles.length;
 export default function LifeClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leave,
-  } = useEngineRoom({ service: LifeRoomService, storageKey: "life" });
+    busy, error, setError, createRoom, joinRoom, act, leaveRoom: leave, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: LifeRoomService, storageKey: "life", computerDue: (current) => current.phase === "playing" && Boolean(currentLifePlayer(current)?.isComputer) });
   const [showRules, setShowRules] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [spinPreview, setSpinPreview] = useState(null);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) || null;
   const active = room ? currentLifePlayer(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || room.phase !== "playing" || !active?.isComputer) { setComputerThinking(false); return undefined; }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, room.pending ? 800 : 1300);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [active?.id, room?.pending?.type, room?.updatedAt, playerId]);
 
   async function handleSpin() {
     if (spinning || busy) return;
@@ -66,7 +55,7 @@ export default function LifeClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Life"
       theme="tbl-light life-theme"
       room={room}
@@ -87,11 +76,11 @@ export default function LifeClient() {
   const myTurn = room.phase === "playing" && active?.id === playerId;
   const pendingMine = myTurn && room.pending?.playerId === playerId;
   return <main className="life-game tbl-light life-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Life"
       room={room}
       subtitle={`Room ${room.roomCode}`}
-      status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : computerThinking ? `${active?.name} is thinking…` : `${active?.name}'s turn`}
+      status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : computerWaiting ? `${active?.name} is thinking…` : `${active?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leave}
     />

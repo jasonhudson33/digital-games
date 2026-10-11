@@ -42,28 +42,17 @@ const playerNameKey = "spyrium-player-name";
 export default function SpyriumClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: SpyriumRoomService, storageKey: "spyrium" });
+    busy, error, setError, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: SpyriumRoomService, storageKey: "spyrium", computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer) });
   const [showRules, setShowRules] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
   const [actionCard, setActionCard] = useState(null);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
   const botNeedsAction = room?.phase === "playing" && actor?.isComputer;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !botNeedsAction) { setComputerThinking(false); return undefined; }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, 620);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [botNeedsAction, actor?.id, playerId, room?.updatedAt]);
 
   useEffect(() => { setSelectedWorker(null); setSelectedCard(null); setActionCard(null); }, [room?.currentPlayerIndex, room?.round]);
 
@@ -90,7 +79,7 @@ export default function SpyriumClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Spyrium"
       theme="tbl-light spyrium-theme"
       room={room}
@@ -128,11 +117,11 @@ export default function SpyriumClient() {
   }
 
   return <main className="spyrium-game-shell tbl-light spyrium-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Spyrium"
       room={room}
       subtitle={`Round ${room.round} / 6 · Period ${room.period}`}
-      status={room.phase === "finished" ? "Industry closes" : myTurn ? `Your ${me.phase} phase` : computerThinking && actor?.isComputer ? `${actor.name} is calculating…` : `${actor?.name}'s turn`}
+      status={room.phase === "finished" ? "Industry closes" : myTurn ? `Your ${me.phase} phase` : computerWaiting && actor?.isComputer ? `${actor.name} is calculating…` : `${actor?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

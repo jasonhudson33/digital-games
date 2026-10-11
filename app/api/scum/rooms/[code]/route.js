@@ -11,6 +11,8 @@ import {
   startNextScumRoomRound,
   startScumRoom,
   submitScumRoomTrade,
+  setScumComputerSpeed,
+  stepScumComputer,
 } from "../../../../../lib/scum-rooms";
 
 export async function GET(request, context) {
@@ -32,5 +34,7 @@ export async function POST(request, context) {
     moveOn: moveOnScumRoomPile,
     submitTrade: submitScumRoomTrade,
     nextRound: startNextScumRoomRound,
+    computerStep: stepScumComputer,
+    setComputerSpeed: setScumComputerSpeed,
   });
 }

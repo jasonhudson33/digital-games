@@ -109,8 +109,8 @@ function choiceHighlights(choices, selected, hovered) {
 export default function TicketToRideClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: TicketToRideRoomService, storageKey: "ticket-to-ride" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: TicketToRideRoomService, storageKey: "ticket-to-ride", computerDue: (current) => (current.phase === "choosing-destinations" ? current.players.some((player) => player.isComputer && pendingTicketCount(player)) : current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer)) });
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [openingSelection, setOpeningSelection] = useState([]);
   const [ticketSelection, setTicketSelection] = useState([]);
@@ -118,7 +118,6 @@ export default function TicketToRideClient() {
   const [hoveredChoiceId, setHoveredChoiceId] = useState(null);
   const [showTickets, setShowTickets] = useState(true);
   const [showRules, setShowRules] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const computerToAct = room?.phase === "choosing-destinations"
@@ -127,25 +126,6 @@ export default function TicketToRideClient() {
       ? currentPlayer(room)
       : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        await stepComputer();
-      } finally {
-        if (!cancelled) setComputerThinking(false);
-      }
-    }, 700);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [computerToAct?.id, playerId, room?.phase, room?.updatedAt]);
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave this room and return to the Ticket to Ride home screen? You can rejoin with the room code.")) return;
@@ -177,7 +157,7 @@ export default function TicketToRideClient() {
   }
 
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Ticket to Ride"
       theme="ticket-to-ride-theme"
       room={room}
@@ -197,6 +177,7 @@ export default function TicketToRideClient() {
 
   if (room.phase === "choosing-destinations" && me.pendingDestinations.length) {
     return <DestinationPicker
+      computerSpeed={computerSpeed}
       room={room}
       title="Choose your opening journeys"
       subtitle="Keep at least two. Each ticket is drawn on the map in its own colour — an unfinished journey costs you its points at the end of the game."
@@ -215,7 +196,7 @@ export default function TicketToRideClient() {
   }
 
   if (room.phase === "choosing-destinations") {
-    return <WaitingRoom room={room} me={me} onLeave={leaveRoom} onRules={() => setShowRules(true)} dialogs={rulesDialog} />;
+    return <WaitingRoom room={room} me={me} computerSpeed={computerSpeed} onLeave={leaveRoom} onRules={() => setShowRules(true)} dialogs={rulesDialog} />;
   }
 
   const myTurn = room.phase === "playing" && currentPlayer(room)?.id === playerId;
@@ -246,11 +227,11 @@ export default function TicketToRideClient() {
 
   return (
     <main className="ttr-game-shell ticket-to-ride-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Ticket to Ride"
         room={room}
         subtitle={`Room ${room.roomCode}`}
-        status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : currentPlayer(room)?.isComputer && computerThinking ? `${currentPlayer(room)?.name} is planning…` : `${currentPlayer(room)?.name}'s turn`}
+        status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : currentPlayer(room)?.isComputer && computerWaiting ? `${currentPlayer(room)?.name} is planning…` : `${currentPlayer(room)?.name}'s turn`}
         onRules={() => setShowRules(true)}
         onLeave={leaveRoom}
       />
@@ -336,7 +317,7 @@ export default function TicketToRideClient() {
 /* The board does not go away again once it has arrived: the wait for the other
  * travelers is the first chance to plan a line between the journeys you kept, so
  * it happens on the same screen the choice did. */
-function WaitingRoom({ room, me, onLeave, onRules, dialogs }) {
+function WaitingRoom({ room, me, computerSpeed, onLeave, onRules, dialogs }) {
   const highlights = me.destinations.map((destination, index) => ({
     id: destination.id,
     from: destination.from,
@@ -349,7 +330,7 @@ function WaitingRoom({ room, me, onLeave, onRules, dialogs }) {
   }));
 
   return <main className="ttr-picker-shell ticket-to-ride-theme">
-    <GameHeader title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status="Your choices are locked in" onRules={onRules} onLeave={onLeave} />
+    <GameHeader computerSpeed={computerSpeed} title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status="Your choices are locked in" onRules={onRules} onLeave={onLeave} />
     <p className="ttr-picker-sub">Waiting for the other travelers. Your journeys stay on the map — a good moment to work out the line that joins them.</p>
     <div className="ttr-picker-grid">
       <section className="ttr-board-card" aria-label="Rail map of North America">
@@ -416,10 +397,10 @@ function toggleChoice(setSelected, id) {
  * only mean something next to the continent they cross — so the map is on screen
  * before the first choice of the game, with every ticket drawn across it.
  */
-function DestinationPicker({ room, title, subtitle, choices, selected, setSelected, hovered, setHovered, minimum, busy, onConfirm, onLeave, onRules, dialogs }) {
+function DestinationPicker({ room, title, subtitle, choices, selected, setSelected, hovered, setHovered, minimum, busy, computerSpeed, onConfirm, onLeave, onRules, dialogs }) {
   const highlights = choiceHighlights(choices, selected, hovered);
   return <main className="ttr-picker-shell ticket-to-ride-theme">
-    <GameHeader title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status={title} onRules={onRules} onLeave={onLeave} />
+    <GameHeader computerSpeed={computerSpeed} title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status={title} onRules={onRules} onLeave={onLeave} />
     <p className="ttr-picker-sub">{subtitle}</p>
     <div className="ttr-picker-grid">
       <section className="ttr-board-card" aria-label="Rail map of North America">

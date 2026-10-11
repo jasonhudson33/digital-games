@@ -18,6 +18,8 @@ import {
   skipTwoPlayerPinochleRoomMeld,
   takeRestOfPinochleRoomTricks,
   returnPinochleRoomPartnerCards,
+  setPinochleComputerSpeed,
+  stepPinochleComputer,
 } from "../../../../../lib/pinochle-rooms";
 
 export async function GET(request, context) {
@@ -46,5 +48,7 @@ export async function POST(request, context) {
     declareMeld: declareTwoPlayerPinochleRoomMeld,
     skipMeld: skipTwoPlayerPinochleRoomMeld,
     nextRound: startNextPinochleRoomRound,
+    computerStep: stepPinochleComputer,
+    setComputerSpeed: setPinochleComputerSpeed,
   });
 }

@@ -31,11 +31,10 @@ const computerIsDue = (room) =>
 export default function SevenUpClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, act, leaveRoom,
+    createRoom, joinRoom, act, leaveRoom, computerSpeed,
   } = useEngineRoom({
     service: SevenUpRoomService,
     storageKey: "seven-up",
-    computerDelay: 700,
     computerDue: computerIsDue,
   });
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -65,7 +64,7 @@ export default function SevenUpClient() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="7-Up"
       theme="tbl-light seven-up-theme"
       room={room}
@@ -115,7 +114,7 @@ export default function SevenUpClient() {
 
   return (
     <main className="tbl-game seven-up-theme tbl-felt-shell tbl-light">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="7-Up"
         room={room}
         subtitle="Private room"

@@ -25,6 +25,8 @@ import { RESOURCE_INFO, SQRT3, BOARD_CENTER, HEX_SIZE, RESOURCES, PLAYER_STYLES,
 import { createGame, createLobby, placeStartingSettlement, placeStartingRoad, isShipMovable, moveShip, resolveDiceRoll, advanceGameTurn, buyDevelopmentCardFor, playDevelopmentCardFor, completeFreeTransport, resolveDevelopmentResourceChoice, completeBuild, resolveRobberMove, selectRobberVictim, resolveRobberSteal, resolvePirateMove, resolveGoldChoice, awardProgressCards, discardProgressCardFor, computerHasAction, discardForComputer, bestComputerRobberTile, takeComputerAction, advanceBarbarians, buildKnight, promoteKnightAt, activateKnightAt, buildCityWall, improveCityTrack } from "../lib/catan-engine.js";
 import { CatanRoomService } from "./catan-room-service";
 import { catanRuntime } from "./catan-runtime";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 import {
   chooseBestCatanEdge,
   chooseBestCatanVertex,
@@ -347,13 +349,16 @@ export default function CatanClient() {
     void act("removeComputer", { playerId: computerId });
   };
 
-  useEffect(() => {
-    if (!isHost || !game || game.phase !== "playing" || game.winnerId || !computerHasAction(game)) return undefined;
-    const timeoutId = window.setTimeout(() => {
-      void stepComputer();
-    }, 700);
-    return () => window.clearTimeout(timeoutId);
-  }, [game?.updatedAt, game?.phase, game?.winnerId, isHost]);
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: isHost,
+    due: Boolean(game && game.phase === "playing" && !game.winnerId && computerHasAction(game)),
+    delayMs: computerDelayOf(game),
+    step: stepComputer,
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => act("setComputerSpeed", { ms }) });
 
   const leaveRoom = () => {
     setGame(null);
@@ -633,7 +638,7 @@ export default function CatanClient() {
   }
 
   if (game.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Catan"
       theme="tbl-light catan-theme"
       room={game}
@@ -711,7 +716,7 @@ export default function CatanClient() {
       {rulesDialog}
       {winner && <Winner player={winner} target={game.victoryTarget} canRestart={isHost} onRestart={restartRoom} onLeave={leaveRoom} />}
       {barbarianNotice && <div className={`barbarian-notice ${barbarianNotice.kind}`} role="alert"><Shield size={28} /><div><strong>{barbarianNotice.kind === "warning" ? "Prepare your knights" : "Barbarian attack"}</strong><span>{barbarianNotice.message}</span></div></div>}
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="CATAN"
         room={game}
         subtitle={`${CATAN_RULESETS[game.ruleset].shortLabel} · ${game.setup ? `Setup round ${game.setup.index < game.players.length ? 1 : 2}` : `Turn ${game.turn}`}`}

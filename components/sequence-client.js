@@ -32,28 +32,14 @@ import CardFan from "./card-fan";
 export default function SequenceClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: SequenceRoomService, storageKey: "sequence" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: SequenceRoomService, storageKey: "sequence", computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer) });
   const [selectedCardId, setSelectedCardId] = useState(null);
-  const [computerThinking, setComputerThinking] = useState(false);
   const [showRules, setShowRules] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const computerToAct = room?.phase === "playing" && currentPlayer(room)?.isComputer ? currentPlayer(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, 650);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [computerToAct?.id, playerId, room?.phase, room?.updatedAt]);
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
@@ -82,7 +68,7 @@ export default function SequenceClient() {
     const isHost = room.hostId === me.id;
     const teamOptions = compatibleTeamCounts(room.players.length);
     const canStart = VALID_PLAYER_COUNTS.includes(room.players.length) && teamOptions.includes(room.teamCount);
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Sequence"
       theme="tbl-light sequence-theme"
       room={room}
@@ -116,11 +102,11 @@ export default function SequenceClient() {
   }
 
   return <main className="sequence-game-shell tbl-light sequence-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Sequence"
       room={room}
       subtitle={`Room ${room.roomCode}`}
-      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : computerThinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
+      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : computerWaiting ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

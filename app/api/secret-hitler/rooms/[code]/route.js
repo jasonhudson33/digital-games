@@ -15,6 +15,8 @@ import {
   startSecretHitlerRoom,
   useSecretHitlerRoomPower,
   voteSecretHitlerRoom,
+  setSecretHitlerComputerSpeed,
+  stepSecretHitlerComputer,
 } from "../../../../../lib/secret-hitler-rooms";
 
 export async function GET(request, context) {
@@ -40,5 +42,7 @@ export async function POST(request, context) {
     usePower: useSecretHitlerRoomPower,
     finishPower: finishSecretHitlerRoomPower,
     reset: resetSecretHitlerRoom,
+    computerStep: stepSecretHitlerComputer,
+    setComputerSpeed: setSecretHitlerComputerSpeed,
   });
 }

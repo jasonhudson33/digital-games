@@ -10,8 +10,11 @@ import {
   drawHandFootRoomCards,
   getHandFootRoom,
   joinHandFootRoom,
+  setHandFootComputerSpeed,
   startHandFootRoom,
+  stepHandFootComputer,
 } from "../lib/hand-and-foot-rooms.js";
+import { computerRoomTests } from "./room-computer-helpers.mjs";
 
 test("room players choose teammates, start opposite, and only see their own hand", async () => {
   const created = await createHandFootRoom({ name: "Host" });
@@ -51,7 +54,11 @@ test("room players choose teammates, start opposite, and only see their own hand
   assert.equal(afterDraw.state.turnStage, "play");
   const discardedId = afterDraw.state.players[0].hand[0].id;
   const afterDiscard = await discardHandFootRoomCard({ roomCode, token: created.token, cardId: discardedId });
-  assert.equal(afterDiscard.state.currentPlayerIndex, 2);
+  // The computer's turn is no longer played inside the human's request: the host steps it.
+  assert.equal(afterDiscard.state.currentPlayerIndex, 1);
+  assert.equal(afterDiscard.state.computerDue, true);
+  const afterComputer = await stepHandFootComputer({ roomCode, token: created.token });
+  assert.equal(afterComputer.state.currentPlayerIndex, 2);
 });
 
 test("mutual teammate preferences take priority when room teams are built", () => {
@@ -136,4 +143,19 @@ test("a Hand and Foot room supports sixteen players in eight opposite teams", as
   assert.equal(started.state.teams.length, 8);
   assert.ok(started.state.teams.every((team) => team.memberIds.length === 2));
   assert.equal(started.state.drawPile.length, 17 * 54 - 16 * 26);
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+computerRoomTests({
+  name: "Hand & Foot",
+  create: createHandFootRoom,
+  join: joinHandFootRoom,
+  addComputer: addHandFootComputer,
+  start: startHandFootRoom,
+  get: getHandFootRoom,
+  step: stepHandFootComputer,
+  setSpeed: setHandFootComputerSpeed,
+  computers: 3,
+  guestComputers: 2,
 });

@@ -34,14 +34,21 @@ import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as Share
 /** Opponents' hands are not sent, only a count. */
 const handSize = (player) => player.handCount ?? player.hand.length;
 
+/** The computer that is due to act in this room, or null. Shared by the pacing hook and the labels. */
+function computerToActIn(room) {
+  if (room?.phase !== "playing") return null;
+  if (room.pendingChallenge) return room.players.find((player) => player.id === room.pendingChallenge.turnPlayerId && player.isComputer) ?? null;
+  const active = currentPlayer(room);
+  return active?.isComputer ? active : null;
+}
+
 export default function CoverYourAssetsClient() {
   const {
     room, setRoom, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: CoverYourAssetsRoomService, storageKey: "cover-your-assets" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: CoverYourAssetsRoomService, storageKey: "cover-your-assets", computerDue: (current) => Boolean(computerToActIn(current)) });
   const [selected, setSelected] = useState([]);
   const [showRules, setShowRules] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   // A completed move can remove selected cards from the hand. Keeping those
   // stale IDs makes every action look illegal when this player's next turn
@@ -50,32 +57,8 @@ export default function CoverYourAssetsClient() {
     setSelected([]);
   }, [room?.updatedAt]);
 
-  const computerToAct = useMemo(() => {
-    if (room?.phase !== "playing") return null;
-    if (room.pendingChallenge) return room.players.find((player) => player.id === room.pendingChallenge.turnPlayerId && player.isComputer) ?? null;
-    const active = currentPlayer(room);
-    return active?.isComputer ? active : null;
-  }, [room]);
+  const computerToAct = room ? computerToActIn(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        await stepComputer();
-      } finally {
-        if (!cancelled) setComputerThinking(false);
-      }
-    }, 720);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [computerToAct?.id, room?.updatedAt, room?.pendingChallenge?.played?.length, playerId]);
 
   function leaveRoom() {
     if (room?.phase === "playing" && !window.confirm("Leave the table? You can rejoin with the room code.")) return;
@@ -104,7 +87,7 @@ export default function CoverYourAssetsClient() {
   }
 
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Cover Your Assets"
       theme="tbl-light cya-theme"
       room={room}
@@ -137,10 +120,10 @@ export default function CoverYourAssetsClient() {
   }
 
   return <main className="cya-game-shell tbl-light cya-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Cover Your Assets"
       room={room}
-      status={computerThinking ? `${computerToAct?.name} is thinking…` : myChallengeTurn ? "Your counter" : myTurn ? "Your turn" : `${active?.name}'s turn`}
+      status={computerWaiting ? `${computerToAct?.name} is thinking…` : myChallengeTurn ? "Your counter" : myTurn ? "Your turn" : `${active?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

@@ -45,29 +45,15 @@ const ICONS = {
 export default function DominionClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error, setError,
-    createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: DominionRoomService, storageKey: "dominion" });
+    createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: DominionRoomService, storageKey: "dominion", computerDue: (current) => Boolean(computerPlayerToAct(current)) });
   const [showRules, setShowRules] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState([]);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
   const computer = room ? computerPlayerToAct(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computer) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, 650);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [computer?.id, room?.pendingChoice?.type, room?.updatedAt, room?.hostId, playerId]);
 
   useEffect(() => setSelectedIndices([]), [room?.pendingChoice?.type, room?.pendingChoice?.playerId]);
 
@@ -94,7 +80,7 @@ export default function DominionClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Dominion"
       theme="tbl-light dominion-theme"
       room={room}
@@ -118,11 +104,11 @@ export default function DominionClient() {
   const actionCards = me.hand.filter((id) => CARD_DEFINITIONS[id].types.includes("action"));
 
   return <main className="dom-game-shell tbl-light dominion-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Dominion"
       room={room}
       subtitle={`Room ${room.roomCode}`}
-      status={room.phase === "finished" ? "Realm complete" : myChoice ? "Your response" : myTurn ? `Your ${room.turnPhase} phase` : computerThinking && computer ? `${computer.name} is deciding...` : `${actor?.name}'s turn`}
+      status={room.phase === "finished" ? "Realm complete" : myChoice ? "Your response" : myTurn ? `Your ${room.turnPhase} phase` : computerWaiting && computer ? `${computer.name} is deciding...` : `${actor?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

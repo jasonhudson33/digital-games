@@ -19,9 +19,23 @@ import {
   resolveSkullKingRoomPirateAbility,
   resolveSkullKingRoomWalkThePlank,
   setSkullKingDeckMode,
+  setSkullKingComputerSpeed,
   startNextSkullKingRoomRound,
   startSkullKingRoom,
+  stepSkullKingComputer,
 } from "../lib/skull-king-rooms.js";
+
+
+// Computers no longer play inside a human's action: the host's browser steps them one move at a
+// time. A test that wants the table to settle does the same, until no computer is due.
+async function settle(roomCode, host, state) {
+  let current = state;
+  for (let steps = 0; current.computerDue && steps < 2000; steps += 1) {
+    current = (await stepSkullKingComputer({ roomCode, token: host.token })).state;
+  }
+  assert.equal(current.computerDue, false, "computers settled");
+  return current;
+}
 
 test("Skull King rooms support human players and keep hands private", async () => {
   const host = await createSkullKingRoom({ name: "Host" });
@@ -166,39 +180,39 @@ test("a room voyage can complete all ten rounds without expansion-card deadlocks
   const roomCode = host.state.roomCode;
   await addSkullKingComputer({ roomCode, token: host.token });
   await addSkullKingComputer({ roomCode, token: host.token });
-  let state = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
+  let state = await settle(roomCode, host, (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state);
 
   for (let steps = 0; state.phase !== "gameOver" && steps < 5000; steps += 1) {
     if (state.phase === "bidding") {
-      state = (await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 })).state;
+      state = await settle(roomCode, host, (await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 })).state);
     } else if (["playing", "lastVolley"].includes(state.phase)) {
       assert.equal(state.currentPlayerIndex, 0);
       const play = chooseBotSkullKingPlay(state, 0, () => 0);
       assert.ok(play);
-      state = (await playSkullKingRoomCard({
+      state = await settle(roomCode, host, (await playSkullKingRoomCard({
         roomCode,
         token: host.token,
         cardId: play.card.id,
         declaration: play.declaredSuit ?? play.declaredRole ?? play.declaredValue,
-      })).state;
+      })).state);
     } else if (state.phase === "walkThePlank") {
       assert.equal(state.pendingWalkThePlank.playerIndex, 0);
-      state = (await resolveSkullKingRoomWalkThePlank({
+      state = await settle(roomCode, host, (await resolveSkullKingRoomWalkThePlank({
         roomCode,
         token: host.token,
         cardId: state.pendingWalkThePlank.pirateCardIds[0],
-      })).state;
+      })).state);
     } else if (state.phase === "pirateAbility") {
       assert.equal(state.pendingPirateAbility.playerIndex, 0);
-      state = (await resolveSkullKingRoomPirateAbility({
+      state = await settle(roomCode, host, (await resolveSkullKingRoomPirateAbility({
         roomCode,
         token: host.token,
         choice: chooseBotPirateAbility(state, () => 0),
-      })).state;
+      })).state);
     } else if (state.phase === "collecting") {
-      state = (await collectSkullKingRoomTrick({ roomCode, token: host.token })).state;
+      state = await settle(roomCode, host, (await collectSkullKingRoomTrick({ roomCode, token: host.token })).state);
     } else if (state.phase === "roundComplete") {
-      state = (await startNextSkullKingRoomRound({ roomCode, token: host.token })).state;
+      state = await settle(roomCode, host, (await startNextSkullKingRoomRound({ roomCode, token: host.token })).state);
     } else {
       assert.fail(`Unexpected room phase: ${state.phase}`);
     }
@@ -215,45 +229,45 @@ test("a two-captain voyage follows Graybeard turn order through all ten rounds",
   const host = await createSkullKingRoom({ name: "Host" });
   const roomCode = host.state.roomCode;
   await addSkullKingComputer({ roomCode, token: host.token });
-  let state = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
+  let state = await settle(roomCode, host, (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state);
   const ghostIndex = state.players.findIndex((player) => player.isGhost);
   assert.equal(ghostIndex, 2);
 
   for (let steps = 0; state.phase !== "gameOver" && steps < 5000; steps += 1) {
     if (state.phase === "bidding") {
-      state = (await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 })).state;
+      state = await settle(roomCode, host, (await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 })).state);
     } else if (["playing", "lastVolley"].includes(state.phase)) {
       const actingForGhost = state.currentPlayerIndex === ghostIndex;
       if (actingForGhost) assert.equal(getSkullKingActingPlayerIndex(state), 0);
       else assert.equal(state.currentPlayerIndex, 0);
       if (actingForGhost) {
-        state = (await playSkullKingRoomCard({ roomCode, token: host.token, flipGhost: true })).state;
+        state = await settle(roomCode, host, (await playSkullKingRoomCard({ roomCode, token: host.token, flipGhost: true })).state);
       } else {
         const play = chooseBotSkullKingPlay(state, state.currentPlayerIndex, () => 0);
         assert.ok(play);
-        state = (await playSkullKingRoomCard({
+        state = await settle(roomCode, host, (await playSkullKingRoomCard({
           roomCode,
           token: host.token,
           cardId: play.card.id,
           declaration: play.declaredSuit ?? play.declaredRole ?? play.declaredValue,
-        })).state;
+        })).state);
       }
     } else if (state.phase === "walkThePlank") {
-      state = (await resolveSkullKingRoomWalkThePlank({
+      state = await settle(roomCode, host, (await resolveSkullKingRoomWalkThePlank({
         roomCode,
         token: host.token,
         cardId: state.pendingWalkThePlank.pirateCardIds[0],
-      })).state;
+      })).state);
     } else if (state.phase === "pirateAbility") {
-      state = (await resolveSkullKingRoomPirateAbility({
+      state = await settle(roomCode, host, (await resolveSkullKingRoomPirateAbility({
         roomCode,
         token: host.token,
         choice: chooseBotPirateAbility(state, () => 0),
-      })).state;
+      })).state);
     } else if (state.phase === "collecting") {
-      state = (await collectSkullKingRoomTrick({ roomCode, token: host.token })).state;
+      state = await settle(roomCode, host, (await collectSkullKingRoomTrick({ roomCode, token: host.token })).state);
     } else if (state.phase === "roundComplete") {
-      state = (await startNextSkullKingRoomRound({ roomCode, token: host.token })).state;
+      state = await settle(roomCode, host, (await startNextSkullKingRoomRound({ roomCode, token: host.token })).state);
     } else {
       assert.fail(`Unexpected two-player room phase: ${state.phase}`);
     }
@@ -264,4 +278,59 @@ test("a two-captain voyage follows Graybeard turn order through all ten rounds",
   assert.equal(state.captainCount, 2);
   assert.equal(state.players[ghostIndex].score, 0);
   assert.ok(state.roundSummary.winnerIndexes.every((index) => index !== ghostIndex));
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+test("a human's action leaves the computers' moves for the host to step, one at a time", async () => {
+  const host = await createSkullKingRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  await addSkullKingComputer({ roomCode, token: host.token });
+  await addSkullKingComputer({ roomCode, token: host.token });
+  const started = (await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 })).state;
+  assert.equal(started.phase, "bidding");
+  assert.equal(started.computerDue, true, "starting does not bid for the computers");
+  // Bidding is simultaneous, so one step settles every computer's bid.
+  const bid = (await stepSkullKingComputer({ roomCode, token: host.token })).state;
+  assert.equal(bid.computerDue, false);
+  // Once the human has bid, play begins; each computer card is its own step.
+  let state = (await bidSkullKingRoom({ roomCode, token: host.token, bid: 0 })).state;
+  let steps = 0;
+  const seen = new Set([state.updatedAt]);
+  while (state.computerDue && steps < 20) {
+    state = (await stepSkullKingComputer({ roomCode, token: host.token })).state;
+    assert.equal(seen.has(state.updatedAt), false, "every step is a separate saved state");
+    seen.add(state.updatedAt);
+    steps += 1;
+  }
+  assert.equal(state.computerDue, false);
+});
+
+test("only the host steps computers, and a step with nothing due changes nothing", async () => {
+  const host = await createSkullKingRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  const guest = await joinSkullKingRoom({ roomCode, name: "Guest" });
+  await addSkullKingComputer({ roomCode, token: host.token });
+  await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 });
+  await assert.rejects(stepSkullKingComputer({ roomCode, token: guest.token }), /host/i);
+  const once = (await stepSkullKingComputer({ roomCode, token: host.token })).state;
+  assert.equal(once.computerDue, false);
+  const again = (await stepSkullKingComputer({ roomCode, token: host.token })).state;
+  assert.equal(again.updatedAt, once.updatedAt, "nothing due: not even saved");
+});
+
+test("a new room runs at Normal, any seated player changes it, and only listed speeds are accepted", async () => {
+  const host = await createSkullKingRoom({ name: "Host" });
+  const roomCode = host.state.roomCode;
+  assert.equal(host.state.computerDelayMs, 600);
+  const guest = await joinSkullKingRoom({ roomCode, name: "Guest" });
+  const changed = (await setSkullKingComputerSpeed({ roomCode, token: guest.token, ms: 1000 })).state;
+  assert.equal(changed.computerDelayMs, 1000);
+  assert.equal((await getSkullKingRoom({ roomCode, token: host.token })).state.computerDelayMs, 1000, "everyone sees it");
+  for (const ms of [5, 0, 2000, "fast-ish", undefined]) {
+    await assert.rejects(setSkullKingComputerSpeed({ roomCode, token: host.token, ms }), /listed computer speeds/, String(ms));
+  }
+  await assert.rejects(setSkullKingComputerSpeed({ roomCode, token: "nope", ms: 300 }), /Join the room/);
+  await startSkullKingRoom({ roomCode, token: host.token, random: () => 0 }).catch(() => {});
+  assert.equal((await setSkullKingComputerSpeed({ roomCode, token: host.token, ms: 300 })).state.computerDelayMs, 300, "also while a game is running or the start was refused");
 });

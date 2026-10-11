@@ -21,7 +21,7 @@ import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
 
 export default function FiveCrownsClient() {
-  const { room, playerId, name, setName, joinCode, setJoinCode, busy, error, createRoom, joinRoom, act, leaveRoom } = useEngineRoom({ service: FiveCrownsRoomService, storageKey: "five-crowns", computerDelay: 650, computerDue: computerIsDue });
+  const { room, playerId, name, setName, joinCode, setJoinCode, busy, error, createRoom, joinRoom, act, leaveRoom, computerSpeed, } = useEngineRoom({ service: FiveCrownsRoomService, storageKey: "five-crowns", computerDue: computerIsDue });
   const [selectedIds, setSelectedIds] = useState([]);
   const [showRules, setShowRules] = useState(false);
   const me = room?.players.find((player) => player.id === playerId);
@@ -49,7 +49,7 @@ export default function FiveCrownsClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Five Crowns"
       theme="tbl-light five-crowns-theme"
       room={room}
@@ -77,7 +77,7 @@ export default function FiveCrownsClient() {
   const layDown = () => selectedCards.length >= 3 && act("layDown", { cardIds: selectedIds });
   const canGoOutNow = selectedCards.length === 1 && canGoOutWithDiscard(room, playerId, selectedCards[0].id);
   return <main className="fc-shell tbl-light five-crowns-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Five Crowns"
       room={room}
       subtitle={`Round ${room.round} of 11`}

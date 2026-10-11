@@ -23,6 +23,8 @@ import { ScumRoomService } from "./scum-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const SET_NAMES = { 1: "single", 2: "pair", 3: "triple", 4: "four of a kind" };
 const PLAYER_NAME_KEY = "scum-player-name";
@@ -147,6 +149,17 @@ export default function ScumClient() {
     }
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => roomAction("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
+
   function leaveRoom() {
     if (game?.roomCode) sessionStorage.removeItem(roomTokenKey(game.roomCode));
     setGame(null);
@@ -184,7 +197,7 @@ export default function ScumClient() {
   if (game.phase === "lobby") {
     const me = game.players.find((player) => player.isViewer) ?? game.players[0];
     const maximumGroups = Math.floor(game.players.length / 2);
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Scum"
       theme="tbl-light scum-theme"
       room={{
@@ -255,7 +268,7 @@ export default function ScumClient() {
 
   return (
     <main className="scum-app scum-game-shell tbl-light scum-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Scum"
         room={game}
         subtitle={`Round ${game.roundNumber || 1} · ${activePlayerCount} players · ${activeDeckCount} ${activeDeckCount === 1 ? "deck" : "decks"}`}

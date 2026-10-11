@@ -50,6 +50,8 @@ import {
   startKillerBunniesRoom,
   targetKillerBunniesBunny,
   chooseInitialKillerBunniesRoomRun,
+  setKillerBunniesComputerSpeed,
+  stepKillerBunniesComputer,
 } from "../../../../../lib/killer-bunnies-rooms";
 
 export async function GET(request, context) {
@@ -110,5 +112,7 @@ export async function POST(request, context) {
     buyShopItem: buyKillerBunniesRoomShopItem,
     replaceRun: replaceKillerBunniesRoomRun,
     discardExtra: discardExtraKillerBunniesRoomCard,
+    computerStep: stepKillerBunniesComputer,
+    setComputerSpeed: setKillerBunniesComputerSpeed,
   });
 }

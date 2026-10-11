@@ -22,39 +22,22 @@ import {
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
+/** The computer that is due to act in this room, or null. Shared by the pacing hook and the labels. */
+function computerToActIn(room) {
+  if (room?.phase !== "playing") return null;
+  const active = currentPlayer(room);
+  return active?.isComputer ? active : null;
+}
+
 export default function NoThanksClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: NoThanksRoomService, storageKey: "no-thanks" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: NoThanksRoomService, storageKey: "no-thanks", computerDue: (current) => Boolean(computerToActIn(current)) });
   const [showRules, setShowRules] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
 
-  const computerToAct = useMemo(() => {
-    if (room?.phase !== "playing") return null;
-    const active = currentPlayer(room);
-    return active?.isComputer ? active : null;
-  }, [room]);
+  const computerToAct = room ? computerToActIn(room) : null;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        await stepComputer();
-      } finally {
-        if (!cancelled) setComputerThinking(false);
-      }
-    }, 720);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [computerToAct?.id, room?.updatedAt, playerId]);
 
   function leaveRoom() {
     if (
@@ -88,7 +71,7 @@ export default function NoThanksClient() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="No Thanks!"
       theme="tbl-light no-thanks-theme"
       room={room}
@@ -109,7 +92,7 @@ export default function NoThanksClient() {
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId;
   const canPass = canPassCard(room, playerId);
-  const statusMessage = computerThinking
+  const statusMessage = computerWaiting
     ? `${computerToAct?.name} is deciding…`
     : myTurn
       ? room.players.find((player) => player.id === playerId)?.chips
@@ -118,7 +101,7 @@ export default function NoThanksClient() {
       : `${active?.name}'s choice`;
 
   return <main className="nt-game-shell tbl-light no-thanks-theme">
-    <GameHeader title="No Thanks!" room={room} subtitle="Single-round game" status={room.phase === "playing" ? statusMessage : "Game over"} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+    <GameHeader computerSpeed={computerSpeed} title="No Thanks!" room={room} subtitle="Single-round game" status={room.phase === "playing" ? statusMessage : "Game over"} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
 
     {error && <p className="nt-error" role="alert">{error}</p>}
 

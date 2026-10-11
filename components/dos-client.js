@@ -9,6 +9,8 @@ import { DosRoomService } from "./dos-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import { MAX_PLAYERS, MIN_PLAYERS, currentPlayer, matchOptions } from "../lib/dos";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const keys = { name: "dos-player-name", room: "dos-active-room" };
 
@@ -45,11 +47,16 @@ export default function DosClient() {
     return active?.isComputer ? active : null;
   }, [room]);
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !computerToAct) return undefined;
-    const timer = window.setTimeout(() => stepComputer(), 650);
-    return () => window.clearTimeout(timer);
-  }, [room?.updatedAt, computerToAct?.id, playerId]);
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(room && room.hostId === playerId),
+    due: Boolean(computerToAct),
+    delayMs: computerDelayOf(room),
+    step: stepComputer,
+    key: room?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: room?.players, delayMs: room?.computerDelayMs, onChange: (ms) => act("setComputerSpeed", { ms }) });
 
   async function withBusy(action) {
     setBusy(true); setError("");
@@ -100,7 +107,7 @@ export default function DosClient() {
 
   const me = room?.players.find((player) => player.id === playerId) || null;
   if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby gameName="DOS" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
+  if (room.phase === "lobby") return <Lobby computerSpeed={computerSpeed} gameName="DOS" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
 
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId;
@@ -117,7 +124,7 @@ export default function DosClient() {
 
   return (
     <main className="tbl-game dos-theme tbl-felt-shell">
-      <GameHeader title="DOS" room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+      <GameHeader computerSpeed={computerSpeed} title="DOS" room={room} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
       {error && <p className="tbl-error" role="alert">{error}</p>}
 
       <section className="dos-felt-wrap tbl-felt-fit" aria-label="DOS table">

@@ -6,8 +6,11 @@ import {
   createSecretHitlerRoom,
   getSecretHitlerRoom,
   joinSecretHitlerRoom,
+  setSecretHitlerComputerSpeed,
   startSecretHitlerRoom,
+  stepSecretHitlerComputer,
 } from "../lib/secret-hitler-rooms.js";
+import { computerRoomTests } from "./room-computer-helpers.mjs";
 import { loadSecretHitlerRoom } from "../lib/secret-hitler-room-store.js";
 
 test("a room can mix a human host with computers and keeps every role private", async () => {
@@ -44,4 +47,38 @@ test("Fascists see Hitler and one another, while a 7-player Hitler starts withou
 
   const hitlerView = await getSecretHitlerRoom({ roomCode: created.state.roomCode, token: tokens[hitlerIndex] });
   assert.deepEqual(hitlerView.state.privateRole.knownTeam, []);
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+computerRoomTests({
+  name: "Secret Hitler",
+  create: createSecretHitlerRoom,
+  join: joinSecretHitlerRoom,
+  addComputer: addSecretHitlerComputer,
+  start: startSecretHitlerRoom,
+  get: getSecretHitlerRoom,
+  step: stepSecretHitlerComputer,
+  setSpeed: setSecretHitlerComputerSpeed,
+  computers: 4,
+  guestComputers: 3,
+  startLeavesComputersDue: false, // the table waits on the role reveal, which only humans acknowledge
+});
+
+test("after the role reveal the computers act one saved move at a time, and only when one is due", async () => {
+  const created = await createSecretHitlerRoom({ name: "Host" });
+  const { roomCode } = created.state;
+  for (let index = 0; index < 4; index += 1) await addSecretHitlerComputer({ roomCode, token: created.token });
+  const started = (await startSecretHitlerRoom({ roomCode, token: created.token })).state;
+  assert.equal(started.computerDue, false, "a role reveal waits on the human, not a computer");
+  let state = (await acknowledgeSecretHitlerRoomRole({ roomCode, token: created.token })).state;
+  const seen = new Set([state.updatedAt]);
+  let steps = 0;
+  for (; state.computerDue && steps < 300; steps += 1) {
+    state = (await stepSecretHitlerComputer({ roomCode, token: created.token })).state;
+    assert.equal(seen.has(state.updatedAt), false, "each step is a separate saved state");
+    seen.add(state.updatedAt);
+  }
+  assert.equal(state.computerDue, false, "the table settles on the human");
+  assert.ok(steps >= 0 && steps < 300);
 });

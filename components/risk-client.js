@@ -37,6 +37,8 @@ import { EMBLEM_PATHS, emblemFor, inkFor, plateFor } from "../lib/risk-emblems";
 import { useBoardZoom } from "./ui/use-board-zoom";
 import { RiskRoomService } from "./risk-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const playerNameStorageKey = "risk-player-name";
 
@@ -346,7 +348,6 @@ export default function RiskClient() {
   const [conquestMoveCount, setConquestMoveCount] = useState(1);
   const [fortifyCount, setFortifyCount] = useState(1);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [botThinking, setBotThinking] = useState(false);
   const [isBattleRolling, setIsBattleRolling] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
@@ -395,18 +396,6 @@ export default function RiskClient() {
   const isHost = game?.hostId === playerId;
   const phase = currentPlayer ? PHASES[game.phase] : null;
   const PhaseIcon = phase?.icon ?? Shield;
-
-  useEffect(() => {
-    if (!game || !isHost || !currentPlayer?.isBot || game.winnerId) return undefined;
-    setBotThinking(true);
-    const timer = window.setTimeout(() => {
-      void stepComputer();
-      setSelectedFrom(null);
-      setSelectedTo(null);
-      setBotThinking(false);
-    }, 950);
-    return () => window.clearTimeout(timer);
-  }, [game?.currentPlayerIndex, game?.winnerId, currentPlayer?.isBot, isHost]);
 
   const selectedSource = selectedFrom && game?.territories[selectedFrom];
   const selectedDestination = selectedTo && game?.territories[selectedTo];
@@ -481,6 +470,21 @@ export default function RiskClient() {
       return null;
     }
   };
+
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  const { waiting: botThinking } = useComputerPacer({
+    enabled: isHost,
+    due: Boolean(game && currentPlayer?.isBot && !game.winnerId),
+    delayMs: computerDelayOf(game),
+    step: () => {
+      setSelectedFrom(null);
+      setSelectedTo(null);
+      return stepComputer();
+    },
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => act("setComputerSpeed", { ms }) });
 
   const createRoom = async () => {
     setError("");
@@ -569,7 +573,7 @@ export default function RiskClient() {
 
   if (game.phase === "lobby") {
     const inviteLink = typeof window === "undefined" ? "" : `${window.location.origin}/risk?room=${game.roomCode}`;
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Risk"
       theme="tbl-light risk-theme"
       room={{ ...game, players: game.players.map((player) => ({ ...player, isComputer: player.isBot })) }}
@@ -776,7 +780,7 @@ export default function RiskClient() {
 
   return (
     <main className="risk-page tbl-light risk-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Risk"
         room={game}
         subtitle={`World campaign · Round ${game.round}`}

@@ -38,30 +38,16 @@ const cardArt = {
 export default function SplendorClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: SplendorRoomService, storageKey: "splendor" });
+    busy, error, setError, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerWaiting, computerSpeed,
+  } = useEngineRoom({ service: SplendorRoomService, storageKey: "splendor", computerDue: (current) => current.phase === "playing" && Boolean(currentPlayer(current)?.isComputer) });
   const [selectedGems, setSelectedGems] = useState([]);
   const [returns, setReturns] = useState({});
   const [showRules, setShowRules] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room ? currentPlayer(room) : null;
   const botNeedsAction = room?.phase === "playing" && actor?.isComputer;
 
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !botNeedsAction) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, 720);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [botNeedsAction, actor?.id, playerId, room?.updatedAt]);
 
   useEffect(() => {
     setSelectedGems([]);
@@ -95,7 +81,7 @@ export default function SplendorClient() {
     />;
   }
   if (room.phase === "lobby") {
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Splendor"
       theme="tbl-light splendor-theme"
       room={room}
@@ -149,11 +135,11 @@ export default function SplendorClient() {
   })();
 
   return <main className="splendor-game-shell tbl-light splendor-theme">
-    <GameHeader
+    <GameHeader computerSpeed={computerSpeed}
       title="Splendor"
       room={room}
       subtitle={`Room ${room.roomCode}`}
-      status={room.phase === "finished" ? "Trading complete" : myTurn ? "Your turn" : computerThinking && actor?.isComputer ? `${actor.name} is considering…` : `${actor?.name}'s turn`}
+      status={room.phase === "finished" ? "Trading complete" : myTurn ? "Your turn" : computerWaiting && actor?.isComputer ? `${actor.name} is considering…` : `${actor?.name}'s turn`}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

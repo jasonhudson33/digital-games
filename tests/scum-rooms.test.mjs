@@ -9,8 +9,11 @@ import {
   getScumRoom,
   joinScumRoom,
   playScumRoomCards,
+  setScumComputerSpeed,
   startScumRoom,
+  stepScumComputer,
 } from "../lib/scum-rooms.js";
+import { computerRoomTests } from "./room-computer-helpers.mjs";
 
 test("players can join a Scum room and only see their own hand", async () => {
   const created = await createScumRoom({ name: "Host" });
@@ -69,4 +72,18 @@ test("a Scum room stops seating players at its advertised maximum", async () => 
 test("display names are bounded", async () => {
   const created = await createScumRoom({ name: "x".repeat(5000) });
   assert.ok(created.state.players[0].name.length <= SCUM_MAX_NAME);
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+computerRoomTests({
+  name: "Scum",
+  create: createScumRoom,
+  join: joinScumRoom,
+  addComputer: addScumComputer,
+  start: startScumRoom,
+  get: getScumRoom,
+  step: stepScumComputer,
+  setSpeed: setScumComputerSpeed,
+  computers: 3,
 });

@@ -20,6 +20,8 @@ import { PinochleRoomService } from "./pinochle-room-service";
 import { ChoiceModal, Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -153,6 +155,17 @@ export default function PinochleClient() {
     }
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => roomAction("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
+
   function leaveRoom() {
     setGame(null);
     latestGame.current = null;
@@ -187,7 +200,7 @@ export default function PinochleClient() {
 
   if (game.phase === "lobby") {
     const viewer = game.players.find((player) => player.isViewer) ?? game.players[0];
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Pinochle"
       theme="tbl-light pinochle-theme"
       room={{ roomCode: game.roomCode, hostId: game.hostControls ? viewer.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
@@ -208,6 +221,7 @@ export default function PinochleClient() {
 
   return (
     <GameTable
+      computerSpeed={computerSpeed}
       game={game}
       busy={busy}
       error={error}
@@ -223,7 +237,7 @@ export default function PinochleClient() {
   );
 }
 
-function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, setSelectedIds, onAction, onLeave, onRules, rulesDialog }) {
+function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, setSelectedIds, computerSpeed, onAction, onLeave, onRules, rulesDialog }) {
   const viewerIndex = game.viewerPlayerIndex;
   const yourTurn = game.currentPlayerIndex === viewerIndex;
   const minimumBid = game.highBid === null ? game.minimumBid : game.highBid + 10;
@@ -247,7 +261,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 
   return (
     <main className="pn-app pn-game-shell tbl-felt-shell tbl-light pinochle-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Pinochle"
         room={game}
         subtitle={`${game.playerCount === 2 ? "Draw Pinochle" : game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round ${game.roundNumber} · First to ${game.targetScore}`}

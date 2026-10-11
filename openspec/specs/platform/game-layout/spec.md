@@ -29,7 +29,7 @@ Every game SHALL be played through a room created or joined from the landing, an
 - **THEN** the landing offers the same create and join entry as every other game and no separate local-play option
 
 ### Requirement: Common lobby
-Every game SHALL show a lobby after a room is created or joined, listing the room code with a copy action, the seated players, the host's add and remove computer controls, a Start action, and a Leave action.
+Every game SHALL show a lobby after a room is created or joined, listing the room code with a copy action, the seated players, the host's add and remove computer controls, a Start action, and a Leave action. When the room has computer players, the lobby SHALL also offer the computer speed control to every seated player.
 
 #### Scenario: Host in the lobby
 - **WHEN** the host opens a new room
@@ -39,6 +39,10 @@ Every game SHALL show a lobby after a room is created or joined, listing the roo
 - **WHEN** a non-host player is in the lobby
 - **THEN** Start and computer controls are not offered and the lobby says it is waiting for the host
 
+#### Scenario: Speed control in the lobby
+- **WHEN** the host has added a computer player and a guest looks at the lobby
+- **THEN** the guest sees the computer speed control and can change it
+
 ### Requirement: Game-specific lobby options
 A game SHALL be able to add its own options to the lobby, such as an expansion or variant picker, without replacing the common lobby content.
 
@@ -47,7 +51,7 @@ A game SHALL be able to add its own options to the lobby, such as an expansion o
 - **THEN** the expansion picker appears alongside the room code, seats and Start
 
 ### Requirement: Common game bar
-Every game SHALL show a bar while a game is in progress with the game's name and room code or round, a Rules action, and a Leave action. A game MAY add actions to the bar.
+Every game SHALL show a bar while a game is in progress with the game's name and room code or round, a Rules action, and a Leave action, and in a room that has computer players it SHALL also show the computer speed control. A game MAY add actions to the bar.
 
 #### Scenario: Bar during play
 - **WHEN** a game is in progress in any game
@@ -56,6 +60,14 @@ Every game SHALL show a bar while a game is in progress with the game's name and
 #### Scenario: Leaving a game
 - **WHEN** a player chooses Leave
 - **THEN** the player returns to that game's landing
+
+#### Scenario: Speed control in the bar
+- **WHEN** a game with a computer player is in progress
+- **THEN** the bar shows the current computer speed and lets any seated player change it
+
+#### Scenario: No computers
+- **WHEN** a game with only human players is in progress
+- **THEN** the bar shows no computer speed control
 
 ### Requirement: Common dialogs
 Every game SHALL present its rules, prompts and end-of-round or end-of-game results in the shared dialog, which traps focus while open, closes with Escape or a close control, and is not wider than the viewport.

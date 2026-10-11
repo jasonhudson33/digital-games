@@ -25,42 +25,27 @@ function preselect(actionId, selected) {
   return selected.kind.id === "orders" ? { orderId: selected.card.uid } : { cardId: selected.card.uid };
 }
 
+/** A computer is due when it is a computer's turn and nobody owes an autumn choice. */
+const computerIsDue = (room) => room.phase === "playing" && !room.pending && Boolean(currentPlayer(room)?.isComputer);
+
 export default function ViticultureClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, setError, createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: ViticultureRoomService, storageKey: "viticulture" });
+    busy, error, setError, createRoom, joinRoom, act, computerSpeed, computerWaiting, leaveRoom: leaveEngineRoom,
+  } = useEngineRoom({ service: ViticultureRoomService, storageKey: "viticulture", computerDue: computerIsDue });
   const [pick, setPick] = useState(null);
   const [selected, setSelected] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
-  const [computerThinking, setComputerThinking] = useState(false);
   const seenRecap = useRef({ code: null, year: 0 });
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
   const actor = room && room.phase === "playing" ? currentPlayer(room) : null;
-  const botNeedsAction = room?.phase === "playing" && !room.pending && actor?.isComputer;
   const myTurn = Boolean(room && room.phase === "playing" && !room.pending && actor?.id === playerId);
 
   const motion = useReplay(room);
   const freshCards = useFreshCards(me);
-
-  // The host's browser paces the computers, as in every game.
-  useEffect(() => {
-    if (!room || room.hostId !== playerId || !botNeedsAction) {
-      setComputerThinking(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setComputerThinking(true);
-    const timer = window.setTimeout(async () => {
-      try { await stepComputer(); }
-      finally { if (!cancelled) setComputerThinking(false); }
-    }, 680);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botNeedsAction, actor?.id, playerId, room?.updatedAt]);
 
   useEffect(() => setPick(null), [room?.season, room?.turnCursor, room?.year]);
   useEffect(() => setSelected(null), [room?.season, room?.year]);
@@ -118,6 +103,7 @@ export default function ViticultureClient() {
       error={error}
       min={2}
       max={6}
+      computerSpeed={computerSpeed}
       onAdd={() => act("addComputer")}
       onRemove={(id) => act("removeComputer", { playerId: id })}
       onStart={() => act("start")}
@@ -135,7 +121,7 @@ export default function ViticultureClient() {
 
   const status = room.phase === "finished" ? "Vintage complete"
     : room.pending ? `Autumn · ${waitingOn.includes(playerId) ? "Choose a visitor" : `waiting on ${room.players.filter((player) => waitingOn.includes(player.id)).map((player) => player.name).join(", ")}`}`
-    : `${season.label} · ${myTurn ? "Your move" : computerThinking && actor?.isComputer ? `${actor.name} is planning...` : `${actor?.name}'s move`}`;
+    : `${season.label} · ${myTurn ? "Your move" : computerWaiting && actor?.isComputer ? `${actor.name} is planning...` : `${actor?.name}'s move`}`;
 
   function submit(actionId, payload, workerType) {
     act("action", { actionId, payload, workerType });
@@ -156,6 +142,7 @@ export default function ViticultureClient() {
       room={room}
       subtitle={`Room ${room.roomCode} · Vintage ${room.year}`}
       status={status}
+      computerSpeed={computerSpeed}
       onRules={() => setShowRules(true)}
       onLeave={leaveRoom}
     />

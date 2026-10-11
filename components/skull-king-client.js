@@ -24,6 +24,8 @@ import {
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
+import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
+import { useComputerPacer } from "../lib/use-computer-pacer.js";
 
 const PLAYER_NAME_KEY = "skull-king-player-name";
 
@@ -153,6 +155,17 @@ export default function SkullKingClient() {
     }
   }
 
+  // The host's browser paces the computers by the room's speed (platform/computer-pacing).
+  useComputerPacer({
+    enabled: Boolean(game?.hostControls),
+    due: Boolean(game?.computerDue),
+    delayMs: computerDelayOf(game),
+    step: () => roomAction("computerStep"),
+    key: game?.updatedAt,
+  });
+  // Props for the speed control in the bar and lobby (null when no computer is seated).
+  const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
+
   function leaveGame() {
     setGame(null);
     latestGame.current = null;
@@ -244,7 +257,7 @@ export default function SkullKingClient() {
     const me = game.players.find((player) => player.isViewer) ?? game.players[0];
     const selectedMode = SKULL_KING_DECK_MODES[game.deckMode] ?? SKULL_KING_DECK_MODES.full;
     const canStart = game.players.length >= 2 && game.players.length <= selectedMode.maxPlayers;
-    return <SharedLobby
+    return <SharedLobby computerSpeed={computerSpeed}
       gameName="Skull King"
       theme="skull-king-theme"
       room={{ roomCode: game.roomCode, hostId: game.hostControls ? me.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
@@ -295,7 +308,7 @@ export default function SkullKingClient() {
 
   return (
     <main className="skull-app skull-game-shell tbl-felt-shell skull-king-theme">
-      <GameHeader
+      <GameHeader computerSpeed={computerSpeed}
         title="Skull King"
         room={game}
         subtitle={`Round ${game.roundNumber} of 10 · ${game.captainCount ?? game.playerCount} captains`}

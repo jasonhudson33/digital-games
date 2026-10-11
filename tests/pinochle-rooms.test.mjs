@@ -15,11 +15,14 @@ import {
   passPinochleRoomPartnerCards,
   playPinochleRoomCard,
   returnPinochleRoomPartnerCards,
+  setPinochleComputerSpeed,
   skipTwoPlayerPinochleRoomMeld,
   startPinochleRoom,
+  stepPinochleComputer,
   takeRestOfPinochleRoomTricks,
 } from "../lib/pinochle-rooms.js";
 import { loadPinochleRoom, savePinochleRoom } from "../lib/pinochle-room-store.js";
+import { computerRoomTests } from "./room-computer-helpers.mjs";
 
 const startWithSeatOne = (values) => startPinochleRoom({ ...values, random: (playerCount) => 1.1 / playerCount });
 
@@ -230,4 +233,18 @@ test("only an eligible room viewer sees and can use take the rest", async () => 
   assert.equal(finished.state.phase, "round-over");
   assert.equal(finished.state.tookRestTrickCount, 2);
   assert.equal(finished.state.teams[0].score, 40);
+});
+
+/* ── Host-stepped computers and the room speed (platform/computer-pacing) ───── */
+
+computerRoomTests({
+  name: "Pinochle",
+  create: createPinochleRoom,
+  join: joinPinochleRoom,
+  addComputer: addPinochleComputer,
+  start: startPinochleRoom,
+  get: getPinochleRoom,
+  step: stepPinochleComputer,
+  setSpeed: setPinochleComputerSpeed,
+  computers: 3,
 });

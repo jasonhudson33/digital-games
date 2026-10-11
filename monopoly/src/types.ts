@@ -155,6 +155,8 @@ export type GameState = {
   roomStateVersion?: number;
   /** Set by the server: the id of the seat this view was built for. */
   viewerId?: string;
+  /** The room's computer speed in ms (platform/computer-pacing); absent in views from before it existed. */
+  computerDelayMs?: number;
   roomCode: string;
   hostId: string;
   players: Player[];

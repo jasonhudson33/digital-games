@@ -25,11 +25,10 @@ export default function CamelUpClient() {
   const [finalStep, setFinalStep] = useState(0);
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
+    createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom, computerSpeed,
   } = useEngineRoom({
     service: CamelUpRoomService,
     storageKey: "camel-up",
-    computerDelay: 760,
     computerDue: (state) => Boolean(currentPlayer(state)?.isComputer) && !pendingRecap(state, dismissedRef.current),
   });
   const [showRules, setShowRules] = useState(false);
@@ -105,7 +104,7 @@ export default function CamelUpClient() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="Camel Up"
       theme="tbl-light camel-up-theme"
       room={room}
@@ -136,7 +135,7 @@ export default function CamelUpClient() {
       : myTurn ? "Your turn — choose one action" : `${active?.name}'s turn`;
 
   return <main className="camel-game camel-up-theme">
-    <GameHeader title="Camel Up" room={room} subtitle={`Leg ${room.leg} · private room`} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+    <GameHeader computerSpeed={computerSpeed} title="Camel Up" room={room} subtitle={`Leg ${room.leg} · private room`} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
     {error && <p className="camel-error" role="alert">{error}</p>}
 
     <Scoreboard room={room} playerId={playerId} active={active} />
