@@ -17,3 +17,6 @@ yarn-error.log*
 
 # Scratch from the redesign session — safe to delete
 _tmp/
+
+# Scratch from tests/ui-render.mjs
+tests/.render-*/

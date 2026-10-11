@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Check, CircleHelp, Copy, Crown, LogOut, Plus, RotateCcw, Sparkles, Users, X } from "lucide-react";
+import {
+  Bot,
+  RotateCcw,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { SequenceRoomService } from "./sequence-room-service";
 import {
   BOARD,
@@ -21,6 +26,7 @@ import {
   teamPlayers,
 } from "../lib/sequence";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
 export default function SequenceClient() {
   const {
@@ -54,8 +60,47 @@ export default function SequenceClient() {
     leaveEngineRoom();
   }
 
-  if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onTeamCount={(count) => act("setTeamCount", { teamCount: count })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (!room || !me) {
+    return <Landing
+      gameName="Sequence"
+      theme="tbl-light sequence-theme"
+      hero={<Hero
+        kicker="Cards meet strategy"
+        title={<>Build the line.<br /><em>Block the table.</em></>}
+        copy="Play a card, claim its space, and connect five chips before the other teams do."
+        badges={[{ icon: Users, label: "2–12 players" }, { icon: Bot, label: "Computer seats" }, { icon: Sparkles, label: "Up to 3 teams" }]}
+        artLayout="free"
+        art={<div className="sequence-hero-board">{Array.from({ length: 25 }, (_, index) => <span key={index} className={[6, 7, 8, 12, 16, 20, 24].includes(index) ? "marked" : ""} />)}</div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    const isHost = room.hostId === me.id;
+    const teamOptions = compatibleTeamCounts(room.players.length);
+    const canStart = VALID_PLAYER_COUNTS.includes(room.players.length) && teamOptions.includes(room.teamCount);
+    return <Lobby
+      gameName="Sequence"
+      theme="tbl-light sequence-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={12}
+      canStart={canStart}
+      seatNote={canStart ? `${room.teamCount} evenly divided teams · ready to play` : `Official table sizes: ${VALID_PLAYER_COUNTS.join(", ")}`}
+      options={<div className="sequence-team-choice"><span>Teams</span>{[2, 3].map((count) => <button type="button" key={count} className={room.teamCount === count ? "active" : ""} disabled={!isHost || busy} onClick={() => act("setTeamCount", { teamCount: count })}>{count} teams</button>)}</div>}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const activePlayer = currentPlayer(room);
   const myTurn = room.phase === "playing" && activePlayer?.id === playerId;
@@ -69,14 +114,15 @@ export default function SequenceClient() {
     await act("play", { cardId: selectedCard.id, row, column });
   }
 
-  return <main className="sequence-game-shell">
-    <header className="sequence-table-header">
-      <div><p className="sequence-kicker">Room {room.roomCode}</p><h1>Sequence</h1></div>
-      <div className={`sequence-turn ${myTurn ? "mine" : ""}`}>{activePlayer?.isComputer ? <Bot /> : <span style={{ background: TEAM_COLORS[activePlayer?.teamIndex ?? 0].color }} />}{room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : computerThinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}</div>
-      <button className="sequence-header-button" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button className="sequence-header-button" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="sequence-header-button" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="sequence-game-shell tbl-light sequence-theme">
+    <GameHeader
+      title="Sequence"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : computerThinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
     {error && <p className="sequence-error" role="alert">{error}</p>}
     <div className="sequence-table-layout">
       <aside className="sequence-sidebar">
@@ -108,32 +154,6 @@ export default function SequenceClient() {
   </main>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="sequence-landing">
-    <section className="sequence-hero">
-      <div className="sequence-hero-board">{Array.from({ length: 25 }, (_, index) => <span key={index} className={[6, 7, 8, 12, 16, 20, 24].includes(index) ? "marked" : ""} />)}</div>
-      <div><p className="sequence-kicker">Cards meet strategy</p><h1>Build the line.<br /><em>Block the table.</em></h1><p>Play a card, claim its space, and connect five chips before the other teams do.</p><div className="sequence-facts"><span><Users /> 2–12 players</span><span><Bot /> Computer seats</span><span><Sparkles /> Up to 3 teams</span></div></div>
-    </section>
-    <section className="sequence-entry-card"><div><p className="sequence-kicker">Pull up a chair</p><h2>Join the table</h2><p>Create a private room or enter a five-character room code.</p></div><label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label><button className="sequence-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="sequence-or"><span>or</span></div><div className="sequence-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div><button className="sequence-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>{error && <p className="sequence-form-error">{error}</p>}</section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onTeamCount, onStart, onLeave, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  const teamOptions = compatibleTeamCounts(room.players.length);
-  const canStart = VALID_PLAYER_COUNTS.includes(room.players.length) && teamOptions.includes(room.teamCount);
-  return <main className="sequence-lobby"><section className="sequence-lobby-card">
-    <div className="sequence-lobby-heading"><div><p className="sequence-kicker">Your table is ready</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Invite friends, add computer players, then divide the seats evenly.</p></div><button className="sequence-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button></div>
-    <div className="sequence-team-choice"><span>Teams</span>{[2, 3].map((count) => <button key={count} className={room.teamCount === count ? "active" : ""} disabled={!isHost || busy} onClick={() => onTeamCount(count)}>{count} teams</button>)}</div>
-    <div className="sequence-seat-grid">{room.players.map((player, index) => { const team = TEAM_COLORS[index % room.teamCount]; return <div key={player.id} className="sequence-seat" style={{ "--team": team.color }}><span className="sequence-seat-icon">{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer" : "Human"} · Team {team.name}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>; })}</div>
-    {isHost && room.players.length < 12 && <button className="sequence-add-computer" disabled={busy} onClick={onAddComputer}><Bot /> Add computer</button>}
-    <div className={`sequence-format-note ${canStart ? "ready" : ""}`}><strong>{room.players.length} {room.players.length === 1 ? "player" : "players"}</strong><span>{canStart ? `${room.teamCount} evenly divided teams · ready to play` : `Official table sizes: ${VALID_PLAYER_COUNTS.join(", ")}`}</span></div>
-    {isHost ? <button className="sequence-primary sequence-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="sequence-waiting">Waiting for {room.players[0].name} to start…</p>}
-    <button className="sequence-quiet" onClick={onLeave}>Leave room</button>{error && <p className="sequence-form-error">{error}</p>}
-  </section></main>;
-}
-
 function TeamPanel({ room, teamIndex, playerId }) {
   const team = TEAM_COLORS[teamIndex];
   const sequences = completedForTeam(room, teamIndex).length;
@@ -150,11 +170,33 @@ function CardFace({ code, back = false }) {
 }
 
 function RulesModal({ onClose }) {
-  return <div className="sequence-overlay" role="dialog" aria-modal="true"><section className="sequence-rules-modal"><button className="sequence-modal-close" onClick={onClose}><X /></button><p className="sequence-kicker">Official classic rules</p><h1>How to play Sequence</h1><div className="sequence-rules-grid"><article><b>1</b><h2>Play a card</h2><p>Choose a card and place a chip on either matching open board space. Draw a replacement automatically.</p></article><article><b>2</b><h2>Use the Jacks</h2><p>Two-eyed Jacks place anywhere. One-eyed Jacks remove an opponent chip—unless it belongs to a completed sequence.</p></article><article><b>3</b><h2>Connect five</h2><p>Five chips in a row horizontally, vertically, or diagonally make a sequence. Free corners count for every team.</p></article><article><b>4</b><h2>Win together</h2><p>Two teams need two sequences; three teams need one. A second sequence may share one chip with the first.</p></article></div><div className="sequence-rules-notes"><p><strong>Dead card:</strong> If both matching spaces are occupied, exchange that card once at the start of your turn, then play normally.</p><p><strong>Official formats:</strong> 2, 3, 4, 6, 8, 9, 10, or 12 players. More than three players divide evenly into two or three teams. No table talk about cards.</p></div><div className="sequence-rule-sources"><a href="https://www.goliathgames.us/product/sequence/" target="_blank" rel="noreferrer">Publisher overview</a><a href="https://manuals.plus/m/6e6294d9d90207e6fd58f0021a4063515fe9066cf138cd0de821d2c3b6a9e979.pdf" target="_blank" rel="noreferrer">JAX game instructions</a></div><button className="sequence-primary" onClick={onClose}>Got it</button></section></div>;
+  return <ChoiceModal wide title="How to play Sequence" text="Official classic rules." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Play a card</b><p>Choose a card and place a chip on either matching open board space. Draw a replacement automatically.</p></article>
+      <article><b>Use the Jacks</b><p>Two-eyed Jacks place anywhere. One-eyed Jacks remove an opponent chip—unless it belongs to a completed sequence.</p></article>
+      <article><b>Connect five</b><p>Five chips in a row horizontally, vertically, or diagonally make a sequence. Free corners count for every team.</p></article>
+      <article><b>Win together</b><p>Two teams need two sequences; three teams need one. A second sequence may share one chip with the first.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Also</p>
+    <div className="tbl-rule-grid">
+      <article><b>Dead card</b><p>If both matching spaces are occupied, exchange that card once at the start of your turn, then play normally.</p></article>
+      <article><b>Official formats</b><p>2, 3, 4, 6, 8, 9, 10, or 12 players. More than three players divide evenly into two or three teams. No table talk about cards.</p></article>
+    </div>
+    <p className="tbl-modal-copy">
+      <a href="https://www.goliathgames.us/product/sequence/" target="_blank" rel="noreferrer">Publisher overview</a>
+      {" · "}
+      <a href="https://manuals.plus/m/6e6294d9d90207e6fd58f0021a4063515fe9066cf138cd0de821d2c3b6a9e979.pdf" target="_blank" rel="noreferrer">JAX game instructions</a>
+    </p>
+  </ChoiceModal>;
 }
 
 function FinishedModal({ room, me, onLeave }) {
   const team = room.winnerTeamIndex == null ? null : TEAM_COLORS[room.winnerTeamIndex];
   const won = me.teamIndex === room.winnerTeamIndex;
-  return <div className="sequence-overlay"><section className="sequence-finished"><span className="sequence-winner-chip" style={{ "--team": team?.color ?? "#777" }}><Crown /></span><p className="sequence-kicker">Game complete</p><h1>{team ? won ? "Your team wins!" : `Team ${team.name} wins` : "The board is locked"}</h1><p>{team ? `Team ${team.name} completed ${sequencesRequired(room)} ${sequencesRequired(room) === 1 ? "sequence" : "sequences"}.` : "No legal moves remain."}</p><button className="sequence-primary" onClick={onLeave}>Back to Sequence</button></section></div>;
+  return <Results
+    title={team ? won ? "Your team wins!" : `Team ${team.name} wins` : "The board is locked"}
+    text={team ? `Team ${team.name} completed ${sequencesRequired(room)} ${sequencesRequired(room) === 1 ? "sequence" : "sequences"}.` : "No legal moves remain."}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Back to Sequence</button>
+  </Results>;
 }

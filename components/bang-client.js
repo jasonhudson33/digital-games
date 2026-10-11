@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, CircleHelp, Copy, Crosshair, DoorOpen, Heart, LogOut, Plus, Shield, Sparkles, Users, X } from "lucide-react";
+import {
+  Bot,
+  Crosshair,
+  Heart,
+  Shield,
+  Users,
+} from "lucide-react";
 import { BangRoomService } from "./bang-room-service";
 import {
   CARD_RULES,
@@ -17,6 +23,7 @@ import {
   weaponRange,
 } from "../lib/bang";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results } from "./ui/table-shell";
 
 /** Whether a computer is due to act: it holds the pending response, or it is its turn. */
 function computerIsDue(room) {
@@ -42,8 +49,41 @@ export default function BangClient() {
     leaveEngineRoom();
   }
 
-  if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (!room || !me) {
+    return <SharedLanding
+      gameName="BANG!"
+      theme="tbl-light bang-theme"
+      hero={<Hero
+        kicker="A hidden-role western showdown"
+        title={<>Trust no one.<br /><em>Draw fast.</em></>}
+        copy="The Sheriff stands in the open. Deputies protect the law, Outlaws hunt it, and the Renegade waits for the final duel."
+        badges={[{ icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} players` }, { icon: Bot, label: "Computer gunslingers" }, { icon: Shield, label: "Hidden roles" }]}
+        artLayout="free"
+        art={<div className="bang-hero-art"><span className="bang-sun" /><i>WANTED</i><strong>BANG!</strong><small>THE CARD GAME</small></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <SharedLobby
+      gameName="BANG!"
+      theme="tbl-light bang-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={MIN_PLAYERS}
+      max={MAX_PLAYERS}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const active = currentPlayer(room);
   const myTurn = room.phase === "playing" && active?.id === playerId && !room.pending;
@@ -87,14 +127,15 @@ export default function BangClient() {
     await act("sid", { cardIds: chosen });
   }
 
-  return <main className="bang-game">
-    <header className="bang-game-header">
-      <div><p className="bang-kicker">Room {room.roomCode}</p><h1>BANG!</h1></div>
-      <div className={`bang-turn-callout ${myTurn ? "mine" : ""}`}><Crosshair />{room.phase === "finished" ? "Showdown over" : room.pending ? `${room.players.find((player) => player.id === room.pending.responderId)?.name} must respond` : myTurn ? "Your turn" : `${active?.name}'s turn`}</div>
-      <button onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="bang-game tbl-light bang-theme">
+    <GameHeader
+      title="BANG!"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "finished" ? "Showdown over" : room.pending ? `${room.players.find((player) => player.id === room.pending.responderId)?.name} must respond` : myTurn ? "Your turn" : `${active?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
     {error && <p className="bang-error" role="alert">{error}</p>}
 
     <section className="bang-status-strip">
@@ -125,16 +166,6 @@ export default function BangClient() {
   </main>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="bang-landing"><section className="bang-hero"><div><p className="bang-kicker">A hidden-role western showdown</p><h1>Trust no one.<br /><em>Draw fast.</em></h1><p>The Sheriff stands in the open. Deputies protect the law, Outlaws hunt it, and the Renegade waits for the final duel.</p><div className="bang-facts"><span><Users /> 4–7 players</span><span><Bot /> Computer gunslingers</span><span><Shield /> Hidden roles</span></div></div><div className="bang-hero-art"><span className="bang-sun" /><i>WANTED</i><strong>BANG!</strong><small>THE CARD GAME</small></div></section><section className="bang-entry"><div><p className="bang-kicker">Pull up a chair</p><h2>Enter the saloon</h2><p>Create a private room or join one with its five-character code.</p></div><label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Gunslinger name" /></label><button className="bang-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="bang-or"><span>or</span></div><div className="bang-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div><button className="bang-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Read the rules</button>{error && <p className="bang-error">{error}</p>}</section>{showRules && <RulesModal onClose={() => setShowRules(false)} />}</main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  const canStart = room.players.length >= MIN_PLAYERS && room.players.length <= MAX_PLAYERS;
-  return <main className="bang-lobby"><section className="bang-lobby-card"><div className="bang-lobby-title"><div><p className="bang-kicker">Private saloon</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Invite friends or fill empty chairs with computer gunslingers.</p></div><button className="bang-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button></div><div className="bang-seat-list">{room.players.map((player, index) => <article key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer" : "Human"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <i>{index + 1}</i>}</article>)}</div>{isHost && room.players.length < MAX_PLAYERS && <button className="bang-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer player</button>}<div className={`bang-ready ${canStart ? "yes" : ""}`}><strong>{room.players.length} / {MAX_PLAYERS} seats filled</strong><span>{canStart ? "The showdown can begin" : `Add ${MIN_PLAYERS - room.players.length} more player${MIN_PLAYERS - room.players.length === 1 ? "" : "s"}`}</span></div>{isHost ? <button className="bang-primary" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Deal roles & start</button> : <p className="bang-waiting">Waiting for {room.players[0].name} to deal…</p>}<button className="bang-quiet" onClick={onLeave}><DoorOpen /> Leave room</button>{error && <p className="bang-error">{error}</p>}</section></main>;
-}
-
 function PlayerSeat({ player, me, room, active, selectable, selectedCard, onTarget }) {
   const publicRole = player.role === "sheriff" || !player.alive || player.id === me.id ? ROLE_LABELS[player.role] : "Hidden role";
   const distance = player.id === me.id || !player.alive || !me.alive ? null : distanceBetween(room, me.id, player.id);
@@ -156,15 +187,39 @@ function Card({ card, compact = false }) {
 
 function ResponseModal({ room, me, busy, onRespond, onDecline, onStore }) {
   const pending = room.pending;
-  if (pending.type === "general-store") return <div className="bang-overlay"><section className="bang-response"><p className="bang-kicker">General Store</p><h1>Choose one card</h1><p>Selections continue clockwise after you.</p><div className="bang-store-cards">{pending.cards.map((card) => <button key={card.id} disabled={busy} onClick={() => onStore(card.id)}><Card card={card} /></button>)}</div></section></div>;
+  if (pending.type === "general-store") {
+    return <ChoiceModal wide title="Choose one card" text="General Store. Selections continue clockwise after you.">
+      <div className="bang-store-cards">{pending.cards.map((card) => <button type="button" key={card.id} disabled={busy} onClick={() => onStore(card.id)}><Card card={card} /></button>)}</div>
+    </ChoiceModal>;
+  }
   const cards = responseCards(me, pending.type);
   const action = ["bang", "gatling"].includes(pending.type) ? "Missed!" : "BANG!";
   const source = room.players.find((player) => player.id === (pending.attackerId ?? pending.lastPlayerId));
-  return <div className="bang-overlay"><section className="bang-response"><span className="bang-response-icon"><Crosshair /></span><p className="bang-kicker">Your move</p><h1>{pending.type === "duel" ? "Answer the Duel" : pending.type === "indians" ? "The Indians attack" : `${source?.name ?? "A player"} attacks`}</h1><p>Play {action}{pending.type === "bang" && pending.remaining > 1 ? ` (${pending.remaining} still needed)` : ""}, or take one bullet of damage.</p><div className="bang-response-cards">{cards.map((card) => <button key={card.id} disabled={busy} onClick={() => onRespond(card.id)}><Card card={card} /></button>)}</div><button className="bang-danger" disabled={busy} onClick={onDecline}>Take the hit</button></section></div>;
+  return <ChoiceModal
+    wide
+    title={pending.type === "duel" ? "Answer the Duel" : pending.type === "indians" ? "The Indians attack" : `${source?.name ?? "A player"} attacks`}
+    text={`Play ${action}${pending.type === "bang" && pending.remaining > 1 ? ` (${pending.remaining} still needed)` : ""}, or take one bullet of damage.`}
+    actions={<button type="button" className="bang-danger" disabled={busy} onClick={onDecline}>Take the hit</button>}
+  >
+    <div className="bang-response-cards">{cards.map((card) => <button type="button" key={card.id} disabled={busy} onClick={() => onRespond(card.id)}><Card card={card} /></button>)}</div>
+  </ChoiceModal>;
 }
 
 function RulesModal({ onClose }) {
-  return <div className="bang-overlay" role="dialog" aria-modal="true"><section className="bang-rules"><button className="bang-modal-close" onClick={onClose}><X /></button><p className="bang-kicker">Base-game rules</p><h1>How to play BANG!</h1><div className="bang-rules-grid"><article><b>1</b><h2>Know your goal</h2><p>The Sheriff and Deputies eliminate Outlaws and the Renegade. Outlaws eliminate the Sheriff. The Renegade must be the last survivor.</p></article><article><b>2</b><h2>Take a turn</h2><p>Resolve Dynamite and Jail, draw two cards, play any legal cards, then discard until your hand is no larger than your remaining bullets.</p></article><article><b>3</b><h2>Mind the distance</h2><p>Your weapon sets BANG! range. Alive seats determine distance; Scope, Mustang, Rose Doolan, and Paul Regret modify it.</p></article><article><b>4</b><h2>Defend yourself</h2><p>Answer BANG! and Gatling with Missed!, and Indians and Duels with BANG!. Barrels make a Heart draw! check first.</p></article></div><div className="bang-rules-notes"><p><strong>Face-up cards:</strong> Blue equipment stays visible on the table. Only one weapon is active. Jail cannot target the Sheriff.</p><p><strong>Elimination:</strong> Reveal the role. Killing an Outlaw earns three cards. A Sheriff who kills a Deputy discards everything. Vulture Sam collects the eliminated player’s cards.</p><p><strong>Characters:</strong> Every original character power is applied by the game, including draw!, range, extra-draw, defense, damage, and hand-empty effects.</p></div><button className="bang-primary" onClick={onClose}>Ready to draw</button></section></div>;
+  return <ChoiceModal wide title="How to play BANG!" text="Base-game rules." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Know your goal</b><p>The Sheriff and Deputies eliminate Outlaws and the Renegade. Outlaws eliminate the Sheriff. The Renegade must be the last survivor.</p></article>
+      <article><b>Take a turn</b><p>Resolve Dynamite and Jail, draw two cards, play any legal cards, then discard until your hand is no larger than your remaining bullets.</p></article>
+      <article><b>Mind the distance</b><p>Your weapon sets BANG! range. Alive seats determine distance; Scope, Mustang, Rose Doolan, and Paul Regret modify it.</p></article>
+      <article><b>Defend yourself</b><p>Answer BANG! and Gatling with Missed!, and Indians and Duels with BANG!. Barrels make a Heart draw! check first.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Also</p>
+    <div className="tbl-rule-grid">
+      <article><b>Face-up cards</b><p>Blue equipment stays visible on the table. Only one weapon is active. Jail cannot target the Sheriff.</p></article>
+      <article><b>Elimination</b><p>Reveal the role. Killing an Outlaw earns three cards. A Sheriff who kills a Deputy discards everything. Vulture Sam collects the eliminated player’s cards.</p></article>
+      <article><b>Characters</b><p>Every original character power is applied by the game, including draw!, range, extra-draw, defense, damage, and hand-empty effects.</p></article>
+    </div>
+  </ChoiceModal>;
 }
 
 function FinishedModal({ room, me, onLeave }) {
@@ -178,5 +233,11 @@ function FinishedModal({ room, me, onLeave }) {
     : won
       ? "You win the showdown"
       : `${room.winner === "sheriff" ? "The law" : `The ${ROLE_LABELS[room.winner]}s`} wins`;
-  return <div className="bang-overlay"><section className="bang-finished"><span>{isDraw ? "=" : "★"}</span><p className="bang-kicker">The dust settles</p><h1>{heading}</h1><p>{isDraw ? "Nobody could land a shot. Every identity is now revealed." : "Every identity is now revealed."}</p><div>{room.players.map((player) => <article key={player.id}><strong>{player.name}</strong><span>{player.character.name}</span><b>{ROLE_LABELS[player.role]}</b></article>)}</div><button className="bang-primary" onClick={onLeave}>Back to the saloon</button></section></div>;
+  return <Results
+    title={heading}
+    text={isDraw ? "Nobody could land a shot. Every identity is now revealed." : "The dust settles. Every identity is now revealed."}
+    rows={room.players.map((player) => ({ id: player.id, name: player.name, value: ROLE_LABELS[player.role], note: player.character.name }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Back to the saloon</button>
+  </Results>;
 }

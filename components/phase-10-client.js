@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Check, CircleHelp, Crown, Layers3, Plus, Sparkles, Target, Users, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Crown,
+  Layers3,
+  Sparkles,
+  Target,
+  Users,
+} from "lucide-react";
 
 import {
   MAX_PLAYERS, MIN_PLAYERS, PHASES, canHitGroup, currentPlayer, eligibleSkipTargets, findPhaseLayout,
 } from "../lib/phase-10";
 import { useEngineRoom } from "../lib/use-engine-room.js";
-import { ChoiceModal, EntryCard, GameHeader, Lobby } from "./ui/table-shell";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby } from "./ui/table-shell";
 import { Phase10Card, Phase10CardBack } from "./phase-10-card";
 import { Phase10RoomService } from "./phase-10-room-service";
 
@@ -146,7 +154,24 @@ function PhaseGroup({ group, selectedCard, onHit }) {
 }
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }) {
-  return <main className="p10-landing p10-theme"><section className="p10-hero"><p className="p10-kicker">Ten challenges. One race.</p><h1><span>PHASE</span><b>10</b></h1><p>Build sets, connect runs, lock in colors, and leave every rival holding points.</p><div><span><Users /> 2-6 players</span><span><Bot /> Computer rivals</span><span><Layers3 /> 108-card deck</span></div><div className="p10-hero-cards" aria-hidden="true"><Phase10Card card={{ type: "number", number: 7, color: "red" }} /><Phase10Card card={{ type: "wild" }} /><Phase10Card card={{ type: "number", number: 10, color: "blue" }} /></div></section><EntryCard gameName="Phase 10" {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} onRules={() => setRulesOpen(true)} />{rulesOpen && <Rules onClose={() => setRulesOpen(false)} />}</main>;
+  return <SharedLanding
+    gameName="Phase 10"
+    theme="p10-theme"
+    hero={<Hero
+      kicker="Ten challenges. One race."
+      title={<>PHASE<br /><em>10</em></>}
+      copy="Build sets, connect runs, lock in colors, and leave every rival holding points."
+      badges={[{ icon: Users, label: "2-6 players" }, { icon: Bot, label: "Computer rivals" }, { icon: Layers3, label: "108-card deck" }]}
+      art={<>
+        <Phase10Card card={{ type: "number", number: 7, color: "red" }} />
+        <Phase10Card card={{ type: "wild" }} />
+        <Phase10Card card={{ type: "number", number: 10, color: "blue" }} />
+      </>}
+    />}
+    entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+    onRules={() => setRulesOpen(true)}
+    dialogs={rulesOpen && <Rules onClose={() => setRulesOpen(false)} />}
+  />;
 }
 
 function Rules({ onClose }) {

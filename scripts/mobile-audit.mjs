@@ -20,6 +20,8 @@
  *   FAIL  page scrolls sideways (document wider than the viewport)
  *   FAIL  uncaught page error, or a React error boundary on screen
  *   FAIL  text field under 16px — iOS Safari zooms the page on focus
+ *   FAIL  a game does not show the landing entry, lobby, game bar or Rules
+ *         dialog (scripts/layout-check.mjs lists games not yet migrated)
  *   WARN  readable text under 9px, tap targets under 24px
  *
  * Mafia needs Supabase keys; without them only its lobby is checked.
@@ -29,6 +31,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { webkit } from "playwright";
+import { checkLayout } from "./layout-check.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -59,7 +62,7 @@ const ADD = /add (computer|bot|cpu|player|clockwork)/i;
 const START = /^(start|begin|deal|open the market|play against)/i;
 // Secret Hitler needs five seats; everything else starts with fewer.
 const COMPUTERS = { "secret-hitler": 5 };
-const START_OVERRIDE = { "secret-hitler": /deal secret roles/i };
+const START_OVERRIDE = {};
 
 /** Runs in the page. Returns the numbers every check below reads. */
 function inspect(MIN_TEXT) {
@@ -110,15 +113,17 @@ function inspect(MIN_TEXT) {
     }
   }
 
+  const parts = [...new Set([...document.querySelectorAll("[data-layout]")].map((el) => el.dataset.layout))];
   const boundary = /something broke|application error/i.test(document.body.innerText);
-  return { vw, sw, wide: wide.slice(0, 5), tinyText, smallTargets, smallInputs, boundary };
+  return { vw, sw, wide: wide.slice(0, 5), tinyText, smallTargets, smallInputs, boundary, parts };
 }
 
 let failures = 0;
 const fail = (m) => { failures++; console.log(`    FAIL ${m}`); };
 const warn = (m) => console.log(`    warn ${m}`);
 
-function report(stage, r, errors) {
+function report(stage, r, errors, seen) {
+  for (const part of r.parts) seen?.add(part);
   if (r.sw > r.vw + 1) fail(`${stage}: page is ${r.sw}px wide in a ${r.vw}px viewport (${r.wide.join("; ")})`);
   if (r.boundary) fail(`${stage}: error boundary on screen`);
   for (const e of errors.splice(0)) fail(`${stage}: ${e}`);
@@ -136,6 +141,30 @@ async function shot(page, game, vp, stage) {
   await page.screenshot({ path: path.join(shotsDir, `${game}-${vp.name}-${stage}.png`) });
 }
 
+/** Opens the Rules dialog, records it, and checks Escape closes it again. */
+async function openRules(page, seen) {
+  // A game can open on a forced prompt (Life's starting path); it is a shared
+  // dialog but not one Escape is meant to dismiss, and it covers the Rules button.
+  if (await page.locator('[data-layout="dialog"]').count()) {
+    seen.add("dialog");
+    return;
+  }
+  const rules = page.getByRole("button", { name: /rules|how to play/i }).first();
+  if (!(await rules.count())) return;
+  // Open it the way a keyboard user does. WebKit does not focus a button on a
+  // pointer click, so a click leaves nothing for the dialog to return focus to.
+  await rules.focus().catch(() => {});
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(400);
+  if (await page.locator('[data-layout="dialog"]').count()) {
+    seen.add("dialog");
+    await page.keyboard.press("Escape");
+    await page.locator('[data-layout="dialog"]').first().waitFor({ state: "detached", timeout: 1500 }).catch(() => {});
+    if (await page.locator('[data-layout="dialog"]').count()) fail("dialog: Escape did not close it");
+    else if (!(await rules.evaluate((el) => el === document.activeElement))) fail("dialog: focus did not return to the control that opened it");
+  }
+}
+
 const browser = await webkit.launch();
 try {
   for (const vp of viewports) {
@@ -150,11 +179,12 @@ try {
       });
       const page = await ctx.newPage();
       const errors = [];
+      const seen = new Set();
       page.on("pageerror", (e) => errors.push(e.message.split("\n")[0].slice(0, 140)));
       console.log(`  ${slug}`);
       try {
         await page.goto(`${base}/${slug}`, { waitUntil: "networkidle", timeout: 60000 });
-        report("lobby", await page.evaluate(inspect, MIN_TEXT), errors);
+        report("lobby", await page.evaluate(inspect, MIN_TEXT), errors, seen);
         await shot(page, slug, vp, "lobby");
 
         if (slug === "mafia") continue; // needs Supabase
@@ -162,6 +192,9 @@ try {
         await page.locator("input").first().fill("Tester").catch(() => {});
         await page.getByRole("button", { name: CREATE }).first().click({ timeout: 15000 });
         await page.waitForTimeout(1200);
+        // Some games start as soon as the second seat fills, so look at the
+        // lobby before adding anyone.
+        report("room", await page.evaluate(inspect, MIN_TEXT), errors, seen);
         for (let i = 0; i < (COMPUTERS[slug] ?? 3); i++) {
           const add = page.getByRole("button", { name: ADD }).first();
           if (await add.count() && await add.isEnabled().catch(() => false)) {
@@ -169,18 +202,22 @@ try {
             await page.waitForTimeout(300);
           }
         }
-        report("room", await page.evaluate(inspect, MIN_TEXT), errors);
+        report("room (seated)", await page.evaluate(inspect, MIN_TEXT), errors, seen);
 
         const start = page.getByRole("button", { name: START_OVERRIDE[slug] ?? START }).first();
         if (await start.count()) {
           await start.click({ timeout: 15000 });
           await page.waitForTimeout(2500);
         }
-        report("game", await page.evaluate(inspect, MIN_TEXT), errors);
+        report("game", await page.evaluate(inspect, MIN_TEXT), errors, seen);
+        await openRules(page, seen);
         await shot(page, slug, vp, "game");
       } catch (e) {
         fail(`${slug}: ${e.message.split("\n")[0]}`);
       } finally {
+        const { missing, stale } = checkLayout(slug, seen);
+        if (missing.length) fail(`${slug}: missing shared layout part(s): ${missing.join(", ")}`);
+        if (stale) fail(`${slug}: shows every shared part; remove it from UNMIGRATED in scripts/layout-check.mjs`);
         await ctx.close();
       }
     }

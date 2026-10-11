@@ -1,3 +1,14 @@
+/* life's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.life-theme {
+  --accent: #0d6b5d;
+  --accent-hover: #0a574b;
+  --accent-soft: rgba(13, 107, 93, 0.1);
+  --on-accent: #ffffff;
+  --tbl-hue: 185;
+  --tbl-accent-hue: 90;
+}
+
 /* ── Palette ────────────────────────────────────────────────────────────────
  * The colours this game repeats, named for how it uses them. Hoisted so that
  * changing one is one edit rather than 19 scattered ones.
@@ -24,9 +35,8 @@
   --route-chip: rgba(255, 255, 255, 0.66);
 }
 
-.life-landing,
-.life-lobby,
-.life-game {
+.life-game,
+.life-theme {
   --life-ink: #183b38;
   --life-green: #0d6b5d;
   --life-mint: #dff4e9;
@@ -37,62 +47,10 @@
   font-family: var(--font-ui);
 }
 
-.life-landing button,
-.life-lobby button,
 .life-game button,
-.life-landing input,
-.life-lobby input,
 .life-game input { font-family: inherit; }
-
-.life-landing {
-  min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px);
-  padding: clamp(24px, 5vw, 66px);
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(310px, 430px);
-  gap: 32px;
-  align-items: center;
-  background: #f7f2e7;
-  overflow: hidden;
-}
-
-.life-hero {
-  min-height: 650px;
-  border-radius: 42px;
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr .85fr;
-  align-items: center;
-  padding: clamp(34px, 5vw, 76px);
-  color: #fffdf3;
-  background: linear-gradient(145deg, #087666 0%, #0a574d 64%, #073d38 100%);
-  box-shadow: 0 28px 80px rgba(16, 58, 52, .22);
-}
-
-.life-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: .15;
-  background-image: radial-gradient(circle, var(--life-white) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(90deg, #000, transparent 70%);
-}
-
-.life-hero-copy { position: relative; z-index: 2; }
 .life-kicker { margin: 0 0 10px; text-transform: uppercase; letter-spacing: .17em; font-size: .7rem; font-weight: 700; opacity: .72; }
-.life-hero h1,
-.life-lobby h1,
-.life-game h1,
-.life-decision h1,
-.life-winner h1,
-.life-rules h1 { font-family: var(--font-display); }
-.life-hero h1 { margin: 0; font-size: clamp(4.2rem, 7vw, 7.8rem); line-height: .83; letter-spacing: -.065em; }
-.life-hero h1 em { color: var(--life-yellow); font-style: italic; }
-.life-hero-copy > p:not(.life-kicker) { max-width: 510px; margin: 28px 0; font-size: clamp(1.04rem, 1.4vw, 1.27rem); line-height: 1.65; color: rgba(255,255,255,.78); }
-.life-facts { display: flex; gap: 10px; flex-wrap: wrap; }
-.life-facts span { display: inline-flex; gap: 7px; align-items: center; padding: 10px 13px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.13); font-size: .78rem; font-weight: 600; }
-.life-facts svg { width: 15px; height: 15px; }
+.life-game h1 { font-family: var(--font-display); }
 
 .life-hero-art { position: relative; align-self: stretch; min-height: 400px; z-index: 1; }
 .life-sun { position: absolute; width: 170px; height: 170px; top: 7%; right: 4%; border-radius: 50%; background: var(--life-yellow); box-shadow: 0 0 0 18px rgba(246,201,83,.1); }
@@ -109,54 +67,9 @@
 .life-cloud::before { width: 38px; height: 38px; left: 14px; bottom: 0; }
 .life-cloud::after { width: 50px; height: 50px; right: 9px; bottom: 0; }
 .life-cloud.one { top: 24%; left: 0; }.life-cloud.two { top: 55%; right: 0; transform: scale(.75); }
-
-.life-entry,
-.life-lobby-card {
-  background: rgba(255,253,247,.96);
-  border: 1px solid rgba(24,59,56,.1);
-  box-shadow: 0 28px 80px rgba(38,58,45,.13);
-}
-.life-entry { border-radius: 34px; padding: 34px; }
-.life-entry h2 { margin: 0; font-family: var(--font-display); font-size: 2.3rem; }
-.life-entry > div:first-child > p:last-child { margin: 10px 0 26px; color: var(--life-ink-teal); line-height: 1.55; }
-.life-entry label { display: grid; gap: 8px; margin-bottom: 12px; color: var(--life-ink); font-size: .78rem; font-weight: 700; }
-.life-entry input { padding: 14px 16px; border: 1px solid rgba(24,59,56,.14); border-radius: 15px; background: var(--life-white); color: var(--life-ink); outline: none; }
-.life-entry input:focus { border-color: var(--life-green); box-shadow: 0 0 0 3px rgba(13,107,93,.1); }
-.life-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 20px; border: 0; border-radius: 15px; color: var(--life-white); background: var(--life-green); font-weight: 700; cursor: pointer; box-shadow: 0 8px 18px rgba(13,107,93,.17); }
-.life-primary:hover:not(:disabled) { transform: translateY(-1px); background: #085c50; }
-.life-primary:disabled { opacity: .42; cursor: not-allowed; }
-.life-entry > .life-primary { width: 100%; }
-.life-primary svg { width: 18px; }
-.life-or { position: relative; text-align: center; margin: 19px 0; color: #82928f; font-size: .75rem; }
-.life-or::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(24,59,56,.1); }
-.life-or span { position: relative; padding: 0 12px; background: #fffdf7; }
-.life-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.life-join input { text-transform: uppercase; letter-spacing: .14em; font-weight: 700; }
-.life-join button { padding: 0 20px; border: 0; border-radius: 15px; color: var(--life-white); background: var(--life-coral); font-weight: 700; cursor: pointer; }
-.life-rule-link,.life-quiet { border: 0; background: transparent; color: var(--life-green); font-weight: 700; cursor: pointer; }
-.life-rule-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 19px; }.life-rule-link svg { width: 18px; }
-.life-form-error,.life-error { color: #a82c2c; background: #fff0ed; border-radius: 13px; padding: 11px 14px; font-size: .85rem; }
-
-.life-lobby { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); padding: 42px 18px; display: grid; place-items: center; background: radial-gradient(circle at 20% 10%, rgba(246,201,83,.24), transparent 30%), #e9f3ec; }
-.life-lobby-card { width: min(820px, 100%); border-radius: 38px; padding: clamp(26px, 5vw, 48px); }
-.life-lobby-head { display: flex; gap: 22px; justify-content: space-between; align-items: flex-start; }
-.life-lobby-head h1 { margin: 0; font-size: clamp(2.8rem, 6vw, 4.8rem); letter-spacing: -.05em; }
-.life-lobby-head h1 button { border: 0; background: transparent; padding: 0; color: var(--life-coral); font: inherit; cursor: pointer; }
-.life-lobby-head h1 svg { width: .65em; }
-.life-lobby-head p:last-child { color: var(--life-ink-teal); }
-.life-seats { display: grid; gap: 10px; margin: 30px 0 13px; }
-.life-seats article { min-height: 72px; padding: 13px 16px; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; border-radius: 18px; border: 1px solid rgba(24,59,56,.1); background: var(--life-white); box-shadow: inset 4px 0 var(--player); }
-.life-seats article > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; color: var(--player); background: color-mix(in srgb, var(--player) 13%, white); }.life-seats svg { width: 19px; }
-.life-seats article div { display: grid; gap: 3px; }.life-seats article small { color: #78908b; }.life-seats article button { border: 0; background: transparent; color: #9b4b43; cursor: pointer; }.life-seats article i { color: var(--life-green); font-style: normal; }
-.life-add-bot { width: 100%; min-height: 48px; border: 1px dashed rgba(13,107,93,.3); border-radius: 16px; display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--life-green); background: rgba(223,244,233,.5); font-weight: 700; cursor: pointer; }
-.life-ready { margin: 22px 0 12px; padding: 15px 17px; display: flex; justify-content: space-between; gap: 15px; border-radius: 16px; color: #807568; background: #f4eee5; }.life-ready.yes { color: var(--life-green); background: var(--life-mint); }
-.life-start { width: 100%; font-size: 1rem; }.life-wait { text-align: center; color: var(--life-ink-teal); }.life-quiet { display: block; margin: 16px auto 0; }
+.life-error { color: #a82c2c; background: #fff0ed; border-radius: 13px; padding: 11px 14px; font-size: .85rem; }
 
 .life-game { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); padding: 16px; background: #e9f2e9; }
-.life-game-header { max-width: 1580px; margin: 0 auto 14px; min-height: 74px; padding: 10px 14px 10px 20px; border-radius: 22px; display: flex; align-items: center; gap: 9px; color: var(--life-white); background: #0d534b; box-shadow: 0 14px 35px rgba(13,69,62,.17); }
-.life-game-header > div:first-child { margin-right: auto; }.life-game-header .life-kicker { margin: 0; }.life-game-header h1 { font-size: 2.15rem; line-height: .9; margin: 2px 0 0; color: var(--life-yellow); }
-.life-game-header > button { display: flex; align-items: center; gap: 7px; padding: 10px 12px; border: 0; border-radius: 12px; color: rgba(255,255,255,.8); background: rgba(255,255,255,.09); cursor: pointer; }.life-game-header > button svg { width: 17px; }
-.life-turn-pill { min-height: 40px; padding: 9px 14px; display: flex; gap: 8px; align-items: center; border-radius: 999px; color: rgba(255,255,255,.76); background: rgba(0,0,0,.12); font-size: .82rem; font-weight: 700; }.life-turn-pill.mine { color: #153c35; background: var(--life-yellow); }.life-turn-pill span { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,.15); }
 .life-error { max-width: 1580px; margin: 0 auto 12px; }
 .life-stage { max-width: 1580px; margin: 0 auto; display: grid; grid-template-columns: 330px 1fr; gap: 14px; align-items: start; }
 .life-players-panel,.life-board-panel { border: 1px solid rgba(24,59,56,.09); background: rgba(255,253,247,.84); box-shadow: 0 16px 42px rgba(29,62,50,.09); }
@@ -219,33 +132,20 @@
 .life-spinner-wheel i { position: absolute; top: 8px; left: calc(50% - 10px); height: 86px; transform-origin: 10px 97px; transform: rotate(calc(var(--n) * 36deg)); font-style: normal; color: #153e39; font-weight: 800; }.life-spinner-wheel b { position: absolute; z-index: 2; color: #0d5d52; font-size: 1.5rem; }
 .life-turn-card { padding: clamp(20px, 3vw, 34px); border-radius: 20px; background: var(--life-white); border: 1px solid rgba(24,59,56,.09); }.life-turn-card h2 { margin: 0; font: 600 clamp(1.7rem, 3vw, 2.6rem) var(--font-display); }.life-turn-card > p:last-of-type { max-width: 590px; color: var(--life-ink-teal); line-height: 1.5; }
 .life-invest { position: relative; margin-top: 15px; }.life-invest > button { display: flex; gap: 7px; align-items: center; padding: 9px 12px; border: 1px solid #aed4c7; border-radius: 11px; color: var(--life-green); background: var(--life-mint); font-size: .75rem; font-weight: 700; cursor: pointer; }.life-invest svg { width: 16px; }.life-invest > div { position: absolute; z-index: 5; top: 44px; left: 0; padding: 8px; display: grid; grid-template-columns: repeat(5, 34px); gap: 5px; border-radius: 13px; background: var(--life-surface-deep-teal); box-shadow: 0 10px 25px rgba(0,0,0,.2); }.life-invest > div button { width: 34px; height: 34px; border: 0; border-radius: 8px; background: var(--life-yellow); color: #183b38; font-weight: 800; cursor: pointer; }
-
-.life-overlay { position: fixed; z-index: 100; inset: 0; padding: 20px; display: grid; place-items: center; background: rgba(5,39,35,.72); backdrop-filter: blur(8px); }
-.life-decision,.life-winner,.life-rules { position: relative; width: min(790px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: clamp(26px, 5vw, 48px); border-radius: 32px; color: var(--life-ink); background: var(--life-surface-pale-sand); box-shadow: 0 30px 90px rgba(0,0,0,.3); font-family: var(--font-ui); }
-.life-decision h1,.life-winner h1,.life-rules h1 { margin: 0; font-size: clamp(2.5rem, 6vw, 4.4rem); line-height: .95; letter-spacing: -.04em; }.life-decision > p:not(.life-kicker),.life-rules > p:not(.life-kicker) { color: #687e79; line-height: 1.55; }
 .life-choice-grid,.life-career-grid { margin-top: 25px; display: grid; gap: 12px; }.life-choice-grid { grid-template-columns: 1fr 1fr; }.life-career-grid { grid-template-columns: repeat(3, 1fr); }
 .life-choice-grid button,.life-career-grid button { min-height: 160px; padding: 22px; border: 1px solid rgba(13,107,93,.14); border-radius: 20px; display: grid; place-items: center; align-content: center; gap: 7px; color: var(--life-ink); background: var(--life-white); cursor: pointer; transition: .15s ease; }.life-choice-grid button:hover,.life-career-grid button:hover { transform: translateY(-3px); border-color: var(--life-green); box-shadow: 0 12px 24px rgba(13,107,93,.1); }.life-choice-grid button > span,.life-career-grid button > span { font-size: 2.4rem; color: var(--life-coral); }.life-choice-grid svg { width: 38px; height: 38px; }.life-choice-grid strong,.life-career-grid strong { font: 600 1.2rem var(--font-display); }.life-choice-grid small,.life-career-grid small { color: #728782; }
-.life-winner { text-align: center; }.life-winner > span { font-size: 4rem; }.life-winner > div { margin: 25px auto; display: grid; gap: 7px; max-width: 520px; }.life-winner > div p { margin: 0; padding: 11px 14px; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; text-align: left; border-radius: 13px; background: var(--life-white); }.life-winner > div b { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; color: var(--life-white); background: var(--life-green); font-size: .75rem; }
-.life-modal-close { position: absolute; top: 18px; right: 18px; width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center; color: var(--life-ink); background: #ede9df; cursor: pointer; }.life-modal-close svg { width: 19px; }
-.life-rules { width: min(920px, 100%); }.life-rules-grid { margin: 27px 0 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }.life-rules-grid article { padding: 17px; border-radius: 17px; background: var(--life-white); border: 1px solid rgba(24,59,56,.08); }.life-rules-grid article > b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--life-white); background: var(--life-coral); }.life-rules-grid h2 { margin: 14px 0 7px; font: 600 1.13rem var(--font-display); }.life-rules-grid p,.life-rules-notes p { color: #687e79; font-size: .79rem; line-height: 1.5; }.life-rules-notes { padding: 14px 18px; border-radius: 16px; columns: 2; gap: 30px; background: var(--life-mint); }.life-rules-notes p { margin: 5px 0; break-inside: avoid; }.life-source { display: inline-block; margin: 18px 16px 18px 0; color: var(--life-green); font-weight: 700; font-size: .8rem; }
 
-@media (max-width: 1200px) {
-  .life-landing { grid-template-columns: 1fr 360px; padding: 26px; }.life-hero { grid-template-columns: 1fr; min-height: 620px; }.life-hero-art { position: absolute; right: 0; width: 38%; height: 100%; opacity: .75; }
+@media (max-width: 1200px) {.life-hero-art { position: absolute; right: 0; width: 38%; height: 100%; opacity: .75; }
   .life-stage { grid-template-columns: 270px 1fr; }
 }
 
 @media (max-width: 920px) {
-  .life-landing { grid-template-columns: 1fr; }.life-hero { min-height: 520px; }.life-entry { width: min(520px,100%); justify-self: center; }
   .life-stage { grid-template-columns: 1fr; }.life-players-panel { order: 2; }.life-player-list { grid-template-columns: repeat(2,1fr); }.life-ledger { display: none; }
-  .life-game-header .life-turn-pill { order: 2; }.life-game-header { flex-wrap: wrap; }.life-game-header > div:first-child { min-width: 50%; }.life-game-header > button { font-size: 0; }.life-game-header > button svg { margin: 0; }
-  .life-rules-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 680px) {
-  .life-landing { padding: 14px; }.life-hero { min-height: 460px; padding: 35px 25px; border-radius: 28px; }.life-hero h1 { font-size: 4.2rem; }.life-hero-art { width: 45%; opacity: .45; }.life-entry { padding: 25px; border-radius: 26px; }
-  .life-lobby { padding: 15px; }.life-lobby-card { border-radius: 26px; }.life-lobby-head { display: block; }.life-lobby-head .life-rule-link { margin: 0; }.life-ready { display: grid; }
-  .life-game { padding: 8px; }.life-game-header { border-radius: 17px; }.life-stage { gap: 8px; }.life-board-panel { padding: 8px; border-radius: 18px; }.life-board-wrap { padding: 8px; }.life-board { min-width: 900px; height: 660px; }.life-player-list { grid-template-columns: 1fr; }
-  .life-choice-grid,.life-career-grid { grid-template-columns: 1fr; }.life-choice-grid button,.life-career-grid button { min-height: 130px; }.life-rules-grid { grid-template-columns: 1fr; }.life-rules-notes { columns: 1; }.life-decision,.life-winner,.life-rules { padding: 28px 20px; border-radius: 24px; }
+@media (max-width: 680px) {.life-hero-art { width: 45%; opacity: .45; }
+  .life-game { padding: 8px; }.life-stage { gap: 8px; }.life-board-panel { padding: 8px; border-radius: 18px; }.life-board-wrap { padding: 8px; }.life-board { min-width: 900px; height: 660px; }.life-player-list { grid-template-columns: 1fr; }
+  .life-choice-grid,.life-career-grid { grid-template-columns: 1fr; }.life-choice-grid button,.life-career-grid button { min-height: 130px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -332,3 +232,5 @@
 @media (max-width:680px) {
   .life-illustrated-board { min-width:820px; height:auto; }
 }
+
+.life-theme .life-hero-art { position: absolute; inset: 0; width: auto; height: auto; min-height: 0; opacity: 0.6; }

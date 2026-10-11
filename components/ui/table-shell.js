@@ -1,22 +1,21 @@
 "use client";
 
+import { useDialog } from "../../lib/use-dialog.js";
 import { Bot, CircleHelp, Copy, DoorOpen, LogOut, Sparkles, Users, X } from "lucide-react";
 
 /*
- * The shared table shell: landing entry card, lobby, in-game header, modal, and
- * round results.
+ * The shared page structure for every game (openspec: platform/game-layout):
+ * landing entry card, lobby, in-game header, dialog, and round results.
  *
- * These lived in components/uno-client.js and were imported from there by
- * components/dos-client.js — so DOS depended on UNO's module to render its own
- * lobby. They are the most mature UI in the codebase (a real seat rail, an
- * opponent strip, a proper hand zone) and the direction the rest of the games
- * should move toward, so they belong in a shared module rather than inside one
- * game.
+ * Nothing here is specific to a felt table. The seat rail and played-card ring
+ * live in ./seated-table.js; this module is only what a board game, a tile
+ * game and a card game all need around their own table.
+ *
+ * Each piece stamps `data-layout="<part>"` so scripts/mobile-audit.mjs can
+ * check that a game really renders through it.
  *
  * Class names are prefixed `tbl-`. The old ones were `cg-` for "color games",
- * which stopped being accurate the moment this became shared, and three of them
- * (`.primary`, `.link`, `button:disabled`) were unprefixed global selectors
- * shipped to every route.
+ * which stopped being accurate the moment this became shared.
  */
 
 export function EntryCard({
@@ -30,9 +29,10 @@ export function EntryCard({
   busy,
   error,
   onRules,
+  localPlay,
 }) {
   return (
-    <section className="tbl-entry">
+    <section className="tbl-entry" data-layout="entry">
       <p className="tbl-kicker">Private online table</p>
       <h2>Play {gameName}</h2>
       <p className="tbl-entry-copy">
@@ -52,6 +52,12 @@ export function EntryCard({
       <button type="button" className="tbl-primary" disabled={busy} onClick={createRoom}>
         <Users aria-hidden="true" /> Create a room
       </button>
+
+      {localPlay && (
+        <button type="button" className="tbl-secondary tbl-local-play" disabled={busy} onClick={localPlay.onPlay}>
+          <Bot aria-hidden="true" /> {localPlay.label ?? "Play against computers"}
+        </button>
+      )}
 
       <p className="tbl-or">or join a room</p>
 
@@ -77,15 +83,74 @@ export function EntryCard({
   );
 }
 
+/**
+ * The standard hero copy: a kicker, a two-line title, a sentence, badges, and
+ * decorative art. Everything is content; the structure and wording around it
+ * are not the game's to change.
+ *
+ * @param {object} props
+ * @param {string} props.kicker
+ * @param {import("react").ReactNode} props.title   `Line one.<br /><em>Line two.</em>`
+ * @param {string} props.copy
+ * @param {{ icon?: import("react").ElementType, label: string }[]} [props.badges]
+ * @param {import("react").ReactNode} [props.art]    aria-hidden decoration
+ * @param {import("react").ReactNode} [props.backdrop]  decoration that fills the whole hero behind the copy
+ * @param {"fan" | "free"} [props.artLayout]  "fan" lays up to three pieces out as a hand of cards; "free" leaves the art's own layout alone
+ */
+export function Hero({ kicker, title, copy, badges = [], art, artLayout = "fan", backdrop }) {
+  return (
+    <>
+      {backdrop && <div className="tbl-hero-backdrop" aria-hidden="true">{backdrop}</div>}
+      <p className="tbl-kicker">{kicker}</p>
+      <h1>{title}</h1>
+      <p className="tbl-hero-copy">{copy}</p>
+      {badges.length > 0 && (
+        <div className="tbl-hero-badges">
+          {badges.map(({ icon: Icon, label }) => (
+            <span key={label}>{Icon && <Icon aria-hidden="true" />} {label}</span>
+          ))}
+        </div>
+      )}
+      {art && <div className={artLayout === "fan" ? "tbl-hero-fan" : "tbl-hero-art"} aria-hidden="true">{art}</div>}
+    </>
+  );
+}
+
+/**
+ * Every game's landing: its hero, then the one entry card.
+ *
+ * @param {object} props
+ * @param {string} props.gameName
+ * @param {string} [props.theme]       the game's root theme class
+ * @param {import("react").ReactNode} props.hero      usually <Hero />
+ * @param {object} props.entry         name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error
+ * @param {() => void} [props.onRules]
+ * @param {{ onPlay: () => void, label?: string }} [props.localPlay]  offered only by games playable without a room
+ * @param {import("react").ReactNode} [props.dialogs]   rules and other dialogs
+ */
+export function Landing({ gameName, theme = "", hero, entry, onRules, localPlay, dialogs }) {
+  return (
+    <main className={`tbl-landing ${theme}`.trim()} data-layout="landing">
+      <section className="tbl-hero">{hero}</section>
+      <EntryCard gameName={gameName} {...entry} onRules={onRules} localPlay={localPlay} />
+      {dialogs}
+    </main>
+  );
+}
+
 export function Lobby({
   gameName,
+  theme = "",
   room,
   me,
   busy,
   error,
   min,
   max,
-  settings,
+  options,
+  seatNote,
+  canStart,
+  autoStart,
   onAdd,
   onRemove,
   onStart,
@@ -94,9 +159,10 @@ export function Lobby({
   rules,
 }) {
   const isHost = room.hostId === me.id;
+  const startable = canStart ?? room.players.length >= min;
 
   return (
-    <main className="tbl-lobby">
+    <main className={`tbl-lobby ${theme}`.trim()} data-layout="lobby">
       <section>
         <header className="tbl-lobby-head">
           <div>
@@ -121,7 +187,7 @@ export function Lobby({
           </button>
         </header>
 
-        {settings}
+        {options}
 
         <div className="tbl-seats">
           {room.players.map((player, index) => (
@@ -163,16 +229,22 @@ export function Lobby({
 
         <p className="tbl-ready">
           <b>
-            {room.players.length} / {max} seats
+            {Number.isFinite(max) ? `${room.players.length} / ${max} seats` : `${room.players.length} players`}
           </b>
-          <span>{room.players.length >= min ? "Ready to play" : "Add one more player"}</span>
+          <span>
+            {seatNote ?? (room.players.length >= min
+              ? "Ready to play"
+              : `Add ${min - room.players.length} more player${min - room.players.length === 1 ? "" : "s"}`)}
+          </span>
         </p>
 
-        {isHost ? (
+        {autoStart ? (
+          <p className="tbl-wait">{autoStart}</p>
+        ) : isHost ? (
           <button
             type="button"
             className="tbl-primary tbl-start"
-            disabled={busy || room.players.length < min}
+            disabled={busy || !startable}
             onClick={onStart}
           >
             <Sparkles aria-hidden="true" /> Start game
@@ -192,11 +264,11 @@ export function Lobby({
   );
 }
 
-export function GameHeader({ title, room, status, onRules, onLeave }) {
+export function GameHeader({ title, room, status, subtitle, actions, onRules, onLeave }) {
   return (
-    <header className="tbl-game-header">
+    <header className="tbl-game-header" data-layout="game-bar">
       <div className="tbl-game-title">
-        <p>Round {room.round} · private room</p>
+        <p>{subtitle ?? `Round ${room.round} · private room`}</p>
         <h1>{title}</h1>
       </div>
 
@@ -205,6 +277,7 @@ export function GameHeader({ title, room, status, onRules, onLeave }) {
         {status}
       </strong>
 
+      {actions}
       <button type="button" className="tbl-header-action" onClick={onRules}>
         <CircleHelp aria-hidden="true" />
         <span className="tbl-header-action-label">Rules</span>
@@ -225,27 +298,82 @@ export function GameHeader({ title, room, status, onRules, onLeave }) {
   );
 }
 
-export function ChoiceModal({ title, text, actions, children, onClose, wide = false }) {
+const noop = () => {};
+
+/**
+ * The shared dialog shell: backdrop, focus trap, Escape, close control. Content
+ * and its own classes are the caller's; `ChoiceModal` below is the standard
+ * title-and-text layout built on it.
+ *
+ * @param {object} props
+ * @param {string} [props.label]        accessible name when the content has no heading
+ * @param {string} [props.labelledBy]   id of the heading inside the content
+ * @param {string} [props.className]    the game's own classes for its content
+ * @param {() => void} [props.onClose]  omit for a forced choice
+ */
+export function Dialog({ label, labelledBy, className = "", onClose, wide = false, children }) {
+  // Focus entry, the Tab trap, Escape and focus restore. A dialog with no
+  // onClose (a forced choice, a results screen) still traps focus; Escape just
+  // has nothing to close.
+  const panelRef = useDialog(true, onClose ?? noop);
+
   return (
     <div className="tbl-modal-backdrop">
-      {/* Focus entry, trapping and restore come from components/dialog-focus.js */}
       <section
-        className={`tbl-modal${wide ? " is-wide" : ""}`}
+        ref={panelRef}
+        className={`tbl-modal${wide ? " is-wide" : ""} ${className}`.trim()}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={labelledBy ? undefined : label}
+        aria-labelledby={labelledBy}
+        data-layout="dialog"
+        data-focus-managed
       >
         {onClose && (
           <button type="button" className="tbl-modal-close" aria-label="Close" onClick={onClose}>
             <X aria-hidden="true" />
           </button>
         )}
-        <h2>{title}</h2>
-        {text && <p className="tbl-modal-copy">{text}</p>}
         {children}
-        {actions && <div className="tbl-modal-actions">{actions}</div>}
       </section>
     </div>
+  );
+}
+
+export function ChoiceModal({ title, text, actions, children, onClose, wide = false }) {
+  return (
+    <Dialog label={typeof title === "string" ? title : undefined} onClose={onClose} wide={wide}>
+      <h2>{title}</h2>
+      {text && <p className="tbl-modal-copy">{text}</p>}
+      {children}
+      {actions && <div className="tbl-modal-actions">{actions}</div>}
+    </Dialog>
+  );
+}
+
+/**
+ * End-of-round or end-of-game results in the shared dialog.
+ *
+ * @param {object} props
+ * @param {string} props.title
+ * @param {string} [props.text]
+ * @param {{ id: string, name: string, value: string, note?: string }[]} [props.rows]  already ranked
+ * @param {import("react").ReactNode} [props.children]  next-round / leave actions
+ */
+export function Results({ title, text, rows = [], children }) {
+  return (
+    <ChoiceModal title={title} text={text}>
+      {rows.length > 0 && <div className="tbl-results">
+        {rows.map((row) => (
+          <div key={row.id}>
+            <span>{row.name}</span>
+            <b>{row.value}</b>
+            {row.note && <small>{row.note}</small>}
+          </div>
+        ))}
+      </div>}
+      {children}
+    </ChoiceModal>
   );
 }
 
@@ -254,25 +382,17 @@ export function RoundModal({ room, me, onNext, onLeave }) {
   const finished = room.phase === "finished";
 
   return (
-    <ChoiceModal
+    <Results
       title={finished ? `${winner.name} wins!` : `${winner.name} wins the round`}
       text={
         finished
           ? `${winner.score} points takes the game.`
           : `Scores carry forward. First to ${room.targetScore} wins.`
       }
+      rows={[...room.players]
+        .sort((left, right) => right.score - left.score)
+        .map((player) => ({ id: player.id, name: player.name, value: `${player.score} pts` }))}
     >
-      <div className="tbl-results">
-        {[...room.players]
-          .sort((left, right) => right.score - left.score)
-          .map((player) => (
-            <div key={player.id}>
-              <span>{player.name}</span>
-              <b>{player.score} pts</b>
-            </div>
-          ))}
-      </div>
-
       {room.phase === "roundEnd" && room.hostId === me.id ? (
         <button type="button" className="tbl-primary" onClick={onNext}>
           Deal next round
@@ -284,6 +404,6 @@ export function RoundModal({ room, me, onNext, onLeave }) {
       <button type="button" className="tbl-link" onClick={onLeave}>
         Leave table
       </button>
-    </ChoiceModal>
+    </Results>
   );
 }

@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Check, Copy, Crown, Eye, EyeOff, LogOut, Map as MapIcon, Plus, Ticket, TrainFront, Users, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Crown,
+  Eye,
+  EyeOff,
+  Ticket,
+  TrainFront,
+  Users,
+  Map as MapIcon,
+} from "lucide-react";
 import { TicketToRideRoomService } from "./ticket-to-ride-room-service";
 import { landPath, lakePaths } from "../lib/ticket-to-ride-map.js";
 import { BOARD_H, BOARD_W, CAR_H, COLOR_GLYPH, carLayout, solveBends } from "../lib/ticket-to-ride-board.js";
@@ -20,6 +30,7 @@ import {
   validPaymentColors,
 } from "../lib/ticket-to-ride";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 
 /** Opponents' cards and tickets are not sent, only counts. */
 const cardCount = (player) => player.cardCount ?? player.cards.length;
@@ -106,6 +117,7 @@ export default function TicketToRideClient() {
   const [selectedDestinationId, setSelectedDestinationId] = useState(null);
   const [hoveredChoiceId, setHoveredChoiceId] = useState(null);
   const [showTickets, setShowTickets] = useState(true);
+  const [showRules, setShowRules] = useState(false);
   const [computerThinking, setComputerThinking] = useState(false);
 
   const me = room?.players.find((player) => player.id === playerId) ?? null;
@@ -145,12 +157,42 @@ export default function TicketToRideClient() {
     leaveEngineRoom();
   }
 
+  const rulesDialog = showRules && <RulesModal onClose={() => setShowRules(false)} />;
+
   if (!room || !me) {
-    return <StationLanding name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} createRoom={createRoom} joinRoom={joinRoom} busy={busy} error={error} />;
+    return <Landing
+      gameName="Ticket to Ride"
+      theme="ticket-to-ride-theme"
+      hero={<Hero
+        kicker="A cross-country railway adventure"
+        title={<>Ticket<br /><em>to Ride</em></>}
+        copy="Collect colorful train cards. Claim routes between cities. Complete secret destinations—and build the longest line across the continent."
+        badges={[{ icon: TrainFront, label: "2–5 players" }, { icon: MapIcon, label: "Shared board" }, { icon: Ticket, label: "Secret tickets" }]}
+        backdrop={<div className="ttr-hero-art"><div className="ttr-sun" /><div className="ttr-mountain one" /><div className="ttr-mountain two" /><div className="ttr-rail-line" /><TrainFront className="ttr-big-train" /></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (room.phase === "lobby") {
-    return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(computerId) => act("removeComputer", { playerId: computerId })} onStart={() => act("start")} onLeave={leaveRoom} />;
+    return <SharedLobby
+      gameName="Ticket to Ride"
+      theme="ticket-to-ride-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={5}
+      onAdd={() => act("addComputer")}
+      onRemove={(computerId) => act("removeComputer", { playerId: computerId })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={rulesDialog}
+    />;
   }
 
   if (room.phase === "choosing-destinations" && me.pendingDestinations.length) {
@@ -167,11 +209,13 @@ export default function TicketToRideClient() {
       busy={busy}
       onConfirm={() => { setHoveredChoiceId(null); act("chooseOpening", { destinationIds: openingSelection }); }}
       onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      dialogs={rulesDialog}
     />;
   }
 
   if (room.phase === "choosing-destinations") {
-    return <WaitingRoom room={room} me={me} onLeave={leaveRoom} />;
+    return <WaitingRoom room={room} me={me} onLeave={leaveRoom} onRules={() => setShowRules(true)} dialogs={rulesDialog} />;
   }
 
   const myTurn = room.phase === "playing" && currentPlayer(room)?.id === playerId;
@@ -201,13 +245,15 @@ export default function TicketToRideClient() {
       : [];
 
   return (
-    <main className="ttr-game-shell">
-      <header className="ttr-table-header">
-        <div><p className="ttr-kicker">Room {room.roomCode}</p><h1>Ticket to Ride</h1></div>
-        <div className={`ttr-turn-pill ${myTurn ? "mine" : ""}`}>{currentPlayer(room)?.isComputer ? <Bot size={15} /> : <span style={{ background: currentPlayer(room)?.color }} />}{room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : currentPlayer(room)?.isComputer && computerThinking ? `${currentPlayer(room)?.name} is planning…` : `${currentPlayer(room)?.name}'s turn`}</div>
-        <button className="ttr-room-code" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy size={15} /> {room.roomCode}</button>
-        <button className="ttr-leave-room" type="button" onClick={leaveRoom}><LogOut size={15} /> Leave room</button>
-      </header>
+    <main className="ttr-game-shell ticket-to-ride-theme">
+      <GameHeader
+        title="Ticket to Ride"
+        room={room}
+        subtitle={`Room ${room.roomCode}`}
+        status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : currentPlayer(room)?.isComputer && computerThinking ? `${currentPlayer(room)?.name} is planning…` : `${currentPlayer(room)?.name}'s turn`}
+        onRules={() => setShowRules(true)}
+        onLeave={leaveRoom}
+      />
 
       {error && <div className="ttr-error" role="alert">{error}</div>}
       {room.lastRoundTriggeredBy && room.phase !== "finished" && <div className="ttr-final-round">Final round · {room.finalTurnsRemaining} turns remain</div>}
@@ -281,24 +327,16 @@ export default function TicketToRideClient() {
           keep is a question about the board you have already built, and the old
           full-screen overlay was the one moment the map went away. */}
       {pendingChoices && <DestinationDock choices={pendingChoices} selected={ticketSelection} setSelected={setTicketSelection} hovered={hoveredChoiceId} setHovered={setHoveredChoiceId} busy={busy} onConfirm={() => { act("chooseDrawn", { destinationIds: ticketSelection }); setTicketSelection([]); setHoveredChoiceId(null); }} />}
+      {rulesDialog}
       {room.phase === "finished" && <FinalScores room={room} playerId={playerId} onLeave={leaveRoom} />}
     </main>
   );
 }
 
-function StationLanding({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
-  return <main className="ttr-landing"><section className="ttr-hero"><div className="ttr-hero-copy"><p className="ttr-kicker">A cross-country railway adventure</p><h1>Ticket<br /><em>to Ride</em></h1><p>Collect colorful train cards. Claim routes between cities. Complete secret destinations—and build the longest line across the continent.</p><div className="ttr-feature-row"><span><TrainFront /> 2–5 players</span><span><MapIcon /> Shared board</span><span><Ticket /> Secret tickets</span></div></div><div className="ttr-hero-art"><div className="ttr-sun" /><div className="ttr-mountain one" /><div className="ttr-mountain two" /><div className="ttr-rail-line" /><TrainFront className="ttr-big-train" /></div></section><section className="ttr-station-card"><div><p className="ttr-kicker">Grand Central</p><h2>Meet at the station</h2><p>Create a private room or enter a friend's five-character code.</p></div><label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Conductor name" /></label><button className="ttr-primary" disabled={busy} onClick={createRoom}><Plus size={19} /> Create a room</button><div className="ttr-or"><span>or join a room</span></div><div className="ttr-join-row"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div>{error && <p className="ttr-form-error">{error}</p>}</section></main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave }) {
-  const isHost = room.hostId === me.id;
-  return <main className="ttr-lobby-shell"><section className="ttr-lobby-card"><p className="ttr-kicker">All aboard</p><h1>Your room is ready</h1><button className="ttr-code-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><span>{room.roomCode}</span><small><Copy size={14} /> Copy room code</small></button><div className="ttr-lobby-players">{room.players.map((player, index) => <div key={player.id}>{player.isComputer ? <Bot style={{ color: player.color }} /> : <TrainFront style={{ color: player.color }} />}<span><strong>{player.name}</strong><small>{index === 0 ? "Host" : player.isComputer ? "Computer player" : "Ready to ride"}</small></span>{player.isComputer && isHost ? <button className="ttr-remove-computer" aria-label={`Remove ${player.name}`} disabled={busy} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}{Array.from({ length: Math.max(0, 5 - room.players.length) }, (_, index) => <div className="empty" key={index}><Users /><span><strong>Open seat</strong><small>Waiting for a traveler</small></span></div>)}</div>{isHost && room.players.length < 5 && <button className="ttr-add-computer" disabled={busy} onClick={onAddComputer}><Bot size={19} /> Add computer</button>}{isHost ? <button className="ttr-primary ttr-start" disabled={busy || room.players.length < 2} onClick={onStart}><TrainFront size={20} /> Start journey</button> : <p className="ttr-waiting-copy">Waiting for {room.players[0].name} to start the journey…</p>}<button className="ttr-quiet" onClick={onLeave}>Leave room</button>{room.players.length < 2 && isHost && <p className="ttr-waiting-copy">Add a computer or invite another traveler to begin.</p>}{error && <p className="ttr-form-error">{error}</p>}</section></main>;
-}
-
 /* The board does not go away again once it has arrived: the wait for the other
  * travelers is the first chance to plan a line between the journeys you kept, so
  * it happens on the same screen the choice did. */
-function WaitingRoom({ room, me, onLeave }) {
+function WaitingRoom({ room, me, onLeave, onRules, dialogs }) {
   const highlights = me.destinations.map((destination, index) => ({
     id: destination.id,
     from: destination.from,
@@ -310,12 +348,9 @@ function WaitingRoom({ room, me, onLeave }) {
     dim: false,
   }));
 
-  return <main className="ttr-picker-shell">
-    <header className="ttr-picker-header">
-      <div><p className="ttr-kicker">Tickets, please</p><h1>Your choices are locked in</h1></div>
-      <p className="ttr-picker-sub">Waiting for the other travelers. Your journeys stay on the map — a good moment to work out the line that joins them.</p>
-      <button className="ttr-quiet ttr-picker-leave" type="button" onClick={onLeave}><LogOut size={15} /> Leave room</button>
-    </header>
+  return <main className="ttr-picker-shell ticket-to-ride-theme">
+    <GameHeader title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status="Your choices are locked in" onRules={onRules} onLeave={onLeave} />
+    <p className="ttr-picker-sub">Waiting for the other travelers. Your journeys stay on the map — a good moment to work out the line that joins them.</p>
     <div className="ttr-picker-grid">
       <section className="ttr-board-card" aria-label="Rail map of North America">
         <GameBoard room={room} myTurn={false} selectedRouteId={null} onSelectRoute={() => {}} highlights={highlights} />
@@ -328,6 +363,7 @@ function WaitingRoom({ room, me, onLeave }) {
         <div className="ttr-ready-list">{room.players.map((player) => <span key={player.id} className={!player.pendingDestinations.length ? "ready" : ""}><i style={{ background: player.color }} />{player.name}{player.id === me.id ? " (you)" : ""}{player.isComputer ? " · Computer" : ""}<b>{!player.pendingDestinations.length ? "Ready" : "Choosing…"}</b></span>)}</div>
       </aside>
     </div>
+    {dialogs}
   </main>;
 }
 
@@ -380,14 +416,11 @@ function toggleChoice(setSelected, id) {
  * only mean something next to the continent they cross — so the map is on screen
  * before the first choice of the game, with every ticket drawn across it.
  */
-function DestinationPicker({ room, title, subtitle, choices, selected, setSelected, hovered, setHovered, minimum, busy, onConfirm, onLeave }) {
+function DestinationPicker({ room, title, subtitle, choices, selected, setSelected, hovered, setHovered, minimum, busy, onConfirm, onLeave, onRules, dialogs }) {
   const highlights = choiceHighlights(choices, selected, hovered);
-  return <main className="ttr-picker-shell">
-    <header className="ttr-picker-header">
-      <div><p className="ttr-kicker">Private destinations</p><h1>{title}</h1></div>
-      <p className="ttr-picker-sub">{subtitle}</p>
-      <button className="ttr-quiet ttr-picker-leave" type="button" onClick={onLeave}><LogOut size={15} /> Leave room</button>
-    </header>
+  return <main className="ttr-picker-shell ticket-to-ride-theme">
+    <GameHeader title="Ticket to Ride" room={room} subtitle={`Room ${room.roomCode}`} status={title} onRules={onRules} onLeave={onLeave} />
+    <p className="ttr-picker-sub">{subtitle}</p>
     <div className="ttr-picker-grid">
       <section className="ttr-board-card" aria-label="Rail map of North America">
         <GameBoard room={room} myTurn={false} selectedRouteId={null} onSelectRoute={() => {}} highlights={highlights} />
@@ -409,6 +442,7 @@ function DestinationPicker({ room, title, subtitle, choices, selected, setSelect
         <small className="ttr-minimum">Choose at least {minimum}</small>
       </aside>
     </div>
+    {dialogs}
   </main>;
 }
 
@@ -666,6 +700,45 @@ function ClaimPanel({ route, colors, busy, onClose, onClaim }) {
   return <div className="ttr-claim-panel"><button className="ttr-close" onClick={onClose}>×</button><p className="ttr-kicker">Claim this route</p><h2>{CITIES[route.from].name} → {CITIES[route.to].name}</h2><div className="ttr-claim-facts"><span><TrainFront /> {route.length} trains</span><span>{ROUTE_POINTS[route.length]} points</span><span>{TRAIN_COLOR_INFO[route.color].label}</span></div>{colors.length ? <><p>Choose cards to spend. Locomotives fill any missing cards.</p><div className="ttr-payment-options">{colors.map((color) => <button key={color} disabled={busy} style={{ "--pay-color": TRAIN_COLOR_INFO[color].hex }} onClick={() => onClaim(color)}><i />{TRAIN_COLOR_INFO[color].label}</button>)}</div></> : <p className="ttr-cannot-claim">You do not have enough matching cards yet.</p>}</div>;
 }
 
+function RulesModal({ onClose }) {
+  return <ChoiceModal wide title="How to play Ticket to Ride" text="Claim railway routes across the map and complete your secret destinations." onClose={onClose}>
+    <p className="tbl-rule-heading">On your turn, do one of three things</p>
+    <div className="tbl-rule-grid">
+      <article><b>Draw train cards</b><p>Take two cards, from the face-up row or the deck. A face-up Locomotive counts as both draws, so you cannot take it as a second card.</p></article>
+      <article><b>Claim a route</b><p>Play cards of the route&apos;s color equal to its length. Locomotives are wild. Gray routes accept any single color.</p></article>
+      <article><b>Draw destination tickets</b><p>Take three tickets and keep at least one. Each ticket links two cities.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Scoring</p>
+    <div className="tbl-rule-grid">
+      <article><b>Routes</b><p>Length 1, 2, 3, 4, 5 and 6 score 1, 2, 4, 7, 10 and 15 points.</p></article>
+      <article><b>Tickets</b><p>A ticket whose cities you have connected adds its value at the end; an unfinished ticket subtracts it.</p></article>
+      <article><b>Longest route</b><p>The longest continuous railway earns a 10-point bonus, shared by ties.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Good to know</p>
+    <div className="tbl-rule-grid">
+      <article><b>Opening tickets</b><p>Each player starts with 45 trains and keeps at least two of three opening tickets.</p></article>
+      <article><b>Double routes</b><p>With two or three players only one of a pair of parallel routes can be claimed, and one player cannot claim both.</p></article>
+      <article><b>Final round</b><p>When a player has two or fewer trains left, everyone takes one more turn and the game ends.</p></article>
+    </div>
+  </ChoiceModal>;
+}
+
 function FinalScores({ room, playerId, onLeave }) {
-  return <div className="ttr-overlay"><section className="ttr-final-card"><Crown /><p className="ttr-kicker">Journey complete</p><h1>{room.winnerIds.includes(playerId) ? "You won the railway race!" : `${room.players.find((player) => room.winnerIds.includes(player.id))?.name} wins!`}</h1><div className="ttr-score-table"><div className="heading"><span>Traveler</span><span>Routes</span><span>Tickets</span><span>Longest</span><span>Total</span></div>{[...room.finalScores].sort((a, b) => b.total - a.total).map((score) => { const player = room.players.find((item) => item.id === score.playerId); return <div key={player.id} className={room.winnerIds.includes(player.id) ? "winner" : ""}><span><i style={{ background: player.color }} />{player.name}</span><span>{score.routeScore}</span><span>{score.ticketScore > 0 ? "+" : ""}{score.ticketScore}</span><span>{score.longestBonus ? `+10 (${score.longestRoute})` : score.longestRoute}</span><strong>{score.total}</strong></div>; })}</div><p className="ttr-final-note">Completed destinations add points; unfinished ones subtract them. The longest continuous railway earns 10 bonus points.</p><button className="ttr-final-leave" type="button" onClick={onLeave}><LogOut size={16} /> Leave room</button></section></div>;
+  const ranked = [...room.finalScores].sort((a, b) => b.total - a.total);
+  const winnerName = room.players.find((player) => room.winnerIds.includes(player.id))?.name;
+  return <Results
+    title={room.winnerIds.includes(playerId) ? "You won the railway race!" : `${winnerName} wins!`}
+    text="Completed destinations add points; unfinished ones subtract them. The longest continuous railway earns 10 bonus points."
+    rows={ranked.map((score) => {
+      const player = room.players.find((item) => item.id === score.playerId);
+      return {
+        id: player.id,
+        name: `${player.name}${player.id === playerId ? " (you)" : ""}`,
+        value: `${score.total}`,
+        note: `${score.routeScore} routes · ${score.ticketScore > 0 ? "+" : ""}${score.ticketScore} tickets · longest ${score.longestRoute}${score.longestBonus ? " (+10)" : ""}`,
+      };
+    })}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Leave room</button>
+  </Results>;
 }

@@ -2,8 +2,20 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bot, Castle, Check, ChevronRight, CircleHelp, Coins, Copy, Crown, Gem, Hammer,
-  Landmark, LogOut, Plus, ScrollText, Shield, Sparkles, Swords, Users, X,
+  Bot,
+  Castle,
+  Check,
+  Coins,
+  Crown,
+  Gem,
+  Hammer,
+  Landmark,
+  ScrollText,
+  Shield,
+  Sparkles,
+  Swords,
+  Users,
+  X,
 } from "lucide-react";
 import { DominionRoomService } from "./dominion-room-service";
 import {
@@ -17,6 +29,7 @@ import {
   emptyPileLimit,
 } from "../lib/dominion";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 
 /** Opponents' hands and every draw pile are not sent, only counts. */
 const handSize = (player) => player.handCount ?? player.hand.length;
@@ -63,21 +76,55 @@ export default function DominionClient() {
     setError("");
   }
 
-  if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
+  if (!room || !me) {
+    return <SharedLanding
+      gameName="Dominion"
+      theme="tbl-light dominion-theme"
+      hero={<Hero
+        kicker="The original deck-building game"
+        title={<>Domi<em>nion</em></>}
+        copy="Begin with a humble estate. Recruit villages, markets, smithies, and scheming courtiers until your deck becomes a kingdom worth ruling."
+        badges={[{ icon: Users, label: "2–6 players" }, { icon: Bot, label: "Computer monarchs" }, { icon: Coins, label: "Base Cards expansion" }]}
+        backdrop={<div className="dom-hero-art"><div className="dom-sun" /><Castle /><span className="dom-banner left">D</span><span className="dom-banner right">G</span></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <SharedLobby
+      gameName="Dominion"
+      theme="tbl-light dominion-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={MAX_PLAYERS}
+      options={room.players.length >= 5 && <div className="dom-expanded-note"><Sparkles /><span><strong>Base Cards expansion active</strong><small>Expanded Treasure, Province, and Curse supplies with a four-pile ending.</small></span></div>}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const myChoice = room.pendingChoice?.playerId === playerId;
   const actionCards = me.hand.filter((id) => CARD_DEFINITIONS[id].types.includes("action"));
 
-  return <main className="dom-game-shell">
-    <header className="dom-table-header">
-      <div><p className="dom-kicker">Room {room.roomCode}</p><h1><Crown /> Dominion</h1></div>
-      <div className={`dom-turn ${myTurn ? "mine" : ""}`}>{computerThinking && computer ? <Bot /> : <span style={{ background: actor?.color }} />}{room.phase === "finished" ? "Realm complete" : myChoice ? "Your response" : myTurn ? `Your ${room.turnPhase} phase` : computerThinking && computer ? `${computer.name} is deciding...` : `${actor?.name}'s turn`}</div>
-      <button className="dom-code" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="dom-icon-button" aria-label="Open rules" onClick={() => setShowRules(true)}><CircleHelp /></button>
-      <button className="dom-leave" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="dom-game-shell tbl-light dominion-theme">
+    <GameHeader
+      title="Dominion"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "finished" ? "Realm complete" : myChoice ? "Your response" : myTurn ? `Your ${room.turnPhase} phase` : computerThinking && computer ? `${computer.name} is deciding...` : `${actor?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
 
     {error && <div className="dom-error" role="alert">{error}<button aria-label="Dismiss" onClick={() => setError("")}><X /></button></div>}
     {room.pendingChoice && !myChoice && <div className="dom-wait-banner"><ScrollText /> Waiting for {room.players.find((player) => player.id === room.pendingChoice.playerId)?.name} to resolve {choiceName(room.pendingChoice.type)}.</div>}
@@ -119,15 +166,6 @@ export default function DominionClient() {
   </main>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
-  return <main className="dom-landing"><section className="dom-hero"><div className="dom-hero-copy"><p className="dom-kicker">The original deck-building game</p><h1>Domi<span>nion</span></h1><p>Begin with a humble estate. Recruit villages, markets, smithies, and scheming courtiers until your deck becomes a kingdom worth ruling.</p><div className="dom-features"><span><Users /> 2–6 players</span><span><Bot /> Computer monarchs</span><span><Coins /> Base Cards expansion</span></div></div><div className="dom-hero-art"><div className="dom-sun" /><Castle /><span className="dom-banner left">D</span><span className="dom-banner right">G</span></div></section><section className="dom-entry"><p className="dom-kicker">The great hall</p><h2>Claim your seat</h2><p>Create a private room for up to six monarchs, invite friends with a five-character code, or fill the council with computer rivals.</p><label>Your monarch name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="e.g. Eleanor" /></label><button className="dom-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="dom-divider"><span>or join a realm</span></div><div className="dom-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join <ChevronRight /></button></div>{error && <p className="dom-form-error">{error}</p>}<a className="dom-official" href="https://www.riograndegames.com/games/dominion-base-cards/" target="_blank" rel="noreferrer"><ScrollText /> Official Base Cards rules</a></section></main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave }) {
-  const isHost = room.hostId === me.id;
-  return <main className="dom-lobby"><section className="dom-lobby-card"><div className="dom-lobby-seal"><Crown /></div><p className="dom-kicker">Your private realm</p><h1>The council assembles</h1><button className="dom-room-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><span>{room.roomCode}</span><small><Copy /> Copy invite code</small></button><div className="dom-lobby-players">{room.players.map((player, index) => <div className="occupied" key={player.id}><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}</strong><small>{index === 0 ? "Host monarch" : player.isComputer ? "Computer monarch" : "Ready to rule"}</small></p>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}{Array.from({ length: MAX_PLAYERS - room.players.length }, (_, index) => <div className="empty" key={index}><span className="dom-avatar"><Users /></span><p><strong>Open seat</strong><small>Invite a friend or summon a rival</small></p></div>)}</div>{room.players.length >= 5 && <div className="dom-expanded-note"><Sparkles /><span><strong>Base Cards expansion active</strong><small>Expanded Treasure, Province, and Curse supplies with a four-pile ending.</small></span></div>}{isHost && room.players.length < MAX_PLAYERS && <button className="dom-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer monarch</button>}{isHost ? <button className="dom-primary dom-start" disabled={busy || room.players.length < 2} onClick={onStart}><Crown /> Begin the reign</button> : <p className="dom-waiting">Waiting for {room.players[0].name} to begin...</p>}<button className="dom-quiet" onClick={onLeave}><LogOut /> Leave room</button>{room.players.length < 2 && isHost && <p className="dom-waiting">Invite at least one monarch or add a computer to begin.</p>}{error && <p className="dom-form-error">{error}</p>}</section></main>;
-}
-
 function PanelTitle({ icon: Icon, eyebrow, title }) { return <div className="dom-panel-title"><Icon /><span><small>{eyebrow}</small><strong>{title}</strong></span></div>; }
 function Resource({ value, label, icon }) { return <div><strong>{icon && <Coins />}{value}</strong><small>{label}</small></div>; }
 
@@ -164,22 +202,42 @@ function ChoiceDialog({ room, player, selected, setSelected, busy, onResolve }) 
   return <Modal eyebrow={militia ? "Militia attack" : "Cellar"} title={militia ? `Discard ${required} card${required === 1 ? "" : "s"}` : "Choose cards to cycle"} note={militia ? "You must finish with exactly three cards in hand." : "Discard any number, then draw the same number."}><div className="dom-choice-hand">{player.hand.map((id, index) => <CardFace key={`${id}-${index}`} id={id} compact selected={selected.includes(index)} disabled={busy} onClick={() => toggle(index)} />)}</div><button className="dom-primary" disabled={busy || (required != null && selected.length !== required)} onClick={() => onResolve({ indices: selected })}>{militia ? `Discard ${selected.length} of ${required}` : `Discard and draw ${selected.length}`}</button></Modal>;
 }
 
-function Modal({ eyebrow, title, note, children }) { return <div className="dom-overlay"><section className="dom-modal"><p className="dom-kicker">{eyebrow}</p><h2>{title}</h2><p>{note}</p>{children}</section></div>; }
-
-function RulesDrawer({ onClose }) {
-  return <div className="dom-rules-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="dom-rules"><button className="dom-rules-close" aria-label="Close rules" onClick={onClose}><X /></button><p className="dom-kicker">How to play</p><h2>Build your Dominion</h2><p>Everyone begins with seven Coppers and three Estates. Buy stronger cards, improve how your deck cycles, and own the most victory points when the game ends.</p><h3>Your turn: ABC</h3><ol><li><strong>Action:</strong> Play one Action card by default. Villages and Markets can grant more Actions.</li><li><strong>Buy:</strong> Enter Buy to play all Treasures automatically, then buy one affordable Supply card by default.</li><li><strong>Cleanup:</strong> End your turn. Your hand and played cards are discarded, then you draw five.</li></ol><h3>End of game</h3><p>At 2–4 players, the game ends when Provinces or any three Supply piles are empty. At 5–6 players, the Base Cards expansion increases that threshold to four piles and supplies 15 or 18 Provinces. Highest total victory points wins; fewer turns breaks a tie.</p><h3>This kingdom</h3><p>This digital edition uses the official recommended first-game set: Cellar, Market, Merchant, Militia, Mine, Moat, Remodel, Smithy, Village, and Workshop.</p><a href="https://www.riograndegames.com/games/dominion-base-cards/" target="_blank" rel="noreferrer"><ScrollText /> Official Base Cards rules <ChevronRight /></a></aside></div>;
-}
-
-function Results({ room, playerId, onLeave }) {
-  const ranked = [...room.players].sort((a, b) => room.scores[b.id] - room.scores[a.id] || a.turnsTaken - b.turnsTaken);
-  const won = room.winners.includes(playerId);
-  return <div className="dom-overlay"><section className="dom-results"><div className="dom-results-crown"><Crown /></div><p className="dom-kicker">The realm is complete</p><h2>{won ? "Your Dominion prevails" : `${ranked[0].name} claims the realm`}</h2><p>Victory cards across every deck, hand, discard pile, and play area determine the final standing.</p><div>{ranked.map((player, index) => <article className={room.winners.includes(player.id) ? "winner" : ""} key={player.id}><b>{index + 1}</b><span className="dom-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{cardTotal(player)} cards · {player.turnsTaken} turns</small></p><em>{room.scores[player.id]}<small> VP</small></em>{room.winners.includes(player.id) && <Crown />}</article>)}</div><button className="dom-primary" onClick={onLeave}>Return to the great hall</button></section></div>;
-}
-
 function choiceName(type) {
   if (type === "militia-discard") return "a Militia attack";
   if (type.includes("mine")) return "Mine";
   if (type.includes("remodel")) return "Remodel";
   if (type === "cellar") return "Cellar";
   return "a card choice";
+}
+
+function Modal({ eyebrow, title, note, children }) {
+  return <ChoiceModal wide title={title} text={<><strong>{eyebrow}.</strong> {note}</>}>{children}</ChoiceModal>;
+}
+
+function RulesDrawer({ onClose }) {
+  return <ChoiceModal wide title="Build your Dominion" text="Everyone begins with seven Coppers and three Estates. Buy stronger cards, improve how your deck cycles, and own the most victory points when the game ends." onClose={onClose}>
+    <p className="tbl-rule-heading">Your turn: ABC</p>
+    <div className="tbl-rule-grid">
+      <article><b>Action</b><p>Play one Action card by default. Villages and Markets can grant more Actions.</p></article>
+      <article><b>Buy</b><p>Enter Buy to play all Treasures automatically, then buy one affordable Supply card by default.</p></article>
+      <article><b>Cleanup</b><p>End your turn. Your hand and played cards are discarded, then you draw five.</p></article>
+    </div>
+    <p className="tbl-rule-heading">End of game</p>
+    <p className="tbl-modal-copy">At 2–4 players, the game ends when Provinces or any three Supply piles are empty. At 5–6 players, the Base Cards expansion increases that threshold to four piles and supplies 15 or 18 Provinces. Highest total victory points wins; fewer turns breaks a tie.</p>
+    <p className="tbl-rule-heading">This kingdom</p>
+    <p className="tbl-modal-copy">This digital edition uses the official recommended first-game set: Cellar, Market, Merchant, Militia, Mine, Moat, Remodel, Smithy, Village, and Workshop.</p>
+    <a className="tbl-link" href="https://www.riograndegames.com/games/dominion-base-cards/" target="_blank" rel="noreferrer"><ScrollText aria-hidden="true" /> Official Base Cards rules</a>
+  </ChoiceModal>;
+}
+
+function Results({ room, playerId, onLeave }) {
+  const ranked = [...room.players].sort((a, b) => room.scores[b.id] - room.scores[a.id] || a.turnsTaken - b.turnsTaken);
+  const won = room.winners.includes(playerId);
+  return <SharedResults
+    title={won ? "Your Dominion prevails" : `${ranked[0].name} claims the realm`}
+    text="Victory cards across every deck, hand, discard pile, and play area determine the final standing."
+    rows={ranked.map((player) => ({ id: player.id, name: `${player.name}${player.id === playerId ? " (you)" : ""}`, value: `${room.scores[player.id]} VP`, note: `${cardTotal(player)} cards · ${player.turnsTaken} turns` }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Return to the great hall</button>
+  </SharedResults>;
 }

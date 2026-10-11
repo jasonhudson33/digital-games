@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Anchor, BookOpen, Bot, Copy, DoorOpen, Play, Plus, RotateCcw, UserPlus, Users, X } from "lucide-react";
+import {
+  Anchor,
+  Bot,
+  Play,
+  Users,
+} from "lucide-react";
 import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { getSkullKingCardArt } from "../lib/skull-king-art";
 import { getSkullKingCardHelp } from "../lib/skull-king-card-help";
@@ -10,31 +15,18 @@ import {
   SKULL_KING_DECK_MODES,
   SKULL_KING_SPECIALS,
   SKULL_KING_SUIT_DETAILS,
-  chooseBotPirateAbility,
-  chooseBotSkullKingPlay,
-  chooseBotWalkThePlank,
-  collectSkullKingTrick,
-  createSkullKingMatch,
   formatSkullKingCard,
   getLegalSkullKingCards,
-  getSkullKingActingPlayerIndex,
   getSkullKingGhostControllerIndex,
-  getSkullKingGhostDeclaration,
   getSkullKingGhostIndex,
   getSkullKingLeadSuit,
-  playSkullKingCard,
-  resolveSkullKingPirateAbility,
-  resolveWalkThePlank,
-  startNextSkullKingRound,
-  submitSkullKingBid,
 } from "../lib/skull-king";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
 
 const PLAYER_NAME_KEY = "skull-king-player-name";
 
 export default function SkullKingClient() {
   const [playerName, setPlayerName] = useState("");
-  const [playerCount, setPlayerCount] = useState(4);
-  const [deckMode, setDeckMode] = useState("full");
   const [isReady, setIsReady] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [roomToken, setRoomToken] = useState("");
@@ -48,7 +40,6 @@ export default function SkullKingClient() {
   const [abilityCard, setAbilityCard] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const latestGame = useRef(null);
 
   useEffect(() => {
@@ -88,69 +79,8 @@ export default function SkullKingClient() {
   }, [game?.roomCode, roomToken]);
 
   useEffect(() => {
-    if (!game || game.roomCode || !["playing", "lastVolley"].includes(game.phase) || getSkullKingActingPlayerIndex(game) === 0) return undefined;
-    const timer = window.setTimeout(() => {
-      setGame((current) => {
-        if (!current || !["playing", "lastVolley"].includes(current.phase) || getSkullKingActingPlayerIndex(current) === 0) return current;
-        const ghostIndex = getSkullKingGhostIndex(current);
-        if (current.currentPlayerIndex === ghostIndex) {
-          const ghostHand = current.players[ghostIndex].hand;
-          const ghostCard = ghostHand[0];
-          return ghostCard
-            ? playSkullKingCard(current, ghostIndex, ghostCard.id, getSkullKingGhostDeclaration(ghostCard))
-            : current;
-        }
-        const play = chooseBotSkullKingPlay(current, current.currentPlayerIndex);
-        return play
-          ? playSkullKingCard(current, current.currentPlayerIndex, play.card.id, play.declaredSuit ?? play.declaredRole ?? play.declaredValue)
-          : current;
-      });
-    }, 680);
-    return () => window.clearTimeout(timer);
-  }, [game]);
-
-  useEffect(() => {
-    if (!game || game.roomCode || game.phase !== "walkThePlank" || decisionControllerIndex(game, game.pendingWalkThePlank?.playerIndex) === 0) return undefined;
-    const timer = window.setTimeout(() => {
-      setGame((current) => current?.phase === "walkThePlank"
-        ? resolveWalkThePlank(current, chooseBotWalkThePlank(current))
-        : current);
-    }, 720);
-    return () => window.clearTimeout(timer);
-  }, [game]);
-
-  useEffect(() => {
-    if (!game || game.roomCode || game.phase !== "pirateAbility") return undefined;
-    const ghostIndex = getSkullKingGhostIndex(game);
-    if (game.pendingPirateAbility?.playerIndex !== ghostIndex && decisionControllerIndex(game, game.pendingPirateAbility?.playerIndex) === 0) return undefined;
-    const timer = window.setTimeout(() => {
-      setGame((current) => current?.phase === "pirateAbility"
-        ? resolveSkullKingPirateAbility(current, chooseBotPirateAbility(current))
-        : current);
-    }, 760);
-    return () => window.clearTimeout(timer);
-  }, [game]);
-
-  useEffect(() => {
     if (game?.phase === "bidding") setBid(0);
   }, [game?.roundNumber, game?.phase]);
-
-  function startGame() {
-    const cleanName = usePlayerName();
-    setGame(createSkullKingMatch({
-      playerName: cleanName,
-      playerCount,
-      startingPlayerIndex: Math.floor(Math.random() * playerCount),
-      deckMode,
-    }));
-    setBid(0);
-    setChoiceCardId(null);
-    setTigressCardId(null);
-    setWildCardId(null);
-    setPendingPlayPlayerIndex(0);
-    setAbilityCard(null);
-    setError("");
-  }
 
   function usePlayerName() {
     const cleanName = playerName.trim() || "Player";
@@ -235,16 +165,9 @@ export default function SkullKingClient() {
     window.history.replaceState(null, "", "/skull-king");
   }
 
-  function copyInvite() {
-    if (!game?.roomCode) return;
-    void navigator.clipboard.writeText(`${window.location.origin}/skull-king?room=${game.roomCode}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }
 
-  function updateGame(roomActionName, values, localUpdater) {
-    if (game?.roomCode) void roomAction(roomActionName, values);
-    else setGame(localUpdater);
+  function updateGame(roomActionName, values) {
+    void roomAction(roomActionName, values);
   }
 
   function playHumanCard(card, playerIndex = game.viewerPlayerIndex ?? 0) {
@@ -263,123 +186,90 @@ export default function SkullKingClient() {
       setChoiceCardId(card.id);
       return;
     }
-    updateGame("playCard", { cardId: card.id }, (current) => playSkullKingCard(current, playerIndex, card.id));
+    updateGame("playCard", { cardId: card.id });
   }
 
   function playChoice(value) {
-    updateGame("playCard", { cardId: choiceCardId, declaration: value }, (current) => playSkullKingCard(current, pendingPlayPlayerIndex, choiceCardId, value));
+    updateGame("playCard", { cardId: choiceCardId, declaration: value });
     setChoiceCardId(null);
   }
 
   function playTigress(role) {
-    updateGame("playCard", { cardId: tigressCardId, declaration: role }, (current) => playSkullKingCard(current, pendingPlayPlayerIndex, tigressCardId, role));
+    updateGame("playCard", { cardId: tigressCardId, declaration: role });
     setTigressCardId(null);
   }
 
   function playWild15(suit) {
-    updateGame("playCard", { cardId: wildCardId, declaration: suit }, (current) => playSkullKingCard(current, pendingPlayPlayerIndex, wildCardId, suit));
+    updateGame("playCard", { cardId: wildCardId, declaration: suit });
     setWildCardId(null);
   }
 
   function flipGhostCard() {
     if (!ghost) return;
-    if (game.roomCode) {
-      void roomAction("playCard", { flipGhost: true });
-      return;
-    }
-    const ghostCard = ghost.hand[0];
-    if (!ghostCard) return;
-    setGame((current) => playSkullKingCard(current, ghostPlayerIndex, ghostCard.id, getSkullKingGhostDeclaration(ghostCard)));
+    void roomAction("playCard", { flipGhost: true });
   }
 
 
-  if (!game) {
-    return (
-      <main className="skull-app skull-intro-shell">
-        <section className="skull-intro">
-          <div className="skull-intro-copy">
-            <span className="skull-kicker"><Anchor size={16} /> A trick-taking voyage</span>
-            <h1>Claim the crown of the <span>Skull King.</span></h1>
-            <p>
-              Predict your haul, follow the colors, and unleash Pirates and sea monsters at
-              exactly the right moment. Ten rounds. One captain.
-            </p>
-            <div className="skull-feature-row" aria-label="Game highlights">
-              <span><b>10</b> rounds</span>
-              <span><b>4</b> suits</span>
-              <span><b>3</b> monsters</span>
-            </div>
-            <div className="skull-setup-row">
-              <label>
-                <span>Your name</span>
-                <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={18} placeholder="You" />
-              </label>
-              <label>
-                <span>Players</span>
-                <select value={playerCount} onChange={(event) => setPlayerCount(Number(event.target.value))}>
-                  {[2, 3, 4, 5, 6, 7, 8, 9].filter((count) => count <= SKULL_KING_DECK_MODES[deckMode].maxPlayers).map((count) => <option key={count} value={count}>{count} players</option>)}
-                </select>
-              </label>
-              <label className="skull-deck-select">
-                <span>Cards</span>
-                <select value={deckMode} onChange={(event) => {
-                  const nextMode = event.target.value;
-                  setDeckMode(nextMode);
-                  setPlayerCount((count) => Math.min(count, SKULL_KING_DECK_MODES[nextMode].maxPlayers));
-                }}>
-                  {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => <option key={value} value={value}>{mode.label}</option>)}
-                </select>
-              </label>
-              <button type="button" className="skull-primary" onClick={startGame}>Play with computers <span aria-hidden="true">→</span></button>
-            </div>
-            <div className="skull-entry-divider"><span>or gather a human crew</span></div>
-            <div className="skull-room-entry">
-              <button type="button" className="skull-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create a room</button>
-              <div className="skull-join-row">
-                <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => event.key === "Enter" && joinRoom()}
-                  maxLength={5}
-                  placeholder="ROOM CODE"
-                  aria-label="Room code"
-                />
-                <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={16} /> Join</button>
-              </div>
-            </div>
-            {error && <div className="skull-error" role="alert">{error}</div>}
-            <button type="button" className="skull-text-button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> How to play</button>
-          </div>
+  const rulesDialog = <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} deckMode={game?.deckMode ?? "full"} />;
 
-          <div className="skull-card-art" aria-label="Skull King cards at sea">
-            <div className="art-moon" />
-            <div className="art-wave wave-one" />
-            <div className="art-wave wave-two" />
-            <SkullCard card={{ id: "art-purple", type: "number", suit: "purple", rank: 14, bonus: 10 }} className="skull-art-card art-purple" />
-            <SkullCard card={{ id: "art-king", type: "special", kind: "skullKing" }} className="skull-art-card art-pirate" />
-            <SkullCard card={{ id: "art-black", type: "number", suit: "black", rank: 14, bonus: 20 }} className="skull-art-card art-black" />
-            <span className="art-banner">Bid true. Sail bold.</span>
-          </div>
-        </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} deckMode={deckMode} />
-      </main>
-    );
+  if (!game) {
+    return <Landing
+      gameName="Skull King"
+      theme="skull-king-theme"
+      hero={<Hero
+        kicker="A trick-taking voyage"
+        title={<>Claim the crown of the <em>Skull King.</em></>}
+        copy="Predict your haul, follow the colors, and unleash Pirates and sea monsters at exactly the right moment. Ten rounds. One captain."
+        badges={[{ icon: Anchor, label: "2–9 captains" }, { icon: Bot, label: "Computer crew" }, { icon: Users, label: "10 rounds" }]}
+        artLayout="free"
+        art={<div className="skull-card-art" aria-label="Skull King cards at sea">
+          <div className="art-moon" />
+          <div className="art-wave wave-one" />
+          <div className="art-wave wave-two" />
+          <SkullCard card={{ id: "art-purple", type: "number", suit: "purple", rank: 14, bonus: 10 }} className="skull-art-card art-purple" />
+          <SkullCard card={{ id: "art-king", type: "special", kind: "skullKing" }} className="skull-art-card art-pirate" />
+          <SkullCard card={{ id: "art-black", type: "number", suit: "black", rank: 14, bonus: 20 }} className="skull-art-card art-black" />
+          <span className="art-banner">Bid true. Sail bold.</span>
+        </div>}
+      />}
+      entry={{ name: playerName, setName: setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
-    return (
-      <SkullKingLobby
-        game={game}
-        copied={copied}
-        error={error}
-        onCopy={copyInvite}
-        onLeave={leaveGame}
-        onAction={roomAction}
-        onRules={() => setRulesOpen(true)}
-        rulesOpen={rulesOpen}
-        onCloseRules={() => setRulesOpen(false)}
-      />
-    );
+    const me = game.players.find((player) => player.isViewer) ?? game.players[0];
+    const selectedMode = SKULL_KING_DECK_MODES[game.deckMode] ?? SKULL_KING_DECK_MODES.full;
+    const canStart = game.players.length >= 2 && game.players.length <= selectedMode.maxPlayers;
+    return <SharedLobby
+      gameName="Skull King"
+      theme="skull-king-theme"
+      room={{ roomCode: game.roomCode, hostId: game.hostControls ? me.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
+      me={{ id: me.playerId }}
+      busy={busy}
+      error={error}
+      min={2}
+      max={selectedMode.maxPlayers}
+      canStart={canStart}
+      seatNote={`${selectedMode.label} · 10 rounds${game.players.length === 2 ? " · + Ghost Crew" : ""}`}
+      options={<section className="skull-deck-options" aria-label="Card set">
+        <div><strong>Card set</strong><small>{selectedMode.description}</small></div>
+        {game.hostControls ? <div className="skull-deck-option-buttons">
+          {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => (
+            <button type="button" key={value} className={game.deckMode === value ? "selected" : ""} disabled={game.players.length > mode.maxPlayers} onClick={() => roomAction("setDeckMode", { deckMode: value })}>
+              <strong>{mode.label}</strong><small>Up to {mode.maxPlayers}</small>
+            </button>
+          ))}
+        </div> : <b>{selectedMode.label}</b>}
+      </section>}
+      onAdd={() => roomAction("addComputer")}
+      onRemove={(id) => roomAction("removeComputer", { playerId: id })}
+      onStart={() => roomAction("start")}
+      onLeave={leaveGame}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
+    />;
   }
 
   const viewerPlayerIndex = game.viewerPlayerIndex ?? 0;
@@ -402,18 +292,15 @@ export default function SkullKingClient() {
   );
 
   return (
-    <main className="skull-app skull-game-shell tbl-felt-shell">
-      <header className="skull-gamebar">
-        <div className="gamebar-title">
-          <span className="gamebar-anchor"><Anchor size={19} /></span>
-          <div><strong>Skull King</strong><small>{game.roomCode ? `Room ${game.roomCode} · ` : ""}Round {game.roundNumber} of 10 · {game.captainCount ?? game.playerCount} captains</small></div>
-        </div>
-        <div className="skull-gamebar-actions">
-          {game.roomCode && <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button>}
-          <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={leaveGame}>{game.roomCode ? <DoorOpen size={16} /> : <RotateCcw size={16} />} {game.roomCode ? "Leave game" : "New game"}</button>
-        </div>
-      </header>
+    <main className="skull-app skull-game-shell tbl-felt-shell skull-king-theme">
+      <GameHeader
+        title="Skull King"
+        room={game}
+        subtitle={`Round ${game.roundNumber} of 10 · ${game.captainCount ?? game.playerCount} captains`}
+        status={game.phase === "finished" ? "Voyage complete" : game.phase === "bidding" ? "Place your bids" : game.phase === "collecting" ? "Trick complete" : yourTurn ? "Your turn" : `${game.players[game.currentPlayerIndex]?.name ?? "…"}'s turn`}
+        onRules={() => setRulesOpen(true)}
+        onLeave={leaveGame}
+      />
 
       <section className="skull-table tbl-felt-fit" aria-label="Skull King game table">
         <SkullKingTable
@@ -424,7 +311,7 @@ export default function SkullKingClient() {
               <h2>Trick complete</h2>
               <p className="skull-trick-result">{trickResultText(game)}</p>
               <p>Review the cards, then clear the trick to continue.</p>
-              <button type="button" className="skull-primary full" onClick={() => updateGame("collectTrick", {}, (current) => collectSkullKingTrick(current))}>
+              <button type="button" className="skull-primary full" onClick={() => updateGame("collectTrick", {})}>
                 Clear trick
               </button>
             </div>
@@ -439,7 +326,7 @@ export default function SkullKingClient() {
                   <button key={value} type="button" className={bid === value ? "selected" : ""} onClick={() => setBid(value)}>{value}</button>
                 ))}
               </div>
-              <button type="button" className="skull-primary full" onClick={() => updateGame("bid", { bid }, (current) => submitSkullKingBid(current, viewerPlayerIndex, bid))}>
+              <button type="button" className="skull-primary full" onClick={() => updateGame("bid", { bid })}>
                 Lock bid at {bid}
               </button>
             </div>
@@ -535,89 +422,32 @@ export default function SkullKingClient() {
       {tigressCardId && <TigressDialog onChoose={playTigress} onClose={() => setTigressCardId(null)} />}
       {wildCardId && <Wild15Dialog onChoose={playWild15} onClose={() => setWildCardId(null)} />}
       {game.phase === "walkThePlank" && decisionControllerIndex(game, game.pendingWalkThePlank?.playerIndex) === viewerPlayerIndex && (
-        <WalkThePlankDialog game={game} onChoose={(cardId) => updateGame("walkThePlank", { cardId }, (current) => resolveWalkThePlank(current, cardId))} />
+        <WalkThePlankDialog game={game} onChoose={(cardId) => updateGame("walkThePlank", { cardId })} />
       )}
       {game.phase === "pirateAbility" && game.pendingPirateAbility?.playerIndex !== ghostPlayerIndex && decisionControllerIndex(game, game.pendingPirateAbility?.playerIndex) === viewerPlayerIndex && (
         <PirateAbilityDialog
           game={game}
-          onResolve={(choice) => updateGame("pirateAbility", { choice }, (current) => resolveSkullKingPirateAbility(current, choice))}
+          onResolve={(choice) => updateGame("pirateAbility", { choice })}
         />
       )}
       {game.phase === "roundComplete" && (
         <RoundDialog
           game={game}
-          canContinue={!game.roomCode || game.hostControls}
-          onContinue={() => updateGame("nextRound", {}, (current) => startNextSkullKingRound(current))}
+          canContinue={game.hostControls}
+          onContinue={() => updateGame("nextRound", {})}
         />
       )}
       {game.phase === "gameOver" && (
         <GameOverDialog
           game={game}
           viewerPlayerIndex={viewerPlayerIndex}
-          canRestart={!game.roomCode || game.hostControls}
-          onRestart={() => game.roomCode ? roomAction("restart") : startGame()}
+          canRestart={game.hostControls}
+          onRestart={() => roomAction("restart")}
           onExit={leaveGame}
         />
       )}
       {abilityCard && <CardAbilityDialog card={abilityCard} onClose={() => setAbilityCard(null)} />}
-      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} deckMode={game.deckMode} />
-    </main>
-  );
-}
-
-function SkullKingLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
-  const selectedMode = SKULL_KING_DECK_MODES[game.deckMode] ?? SKULL_KING_DECK_MODES.full;
-  const canStart = game.players.length >= 2 && game.players.length <= selectedMode.maxPlayers;
-  return (
-    <main className="skull-app skull-intro-shell skull-lobby-shell">
-      <section className="skull-lobby-card">
-        <span className="skull-kicker"><Users size={16} /> Gather the crew</span>
-        <h1>Skull <span>King</span></h1>
-        <p>Invite two to nine captains. Two-player voyages add Graybeard&apos;s hidden hand; flip only its top card whenever his turn arrives.</p>
-
-        <div className="skull-room-code">
-          <span>Room code</span>
-          <strong>{game.roomCode}</strong>
-          <button type="button" onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-        </div>
-
-        <div className="skull-lobby-players">
-          {game.players.map((player, index) => (
-            <div key={player.playerId}>
-              <span className="skull-avatar">{player.name.slice(0, 1).toUpperCase()}</span>
-              <strong>{player.name}{player.isViewer ? " · You" : ""}</strong>
-              <small>{index === 0 ? "Host" : player.isComputer ? "Computer" : "Ready"}</small>
-              {player.isComputer && game.hostControls && <button type="button" onClick={() => onAction("removeComputer", { playerId: player.playerId })}><X size={14} /> Remove</button>}
-            </div>
-          ))}
-        </div>
-
-        {game.players.length < selectedMode.maxPlayers && game.hostControls && (
-          <button type="button" className="skull-add-computer" onClick={() => onAction("addComputer")}><UserPlus size={17} /> Add computer</button>
-        )}
-
-        <section className="skull-deck-options" aria-label="Card set">
-          <div><strong>Card set</strong><small>{selectedMode.description}</small></div>
-          {game.hostControls ? <div className="skull-deck-option-buttons">
-            {Object.entries(SKULL_KING_DECK_MODES).map(([value, mode]) => (
-              <button type="button" key={value} className={game.deckMode === value ? "selected" : ""} disabled={game.players.length > mode.maxPlayers} onClick={() => onAction("setDeckMode", { deckMode: value })}>
-                <strong>{mode.label}</strong><small>Up to {mode.maxPlayers}</small>
-              </button>
-            ))}
-          </div> : <b>{selectedMode.label}</b>}
-        </section>
-
-        <div className="skull-lobby-summary"><span>{game.players.length} captains</span>{game.players.length === 2 && <span>+ Ghost Crew</span>}<span>{selectedMode.label}</span><span>10 rounds</span><span>Private hands</span></div>
-        {game.hostControls ? (
-          <button type="button" className="skull-primary skull-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start game</button>
-        ) : (
-          <p className="skull-lobby-waiting">Waiting for the host to start the voyage…</p>
-        )}
-        {!canStart && game.hostControls && <p className="skull-lobby-waiting">Invite another player or add a computer to set sail.</p>}
-        {error && <div className="skull-error" role="alert">{error}</div>}
-        <div className="skull-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave game</button></div>
-      </section>
-      <RulesDialog open={rulesOpen} onClose={onCloseRules} deckMode={game.deckMode} />
+      {rulesDialog}
     </main>
   );
 }
@@ -772,11 +602,7 @@ function PirateAbilityDialog({ game, onResolve }) {
   }
 
   return (
-    <div className="skull-modal-backdrop">
-      <section className="pirate-ability-dialog" role="dialog" aria-modal="true" aria-labelledby="pirate-ability-title">
-        <span className="panel-kicker">Pirate ability</span>
-        <h2 id="pirate-ability-title">{pending.pirateName}</h2>
-        <p>{pending.ability}</p>
+    <SkullModal kicker={<>Pirate ability</>} title={<>{pending.pirateName}</>} text={<>{pending.ability}</>}>
 
         {pending.pirateKey === "rosie" && (
           <div className="pirate-choice-grid">
@@ -858,19 +684,13 @@ function PirateAbilityDialog({ game, onResolve }) {
             ))}
           </div>
         )}
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
 function Wild15Dialog({ onChoose, onClose }) {
   return (
-    <div className="skull-modal-backdrop">
-      <section className="choice-dialog wild15-dialog" role="dialog" aria-modal="true" aria-labelledby="wild15-title">
-        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close"><X size={19} /></button>
-        <span className="panel-kicker">Wild Monkey 15</span>
-        <h2 id="wild15-title">Choose its suit.</h2>
-        <p>The Wild 15 may be green, yellow, or purple—never black trump.</p>
+    <SkullModal kicker={<>Wild Monkey 15</>} title={<>Choose its suit.</>} text={<>The Wild 15 may be green, yellow, or purple—never black trump.</>} onClose={onClose}>
         <div className="wild-suit-choices">
           {["green", "yellow", "purple"].map((suit) => (
             <button key={suit} type="button" className={suit} onClick={() => onChoose(suit)}>
@@ -878,19 +698,14 @@ function Wild15Dialog({ onChoose, onClose }) {
             </button>
           ))}
         </div>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
 function WalkThePlankDialog({ game, onChoose }) {
   const eligible = game.trick.filter((play) => game.pendingWalkThePlank.pirateCardIds.includes(play.card.id));
   return (
-    <div className="skull-modal-backdrop">
-      <section className="pirate-ability-dialog" role="dialog" aria-modal="true" aria-labelledby="plank-title">
-        <span className="panel-kicker">Walk the Plank</span>
-        <h2 id="plank-title">Choose a Pirate to remove.</h2>
-        <p>The Pirate is removed before the trick is resolved and cannot provide a capture bonus.</p>
+    <SkullModal kicker={<>Walk the Plank</>} title={<>Choose a Pirate to remove.</>} text={<>The Pirate is removed before the trick is resolved and cannot provide a capture bonus.</>}>
         <div className="plank-card-choices">
           {eligible.map((play) => (
             <button key={play.card.id} type="button" onClick={() => onChoose(play.card.id)}>
@@ -899,25 +714,18 @@ function WalkThePlankDialog({ game, onChoose }) {
             </button>
           ))}
         </div>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
 function TigressDialog({ onChoose, onClose }) {
   return (
-    <div className="skull-modal-backdrop">
-      <section className="choice-dialog tigress-dialog" role="dialog" aria-modal="true" aria-labelledby="tigress-title">
-        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close"><X size={19} /></button>
-        <span className="panel-kicker">Tigress</span>
-        <h2 id="tigress-title">Fight or flee?</h2>
-        <p>Declare her role now. She takes on every characteristic—and capture bonus—of that role for this trick.</p>
+    <SkullModal kicker={<>Tigress</>} title={<>Fight or flee?</>} text={<>Declare her role now. She takes on every characteristic—and capture bonus—of that role for this trick.</>} onClose={onClose}>
         <div className="choice-actions">
           <button type="button" onClick={() => onChoose("escape")}><b>⚑</b><span>Play as Escape</span></button>
           <button type="button" onClick={() => onChoose("pirate")}><b>☠</b><span>Play as Pirate</span></button>
         </div>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
@@ -949,18 +757,12 @@ function ChoiceDialog({ card, onChoose, onClose }) {
   if (!card) return null;
   const suit = SKULL_KING_SUIT_DETAILS[card.suit].label;
   return (
-    <div className="skull-modal-backdrop">
-      <section className="choice-dialog" role="dialog" aria-modal="true" aria-labelledby="choice-title">
-        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close"><X size={19} /></button>
-        <span className="panel-kicker">Wild {suit}</span>
-        <h2 id="choice-title">Play it high or low?</h2>
-        <p>This card follows {suit}, but it never earns a 14-card bonus.</p>
+    <SkullModal kicker={<>Wild {suit}</>} title={<>Play it high or low?</>} text={<>This card follows {suit}, but it never earns a 14-card bonus.</>} onClose={onClose}>
         <div className="choice-actions">
           <button type="button" onClick={() => onChoose(0)}><b>0</b><span>Play low</span></button>
           <button type="button" onClick={() => onChoose(14)}><b>14</b><span>Play high</span></button>
         </div>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
@@ -969,23 +771,23 @@ function CardAbilityDialog({ card, onClose }) {
   if (!help) return null;
 
   return (
-    <div className="skull-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="card-ability-dialog" role="dialog" aria-modal="true" aria-labelledby="card-ability-title">
-        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close card ability"><X size={20} /></button>
-        <span className="panel-kicker">Card ability</span>
-        <div className="card-ability-content">
-          <SkullCard card={card} className="ability-preview-card" />
-          <div>
-            <h2 id="card-ability-title">{help.title}</h2>
-            <p>{help.summary}</p>
-            <ul>
-              {help.details.map((detail) => <li key={detail}>{detail}</li>)}
-            </ul>
-          </div>
-        </div>
-        <button type="button" className="skull-primary full" onClick={onClose}>Got it</button>
-      </section>
-    </div>
+    <SkullModal kicker="Card ability" title={help.title} text={help.summary} onClose={onClose}>
+      <div className="card-ability-content">
+        <SkullCard card={card} className="ability-preview-card" />
+        <ul>
+          {help.details.map((detail) => <li key={detail}>{detail}</li>)}
+        </ul>
+      </div>
+    </SkullModal>
+  );
+}
+
+/** Every Skull King prompt is the shared dialog; this only keeps the kicker line. */
+function SkullModal({ kicker, title, text, onClose, children }) {
+  return (
+    <ChoiceModal wide title={title} text={text ? <>{kicker && <strong>{kicker}. </strong>}{text}</> : kicker} onClose={onClose}>
+      {children}
+    </ChoiceModal>
   );
 }
 
@@ -995,12 +797,7 @@ function RulesDialog({ open, onClose, deckMode = "full" }) {
   const hasMermaidsAndMonsters = resolvedDeckMode !== "classic";
   const hasFullDeck = resolvedDeckMode === "full";
   return (
-    <div className="skull-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="skull-rules-dialog" role="dialog" aria-modal="true" aria-labelledby="skull-rules-title">
-        <button type="button" className="skull-modal-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
-        <span className="panel-kicker">Captain&apos;s guide</span>
-        <h2 id="skull-rules-title">Bid true. Take exactly that many tricks.</h2>
-        <p><strong>{SKULL_KING_DECK_MODES[resolvedDeckMode].label}:</strong> {SKULL_KING_DECK_MODES[resolvedDeckMode].description}</p>
+    <SkullModal kicker={<>Captain&apos;s guide</>} title={<>Bid true. Take exactly that many tricks.</>} text={<><strong>{SKULL_KING_DECK_MODES[resolvedDeckMode].label}:</strong> {SKULL_KING_DECK_MODES[resolvedDeckMode].description}</>} onClose={onClose}>
         <p>There are ten rounds. Round one deals one card to each player, round two deals two, and so on. The player left of the dealer leads; the trick winner leads next.</p>
         <div className="deck-option-rules">
           <strong>Choose your card set</strong>
@@ -1053,17 +850,13 @@ function RulesDialog({ open, onClose, deckMode = "full" }) {
         </div>}
         <p className="rules-footnote">Exact nonzero bid: 20 points per trick plus captured bonuses. Miss a nonzero bid: lose 10 points per trick off. Bid zero: gain 10 × the round if correct, or lose that amount if you take a trick.{hasFullDeck ? " Each suit also has a 0/14 choice card; choose its value when played, but it has no bonus." : ""}</p>
         <button type="button" className="skull-primary full" onClick={onClose}>Back to the ship</button>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
 function RoundDialog({ game, canContinue, onContinue }) {
   return (
-    <div className="skull-modal-backdrop">
-      <section className="skull-round-dialog" role="dialog" aria-modal="true" aria-labelledby="skull-round-title">
-        <span className="panel-kicker">Round {game.roundNumber} complete</span>
-        <h2 id="skull-round-title">The bids are settled.</h2>
+    <SkullModal kicker={<>Round {game.roundNumber} complete</>} title={<>The bids are settled.</>}>
         <div className="round-results">
           {game.players.filter((player) => !player.isGhost).sort((a, b) => b.score - a.score).map((player) => {
             const points = game.roundSummary.points[player.id];
@@ -1085,8 +878,7 @@ function RoundDialog({ game, canContinue, onContinue }) {
         {canContinue
           ? <button type="button" className="skull-primary full" onClick={onContinue}>Deal round {game.roundNumber + 1} <span>→</span></button>
           : <p className="skull-lobby-waiting">Waiting for the host to deal round {game.roundNumber + 1}…</p>}
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 
@@ -1099,12 +891,8 @@ function GameOverDialog({ game, viewerPlayerIndex, canRestart, onRestart, onExit
   const humanWon = winners.some((player) => player.id === viewerPlayerIndex);
   const standings = game.players.filter((player) => !player.isGhost).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   return (
-    <div className="skull-modal-backdrop">
-      <section className="skull-round-dialog game-over" role="dialog" aria-modal="true" aria-labelledby="skull-game-over-title">
-        <span className="panel-kicker">Ten rounds sailed</span>
+    <SkullModal kicker={<>Ten rounds sailed</>} title={<>{humanWon ? "You are the Skull King." : `${winners.map((player) => player.name).join(" & ")} takes the crown.`}</>} text={<>{humanWon ? "Your bids held fast through every storm." : "Another voyage could change the tide."}</>}>
         <div className="winner-mark">☠</div>
-        <h2 id="skull-game-over-title">{humanWon ? "You are the Skull King." : `${winners.map((player) => player.name).join(" & ")} takes the crown.`}</h2>
-        <p>{humanWon ? "Your bids held fast through every storm." : "Another voyage could change the tide."}</p>
         <ol className="final-standings" aria-label="Final scores">
           {standings.map((player, index) => {
             const place = standings.findIndex((candidate) => candidate.score === player.score) + 1;
@@ -1124,8 +912,7 @@ function GameOverDialog({ game, viewerPlayerIndex, canRestart, onRestart, onExit
           {!canRestart && game.roomCode && <p className="skull-lobby-waiting">Waiting for the host to start another voyage…</p>}
           <button type="button" className="skull-secondary" onClick={onExit}>{game.roomCode ? "Leave game" : "Change crew"}</button>
         </div>
-      </section>
-    </div>
+    </SkullModal>
   );
 }
 

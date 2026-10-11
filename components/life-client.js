@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, BriefcaseBusiness, CircleHelp, Copy, GraduationCap, Home, LogOut, Plus, Sparkles, TrendingUp, Users, X } from "lucide-react";
+import {
+  Bot,
+  BriefcaseBusiness,
+  GraduationCap,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { LifeRoomService } from "./life-room-service";
 import { BOARD, currentLifePlayer, money, playerNetWorth } from "../lib/life";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
 /** Other seats' LIFE tile values are hidden until the game ends, so only a count is sent. */
 const tileCount = (player) => player.lifeTileCount ?? player.lifeTiles.length;
@@ -41,19 +49,52 @@ export default function LifeClient() {
     try { await act("spin"); } finally { setSpinning(false); }
   }
 
-  if (!room || !me) return <LifeLanding {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <LifeLobby room={room} me={me} busy={busy} error={error} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leave} onRules={() => setShowRules(true)} />;
+  if (!room || !me) {
+    return <Landing
+      gameName="Life"
+      theme="tbl-light life-theme"
+      hero={<Hero
+        kicker="A whole life in one game night"
+        title={<>Where will<br /><em>Life</em> take you?</>}
+        copy="Choose your path, build a career, grow a family, and follow every twist of the spinner."
+        badges={[{ icon: Users, label: "2–6 players" }, { icon: Bot, label: "Computer players" }, { icon: Sparkles, label: "Shared rooms" }]}
+        backdrop={<div className="life-hero-art"><div className="life-sun" /><div className="life-road"><span>🚗</span><i /><b>🏡</b><strong>🌴</strong></div><div className="life-cloud one" /><div className="life-cloud two" /></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <Rules onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <Lobby
+      gameName="Life"
+      theme="tbl-light life-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={6}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leave}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <Rules onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const myTurn = room.phase === "playing" && active?.id === playerId;
   const pendingMine = myTurn && room.pending?.playerId === playerId;
-  return <main className="life-game">
-    <header className="life-game-header">
-      <div><p className="life-kicker">Room {room.roomCode}</p><h1>Life</h1></div>
-      <div className={`life-turn-pill ${myTurn ? "mine" : ""}`}><span style={{ background: active?.color }} />{room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : computerThinking ? `${active?.name} is thinking…` : `${active?.name}'s turn`}</div>
-      <button onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button onClick={leave}><LogOut /> Leave</button>
-    </header>
+  return <main className="life-game tbl-light life-theme">
+    <GameHeader
+      title="Life"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "finished" ? "Journey complete" : myTurn ? "Your turn" : computerThinking ? `${active?.name} is thinking…` : `${active?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leave}
+    />
     {error && <p className="life-error" role="alert">{error}</p>}
     <section className="life-stage">
       <aside className="life-players-panel">
@@ -78,37 +119,6 @@ export default function LifeClient() {
     {room.phase === "finished" && <Winner room={room} me={me} onLeave={leave} />}
     {showRules && <Rules onClose={() => setShowRules(false)} />}
   </main>;
-}
-
-function LifeLanding({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="life-landing">
-    <section className="life-hero">
-      <div className="life-hero-copy"><p className="life-kicker">A whole life in one game night</p><h1>Where will<br /><em>Life</em> take you?</h1><p>Choose your path, build a career, grow a family, and follow every twist of the spinner.</p><div className="life-facts"><span><Users /> 2–6 players</span><span><Bot /> Computer players</span><span><Sparkles /> Shared rooms</span></div></div>
-      <div className="life-hero-art" aria-hidden="true"><div className="life-sun" /><div className="life-road"><span>🚗</span><i /><b>🏡</b><strong>🌴</strong></div><div className="life-cloud one" /><div className="life-cloud two" /></div>
-    </section>
-    <section className="life-entry">
-      <div><p className="life-kicker">Pull into the driveway</p><h2>Start a journey</h2><p>Create a room or join friends with their five-character code.</p></div>
-      <label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label>
-      <button className="life-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button>
-      <div className="life-or"><span>or</span></div>
-      <div className="life-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div>
-      <button className="life-rule-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>
-      {error && <p className="life-form-error">{error}</p>}
-    </section>
-    {showRules && <Rules onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function LifeLobby({ room, me, busy, error, onAdd, onRemove, onStart, onLeave, onRules }) {
-  const isHost = me.id === room.hostId;
-  return <main className="life-lobby"><section className="life-lobby-card">
-    <div className="life-lobby-head"><div><p className="life-kicker">Your road trip is ready</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Share the code, add computer drivers, then hit the road.</p></div><button className="life-rule-link" onClick={onRules}><CircleHelp /> Rules</button></div>
-    <div className="life-seats">{room.players.map((player, index) => <article key={player.id} style={{ "--player": player.color }}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer driver" : "Human driver"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemove(player.id)}><X /></button> : <i>✓</i>}</article>)}</div>
-    {isHost && room.players.length < 6 && <button className="life-add-bot" disabled={busy} onClick={onAdd}><Bot /> Add computer player</button>}
-    <div className={`life-ready ${room.players.length >= 2 ? "yes" : ""}`}><strong>{room.players.length}/6 drivers</strong><span>{room.players.length >= 2 ? "The road is open" : "Add one more player to begin"}</span></div>
-    {isHost ? <button className="life-primary life-start" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Start game</button> : <p className="life-wait">Waiting for {room.players[0].name} to start…</p>}
-    <button className="life-quiet" onClick={onLeave}>Leave room</button>{error && <p className="life-form-error">{error}</p>}
-  </section></main>;
 }
 
 function routePath(points) {
@@ -172,15 +182,45 @@ function InvestmentPicker({ disabled, onBuy }) {
 }
 
 function Decision({ pending, player, busy, onPath, onCareer, onRetire }) {
-  return <div className="life-overlay" role="dialog" aria-modal="true"><section className="life-decision"><p className="life-kicker">Your life, your choice</p>{pending.type === "path" && <><h1>Choose your starting path</h1><p>College opens every career, but begins with $40K in tuition loans. A career pays sooner and skips the debt.</p><div className="life-choice-grid"><button disabled={busy} onClick={() => onPath("college")}><span><GraduationCap /></span><strong>Go to college</strong><small>More career choices · 2 tuition loans</small></button><button disabled={busy} onClick={() => onPath("career")}><span><BriefcaseBusiness /></span><strong>Start a career</strong><small>Earn sooner · no tuition debt</small></button></div></>}{pending.type === "career" && <><h1>{pending.reason}</h1><p>Pick the work that feels right. Your salary is collected whenever you pass a Payday.</p><div className="life-career-grid">{pending.options.map((career) => <button key={career.id} disabled={busy} onClick={() => onCareer(career.id)}><span>{career.icon}</span><strong>{career.name}</strong><small>{money(career.salary)} salary {career.degree ? "· degree" : ""}</small></button>)}</div></>}{pending.type === "retirement" && <><h1>Where will you retire?</h1><p>Millionaire Estates competes for four bonus LIFE tiles. Countryside Acres gives one safe LIFE tile now.</p><div className="life-choice-grid"><button disabled={busy} onClick={() => onRetire("millionaire")}><span>🏰</span><strong>Millionaire Estates</strong><small>Risk it for the bonus tiles</small></button><button disabled={busy} onClick={() => onRetire("countryside")}><span>🌻</span><strong>Countryside Acres</strong><small>Take one safe LIFE tile</small></button></div></>}</section></div>;
+  const heading = pending.type === "path"
+    ? { title: "Choose your starting path", text: "College opens every career, but begins with $40K in tuition loans. A career pays sooner and skips the debt." }
+    : pending.type === "career"
+      ? { title: pending.reason, text: "Pick the work that feels right. Your salary is collected whenever you pass a Payday." }
+      : { title: "Where will you retire?", text: "Millionaire Estates competes for four bonus LIFE tiles. Countryside Acres gives one safe LIFE tile now." };
+  return <ChoiceModal wide title={heading.title} text={heading.text}>
+    {pending.type === "path" && <div className="life-choice-grid"><button type="button" disabled={busy} onClick={() => onPath("college")}><span><GraduationCap /></span><strong>Go to college</strong><small>More career choices · 2 tuition loans</small></button><button type="button" disabled={busy} onClick={() => onPath("career")}><span><BriefcaseBusiness /></span><strong>Start a career</strong><small>Earn sooner · no tuition debt</small></button></div>}
+    {pending.type === "career" && <div className="life-career-grid">{pending.options.map((career) => <button type="button" key={career.id} disabled={busy} onClick={() => onCareer(career.id)}><span>{career.icon}</span><strong>{career.name}</strong><small>{money(career.salary)} salary {career.degree ? "· degree" : ""}</small></button>)}</div>}
+    {pending.type === "retirement" && <div className="life-choice-grid"><button type="button" disabled={busy} onClick={() => onRetire("millionaire")}><span>🏰</span><strong>Millionaire Estates</strong><small>Risk it for the bonus tiles</small></button><button type="button" disabled={busy} onClick={() => onRetire("countryside")}><span>🌻</span><strong>Countryside Acres</strong><small>Take one safe LIFE tile</small></button></div>}
+  </ChoiceModal>;
+}
+
+function Rules({ onClose }) {
+  return <ChoiceModal wide title="How to play Life" text="Based on Hasbro's classic rules." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Choose a path</b><p>Start a career right away or take tuition loans for college and unlock degree careers.</p></article>
+      <article><b>Spin and move</b><p>Click the 1–10 spinner, move forward, and follow the space. Red milestone spaces stop you early.</p></article>
+      <article><b>Live your Life</b><p>Collect salaries, build a family, buy a home, change careers, invest, and earn hidden LIFE tiles.</p></article>
+      <article><b>Retire richest</b><p>Repay loans, add cash, home value, and LIFE tiles. The highest total wins.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Also</p>
+    <div className="tbl-rule-grid">
+      <article><b>Paydays</b><p>Collect your salary whenever you pass or land on one.</p></article>
+      <article><b>Loans</b><p>The bank automatically issues $20K loans when needed; each costs $25K to repay.</p></article>
+      <article><b>Investments</b><p>Pay $50K for a number. Collect $10K whenever anyone spins it.</p></article>
+      <article><b>Speeding</b><p>Spin 10 while another player is a Police Officer and you pay them $5K.</p></article>
+    </div>
+    <a className="tbl-link" href="https://www.hasbro.com/common/instruct/life.pdf" target="_blank" rel="noreferrer">Read Hasbro's classic game guide ↗</a>
+  </ChoiceModal>;
 }
 
 function Winner({ room, me, onLeave }) {
   const winners = room.players.filter((player) => room.winnerIds.includes(player.id));
   const ranked = [...room.players].sort((a, b) => playerNetWorth(b) - playerNetWorth(a));
-  return <div className="life-overlay"><section className="life-winner"><span>🏆</span><p className="life-kicker">Everyone made it to retirement</p><h1>{room.winnerIds.includes(me.id) ? "You lived the richest Life!" : `${winners.map((player) => player.name).join(" & ")} win${winners.length === 1 ? "s" : ""}!`}</h1><div>{ranked.map((player, index) => <p key={player.id}><b>{index + 1}</b><span>{player.name}</span><strong>{money(playerNetWorth(player))}</strong></p>)}</div><button className="life-primary" onClick={onLeave}>Take another journey</button></section></div>;
-}
-
-function Rules({ onClose }) {
-  return <div className="life-overlay" role="dialog" aria-modal="true"><section className="life-rules"><button className="life-modal-close" onClick={onClose}><X /></button><p className="life-kicker">Based on Hasbro's classic rules</p><h1>How to play Life</h1><div className="life-rules-grid"><article><b>1</b><h2>Choose a path</h2><p>Start a career right away or take tuition loans for college and unlock degree careers.</p></article><article><b>2</b><h2>Spin and move</h2><p>Click the 1–10 spinner, move forward, and follow the space. Red milestone spaces stop you early.</p></article><article><b>3</b><h2>Live your Life</h2><p>Collect salaries, build a family, buy a home, change careers, invest, and earn hidden LIFE tiles.</p></article><article><b>4</b><h2>Retire richest</h2><p>Repay loans, add cash, home value, and LIFE tiles. The highest total wins.</p></article></div><div className="life-rules-notes"><p><strong>Paydays:</strong> Collect your salary whenever you pass or land on one.</p><p><strong>Loans:</strong> The bank automatically issues $20K loans when needed; each costs $25K to repay.</p><p><strong>Investments:</strong> Pay $50K for a number. Collect $10K whenever anyone spins it.</p><p><strong>Speeding:</strong> Spin 10 while another player is a Police Officer and you pay them $5K.</p></div><a className="life-source" href="https://www.hasbro.com/common/instruct/life.pdf" target="_blank" rel="noreferrer">Read Hasbro's classic game guide ↗</a><button className="life-primary" onClick={onClose}>Ready to roll</button></section></div>;
+  return <Results
+    title={room.winnerIds.includes(me.id) ? "You lived the richest Life!" : `${winners.map((player) => player.name).join(" & ")} win${winners.length === 1 ? "s" : ""}!`}
+    text="Everyone made it to retirement."
+    rows={ranked.map((player) => ({ id: player.id, name: player.name, value: money(playerNetWorth(player)) }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Take another journey</button>
+  </Results>;
 }

@@ -4,24 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   ChevronRight,
-  CircleHelp,
-  Copy,
   Crown,
   Dice5,
-  DoorOpen,
   Flag,
   Layers3,
   Minus,
   MoveRight,
-  Play,
   Plus,
   RotateCcw,
   Shield,
   Swords,
   Target,
-  Trophy,
   Users,
-  X,
+  Globe,
 } from "lucide-react";
 import {
   CARD_TYPES,
@@ -41,6 +36,7 @@ import { RISK_BORDER_REGIONS, buildRiskTerritoryBorderSegments } from "../lib/ri
 import { EMBLEM_PATHS, emblemFor, inkFor, plateFor } from "../lib/risk-emblems";
 import { useBoardZoom } from "./ui/use-board-zoom";
 import { RiskRoomService } from "./risk-room-service";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 
 const playerNameStorageKey = "risk-player-name";
 
@@ -315,157 +311,6 @@ function PlayerCard({ player, game, viewerPlayerId }) {
   );
 }
 
-function Setup({ name, setName, joinCode, setJoinCode, onCreate, onJoin, error, ready }) {
-  return (
-    <main className="risk-page risk-setup">
-      <section className="risk-setup-card">
-        <div className="risk-crest" aria-hidden="true">
-          <span /><Shield size={38} /><span />
-        </div>
-        <p className="risk-kicker">A game of global strategy</p>
-        <h1>Risk</h1>
-        <p className="risk-setup-copy">
-          Create a shared room for 2–6 commanders, deploy across 42 territories, and conquer the world together online.
-        </p>
-        <label className="risk-name-field">
-          <span>Your commander name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => event.key === "Enter" && onCreate()}
-            maxLength={22}
-            placeholder="Commander"
-          />
-        </label>
-        <button type="button" className="risk-primary risk-start" onClick={onCreate} disabled={!ready}>
-          <Users size={18} /> Create a room
-        </button>
-        <div className="risk-entry-divider"><span>or join a campaign</span></div>
-        <div className="risk-join-row">
-          <input
-            value={joinCode}
-            maxLength={5}
-            placeholder="ROOM CODE"
-            aria-label="Room code"
-            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-            onKeyDown={(event) => event.key === "Enter" && onJoin()}
-          />
-          <button type="button" onClick={onJoin} disabled={!ready}><DoorOpen size={17} /> Join</button>
-        </div>
-        {error && <p className="risk-room-error">{error}</p>}
-        <p className="risk-local-note">2–6 players · Add computer commanders · Rooms update automatically</p>
-      </section>
-    </main>
-  );
-}
-
-function Lobby({ game, playerId, onAddComputer, onRemoveComputer, onStart, onColor, onCardTradeMode, onCopy, copied, onLeave }) {
-  const isHost = game.hostId === playerId;
-  const viewer = game.players.find((player) => player.id === playerId);
-  return (
-    <main className="risk-page risk-setup">
-      <section className="risk-setup-card risk-lobby-card">
-        <button type="button" className="risk-lobby-leave" onClick={onLeave}>Leave room</button>
-        <div className="risk-crest" aria-hidden="true"><span /><Shield size={34} /><span /></div>
-        <p className="risk-kicker">Gather your commanders</p>
-        <h1>Risk</h1>
-        <div className="risk-room-code">
-          <div><span>Room code</span><strong>{game.roomCode}</strong></div>
-          <button type="button" onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-        </div>
-        <div className="risk-lobby-list">
-          {game.players.map((player) => (
-            <div key={player.id}>
-              <i style={{ background: player.color }} />
-              <strong>{player.name}</strong>
-              {player.isBot && isHost
-                ? <button type="button" onClick={() => onRemoveComputer(player.id)} aria-label={`Remove ${player.name}`}><X size={13} /> Remove</button>
-                : <small>{player.id === game.hostId ? "Host" : player.id === playerId ? "You" : player.isBot ? "Computer" : "Ready"}</small>}
-            </div>
-          ))}
-          {Array.from({ length: 6 - game.players.length }, (_, index) => (
-            <div className="empty" key={`empty-${index}`}><i /> <span>Waiting for commander…</span></div>
-          ))}
-        </div>
-        {isHost && (
-          <button type="button" className="risk-add-computer" onClick={onAddComputer} disabled={game.players.length >= 6}>
-            <Bot size={17} /> Add computer commander
-          </button>
-        )}
-        <div className="risk-color-picker">
-          <span>Choose your army color</span>
-          <div>
-            {PLAYER_STYLES.map((style) => {
-              const taken = game.players.some((player) => player.id !== playerId && player.color === style.color);
-              return (
-                <button
-                  type="button"
-                  key={style.name}
-                  aria-label={`Choose ${style.name}, marked with a ${style.emblem}`}
-                  aria-pressed={viewer?.color === style.color}
-                  className={viewer?.color === style.color ? "selected" : ""}
-                  disabled={taken}
-                  onClick={() => onColor(style)}
-                  style={{ "--swatch": style.color, "--swatch-ink": inkFor(style.color) }}
-                >
-                  <svg viewBox="-6 -6 12 12" aria-hidden="true">
-                    <path d={EMBLEM_PATHS[style.emblem]} />
-                  </svg>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="risk-card-rule-picker">
-          <div>
-            <span>Card trade rule</span>
-            <small>{game.cardTradeMode === "normal" ? "Fixed values based on the symbols traded." : "Every traded set becomes more valuable."}</small>
-          </div>
-          <div>
-            <button type="button" className={game.cardTradeMode === "normal" ? "selected" : ""} disabled={!isHost} onClick={() => onCardTradeMode("normal")}>
-              <strong>Normal</strong><small>4 · 6 · 8 · 10</small>
-            </button>
-            <button type="button" className={game.cardTradeMode !== "normal" ? "selected" : ""} disabled={!isHost} onClick={() => onCardTradeMode("progressive")}>
-              <strong>Progressive</strong><small>4 · 6 · 8 · 10 · 12 · 15…</small>
-            </button>
-          </div>
-        </div>
-        {isHost ? (
-          <button type="button" className="risk-primary risk-start" onClick={onStart} disabled={game.players.length < 2}>
-            <Play size={18} /> Start campaign
-          </button>
-        ) : <p className="risk-lobby-waiting">Waiting for the host to start the campaign…</p>}
-      </section>
-    </main>
-  );
-}
-
-function RulesModal({ onClose }) {
-  return (
-    <div className="risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-rules-title">
-      <section>
-        <button type="button" className="risk-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
-        <p className="risk-kicker">Field manual</p>
-        <h2 id="risk-rules-title">How to command</h2>
-        <ol>
-          <li><strong>Reinforce.</strong> Select a territory, then scroll over it or use the slider to choose how many armies to deploy. Whole continents earn bonuses.</li>
-          <li><strong>Attack.</strong> Choose your territory, an adjacent rival, and 1–3 dice up to your legal maximum. Defenders use two dice and win ties.</li>
-          <li><strong>Occupy.</strong> After a conquest, choose how many armies move in. You must move at least as many as the dice used in the final attack.</li>
-          <li><strong>Fortify.</strong> Once per turn, move armies between any two of your territories connected by your own land.</li>
-          <li><strong>Earn cards.</strong> If you capture one or more territories, you receive one card when your turn ends. Eliminate a commander to take every card in their hand immediately.</li>
-          <li><strong>Trade sets.</strong> Trade three matching symbols or one of each. At five or more cards, trading is required before any other move. Normal rooms use fixed symbol values; Progressive rooms increase the reward after every set.</li>
-          <li><strong>Conquer.</strong> Capture all 42 territories to win the campaign.</li>
-        </ol>
-        <div className="continent-bonus-list">
-          {Object.entries(CONTINENTS).map(([id, continent]) => (
-            <span key={id}><i style={{ background: continent.color }} />{continent.name}<b>+{continent.bonus}</b></span>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
 function CardHand({ cards, deckCount, tradeMode }) {
   return (
     <section className="risk-panel risk-hand-panel">
@@ -702,27 +547,85 @@ export default function RiskClient() {
     void act("restart");
   };
 
+  const rulesDialog = rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />;
+
   if (!game) {
-    return <Setup name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} onCreate={createRoom} onJoin={joinRoom} error={error} ready={isReady} />;
+    return <Landing
+      gameName="Risk"
+      theme="tbl-light risk-theme"
+      hero={<Hero
+        kicker="A game of global strategy"
+        title="Risk"
+        copy="Create a shared room for 2–6 commanders, deploy across 42 territories, and conquer the world together online."
+        badges={[{ icon: Users, label: "2–6 players" }, { icon: Bot, label: "Computer commanders" }, { icon: Globe, label: "42 territories" }]}
+        artLayout="free"
+        art={<div className="risk-crest"><span /><Shield size={38} /><span /></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy: !isReady, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
     const inviteLink = typeof window === "undefined" ? "" : `${window.location.origin}/risk?room=${game.roomCode}`;
-    return <Lobby
-      game={game}
-      playerId={playerId}
-      onAddComputer={addComputer}
-      onRemoveComputer={removeComputer}
+    return <SharedLobby
+      gameName="Risk"
+      theme="tbl-light risk-theme"
+      room={{ ...game, players: game.players.map((player) => ({ ...player, isComputer: player.isBot })) }}
+      me={{ id: playerId }}
+      busy={false}
+      error={error}
+      min={2}
+      max={6}
+      seatNote={`Card trades: ${game.cardTradeMode === "normal" ? "normal" : "progressive"}`}
+      options={<>
+        <div className="risk-color-picker">
+          <span>Choose your army color</span>
+          <div>
+            {PLAYER_STYLES.map((style) => {
+              const viewer = game.players.find((player) => player.id === playerId);
+              const taken = game.players.some((player) => player.id !== playerId && player.color === style.color);
+              return (
+                <button
+                  type="button"
+                  key={style.name}
+                  aria-label={`Choose ${style.name}, marked with a ${style.emblem}`}
+                  aria-pressed={viewer?.color === style.color}
+                  className={viewer?.color === style.color ? "selected" : ""}
+                  disabled={taken}
+                  onClick={() => chooseColor(style)}
+                  style={{ "--swatch": style.color, "--swatch-ink": inkFor(style.color) }}
+                >
+                  <svg viewBox="-6 -6 12 12" aria-hidden="true">
+                    <path d={EMBLEM_PATHS[style.emblem]} />
+                  </svg>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="risk-card-rule-picker">
+          <div>
+            <span>Card trade rule</span>
+            <small>{game.cardTradeMode === "normal" ? "Fixed values based on the symbols traded." : "Every traded set becomes more valuable."}</small>
+          </div>
+          <div>
+            <button type="button" className={game.cardTradeMode === "normal" ? "selected" : ""} disabled={!isHost} onClick={() => chooseCardTradeMode("normal")}>
+              <strong>Normal</strong><small>4 · 6 · 8 · 10</small>
+            </button>
+            <button type="button" className={game.cardTradeMode !== "normal" ? "selected" : ""} disabled={!isHost} onClick={() => chooseCardTradeMode("progressive")}>
+              <strong>Progressive</strong><small>4 · 6 · 8 · 10 · 12 · 15…</small>
+            </button>
+          </div>
+        </div>
+      </>}
+      onAdd={addComputer}
+      onRemove={removeComputer}
       onStart={startGame}
-      onColor={chooseColor}
-      onCardTradeMode={chooseCardTradeMode}
-      onCopy={() => {
-        void navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
-      }}
-      copied={copied}
       onLeave={leaveRoom}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
     />;
   }
 
@@ -872,18 +775,15 @@ export default function RiskClient() {
   const winner = game.winnerId && game.players.find((player) => player.id === game.winnerId);
 
   return (
-    <main className="risk-page">
-      <header className="risk-game-header">
-        <div className="risk-title-lockup">
-          <div className="mini-crest"><Shield size={22} /></div>
-          <div><span>World campaign</span><h1>Risk</h1></div>
-        </div>
-        <div className="risk-round"><span>Round</span><strong>{game.round}</strong></div>
-        <div className="risk-header-actions">
-          <button type="button" onClick={() => setRulesOpen(true)}><CircleHelp size={18} /> <span>Rules</span></button>
-          <button type="button" onClick={leaveRoom}><DoorOpen size={18} /> <span>Leave room</span></button>
-        </div>
-      </header>
+    <main className="risk-page tbl-light risk-theme">
+      <GameHeader
+        title="Risk"
+        room={game}
+        subtitle={`World campaign · Round ${game.round}`}
+        status={winner ? "Campaign complete" : `${currentPlayer.name}: ${phase.label} phase`}
+        onRules={() => setRulesOpen(true)}
+        onLeave={leaveRoom}
+      />
 
       <section className="risk-player-rail" aria-label="Commanders">
         {game.players.map((player) => <PlayerCard key={player.id} player={player} game={game} viewerPlayerId={playerId} />)}
@@ -1072,37 +972,53 @@ export default function RiskClient() {
         </aside>
       </section>
 
-      {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
+      {rulesDialog}
       {confirmAction && (
-        <div className="risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-confirm-title">
-          <section className="risk-confirm-card">
-            <p className="risk-kicker">Confirm command</p>
-            <h2 id="risk-confirm-title">Are you sure?</h2>
-            <p>
-              {confirmAction === "end-attack" && "End your attack phase and move on to fortifying?"}
-              {confirmAction === "end-turn" && "End your turn without moving any armies?"}
-              {confirmAction === "fortify" && `Move ${fortifyCount} ${fortifyCount === 1 ? "army" : "armies"} and end your turn?`}
-            </p>
-            <div className="risk-confirm-actions">
-              <button type="button" className="risk-secondary" onClick={() => setConfirmAction(null)}>No</button>
-              <button type="button" className="risk-primary" onClick={() => void acceptConfirmation()}>Yes</button>
-            </div>
-          </section>
-        </div>
+        <ChoiceModal
+          title="Are you sure?"
+          text={
+            confirmAction === "end-attack" ? "End your attack phase and move on to fortifying?"
+              : confirmAction === "end-turn" ? "End your turn without moving any armies?"
+                : `Move ${fortifyCount} ${fortifyCount === 1 ? "army" : "armies"} and end your turn?`
+          }
+          actions={<>
+            <button type="button" className="tbl-secondary" onClick={() => setConfirmAction(null)}>No</button>
+            <button type="button" className="tbl-primary" onClick={() => void acceptConfirmation()}>Yes</button>
+          </>}
+        />
       )}
       {winner && (
-        <div className="risk-victory" role="dialog" aria-modal="true">
-          <section>
-            <div className="victory-icon">{winner.id === playerId ? <Trophy size={52} /> : <Crown size={52} />}</div>
-            <p className="risk-kicker">Campaign complete</p>
-            <h2>{winner.id === playerId ? "The world is yours." : `${winner.name} prevails.`}</h2>
-            <p>{winner.id === playerId ? `Victory in ${game.round} rounds. Every border now flies your colors.` : "Your command has fallen, but the room is ready for a rematch."}</p>
-            {isHost
-              ? <button type="button" className="risk-primary" onClick={restartLobby}><RotateCcw size={18} /> Return to lobby</button>
-              : <p>Waiting for the host to reopen the room…</p>}
-          </section>
-        </div>
+        <Results
+          title={winner.id === playerId ? "The world is yours." : `${winner.name} prevails.`}
+          text={winner.id === playerId ? `Victory in ${game.round} rounds. Every border now flies your colors.` : "Your command has fallen, but the room is ready for a rematch."}
+        >
+          {isHost
+            ? <button type="button" className="tbl-primary" onClick={restartLobby}><RotateCcw size={18} /> Return to lobby</button>
+            : <p className="tbl-wait">Waiting for the host to reopen the room…</p>}
+          <button type="button" className="tbl-link" onClick={leaveRoom}>Leave room</button>
+        </Results>
       )}
     </main>
+  );
+}
+
+function RulesModal({ onClose }) {
+  return (
+    <ChoiceModal wide title="How to command" text="Field manual." onClose={onClose}>
+      <div className="tbl-rule-grid">
+        <article><b>Reinforce</b><p>Select a territory, then scroll over it or use the slider to choose how many armies to deploy. Whole continents earn bonuses.</p></article>
+        <article><b>Attack</b><p>Choose your territory, an adjacent rival, and 1–3 dice up to your legal maximum. Defenders use two dice and win ties.</p></article>
+        <article><b>Occupy</b><p>After a conquest, choose how many armies move in. You must move at least as many as the dice used in the final attack.</p></article>
+        <article><b>Fortify</b><p>Once per turn, move armies between any two of your territories connected by your own land.</p></article>
+        <article><b>Earn cards</b><p>If you capture one or more territories, you receive one card when your turn ends. Eliminate a commander to take every card in their hand immediately.</p></article>
+        <article><b>Trade sets</b><p>Trade three matching symbols or one of each. At five or more cards, trading is required before any other move. Normal rooms use fixed symbol values; Progressive rooms increase the reward after every set.</p></article>
+        <article><b>Conquer</b><p>Capture all 42 territories to win the campaign.</p></article>
+      </div>
+      <div className="continent-bonus-list">
+        {Object.entries(CONTINENTS).map(([id, continent]) => (
+          <span key={id}><i style={{ background: continent.color }} />{continent.name}<b>+{continent.bonus}</b></span>
+        ))}
+      </div>
+    </ChoiceModal>
   );
 }

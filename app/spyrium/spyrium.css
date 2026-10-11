@@ -1,3 +1,14 @@
+/* spyrium's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.spyrium-theme {
+  --accent: #2e6b52;
+  --accent-hover: #245640;
+  --accent-soft: rgba(46, 107, 82, 0.1);
+  --on-accent: #ffffff;
+  --tbl-hue: 140;
+  --tbl-accent-hue: 90;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * The ground this route paints. The site header reads these instead of the
  * global --bg, so it stops cutting a grey band across the top of a
@@ -25,9 +36,7 @@
   --spy-shadow: 0 20px 55px rgba(7, 19, 16, 0.38);
 }
 
-.spyrium-game-shell,
-.spyrium-landing,
-.spyrium-lobby {
+.spyrium-game-shell {
   min-height: calc(100vh - 65px); min-height: calc(100dvh - 65px);
   color: var(--spy-cream);
   font-family: var(--font-ui);
@@ -38,15 +47,10 @@
 }
 
 .spyrium-game-shell button,
-.spyrium-landing button,
-.spyrium-lobby button,
 .spyrium-game-shell input,
-.spyrium-landing input,
 .spyrium-game-shell select { font: inherit; }
 
-.spyrium-game-shell button,
-.spyrium-landing button,
-.spyrium-lobby button { color: inherit; }
+.spyrium-game-shell button { color: inherit; }
 
 .spyrium-kicker {
   margin: 0 0 8px;
@@ -77,41 +81,9 @@
 }
 
 .spyrium-primary svg { width: 18px; }
-.spyrium-primary:disabled, .spyrium-game-shell button:disabled, .spyrium-landing button:disabled { opacity: .42; cursor: not-allowed; }
+.spyrium-primary:disabled, .spyrium-game-shell button:disabled { opacity: .42; cursor: not-allowed; }
 
 /* Landing */
-.spyrium-landing {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(330px, .6fr);
-  gap: 38px;
-  align-items: center;
-  padding: clamp(34px, 6vw, 76px) max(24px, calc((100vw - 1280px) / 2));
-  overflow: hidden;
-}
-
-.spyrium-hero {
-  display: grid;
-  grid-template-columns: 1.1fr .9fr;
-  gap: 24px;
-  align-items: center;
-  min-height: 610px;
-}
-
-.spyrium-hero-copy h1 {
-  margin: 0;
-  color: #eee6d4;
-  font-family: var(--font-poster);
-  font-size: clamp(4.8rem, 9vw, 8.8rem);
-  line-height: .82;
-  letter-spacing: -.06em;
-  text-shadow: 0 7px 0 #614a2c, 0 15px 25px rgba(0,0,0,.45);
-}
-
-.spyrium-hero-copy h1 span { color: var(--spy-bright); }
-.spyrium-hero-copy > p:not(.spyrium-kicker) { max-width: 600px; margin: 30px 0; color: #b8c8c0; font-family: var(--font-display); font-size: clamp(1.22rem, 2vw, 1.58rem); line-height: 1.6; }
-.spyrium-features { display: flex; flex-wrap: wrap; gap: 11px; }
-.spyrium-features span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid rgba(212,170,84,.25); border-radius: 99px; color: #d7c9aa; background: rgba(0,0,0,.17); font-size: .82rem; }
-.spyrium-features svg { width: 15px; color: var(--spy-bright); }
 
 .spyrium-machine {
   position: relative;
@@ -133,69 +105,10 @@
 .spyrium-machine > i:nth-last-child(3) { left: 23%; height: 35%; }.spyrium-machine > i:nth-last-child(2) { right: 19%; height: 43%; }.spyrium-machine > i:nth-last-child(1) { right: 31%; height: 31%; }
 @keyframes spy-spin { to { transform: rotate(360deg); } }
 
-.spyrium-entry-card,
-.spyrium-lobby-card {
-  position: relative;
-  padding: 45px 38px 38px;
-  border: 1px solid var(--spy-border);
-  border-radius: 10px;
-  color: #302a20;
-  background:
-    linear-gradient(90deg, transparent 0 10px, rgba(111,70,36,.11) 11px 12px, transparent 13px),
-    radial-gradient(circle at 0 0, rgba(101,72,38,.14), transparent 32%),
-    #e2d5b9;
-  box-shadow: var(--spy-shadow), inset 0 0 0 5px rgba(88,61,30,.09);
-}
-.spyrium-entry-card::before, .spyrium-lobby-card::before { content: ""; position: absolute; inset: 12px; border: 1px solid rgba(101,69,34,.24); pointer-events: none; }
-.spyrium-entry-seal { position: absolute; top: -35px; left: calc(50% - 35px); display: grid; place-items: center; width: 70px; height: 70px; border: 5px double #8f642d; border-radius: 50%; color: #d9ffe6; background: radial-gradient(circle, #62db98, #176541 63%, #2c2216 65%); box-shadow: 0 8px 20px rgba(0,0,0,.3); }
-.spyrium-entry-card h2, .spyrium-lobby-card h1 { margin: 0 0 12px; color: #44301d; font-family: var(--font-display); font-size: 2.2rem; }
-.spyrium-entry-card > p:not(.spyrium-kicker) { margin: 0 0 23px; color: #685d4c; line-height: 1.55; }
-.spyrium-entry-card label { display: grid; gap: 7px; margin: 19px 0; color: #574633; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.spyrium-entry-card input, .spyrium-join input { min-height: 48px; padding: 0 14px; border: 1px solid rgba(88,61,30,.28); border-radius: 5px; outline: none; color: #33291f; background: rgba(255,251,239,.68); }
-.spyrium-entry-card input:focus, .spyrium-join input:focus { border-color: #2e9765; box-shadow: 0 0 0 3px rgba(46,151,101,.13); }
-.spyrium-entry-card > .spyrium-primary { width: 100%; }
-.spyrium-divider { display: flex; align-items: center; gap: 12px; margin: 21px 0; color: #8e806b; font-size: .72rem; text-transform: uppercase; letter-spacing: .11em; }
-.spyrium-divider::before, .spyrium-divider::after { content: ""; height: 1px; flex: 1; background: rgba(88,61,30,.2); }
-.spyrium-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.spyrium-join input { letter-spacing: .24em; font-weight: 800; text-transform: uppercase; }
-.spyrium-join button { display: flex; align-items: center; gap: 5px; padding: 0 16px; border: 1px solid #76552d; border-radius: 5px; color: #f6edd7; background: #533d25; cursor: pointer; }
-.spyrium-join svg { width: 16px; }
-.spyrium-form-error { color: #923b32 !important; font-weight: 700; }
-.spyrium-official-link { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 23px; color: #6c5030; font-size: .8rem; font-weight: 700; }
-.spyrium-official-link svg { width: 15px; }
-
 /* Lobby */
-.spyrium-lobby { display: grid; place-items: center; padding: 60px 20px; }
-.spyrium-lobby-card { width: min(620px, 100%); text-align: center; }
-.spyrium-lobby-machine { display: grid; place-items: center; width: 74px; height: 74px; margin: -74px auto 22px; border: 7px double #8b612f; border-radius: 50%; color: #dffff0; background: radial-gradient(circle, #5ce399, #176642 65%, #2a2117 67%); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
-.spyrium-room-display { display: block; margin: 20px auto 25px; padding: 8px 25px; border: 1px dashed rgba(87,61,31,.4); color: #4d3620 !important; background: rgba(255,255,255,.2); cursor: pointer; }
-.spyrium-room-display span { display: block; font-family: var(--font-poster); font-size: 2.3rem; letter-spacing: .22em; }
-.spyrium-room-display small { display: flex; align-items: center; justify-content: center; gap: 5px; color: #7f6e57; }
-.spyrium-room-display svg { width: 14px; }
-.spyrium-lobby-players { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 20px 0; text-align: left; }
-.spyrium-lobby-players > div { display: flex; align-items: center; gap: 11px; min-height: 64px; padding: 9px; border: 1px solid rgba(88,61,30,.18); background: rgba(255,255,255,.2); }
-.spyrium-lobby-players p { flex: 1; margin: 0; }.spyrium-lobby-players strong, .spyrium-lobby-players small { display: block; }.spyrium-lobby-players small { color: #80715e; }.spyrium-lobby-players > div > svg { width: 17px; color: #3b8a62; }.spyrium-lobby-players .empty { opacity: .62; }
-.spyrium-lobby-players > div > button { border: 0; color: #963c34; background: transparent; cursor: pointer; }.spyrium-lobby-players > div > button svg { width: 17px; }
 .spyrium-avatar { display: grid; place-items: center; flex: 0 0 39px; width: 39px; height: 39px; border: 2px solid color-mix(in srgb, var(--player, #856b48), white 24%); border-radius: 50%; color: white; background: var(--player, #856b48); box-shadow: inset 0 0 0 3px rgba(0,0,0,.16); font-family: var(--font-poster); font-weight: 700; }.spyrium-avatar svg { width: 19px; }
-.spyrium-add-bot, .spyrium-quiet { border: 0; color: #654a2d !important; background: transparent; font-weight: 700; cursor: pointer; }.spyrium-add-bot { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 15px; }.spyrium-add-bot svg { width: 17px; }
-.spyrium-start { width: 100%; }.spyrium-quiet { margin-top: 17px; }.spyrium-waiting { color: #796a57; font-size: .84rem; }
 
 /* Game header */
-.spyrium-table-header {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto auto auto 40px auto;
-  gap: 10px;
-  align-items: center;
-  min-height: 78px;
-  padding: 10px 22px;
-  border-bottom: 1px solid rgba(212,170,84,.25);
-  background: linear-gradient(180deg, #213a32, #142822);
-  box-shadow: 0 7px 18px rgba(0,0,0,.25);
-}
-.spyrium-brand { display: flex; align-items: center; gap: 11px; }.spyrium-brand > span { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--spy-brass); border-radius: 50%; color: #c5ffe0; background: radial-gradient(circle, #41d687, #0d4a31); box-shadow: 0 0 16px rgba(59,216,135,.3); }.spyrium-brand svg { width: 22px; }.spyrium-brand small { color: #a3b7ae; font-size: 0.625rem; letter-spacing: .15em; }.spyrium-brand h1 { margin: 0; color: #e9dfc7; font-family: var(--font-poster); font-size: 1.6rem; letter-spacing: .13em; }
-.spyrium-round { padding: 7px 16px; border-right: 1px solid rgba(212,170,84,.2); border-left: 1px solid rgba(212,170,84,.2); text-align: center; }.spyrium-round span, .spyrium-round b { display: block; }.spyrium-round span { color: #a9bab2; font-size: .68rem; text-transform: uppercase; }.spyrium-round b { color: var(--spy-brass); font-family: var(--font-poster); }
-.spyrium-turn { display: flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid rgba(255,255,255,.1); border-radius: 99px; color: #aabbb3; font-size: .78rem; white-space: nowrap; }.spyrium-turn.mine { border-color: rgba(74,228,146,.35); color: #baf8d6; background: rgba(54,208,127,.1); }.spyrium-turn i { width: 9px; height: 9px; border-radius: 50%; }.spyrium-turn svg { width: 15px; }
-.spyrium-code, .spyrium-icon-button, .spyrium-leave { display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; border: 1px solid rgba(212,170,84,.22); border-radius: 4px; background: rgba(0,0,0,.16); cursor: pointer; }.spyrium-code { padding: 0 12px; color: #ddc999 !important; font-family: var(--font-poster); letter-spacing: .08em; }.spyrium-code svg, .spyrium-leave svg { width: 15px; }.spyrium-icon-button { width: 40px; }.spyrium-icon-button svg { width: 18px; }.spyrium-leave { padding: 0 11px; color: #bcae9c !important; }
 .spyrium-error { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 9px; color: #ffd9d4; background: #7b302a; }.spyrium-error button { border: 0; background: transparent; cursor: pointer; }.spyrium-error svg { width: 17px; }
 
 /* Main game */
@@ -230,14 +143,12 @@
 
 /* Modals */
 .spyrium-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(4,11,9,.8); backdrop-filter: blur(8px); }
-.spyrium-modal, .spyrium-results { position: relative; width: min(520px, 100%); max-height: 88vh; padding: 34px; overflow: auto; border: 1px solid var(--spy-border); border-radius: 7px; color: #30291e; background: radial-gradient(circle at top right, rgba(59,168,108,.14), transparent 30%), #dfd2b6; box-shadow: 0 30px 80px rgba(0,0,0,.62), inset 0 0 0 5px rgba(86,57,28,.07); }.spyrium-modal::before, .spyrium-results::before { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(86,57,28,.2); pointer-events: none; }.spyrium-modal-close { position: absolute; z-index: 2; top: 13px; right: 13px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; color: #705b42 !important; background: transparent; cursor: pointer; }.spyrium-modal-close svg { width: 18px; }.spyrium-modal > svg { width: 28px; color: #3d8f66; }.spyrium-modal h2, .spyrium-results h2 { margin: 0 0 9px; color: #45301e; font-family: var(--font-display); font-size: 2rem; }.spyrium-modal > p:not(.spyrium-kicker), .spyrium-results > p:not(.spyrium-kicker) { color: #685c4c; line-height: 1.5; }.spyrium-modal > .spyrium-primary { width: 100%; margin-top: 17px; }
+.spyrium-modal { position: relative; width: min(520px, 100%); max-height: 88vh; padding: 34px; overflow: auto; border: 1px solid var(--spy-border); border-radius: 7px; color: #30291e; background: radial-gradient(circle at top right, rgba(59,168,108,.14), transparent 30%), #dfd2b6; box-shadow: 0 30px 80px rgba(0,0,0,.62), inset 0 0 0 5px rgba(86,57,28,.07); }.spyrium-modal::before { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(86,57,28,.2); pointer-events: none; }.spyrium-modal-close { position: absolute; z-index: 2; top: 13px; right: 13px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; color: #705b42 !important; background: transparent; cursor: pointer; }.spyrium-modal-close svg { width: 18px; }.spyrium-modal > svg { width: 28px; color: #3d8f66; }.spyrium-modal h2 { margin: 0 0 9px; color: #45301e; font-family: var(--font-display); font-size: 2rem; }.spyrium-modal > p:not(.spyrium-kicker) { color: #685c4c; line-height: 1.5; }.spyrium-modal > .spyrium-primary { width: 100%; margin-top: 17px; }
 .spyrium-choice { margin-top: 15px; }.spyrium-choice > label, .spyrium-select-label { display: block; margin-bottom: 6px; color: #675440; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }.spyrium-choice > div { display: flex; flex-wrap: wrap; gap: 5px; }.spyrium-choice button { padding: 8px 11px; border: 1px solid rgba(86,57,28,.25); border-radius: 3px; color: #5c4933 !important; background: rgba(255,255,255,.25); cursor: pointer; }.spyrium-choice button.selected { border-color: #277c54; color: #154a31 !important; background: rgba(50,165,103,.16); box-shadow: inset 0 0 0 1px #4eac7b; }
 .spyrium-select-label { margin-top: 16px; }.spyrium-select-label select { display: block; width: 100%; min-height: 42px; margin-top: 6px; padding: 0 10px; border: 1px solid rgba(86,57,28,.25); color: #493a28; background: rgba(255,255,255,.35); }
 .spyrium-check { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 10px; border: 1px solid rgba(45,132,86,.2); background: rgba(43,151,94,.08); }.spyrium-check input { accent-color: #2b9962; }.spyrium-check strong, .spyrium-check small { display: block; }.spyrium-check strong { color: #31503d; }.spyrium-check small { color: #746956; }
 .spyrium-cost-breakdown { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 17px; padding: 9px; border-top: 1px solid rgba(86,57,28,.2); border-bottom: 1px solid rgba(86,57,28,.2); }.spyrium-cost-breakdown span { padding: 4px 7px; color: #75634d; background: rgba(255,255,255,.28); font-size: .68rem; }.spyrium-cost-breakdown strong { flex-basis: 100%; margin-top: 6px; color: #46331f; }
 .spyrium-bonus-modal { text-align: center; }.spyrium-bonus-modal > svg { width: 43px; height: 43px; color: #ad7c29; }.spyrium-bonus-modal > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }.spyrium-bonus-modal > div button { display: grid; justify-items: center; gap: 5px; padding: 20px 10px; border: 1px solid rgba(86,57,28,.23); color: #4f3d29 !important; background: rgba(255,255,255,.24); cursor: pointer; }.spyrium-bonus-modal > div svg { color: #348b62; }.spyrium-bonus-modal > div small { color: #796d5b; }
-.spyrium-rules-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; justify-content: flex-end; background: rgba(4,11,9,.68); backdrop-filter: blur(5px); }.spyrium-rules { position: relative; width: min(520px, 100%); padding: 45px 38px; overflow: auto; color: #352c21; background: #e1d4b9; box-shadow: -20px 0 60px rgba(0,0,0,.48); }.spyrium-rules-close { position: absolute; top: 17px; right: 17px; border: 0; color: #765e43 !important; background: transparent; cursor: pointer; }.spyrium-rules h2 { margin: 0; font-family: var(--font-display); font-size: 2.3rem; }.spyrium-rules h3 { margin: 24px 0 7px; color: #5b4126; font-family: var(--font-display); }.spyrium-rules p, .spyrium-rules li { color: #655a4a; line-height: 1.65; }.spyrium-rules a { display: flex; align-items: center; gap: 5px; margin-top: 25px; color: #26734e; font-weight: 800; }.spyrium-rules a svg { width: 17px; }
-.spyrium-results { width: min(660px, 100%); text-align: center; }.spyrium-results-gem { display: grid; place-items: center; width: 72px; height: 72px; margin: -7px auto 14px; border: 5px double #87602f; border-radius: 50%; color: #d9ffe8; background: radial-gradient(circle, #65e5a0, #14633f 67%, #2e2418 68%); }.spyrium-results > div:not(.spyrium-results-gem) { display: grid; gap: 6px; margin: 20px 0; }.spyrium-results article { display: flex; align-items: center; gap: 10px; padding: 9px; border: 1px solid rgba(86,57,28,.15); text-align: left; background: rgba(255,255,255,.2); }.spyrium-results article.winner { border-color: #3a8d64; background: rgba(55,159,100,.11); }.spyrium-results article > b { width: 24px; color: #8c785c; font-family: var(--font-poster); }.spyrium-results article p { min-width: 0; flex: 1; margin: 0; }.spyrium-results article strong, .spyrium-results article small { display: block; }.spyrium-results article small { color: #817361; font-size: .65rem; }.spyrium-results article em { color: #3e2d1d; font-family: var(--font-poster); font-size: 1.45rem; font-style: normal; }.spyrium-results article em small { display: inline; }.spyrium-results article > svg { width: 18px; color: #aa7827; }.spyrium-results > .spyrium-primary { width: 100%; }
 
 @media (max-width: 1180px) {
   .spyrium-layout { grid-template-columns: 230px minmax(580px, 1fr); }
@@ -247,18 +158,16 @@
 }
 
 @media (max-width: 940px) {
-  .spyrium-landing { grid-template-columns: 1fr; }.spyrium-hero { min-height: auto; }.spyrium-entry-card { width: min(540px, 100%); margin: 0 auto; }
-  .spyrium-table-header { grid-template-columns: 1fr auto auto auto; }.spyrium-round { display: none; }.spyrium-leave { font-size: 0; }.spyrium-leave svg { width: 17px; }
   .spyrium-layout { display: flex; flex-direction: column; }.spyrium-sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-right: 0; border-bottom: 1px solid rgba(212,170,84,.18); }.spyrium-sidebar > .spyrium-panel-title { grid-column: 1 / -1; }.spyrium-player-list { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }.spyrium-track, .spyrium-log { margin-top: 0; }
   .spyrium-board { overflow-x: auto; }.spyrium-market-grid, .spyrium-event-row, .spyrium-market-heading { min-width: 700px; }
   .spyrium-neighborhood { display: grid; grid-template-columns: 1fr 1fr; }.spyrium-neighborhood > .spyrium-panel-title { grid-column: 1 / -1; }.spyrium-neighborhood .spyrium-resource-bank { grid-column: 1 / -1; grid-template-columns: repeat(4,1fr); }.spyrium-neighborhood .spyrium-projection { grid-column: 1 / -1; }
 }
 
-@media (max-width: 650px) {
-  .spyrium-landing { padding: 35px 16px 65px; }.spyrium-hero { display: block; text-align: center; }.spyrium-hero-copy h1 { font-size: 4.3rem; }.spyrium-hero-copy > p:not(.spyrium-kicker) { font-size: 1.1rem; }.spyrium-features { justify-content: center; }.spyrium-machine { min-width: 0; width: min(360px, 90vw); margin: 35px auto 25px; }.spyrium-entry-card { padding: 44px 25px 30px; }.spyrium-lobby { padding: 55px 12px; }.spyrium-lobby-card { padding: 43px 18px 28px; }.spyrium-lobby-players { grid-template-columns: 1fr; }
-  .spyrium-table-header { grid-template-columns: 1fr auto auto; padding: 8px 10px; }.spyrium-brand > span { width: 38px; height: 38px; }.spyrium-brand h1 { font-size: 1.25rem; }.spyrium-brand small { display: none; }.spyrium-turn { grid-row: 2; grid-column: 1 / -1; justify-content: center; }.spyrium-code { display: none; }
+@media (max-width: 650px) {.spyrium-machine { min-width: 0; width: min(360px, 90vw); margin: 35px auto 25px; }
   .spyrium-sidebar { display: block; padding: 13px 10px; }.spyrium-player-list { display: flex; overflow-x: auto; }.spyrium-player { min-width: 200px; }.spyrium-track { margin-top: 12px; }.spyrium-log { display: none; }
   .spyrium-board { padding: 15px 8px 25px; }.spyrium-action-bar { justify-content: flex-end; flex-wrap: wrap; }.spyrium-action-bar > span { flex-basis: 100%; }.spyrium-action-bar button { flex: 1; }
   .spyrium-neighborhood { display: block; padding: 16px 10px; }.spyrium-neighborhood .spyrium-resource-bank { grid-template-columns: 1fr 1fr; }.spyrium-neighborhood .spyrium-estate-section { margin-top: 18px; }
-  .spyrium-modal, .spyrium-results { padding: 30px 20px; }.spyrium-bonus-modal > div { grid-template-columns: 1fr; }.spyrium-rules { padding: 42px 23px; }
+  .spyrium-modal { padding: 30px 20px; }.spyrium-bonus-modal > div { grid-template-columns: 1fr; }
 }
+
+.spyrium-theme .spyrium-machine { position: relative; inset: auto; width: 250px; height: 250px; min-width: 0; }

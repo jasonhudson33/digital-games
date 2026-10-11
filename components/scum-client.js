@@ -2,17 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  BookOpen,
   ChevronRight,
   Copy,
   Crown,
-  DoorOpen,
   Play,
-  Plus,
-  Sparkles,
   Trophy,
-  UserPlus,
-  X,
+  Bot,
+  Users,
 } from "lucide-react";
 import {
   SCUM_SUIT_SYMBOLS,
@@ -24,6 +20,7 @@ import {
   scumRankLabel,
 } from "../lib/scum";
 import { ScumRoomService } from "./scum-room-service";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 
 const SET_NAMES = { 1: "single", 2: "pair", 3: "triple", 4: "four of a kind" };
 const PLAYER_NAME_KEY = "scum-player-name";
@@ -41,7 +38,6 @@ export default function ScumClient() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [tradeSelectedIds, setTradeSelectedIds] = useState([]);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const latestGame = useRef(null);
@@ -161,86 +157,68 @@ export default function ScumClient() {
     window.history.replaceState(null, "", "/scum");
   }
 
-  function copyInvite() {
-    if (!game?.roomCode) return;
-    void navigator.clipboard.writeText(`${window.location.origin}/scum?room=${game.roomCode}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }
 
+
+  const rulesDialog = <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />;
 
   if (!game) {
-    return (
-      <main className="scum-app scum-intro-shell">
-        <section className="scum-intro">
-          <div className="scum-intro-copy">
-            <span className="scum-kicker"><Sparkles size={15} /> A ruthless shedding game</span>
-            <h1>Rise above.<br /><em>Leave no cards.</em></h1>
-            <p>
-              Create a live room, invite the table, and empty your hand first. One seat wears
-              the crown. One gets stuck with the title nobody wants.
-            </p>
-            <div className="scum-room-entry">
-              <label>
-                <span>Your name</span>
-                <input
-                  value={playerName}
-                  onChange={(event) => setPlayerName(event.target.value)}
-                  maxLength={18}
-                  placeholder="Player"
-                />
-              </label>
-              <button type="button" className="scum-primary" disabled={busy} onClick={createRoom}>
-                <Plus size={18} /> Create a room
-              </button>
-              <div className="scum-entry-divider"><span>or join a room</span></div>
-              <div className="scum-join-row">
-                <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => event.key === "Enter" && joinRoom()}
-                  maxLength={5}
-                  placeholder="ROOM CODE"
-                  aria-label="Room code"
-                />
-                <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>
-              </div>
-              {error && <p className="scum-room-error" role="alert">{error}</p>}
-              <small>3+ players · live shared turns · one deck per four players</small>
-            </div>
-            <button type="button" className="scum-text-button" onClick={() => setRulesOpen(true)}>
-              <BookOpen size={16} /> Learn the rules
-            </button>
-          </div>
-
-          <div className="scum-intro-art" aria-hidden="true">
-            <span className="scum-sunburst" />
-            <IntroCard rank="JK" suit="★" className="intro-card-four" />
-            <IntroCard rank="A" suit="♥" className="intro-card-three" />
-            <IntroCard rank="K" suit="♣" className="intro-card-two" />
-            <IntroCard rank="2" suit="♣" className="intro-card-one" />
-            <span className="crown-mark"><Crown size={42} /></span>
-          </div>
-        </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-      </main>
-    );
+    return <Landing
+      gameName="Scum"
+      theme="tbl-light scum-theme"
+      hero={<Hero
+        kicker="A ruthless shedding game"
+        title={<>Rise above.<br /><em>Leave no cards.</em></>}
+        copy="Create a live room, invite the table, and empty your hand first. One seat wears the crown. One gets stuck with the title nobody wants."
+        badges={[{ icon: Users, label: "3+ players" }, { icon: Bot, label: "Computer seats" }, { icon: Crown, label: "President to Scum" }]}
+        artLayout="free"
+        art={<div className="scum-intro-art"><span className="scum-sunburst" /><IntroCard rank="JK" suit="★" className="intro-card-four" /><IntroCard rank="A" suit="♥" className="intro-card-three" /><IntroCard rank="K" suit="♣" className="intro-card-two" /><IntroCard rank="2" suit="♣" className="intro-card-one" /></div>}
+      />}
+      entry={{ name: playerName, setName: setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
-    return (
-      <ScumLobby
-        game={game}
-        copied={copied}
-        error={error}
-        onCopy={copyInvite}
-        onLeave={leaveRoom}
-        onAction={roomAction}
-        onRules={() => setRulesOpen(true)}
-        rulesOpen={rulesOpen}
-        onCloseRules={() => setRulesOpen(false)}
-      />
-    );
+    const me = game.players.find((player) => player.isViewer) ?? game.players[0];
+    const maximumGroups = Math.floor(game.players.length / 2);
+    return <SharedLobby
+      gameName="Scum"
+      theme="tbl-light scum-theme"
+      room={{
+        roomCode: game.roomCode,
+        hostId: game.hostControls ? me.playerId : game.players[0].playerId,
+        players: game.players.map((player) => ({ ...player, id: player.playerId })),
+      }}
+      me={{ id: me.playerId }}
+      busy={false}
+      error={error}
+      min={3}
+      max={Infinity}
+      options={<div className="scum-lobby-options">
+        <div>
+          <strong>Class passing groups</strong>
+          <span>Outer classes trade the most cards before later rounds.</span>
+        </div>
+        <select
+          aria-label="Class passing groups"
+          value={Math.min(game.passGroupCount, maximumGroups)}
+          disabled={!game.hostControls}
+          onChange={(event) => roomAction("setOptions", { passGroupCount: Number(event.target.value) })}
+        >
+          {Array.from({ length: maximumGroups + 1 }, (_, count) => (
+            <option key={count} value={count}>{count}</option>
+          ))}
+        </select>
+      </div>}
+      seatNote={`${getScumDeckCount(Math.max(3, game.players.length))} ${getScumDeckCount(Math.max(3, game.players.length)) === 1 ? "deck" : "decks"} · no table limit`}
+      onAdd={() => roomAction("addComputer")}
+      onRemove={(id) => roomAction("removeComputer", { playerId: id })}
+      onStart={() => roomAction("start")}
+      onLeave={leaveRoom}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
+    />;
   }
 
   const viewerPlayerIndex = game.viewerPlayerIndex;
@@ -274,21 +252,15 @@ export default function ScumClient() {
   }
 
   return (
-    <main className="scum-app scum-game-shell">
-      <header className="scum-gamebar">
-        <div className="scum-wordmark"><span>S</span><strong>SCUM</strong></div>
-        <div className="scum-gamebar-center">
-          <span>Room {game.roomCode}</span><i />
-          <span>Round {game.roundNumber || 1}</span><i />
-          <span>{activePlayerCount} players · {activeDeckCount} {activeDeckCount === 1 ? "deck" : "decks"}</span><i />
-          <span>{game.passGroupCount ?? 1} passing {(game.passGroupCount ?? 1) === 1 ? "group" : "groups"}</span>
-        </div>
-        <div className="scum-gamebar-actions">
-          <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button>
-          <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={leaveRoom}><DoorOpen size={16} /> Leave</button>
-        </div>
-      </header>
+    <main className="scum-app scum-game-shell tbl-light scum-theme">
+      <GameHeader
+        title="Scum"
+        room={game}
+        subtitle={`Round ${game.roundNumber || 1} · ${activePlayerCount} players · ${activeDeckCount} ${activeDeckCount === 1 ? "deck" : "decks"}`}
+        status={humanTurn ? "Your turn" : `${game.players[game.currentPlayerIndex]?.name ?? "…"}'s turn`}
+        onRules={() => setRulesOpen(true)}
+        onLeave={leaveRoom}
+      />
 
       <section className="scum-board" aria-label="Scum card table">
         <div className="scum-opponents">
@@ -429,85 +401,6 @@ export default function ScumClient() {
   );
 }
 
-function ScumLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
-  const maximumGroups = Math.floor(game.players.length / 2);
-  return (
-    <main className="scum-app scum-intro-shell scum-lobby-shell">
-      <section className="scum-lobby-card">
-        <span className="scum-kicker"><Sparkles size={15} /> Gather the table</span>
-        <h1>SCUM</h1>
-        <p>Share the invite, add computer seats if you need them, and start when at least three players are ready.</p>
-
-        <div className="scum-room-code">
-          <span>Room code</span>
-          <strong>{game.roomCode}</strong>
-          <button type="button" onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-        </div>
-
-        <div className="scum-lobby-players">
-          {game.players.map((player, index) => (
-            <div key={player.playerId}>
-              <span>{player.name.slice(0, 1).toUpperCase()}</span>
-              <strong>{player.name}</strong>
-              {player.isComputer && game.hostControls ? (
-                <button type="button" onClick={() => onAction("removeComputer", { playerId: player.playerId })}><X size={14} /> Remove</button>
-              ) : (
-                <small>{index === 0 ? "Host" : player.isViewer ? "You" : player.isComputer ? "Computer" : "Ready"}</small>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {game.hostControls && (
-          <button type="button" className="scum-add-computer" onClick={() => onAction("addComputer")}>
-            <UserPlus size={17} /> Add computer
-          </button>
-        )}
-
-        <div className="scum-lobby-options">
-          <div>
-            <strong>Class passing groups</strong>
-            <span>Outer classes trade the most cards before later rounds.</span>
-          </div>
-          <select
-            value={Math.min(game.passGroupCount, maximumGroups)}
-            disabled={!game.hostControls}
-            onChange={(event) => onAction("setOptions", { passGroupCount: Number(event.target.value) })}
-          >
-            {Array.from({ length: maximumGroups + 1 }, (_, count) => (
-              <option key={count} value={count}>{count}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="scum-lobby-summary">
-          <span>{game.players.length} players</span>
-          <span>{getScumDeckCount(Math.max(3, game.players.length))} {getScumDeckCount(Math.max(3, game.players.length)) === 1 ? "deck" : "decks"}</span>
-          <span>No table limit</span>
-        </div>
-
-        {game.hostControls ? (
-          <button
-            type="button"
-            className="scum-primary scum-lobby-start"
-            disabled={game.players.length < 3}
-            onClick={() => onAction("start")}
-          ><Play size={18} /> Start game</button>
-        ) : (
-          <p className="scum-lobby-waiting">Waiting for the host to start the game…</p>
-        )}
-        {game.hostControls && game.players.length < 3 && <p className="scum-lobby-waiting">At least three players are needed.</p>}
-        {error && <p className="scum-room-error" role="alert">{error}</p>}
-        <div className="scum-lobby-footer">
-          <button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave room</button>
-        </div>
-      </section>
-      <RulesDialog open={rulesOpen} onClose={onCloseRules} />
-    </main>
-  );
-}
-
 function PlayingCard({ card, className = "", style }) {
   const joker = card.rank === 15;
   const red = card.suit === "hearts" || card.suit === "diamonds" || card.suit === "joker-red";
@@ -541,9 +434,20 @@ function Opponent({ player, playerCount, active }) {
   );
 }
 
-function IntroCard({ rank, suit, className }) {
-  const red = suit === "♥" || suit === "♦";
-  return <span className={`intro-card ${red ? "red" : ""} ${className}`}><b>{rank}</b><i>{suit}</i><em>{suit}</em></span>;
+function RulesDialog({ open, onClose }) {
+  if (!open) return null;
+  return <ChoiceModal wide title="Lose your cards. Earn the crown." text="First out is President. Last holding cards is Scum." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Know the order</b><p>Twos are lowest. Play climbs through Ace. A Joker by itself beats any natural card.</p></article>
+      <article><b>Use Jokers wild</b><p>Mix Jokers into any matching group as substitutes—for example, 8 + Joker is a pair of 8s.</p></article>
+      <article><b>Match the set</b><p>Beat a single with a higher single, a pair with a higher pair, and so on.</p></article>
+      <article><b>Set the order</b><p>Left of the dealer starts round one. After that, every turn follows the previous finish order: President first and Scum last.</p></article>
+      <article><b>Bring the table</b><p>Invite any number of players. The game adds one 54-card deck for every four players.</p></article>
+      <article><b>Trade by class</b><p>Choose how many class pairs exchange before each later round. Lower classes must give their best cards; each inner pair trades one fewer.</p></article>
+      <article><b>Pass or climb</b><p>Once you pass, you sit out until the pile clears. Four of a kind burns the pile.</p></article>
+      <article><b>Continue or move on</b><p>After everyone else passes, the last player may keep climbing on the same pile or clear it and lead a new play.</p></article>
+    </div>
+  </ChoiceModal>;
 }
 
 function TradeDialog({ game, viewerPlayerIndex, selectedIds, onToggle, onComplete }) {
@@ -554,107 +458,76 @@ function TradeDialog({ game, viewerPlayerIndex, selectedIds, onToggle, onComplet
   const viewer = game.players[viewerPlayerIndex];
 
   return (
-    <div className="scum-modal-backdrop">
-      <section className="trade-card" role="dialog" aria-modal="true" aria-labelledby="trade-title">
-        <span className="scum-kicker">Before round {game.roundNumber}</span>
-        <h2 id="trade-title">The classes exchange cards.</h2>
-        <p className="trade-intro">Lower-ranked players surrender their best cards. Upper-ranked players return the same number.</p>
-
-        <div className="trade-groups">
-          {game.pendingTrades.map((trade) => (
-            <div key={trade.upperPlayerIndex} className={trade.upperPlayerIndex === viewerPlayerIndex || trade.lowerPlayerIndex === viewerPlayerIndex ? "is-you" : ""}>
-              <span>{trade.count}</span>
-              <strong>{game.players[trade.upperPlayerIndex].name}</strong>
-              <small>{scumPlaceName(trade.upperPlace, game.playerCount)}</small>
-              <i>⇄</i>
-              <strong>{game.players[trade.lowerPlayerIndex].name}</strong>
-              <small>{scumPlaceName(trade.lowerPlace, game.playerCount)}</small>
-            </div>
-          ))}
-        </div>
-
-        {upperTrade && !alreadySubmitted && (
-          <div className="trade-choice">
-            <div><strong>Choose {requiredCount} to give away</strong><small>{selectedIds.length} of {requiredCount} selected</small></div>
-            <div className="trade-hand" aria-label="Choose cards to trade">
-              {viewer.hand.map((card) => {
-                const selected = selectedIds.includes(card.id);
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    className={selected ? "selected" : ""}
-                    aria-pressed={selected}
-                    aria-label={`${card.rank === 15 ? card.suit.replace("-", " ") : `${scumRankLabel(card.rank)} of ${card.suit}`}${selected ? ", selected" : ""}`}
-                    onClick={() => onToggle(card, requiredCount)}
-                  ><PlayingCard card={card} /></button>
-                );
-              })}
-            </div>
+    <ChoiceModal wide title="The classes exchange cards." text={`Before round ${game.roundNumber}. Lower-ranked players surrender their best cards. Upper-ranked players return the same number.`}>
+      <div className="trade-groups">
+        {game.pendingTrades.map((trade) => (
+          <div key={trade.upperPlayerIndex} className={trade.upperPlayerIndex === viewerPlayerIndex || trade.lowerPlayerIndex === viewerPlayerIndex ? "is-you" : ""}>
+            <span>{trade.count}</span>
+            <strong>{game.players[trade.upperPlayerIndex].name}</strong>
+            <small>{scumPlaceName(trade.upperPlace, game.playerCount)}</small>
+            <i>⇄</i>
+            <strong>{game.players[trade.lowerPlayerIndex].name}</strong>
+            <small>{scumPlaceName(trade.lowerPlace, game.playerCount)}</small>
           </div>
-        )}
+        ))}
+      </div>
 
-        {lowerTrade && <p className="trade-notice">Your {lowerTrade.count} best {lowerTrade.count === 1 ? "card passes" : "cards pass"} automatically.</p>}
-        {alreadySubmitted && <p className="trade-notice">Your cards are selected. Waiting for the other upper classes…</p>}
-        {!upperTrade && !lowerTrade && <p className="trade-notice">Your class is not part of this round&apos;s exchange. Waiting for the trades to finish…</p>}
+      {upperTrade && !alreadySubmitted && (
+        <div className="trade-choice">
+          <div><strong>Choose {requiredCount} to give away</strong><small>{selectedIds.length} of {requiredCount} selected</small></div>
+          <div className="trade-hand" aria-label="Choose cards to trade">
+            {viewer.hand.map((card) => {
+              const selected = selectedIds.includes(card.id);
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={selected ? "selected" : ""}
+                  aria-pressed={selected}
+                  aria-label={`${card.rank === 15 ? card.suit.replace("-", " ") : `${scumRankLabel(card.rank)} of ${card.suit}`}${selected ? ", selected" : ""}`}
+                  onClick={() => onToggle(card, requiredCount)}
+                ><PlayingCard card={card} /></button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-        {upperTrade && !alreadySubmitted && (
-          <button type="button" className="scum-primary" disabled={selectedIds.length !== requiredCount} onClick={onComplete}>
-            Submit trade <ChevronRight size={18} />
-          </button>
-        )}
-      </section>
-    </div>
+      {lowerTrade && <p className="trade-notice">Your {lowerTrade.count} best {lowerTrade.count === 1 ? "card passes" : "cards pass"} automatically.</p>}
+      {alreadySubmitted && <p className="trade-notice">Your cards are selected. Waiting for the other upper classes…</p>}
+      {!upperTrade && !lowerTrade && <p className="trade-notice">Your class is not part of this round&apos;s exchange. Waiting for the trades to finish…</p>}
+
+      {upperTrade && !alreadySubmitted && (
+        <button type="button" className="tbl-primary" disabled={selectedIds.length !== requiredCount} onClick={onComplete}>
+          Submit trade <ChevronRight size={18} />
+        </button>
+      )}
+    </ChoiceModal>
   );
 }
 
 function Results({ game, viewerPlayerIndex, onReplay }) {
   return (
-    <div className="scum-modal-backdrop">
-      <section className="results-card" role="dialog" aria-modal="true" aria-labelledby="results-title">
-        <span className="results-crown"><Crown size={38} /></span>
-        <span className="results-kicker">The table has spoken</span>
-        <h2 id="results-title">{game.standings[0] === viewerPlayerIndex ? "You rule the table." : `${game.players[game.standings[0]].name} takes the crown.`}</h2>
-        <div className="results-list">
-          {game.standings.map((playerIndex, index) => (
-            <div key={playerIndex} className={playerIndex === viewerPlayerIndex ? "you" : ""}>
-              <span>{index + 1}</span>
-              <strong>{game.players[playerIndex].name}</strong>
-              <small>{scumPlaceName(index + 1, game.playerCount || game.players.length)}</small>
-            </div>
-          ))}
-        </div>
-        {game.hostControls
-          ? <button type="button" className="scum-primary" onClick={onReplay}>Start next round <ChevronRight size={18} /></button>
-          : <p className="scum-lobby-waiting">Waiting for the host to start the next round…</p>}
-      </section>
-    </div>
+    <SharedResults
+      title={game.standings[0] === viewerPlayerIndex ? "You rule the table." : `${game.players[game.standings[0]].name} takes the crown.`}
+      text="The table has spoken."
+      rows={game.standings.map((playerIndex, index) => ({
+        id: String(playerIndex),
+        name: `${game.players[playerIndex].name}${playerIndex === viewerPlayerIndex ? " (you)" : ""}`,
+        value: `${index + 1}`,
+        note: scumPlaceName(index + 1, game.playerCount || game.players.length),
+      }))}
+    >
+      {game.hostControls
+        ? <button type="button" className="tbl-primary" onClick={onReplay}>Start next round <ChevronRight size={18} /></button>
+        : <p className="tbl-wait">Waiting for the host to start the next round…</p>}
+    </SharedResults>
   );
 }
 
-function RulesDialog({ open, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="scum-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="rules-card" role="dialog" aria-modal="true" aria-labelledby="rules-title">
-        <button type="button" className="dialog-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
-        <span className="scum-kicker">How to play</span>
-        <h2 id="rules-title">Lose your cards.<br />Earn the crown.</h2>
-        <ol>
-          <li><b>Know the order.</b><span>Twos are lowest. Play climbs through Ace. A Joker by itself beats any natural card.</span></li>
-          <li><b>Use Jokers wild.</b><span>Mix Jokers into any matching group as substitutes—for example, 8 + Joker is a pair of 8s.</span></li>
-          <li><b>Match the set.</b><span>Beat a single with a higher single, a pair with a higher pair, and so on.</span></li>
-          <li><b>Set the order.</b><span>Left of the dealer starts round one. After that, every turn follows the previous finish order: President first and Scum last.</span></li>
-          <li><b>Bring the table.</b><span>Invite any number of players. The game adds one 54-card deck for every four players.</span></li>
-          <li><b>Trade by class.</b><span>Choose how many class pairs exchange before each later round. Lower classes must give their best cards; each inner pair trades one fewer.</span></li>
-          <li><b>Pass or climb.</b><span>Once you pass, you sit out until the pile clears. Four of a kind burns the pile.</span></li>
-          <li><b>Continue or move on.</b><span>After everyone else passes, the last player may keep climbing on the same pile or clear it and lead a new play.</span></li>
-        </ol>
-        <p>First out is President. Last holding cards is Scum.</p>
-        <button type="button" className="scum-primary" onClick={onClose}>Got it</button>
-      </section>
-    </div>
-  );
+function IntroCard({ rank, suit, className }) {
+  const red = suit === "♥" || suit === "♦";
+  return <span className={`intro-card ${red ? "red" : ""} ${className}`}><b>{rank}</b><i>{suit}</i><em>{suit}</em></span>;
 }
 
 function roomTokenKey(roomCode) {

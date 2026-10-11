@@ -5,16 +5,13 @@ import {
   Bot,
   Check,
   ChevronRight,
-  CircleHelp,
   Coins,
-  Copy,
   Crown,
   Factory,
   FlaskConical,
   Gem,
   History,
   House,
-  LogOut,
   Plus,
   ScrollText,
   Sparkles,
@@ -37,6 +34,7 @@ import {
   workerAdjacentCardIndexes,
 } from "../lib/spyrium";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 
 const playerIdKey = "spyrium-player-id";
 const playerNameKey = "spyrium-player-name";
@@ -74,8 +72,41 @@ export default function SpyriumClient() {
     leaveEngineRoom(); setError(""); setSelectedWorker(null); setSelectedCard(null);
   }
 
-  if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
+  if (!room || !me) {
+    return <SharedLanding
+      gameName="Spyrium"
+      theme="tbl-light spyrium-theme"
+      hero={<Hero
+        kicker="A Victorian worker-placement game"
+        title={<>SPYR<em>IUM</em></>}
+        copy="Mine a miraculous crystal. Recruit brilliant minds. Build an industrial empire in the smoke and splendor of an alternate London."
+        badges={[{ icon: Users, label: "2–5 players" }, { icon: Bot, label: "Computer rivals" }, { icon: History, label: "Six rounds" }]}
+        artLayout="free"
+        art={<div className="spyrium-machine"><div className="spyrium-orbit orbit-one" /><div className="spyrium-orbit orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <SharedLobby
+      gameName="Spyrium"
+      theme="tbl-light spyrium-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={5}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const activation = myTurn && me.phase === "activation";
@@ -96,15 +127,15 @@ export default function SpyriumClient() {
     act("activate", { workerId: selectedWorker.id, cardIndex: selectedCard, options });
   }
 
-  return <main className="spyrium-game-shell">
-    <header className="spyrium-table-header">
-      <div className="spyrium-brand"><span><Gem /></span><div><small>ROOM {room.roomCode}</small><h1>SPYRIUM</h1></div></div>
-      <div className="spyrium-round"><span>Round {room.round} / 6</span><b>Period {room.period}</b></div>
-      <div className={`spyrium-turn ${myTurn ? "mine" : ""}`}>{actor?.isComputer ? <Bot /> : <i style={{ background: actor?.color }} />}{room.phase === "finished" ? "Industry closes" : myTurn ? `Your ${me.phase} phase` : computerThinking && actor?.isComputer ? `${actor.name} is calculating…` : `${actor?.name}'s turn`}</div>
-      <button className="spyrium-code" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="spyrium-icon-button" aria-label="Open rules" onClick={() => setShowRules(true)}><CircleHelp /></button>
-      <button className="spyrium-leave" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="spyrium-game-shell tbl-light spyrium-theme">
+    <GameHeader
+      title="Spyrium"
+      room={room}
+      subtitle={`Round ${room.round} / 6 · Period ${room.period}`}
+      status={room.phase === "finished" ? "Industry closes" : myTurn ? `Your ${me.phase} phase` : computerThinking && actor?.isComputer ? `${actor.name} is calculating…` : `${actor?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
 
     {error && <div className="spyrium-error" role="alert">{error}<button aria-label="Dismiss" onClick={() => setError("")}><X /></button></div>}
 
@@ -156,15 +187,6 @@ export default function SpyriumClient() {
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
-}
-
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
-  return <main className="spyrium-landing"><section className="spyrium-hero"><div className="spyrium-hero-copy"><p className="spyrium-kicker">A Victorian worker-placement game</p><h1>SPYR<span>IUM</span></h1><p>Mine a miraculous crystal. Recruit brilliant minds. Build an industrial empire in the smoke and splendor of an alternate London.</p><div className="spyrium-features"><span><Users /> 2–5 players</span><span><Bot /> Computer rivals</span><span><History /> Six rounds</span></div></div><div className="spyrium-machine" aria-hidden="true"><div className="spyrium-orbit orbit-one" /><div className="spyrium-orbit orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div></section><section className="spyrium-entry-card"><div className="spyrium-entry-seal"><Gem /></div><p className="spyrium-kicker">The Royal Exchange</p><h2>Found your company</h2><p>Create a private room, invite other industrialists, or fill the board with calculating automata.</p><label>Your industrialist name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="e.g. Ada Steam" /></label><button className="spyrium-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="spyrium-divider"><span>or join a concern</span></div><div className="spyrium-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join <ChevronRight /></button></div>{error && <p className="spyrium-form-error">{error}</p>}<a className="spyrium-official-link" href="https://cdn.1j1ju.com/medias/be/9c/01-spyrium-rulebook.pdf" target="_blank" rel="noreferrer"><ScrollText /> Read the rulebook</a></section></main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave }) {
-  const isHost = room.hostId === me.id;
-  return <main className="spyrium-lobby"><section className="spyrium-lobby-card"><div className="spyrium-lobby-machine"><Gem /></div><p className="spyrium-kicker">Private industrial consortium</p><h1>The machinery awaits</h1><button className="spyrium-room-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><span>{room.roomCode}</span><small><Copy /> Copy invite code</small></button><div className="spyrium-lobby-players">{room.players.map((player, index) => <div key={player.id} className="occupied"><span className="spyrium-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}</strong><small>{index === 0 ? "Host" : player.isComputer ? "Clockwork rival" : "Ready"}</small></p>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}{Array.from({ length: 5 - room.players.length }, (_, index) => <div className="empty" key={index}><span className="spyrium-avatar"><Users /></span><p><strong>Open seat</strong><small>Invite a friend or add an automaton</small></p></div>)}</div>{isHost && room.players.length < 5 && <button className="spyrium-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add clockwork rival</button>}{isHost ? <button className="spyrium-primary spyrium-start" disabled={busy || room.players.length < 2} onClick={onStart}><Zap /> Start the engines</button> : <p className="spyrium-waiting">Waiting for {room.players[0].name} to start the engines…</p>}<button className="spyrium-quiet" onClick={onLeave}><LogOut /> Leave room</button>{room.players.length < 2 && isHost && <p className="spyrium-waiting">Invite at least one industrialist or add a rival.</p>}{error && <p className="spyrium-form-error">{error}</p>}</section></main>;
 }
 
 function PanelTitle({ icon, eyebrow, title }) { return <div className="spyrium-panel-title">{icon}<span><small>{eyebrow}</small><strong>{title}</strong></span></div>; }
@@ -237,9 +259,34 @@ function EventModal({ event, player, slots, onClose, onUse }) {
 
 function BonusModal({ player, onChoose }) { return <div className="spyrium-overlay"><section className="spyrium-modal spyrium-bonus-modal"><Crown /><p className="spyrium-kicker">Milestone reached</p><h2>Choose your industrial bonus</h2><p>Your reputation has opened doors. Claim one benefit now; the other arrives when you reach 20 VP.</p><div><button disabled={player.totalWorkers >= 7} onClick={() => onChoose("worker")}><UserRound /><strong>Recruit a worker</strong><small>Add one active worker immediately.</small></button><button onClick={() => onChoose("money")}><Coins /><strong>Take £5</strong><small>Expand your available capital.</small></button></div></section></div>; }
 
-function RulesDrawer({ onClose }) { return <div className="spyrium-rules-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="spyrium-rules"><button className="spyrium-rules-close" onClick={onClose}><X /></button><p className="spyrium-kicker">How to play</p><h2>Power the British Empire</h2><p>Spyrium lasts six rounds across periods A, B, and C. Each round has two personal phases; different players may be in different phases.</p><h3>1. Placement</h3><p>On your turn, place one active worker between two adjacent market cards, use the event, or switch permanently to Activation.</p><h3>2. Activation</h3><p>Choose one of your market workers. You may withdraw it to earn £1 for each other worker beside one adjacent card, or pay to activate an adjacent card. Activation costs the printed price plus £1 for every other adjacent worker.</p><ul><li><strong>Characters</strong> grant an immediate effect and stay in the market.</li><li><strong>Buildings</strong> join your neighborhood. New spaces become increasingly expensive; replacing a building is free, with a £3 discount when symbols match.</li><li><strong>Techniques</strong> grant lasting powers and end-game points.</li></ul><p>You may also use one ready building or the round event as an action. You can pass only after removing every worker you placed in the market.</p><h3>Victory</h3><p>After round six, add printed building points and up to 7 points from each technique. Most VP wins; tied players share victory.</p><a href="https://cdn.1j1ju.com/medias/be/9c/01-spyrium-rulebook.pdf" target="_blank" rel="noreferrer"><ScrollText /> Full rulebook <ChevronRight /></a></aside></div>; }
+function RulesDrawer({ onClose }) {
+  return <ChoiceModal wide title="Power the British Empire" text="Spyrium lasts six rounds across periods A, B, and C. Each round has two personal phases; different players may be in different phases." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>1. Placement</b><p>On your turn, place one active worker between two adjacent market cards, use the event, or switch permanently to Activation.</p></article>
+      <article><b>2. Activation</b><p>Choose one of your market workers. You may withdraw it to earn £1 for each other worker beside one adjacent card, or pay to activate an adjacent card. Activation costs the printed price plus £1 for every other adjacent worker.</p></article>
+      <article><b>Characters</b><p>Grant an immediate effect and stay in the market.</p></article>
+      <article><b>Buildings</b><p>Join your neighborhood. New spaces become increasingly expensive; replacing a building is free, with a £3 discount when symbols match.</p></article>
+      <article><b>Techniques</b><p>Grant lasting powers and end-game points.</p></article>
+      <article><b>Passing</b><p>You may also use one ready building or the round event as an action. You can pass only after removing every worker you placed in the market.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Victory</p>
+    <p className="tbl-modal-copy">After round six, add printed building points and up to 7 points from each technique. Most VP wins; tied players share victory.</p>
+    <a className="tbl-link" href="https://cdn.1j1ju.com/medias/be/9c/01-spyrium-rulebook.pdf" target="_blank" rel="noreferrer"><ScrollText aria-hidden="true" /> Full rulebook</a>
+  </ChoiceModal>;
+}
 
 function Results({ room, playerId, onLeave }) {
   const ranked = [...room.players].sort((a, b) => b.finalScore - a.finalScore);
-  return <div className="spyrium-overlay"><section className="spyrium-results"><div className="spyrium-results-gem"><Gem /></div><p className="spyrium-kicker">The Great Exhibition</p><h2>{room.winners.includes(playerId) ? "Your empire triumphs" : `${ranked[0].name} leads the age`}</h2><p>Final points include your score track, neighborhood buildings, and patented techniques.</p><div>{ranked.map((player, index) => <article className={room.winners.includes(player.id) ? "winner" : ""} key={player.id}><b>{index + 1}</b><span className="spyrium-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.score} track · {player.buildings.reduce((sum, building) => sum + building.points, 0)} buildings · {player.techniques.reduce((sum, technique) => sum + techniqueEndScore(player, technique), 0)} techniques</small></p><em>{player.finalScore}<small> VP</small></em>{room.winners.includes(player.id) && <Crown />}</article>)}</div><button className="spyrium-primary" onClick={onLeave}>Return to the Royal Exchange</button></section></div>;
+  return <SharedResults
+    title={room.winners.includes(playerId) ? "Your empire triumphs" : `${ranked[0].name} leads the age`}
+    text="Final points include your score track, neighborhood buildings, and patented techniques."
+    rows={ranked.map((player) => ({
+      id: player.id,
+      name: `${player.name}${player.id === playerId ? " (you)" : ""}`,
+      value: `${player.finalScore} VP`,
+      note: `${player.score} track · ${player.buildings.reduce((sum, building) => sum + building.points, 0)} buildings · ${player.techniques.reduce((sum, technique) => sum + techniqueEndScore(player, technique), 0)} techniques`,
+    }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Return to the Royal Exchange</button>
+  </SharedResults>;
 }

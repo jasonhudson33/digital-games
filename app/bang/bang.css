@@ -1,3 +1,14 @@
+/* bang's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.bang-theme {
+  --accent: #a8431f;
+  --accent-hover: #8c3719;
+  --accent-soft: rgba(168, 67, 31, 0.1);
+  --on-accent: #ffffff;
+  --tbl-hue: 70;
+  --tbl-accent-hue: 90;
+}
+
 /* ── Route surface ──────────────────────────────────────────────────────────
  * The ground this route paints. The site header reads these instead of the
  * global --bg, so it stops cutting a cool grey band across the top of a
@@ -21,67 +32,11 @@
   --bang-green-dark: #092e27;
 }
 
-.bang-landing,
-.bang-lobby,
 .bang-game {
   color: var(--bang-ink);
   font-family: var(--font-ui);
 }
-
-.bang-landing {
-  width: min(1180px, calc(100% - 28px));
-  margin: 28px auto 60px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, .75fr);
-  gap: 22px;
-}
-
-.bang-hero,
-.bang-entry,
-.bang-lobby-card {
-  border: 1px solid rgba(67, 35, 18, .18);
-  border-radius: 30px;
-  box-shadow: 0 24px 70px rgba(60, 30, 10, .16);
-}
-
-.bang-hero {
-  position: relative;
-  min-height: 600px;
-  padding: 58px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 250px;
-  align-items: center;
-  color: #fff3d4;
-  background:
-    linear-gradient(180deg, rgba(8, 26, 22, .1), rgba(5, 20, 17, .76)),
-    radial-gradient(circle at 80% 30%, #edb34e 0 9%, transparent 9.3%),
-    linear-gradient(155deg, #315c45 0%, #153f33 48%, #7f2f1f 110%);
-}
-
-.bang-hero::before,
-.bang-hero::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 36%;
-  background: linear-gradient(165deg, transparent 31%, rgba(5, 23, 20, .72) 32% 50%, transparent 51%), linear-gradient(195deg, transparent 35%, #0a2c25 36%);
-  pointer-events: none;
-}
-
-.bang-hero::after { bottom: -12%; height: 35%; transform: scaleX(-1); opacity: .78; }
-
-.bang-hero > div:first-child { position: relative; z-index: 2; }
 .bang-kicker { margin: 0 0 9px; color: #93682e; font-size: .7rem; font-weight: 900; letter-spacing: .19em; text-transform: uppercase; }
-.bang-hero .bang-kicker { color: #efc66e; }
-.bang-hero h1 { max-width: 700px; margin: 0; font-family: var(--font-display); font-size: clamp(3.3rem, 6.7vw, 6.8rem); line-height: .86; letter-spacing: -.055em; text-transform: uppercase; }
-.bang-hero h1 em { color: #f0b94e; font-style: normal; }
-.bang-hero p:not(.bang-kicker) { max-width: 570px; margin: 28px 0; color: #f6e6c7; font-family: var(--font-ui); font-size: 1.14rem; line-height: 1.7; }
-.bang-facts { display: flex; flex-wrap: wrap; gap: 10px; }
-.bang-facts span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(0,0,0,.16); font-size: .8rem; font-weight: 800; }
-.bang-facts svg { width: 16px; }
 
 .bang-hero-art { position: relative; z-index: 2; width: 230px; aspect-ratio: .7; margin-left: auto; padding: 35px 20px; border: 8px solid #e5c487; outline: 2px solid #5a2b1a; background: #efddad; color: #682116; text-align: center; transform: rotate(4deg); box-shadow: 10px 15px 30px rgba(0,0,0,.28); }
 .bang-hero-art::after { content: "★"; display: block; margin-top: 35px; font-size: 4rem; }
@@ -89,52 +44,7 @@
 .bang-hero-art strong { display: block; margin-top: 43px; font-family: var(--font-display); font-size: 3.4rem; line-height: .9; }
 .bang-hero-art small { display: block; margin-top: 12px; font-weight: 900; letter-spacing: .13em; }
 
-.bang-entry { align-self: center; padding: 34px; background: rgba(255, 249, 235, .94); }
-.bang-entry h2, .bang-lobby h1 { margin: 0; font-family: var(--font-display); font-size: 2.4rem; }
-.bang-entry > div > p:not(.bang-kicker), .bang-lobby-title p { color: #725f4b; line-height: 1.55; }
-.bang-entry label { display: grid; gap: 8px; margin: 26px 0 14px; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-.bang-entry input, .bang-join input { width: 100%; min-height: 50px; padding: 0 15px; border: 1px solid rgba(48, 29, 16, .18); border-radius: 12px; background: #fffdf7; color: var(--bang-ink); outline: none; }
-.bang-entry input:focus, .bang-join input:focus { border-color: var(--bang-red); box-shadow: 0 0 0 3px rgba(157,40,29,.12); }
-.bang-primary { display: inline-flex; width: 100%; min-height: 52px; padding: 0 20px; border: 0; border-radius: 12px; align-items: center; justify-content: center; gap: 9px; color: #fff4df; background: linear-gradient(180deg, #b23a28, #83251a); box-shadow: inset 0 1px rgba(255,255,255,.2), 0 9px 18px rgba(109,28,18,.2); font-weight: 900; cursor: pointer; }
-.bang-primary:disabled { opacity: .45; cursor: not-allowed; }
-.bang-primary svg { width: 18px; }
-.bang-or { display: flex; align-items: center; gap: 10px; margin: 15px 0; color: #8f806d; font-size: .72rem; text-transform: uppercase; }
-.bang-or::before, .bang-or::after { content: ""; height: 1px; flex: 1; background: rgba(52,32,19,.12); }
-.bang-join { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
-.bang-join input { letter-spacing: .12em; font-weight: 900; text-transform: uppercase; }
-.bang-join button, .bang-rules-link, .bang-quiet, .bang-add-bot { border: 1px solid rgba(48,29,16,.15); border-radius: 12px; color: var(--bang-ink); background: #f3e7cf; font-weight: 800; cursor: pointer; }
-.bang-rules-link { display: flex; width: 100%; margin-top: 13px; min-height: 44px; align-items: center; justify-content: center; gap: 8px; background: transparent; }
-
-.bang-lobby { width: min(780px, calc(100% - 28px)); margin: 34px auto 60px; }
-.bang-lobby-card { padding: 36px; background: #fff9ed; }
-.bang-lobby-title { display: flex; justify-content: space-between; gap: 20px; }
-.bang-lobby-title h1 button { border: 0; padding: 0; color: var(--bang-red); background: transparent; font: inherit; cursor: pointer; }
-.bang-lobby-title h1 svg { width: 22px; }
-.bang-lobby-title .bang-rules-link { width: auto; min-width: 105px; margin: 0; padding: 0 14px; }
-.bang-seat-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 28px 0 12px; }
-.bang-seat-list article { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 13px; border: 1px solid rgba(55,32,16,.12); border-radius: 14px; background: #f7ecd6; }
-.bang-seat-list article > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; color: #f9e8c5; background: var(--bang-green); }
-.bang-seat-list strong, .bang-seat-list small { display: block; }
-.bang-seat-list small { margin-top: 3px; color: #806f5b; font-size: .72rem; }
-.bang-seat-list article > i { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #845e2c; background: #ead7b2; font-size: .72rem; font-style: normal; font-weight: 900; }
-.bang-seat-list article > button { border: 0; color: var(--bang-red); background: transparent; cursor: pointer; }
-.bang-add-bot { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 8px; border-style: dashed; background: transparent; }
-.bang-ready { display: flex; margin: 20px 0; padding: 14px 16px; border-radius: 12px; justify-content: space-between; color: #7f3d31; background: #f4ded4; }
-.bang-ready.yes { color: #1f5a3d; background: #dcebdc; }
-.bang-ready span { font-size: .82rem; }
-.bang-quiet { display: flex; width: 100%; min-height: 44px; margin-top: 10px; align-items: center; justify-content: center; gap: 8px; background: transparent; }
-.bang-waiting { padding: 16px; border-radius: 12px; background: #efe4cf; text-align: center; }
-
 .bang-game { min-height: 100vh; min-height: 100dvh; padding-bottom: 60px; background: linear-gradient(180deg, #e8d4ae, #c99e67 48%, #b6814d); }
-.bang-game-header { display: flex; padding: 16px max(20px, calc((100vw - 1420px)/2)); align-items: center; gap: 10px; color: #f8e7c8; background: #0d332a; border-bottom: 3px solid #c18839; }
-.bang-game-header > div:first-child { margin-right: auto; }
-.bang-game-header .bang-kicker { margin-bottom: 2px; color: #d6aa5e; }
-.bang-game-header h1 { margin: 0; font-family: var(--font-display); font-size: 2rem; letter-spacing: -.04em; }
-.bang-game-header button, .bang-turn-callout { display: inline-flex; min-height: 44px; padding: 0 12px; border: 1px solid rgba(255,255,255,.15); border-radius: 10px; align-items: center; gap: 7px; color: #f9e8c8; background: rgba(255,255,255,.06); font-weight: 800; }
-.bang-game-header button { cursor: pointer; }
-.bang-game-header svg { width: 16px; }
-.bang-turn-callout { border-color: rgba(217,163,73,.38); background: rgba(217,163,73,.12); }
-.bang-turn-callout.mine { color: #2b1a0d; background: #e1ae55; }
 .bang-error { margin: 10px auto; padding: 10px 14px; border-radius: 10px; color: #76251d; background: #f5d5ce; }
 
 .bang-status-strip { width: min(1420px, calc(100% - 28px)); margin: 16px auto; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(49,28,15,.2); border-radius: 16px; overflow: hidden; background: rgba(255,248,229,.9); box-shadow: 0 10px 24px rgba(70,39,15,.12); }
@@ -215,36 +125,12 @@
 .bang-card-button:hover:not(:disabled), .bang-card-button.selected { transform: translateY(-5px); border-color: #a93425; box-shadow: 0 8px 18px rgba(109,42,24,.18); }
 .bang-card-button:disabled { cursor: default; }
 .bang-card-button small { font-family: var(--font-ui); font-size: .66rem; line-height: 1.4; }
-
-.bang-overlay { position: fixed; inset: 0; z-index: 90; display: grid; padding: 20px; place-items: center; overflow-y: auto; background: rgba(8,21,18,.78); backdrop-filter: blur(5px); }
-.bang-response, .bang-rules, .bang-finished { position: relative; width: min(720px, 100%); padding: 32px; border: 2px solid #d39a43; border-radius: 22px; background: #fff5df; box-shadow: 0 28px 80px rgba(0,0,0,.4); text-align: center; }
-.bang-response h1, .bang-rules h1, .bang-finished h1 { margin: 0; font-family: var(--font-display); font-size: 2.2rem; }
-.bang-response > p:not(.bang-kicker), .bang-finished > p:not(.bang-kicker) { color: #6f5d48; }
-.bang-response-icon { display: grid; width: 64px; height: 64px; margin: 0 auto 18px; place-items: center; border-radius: 50%; color: #ffe4b8; background: var(--bang-red); }
 .bang-response-cards, .bang-store-cards { display: flex; justify-content: center; gap: 12px; margin: 24px 0; flex-wrap: wrap; }
 .bang-response-cards button, .bang-store-cards button { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .bang-response-cards button:hover, .bang-store-cards button:hover { transform: translateY(-5px); }
 .bang-danger { min-height: 44px; padding: 0 18px; border: 1px solid #a93b2f; border-radius: 10px; color: #8f2a20; background: transparent; font-weight: 900; cursor: pointer; }
-.bang-modal-close { position: absolute; top: 16px; right: 16px; display: grid; width: 38px; height: 38px; border: 1px solid rgba(55,31,15,.15); border-radius: 50%; place-items: center; background: #f0e1c4; cursor: pointer; }
-.bang-modal-close svg { width: 17px; }
-.bang-rules { width: min(930px, 100%); text-align: left; }
-.bang-rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 25px 0 16px; }
-.bang-rules-grid article { position: relative; padding: 18px 18px 18px 54px; border: 1px solid rgba(60,34,17,.12); border-radius: 14px; background: #f6e8cc; }
-.bang-rules-grid article > b { position: absolute; top: 17px; left: 16px; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #f8e4be; background: var(--bang-red); }
-.bang-rules-grid h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1rem; }
-.bang-rules-grid p, .bang-rules-notes p { margin: 0; color: #67533c; font-family: var(--font-ui); font-size: .82rem; line-height: 1.5; }
-.bang-rules-notes { display: grid; gap: 7px; margin-bottom: 18px; padding: 16px; border-left: 4px solid #b07b2e; background: #f1e0bf; }
-.bang-finished > span { color: #d39c3c; font-size: 4rem; }
-.bang-finished > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 22px 0; text-align: left; }
-.bang-finished article { padding: 11px 13px; border: 1px solid rgba(57,32,16,.12); border-radius: 10px; background: #f4e6c9; }
-.bang-finished article strong, .bang-finished article span, .bang-finished article b { display: block; }
-.bang-finished article span { color: #76634c; font-size: .72rem; }
-.bang-finished article b { margin-top: 4px; color: var(--bang-red); font-size: .78rem; text-transform: uppercase; }
 
 @media (max-width: 1050px) {
-  .bang-landing { grid-template-columns: 1fr; }
-  .bang-hero { min-height: 520px; }
-  .bang-entry { max-width: 620px; margin: auto; }
   .bang-table-layout { grid-template-columns: 1fr; }
   .bang-log { max-height: 250px; }
   .bang-player-grid { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 64px 10px; }
@@ -256,19 +142,7 @@
 }
 
 @media (max-width: 700px) {
-  .bang-landing { margin-top: 14px; }
-  .bang-hero { min-height: 520px; padding: 30px; grid-template-columns: 1fr; }
-  .bang-hero h1 { font-size: 3.5rem; }
   .bang-hero-art { display: none; }
-  .bang-entry, .bang-lobby-card { padding: 24px; }
-  .bang-lobby-title { display: block; }
-  .bang-lobby-title .bang-rules-link { width: 100%; margin-top: 12px; }
-  .bang-seat-list { grid-template-columns: 1fr; }
-  .bang-game-header { flex-wrap: wrap; }
-  .bang-game-header > div:first-child { width: 100%; }
-  .bang-turn-callout { margin-right: auto; }
-  .bang-game-header button { font-size: 0; }
-  .bang-game-header button svg { width: 18px; }
   .bang-table { min-height: 1160px; padding: 12px; border-width: 8px; border-radius: 34px; }
   .bang-player-grid { inset: 12px; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, auto); gap: 84px 8px; }
   .bang-player-seat { align-self: start !important; }
@@ -277,5 +151,4 @@
   .bang-status-strip > div { border-right: 0; border-bottom: 1px solid rgba(49,28,15,.12); }
   .bang-hand-header { display: block; }
   .bang-hand-actions { margin-top: 12px; }
-  .bang-rules-grid, .bang-finished > div { grid-template-columns: 1fr; }
 }

@@ -139,6 +139,7 @@ if (parser) {
         if (k === "loc" || k === "range") continue;
         const skipKey = ((t === "MemberExpression" || t === "OptionalMemberExpression") && k === "property" && !node.computed)
           || ((t === "ObjectProperty" || t === "ObjectMethod" || t === "ClassMethod") && k === "key" && !node.computed)
+          || (t === "ImportSpecifier" && k === "imported")   // `X as Y` declares Y; X lives in the other module
           || (t === "JSXAttribute" && k === "name")
           || (t === "JSXMemberExpression" && k === "property")
           || (t === "LabeledStatement" && k === "label")
@@ -153,7 +154,7 @@ if (parser) {
       "requestAnimationFrame","cancelAnimationFrame","setTimeout","clearTimeout","setInterval","clearInterval",
       "React","BroadcastChannel","fetch","process","globalThis","structuredClone","URL","Intl","isNaN","parseInt","parseFloat",
       "URLSearchParams","encodeURIComponent","decodeURIComponent","sessionStorage","TypeError","RangeError",
-      "HTMLElement","HTMLInputElement","Element","Node","AbortController","IntersectionObserver","MutationObserver","ResizeObserver","queueMicrotask","performance"]);
+      "Infinity","NaN","HTMLElement","HTMLInputElement","Element","Node","AbortController","IntersectionObserver","MutationObserver","ResizeObserver","queueMicrotask","performance"]);
 
     const orphans = [...used.keys()].filter((n) => !declared.has(n) && !GLOBALS.has(n) && !/^[A-Z_]+$/.test(n));
     if (orphans.length) fail(`${f} references undeclared: ${orphans.slice(0, 6).join(", ")}`);

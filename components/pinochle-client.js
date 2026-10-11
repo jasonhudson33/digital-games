@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Bot, Copy, Crown, DoorOpen, Plus, Sparkles, Trash2, Trophy, UserPlus, Users, X } from "lucide-react";
+import {
+  Bot,
+  Crown,
+  Users,
+} from "lucide-react";
 import {
   PINOCHLE_SUITS,
   PINOCHLE_SUIT_SYMBOLS,
@@ -13,6 +17,7 @@ import {
 } from "../lib/pinochle";
 import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { PinochleRoomService } from "./pinochle-room-service";
+import { ChoiceModal, Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -26,7 +31,6 @@ export default function PinochleClient() {
   const [isReady, setIsReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [bidAmount, setBidAmount] = useState(200);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -157,92 +161,47 @@ export default function PinochleClient() {
     window.history.replaceState(null, "", "/pinochle");
   }
 
-  function copyInvite() {
-    if (!game?.roomCode) return;
-    void navigator.clipboard.writeText(`${window.location.origin}/pinochle?room=${game.roomCode}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
 
+
+  const rulesDialog = <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />;
 
   if (!game) {
-    return (
-      <main className="pn-app pn-landing">
-        <section className="pn-hero">
-          <div className="pn-hero-copy">
-            <span className="pn-kicker"><Sparkles size={15} /> Auction · meld · tricks</span>
-            <h1>Call trump.<br /><em>Make your bid.</em></h1>
-            <p>
-              Open a private Pinochle room for two to six players. Share one five-character
-              code, fill empty seats with computer players, and let the bidding begin.
-            </p>
-            <label className="pn-name-field">
-              <span>Your name</span>
-              <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={18} placeholder="Player" />
-            </label>
-            <div className="pn-entry-actions">
-              <button type="button" className="pn-primary" disabled={busy} onClick={createRoom}><Plus size={18} /> Create a room</button>
-              <div className="pn-join-box">
-                <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => event.key === "Enter" && joinRoom()}
-                  maxLength={5}
-                  placeholder="ROOM CODE"
-                  aria-label="Room code"
-                />
-                <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>
-              </div>
-            </div>
-            {error && <p className="pn-error" role="alert">{error}</p>}
-            <button type="button" className="pn-rules-link" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules for 2–6 players</button>
-          </div>
-          <HeroCards />
-        </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-      </main>
-    );
+    return <Landing
+      gameName="Pinochle"
+      theme="tbl-light pinochle-theme"
+      hero={<Hero
+        kicker="Auction · meld · tricks"
+        title={<>Call trump.<br /><em>Make your bid.</em></>}
+        copy="Open a private Pinochle room for two to six players. Share one five-character code, fill empty seats with computer players, and let the bidding begin."
+        badges={[{ icon: Users, label: "2–6 players" }, { icon: Bot, label: "Computer seats" }, { icon: Crown, label: "Partners or cutthroat" }]}
+        artLayout="free"
+        art={<HeroCards />}
+      />}
+      entry={{ name: playerName, setName: setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
-    return (
-      <main className="pn-app pn-room-shell">
-        <header className="pn-room-header">
-          <div><span className="pn-kicker">Pinochle room</span><h1>{game.roomCode}</h1></div>
-          <div className="pn-header-actions">
-            <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-            <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-            <button type="button" onClick={leaveRoom}><DoorOpen size={16} /> Leave</button>
-          </div>
-        </header>
-        <section className="pn-lobby-card">
-          <div className="pn-lobby-heading">
-            <div><span>Seats {game.players.length} / 6</span><h2>Build your table</h2><p>Games start with any two to six players. At four and six seats, partners alternate around the table.</p></div>
-            {game.hostControls && <button type="button" className="pn-secondary" disabled={busy || game.players.length >= 6} onClick={() => roomAction("addComputer")}><Bot size={17} /> Add computer</button>}
-          </div>
-          <div className="pn-seat-grid">
-            {Array.from({ length: 6 }, (_, index) => {
-              const player = game.players[index];
-              return player ? (
-                <div className={`pn-lobby-seat ${player.isViewer ? "viewer" : ""}`} key={player.playerId}>
-                  <span className="pn-avatar">{player.isComputer ? <Bot size={20} /> : player.name[0].toUpperCase()}</span>
-                  <span><strong>{player.name}</strong><small>{player.isViewer ? "You" : player.isComputer ? "Computer" : "Connected"}</small></span>
-                  {game.hostControls && player.isComputer && <button type="button" aria-label={`Remove ${player.name}`} onClick={() => roomAction("removeComputer", { playerId: player.playerId })}><Trash2 size={16} /></button>}
-                </div>
-              ) : <div className="pn-lobby-seat empty" key={index}><span className="pn-avatar">{index + 1}</span><span><strong>Open seat</strong><small>Share the room code</small></span></div>;
-            })}
-          </div>
-          <div className="pn-lobby-footer">
-            <p><Users size={17} /> {game.players.length < 2 ? "Waiting for at least one more player." : game.players.length === 4 || game.players.length === 6 ? "Partnership Pinochle table ready." : game.players.length === 5 ? "Five-player calling-partner table ready." : "Cutthroat Pinochle table ready."}</p>
-            {game.hostControls
-              ? <button type="button" className="pn-primary" disabled={busy || game.players.length < 2} onClick={() => roomAction("start")}><Crown size={18} /> Start game</button>
-              : <span className="pn-waiting">Waiting for the host to deal…</span>}
-          </div>
-          {error && <p className="pn-error" role="alert">{error}</p>}
-        </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-      </main>
-    );
+    const viewer = game.players.find((player) => player.isViewer) ?? game.players[0];
+    return <SharedLobby
+      gameName="Pinochle"
+      theme="tbl-light pinochle-theme"
+      room={{ roomCode: game.roomCode, hostId: game.hostControls ? viewer.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
+      me={{ id: viewer.playerId }}
+      busy={busy}
+      error={error}
+      min={2}
+      max={6}
+      seatNote={game.players.length < 2 ? "Waiting for at least one more player." : game.players.length === 4 || game.players.length === 6 ? "Partnership Pinochle table ready." : game.players.length === 5 ? "Five-player calling-partner table ready." : "Cutthroat Pinochle table ready."}
+      onAdd={() => roomAction("addComputer")}
+      onRemove={(id) => roomAction("removeComputer", { playerId: id })}
+      onStart={() => roomAction("start")}
+      onLeave={leaveRoom}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
+    />;
   }
 
   return (
@@ -257,13 +216,12 @@ export default function PinochleClient() {
       onAction={roomAction}
       onLeave={leaveRoom}
       onRules={() => setRulesOpen(true)}
-      rulesOpen={rulesOpen}
-      onCloseRules={() => setRulesOpen(false)}
+      rulesDialog={rulesDialog}
     />
   );
 }
 
-function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, setSelectedIds, onAction, onLeave, onRules, rulesOpen, onCloseRules }) {
+function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, setSelectedIds, onAction, onLeave, onRules, rulesDialog }) {
   const viewerIndex = game.viewerPlayerIndex;
   const yourTurn = game.currentPlayerIndex === viewerIndex;
   const minimumBid = game.highBid === null ? game.minimumBid : game.highBid + 10;
@@ -286,11 +244,15 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
   }
 
   return (
-    <main className="pn-app pn-game-shell tbl-felt-shell">
-      <header className="pn-gamebar">
-        <div><span className="pn-game-mark">P</span><div><strong>Room {game.roomCode}</strong><small>{game.playerCount === 2 ? "Draw Pinochle" : game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round {game.roundNumber} · First to {game.targetScore}</small></div></div>
-        <div className="pn-header-actions"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave</button></div>
-      </header>
+    <main className="pn-app pn-game-shell tbl-felt-shell tbl-light pinochle-theme">
+      <GameHeader
+        title="Pinochle"
+        room={game}
+        subtitle={`${game.playerCount === 2 ? "Draw Pinochle" : game.playerCount === 5 ? "Calling partner" : game.partnershipGame ? "Partnership" : "Cutthroat"} · Round ${game.roundNumber} · First to ${game.targetScore}`}
+        status={showResults ? (game.phase === "game-over" ? "Game complete" : "Round complete") : yourTurn ? "Your turn" : `${game.players[game.currentPlayerIndex]?.name ?? "…"}'s turn`}
+        onRules={onRules}
+        onLeave={onLeave}
+      />
 
       <section className="pn-scoreboard" aria-label="Scoreboard">
         {game.teams.map((team) => (
@@ -370,7 +332,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
       {error && <p className="pn-error pn-game-error" role="alert">{error}</p>}
       {game.phase === "acknowledging-exchange" && yourTurn && <ExchangeReceiptDialog game={game} busy={busy} onAction={onAction} />}
       {showResults && <ResultsDialog game={game} busy={busy} onAction={onAction} onLeave={onLeave} />}
-      <RulesDialog open={rulesOpen} onClose={onCloseRules} />
+      {rulesDialog}
     </main>
   );
 }
@@ -645,40 +607,36 @@ function ExchangeReceiptDialog({ game, busy, onAction }) {
   const receipt = game.exchangeAcknowledgment;
   const sender = game.players[receipt.senderIndex];
   return (
-    <div className="pn-modal-backdrop">
-      <section className="pn-exchange-receipt" role="dialog" aria-modal="true" aria-label={`Cards received from ${sender.name}`}>
-        <span className="pn-kicker">Partnership exchange</span>
-        <h2>Cards from {sender.name}</h2>
-        <p>These cards have been added to your hand. Review them before the exchange continues.</p>
-        <div className="pn-received-cards">
-          {receipt.cards.map((card) => <PinochleCard card={card} key={card.id} />)}
-        </div>
-        <button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("acknowledgeExchange")}>Acknowledge cards</button>
-      </section>
-    </div>
+    <ChoiceModal
+      wide
+      title={`Cards from ${sender.name}`}
+      text="Partnership exchange. These cards have been added to your hand. Review them before the exchange continues."
+      actions={<button type="button" className="tbl-primary" disabled={busy} onClick={() => onAction("acknowledgeExchange")}>Acknowledge cards</button>}
+    >
+      <div className="pn-received-cards">
+        {receipt.cards.map((card) => <PinochleCard card={card} key={card.id} />)}
+      </div>
+    </ChoiceModal>
   );
 }
 
 function ResultsDialog({ game, busy, onAction, onLeave }) {
   const summary = game.roundSummary;
   return (
-    <div className="pn-modal-backdrop">
-      <section className="pn-results" role="dialog" aria-modal="true" aria-label="Round results">
-        <span className="pn-results-icon">{game.phase === "game-over" ? <Trophy size={28} /> : <Crown size={28} />}</span>
-        <span className="pn-kicker">{game.phase === "game-over" ? "Game complete" : `Round ${game.roundNumber} complete`}</span>
-        <h2>{game.phase === "game-over" ? `${game.winnerTeamIds.map((id) => pinochleTeamName(game, id)).join(" & ")} wins!` : game.playerCount === 2 ? "Round scored" : summary.madeContract ? "Contract made" : "Bidder set"}</h2>
-        <p>{game.message}</p>
-        <div className="pn-result-table">
-          <div><span>Team</span><span>Meld</span><span>Tricks</span><span>Round</span><span>Total</span></div>
-          {game.teams.map((team) => <div key={team.id}><strong>{pinochleTeamName(game, team.id)}</strong><span>{summary.teamMeldPoints[team.id]}</span><span>{summary.teamTrickPoints[team.id]}</span><span className={summary.roundDeltas[team.id] < 0 ? "negative" : ""}>{summary.roundDeltas[team.id] > 0 ? "+" : ""}{summary.roundDeltas[team.id]}</span><b>{team.score}</b></div>)}
-        </div>
-        <div className="pn-results-actions">
-          {game.phase === "round-over" && game.hostControls && <button type="button" className="pn-primary" disabled={busy} onClick={() => onAction("nextRound")}>Deal next round</button>}
-          {game.phase === "round-over" && !game.hostControls && <span>Waiting for the host to deal…</span>}
-          <button type="button" className="pn-secondary" onClick={onLeave}>Leave table</button>
-        </div>
-      </section>
-    </div>
+    <SharedResults
+      title={game.phase === "game-over" ? `${game.winnerTeamIds.map((id) => pinochleTeamName(game, id)).join(" & ")} wins!` : game.playerCount === 2 ? "Round scored" : summary.madeContract ? "Contract made" : "Bidder set"}
+      text={game.message}
+      rows={game.teams.map((team) => ({
+        id: String(team.id),
+        name: pinochleTeamName(game, team.id),
+        value: `${team.score}`,
+        note: `meld ${summary.teamMeldPoints[team.id]} · tricks ${summary.teamTrickPoints[team.id]} · round ${summary.roundDeltas[team.id] > 0 ? "+" : ""}${summary.roundDeltas[team.id]}`,
+      }))}
+    >
+      {game.phase === "round-over" && game.hostControls && <button type="button" className="tbl-primary" disabled={busy} onClick={() => onAction("nextRound")}>Deal next round</button>}
+      {game.phase === "round-over" && !game.hostControls && <p className="tbl-wait">Waiting for the host to deal…</p>}
+      <button type="button" className="tbl-link" onClick={onLeave}>Leave table</button>
+    </SharedResults>
   );
 }
 
@@ -694,9 +652,7 @@ function HeroCards() {
 function RulesDialog({ open, onClose }) {
   if (!open) return null;
   return (
-    <div className="pn-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="pn-rules" role="dialog" aria-modal="true" aria-labelledby="pn-rules-title">
-        <button type="button" className="pn-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
+    <Dialog wide className="pn-rules" labelledBy="pn-rules-title" onClose={onClose}>
         <span className="pn-kicker">How to play</span><h2 id="pn-rules-title">Room Pinochle</h2>
         <p>Three- through six-player rounds use an auction, public meld, and trick play; the bidder must earn the bid or be set back. Two-player Draw Pinochle skips the auction and lets each trick winner lay down one meld before drawing.</p>
         <div className="pn-rule-grid">
@@ -718,8 +674,7 @@ function RulesDialog({ open, onClose }) {
         <h3>Core meld values</h3>
         <div className="pn-meld-guide"><span>Run in trump <b>150</b></span><span>Aces around <b>100</b></span><span>Kings around <b>80</b></span><span>Queens around <b>60</b></span><span>Jacks around <b>40</b></span><span>Q♠ + J♦ <b>40</b></span><span>Trump marriage <b>40</b></span><span>Other marriage <b>20</b></span><span>Trump nine (dix) <b>10</b></span></div>
         <p className="pn-rule-note">Aces, tens, and kings captured in tricks are worth ten points each; the final trick is worth ten. A team must take a trick for its meld to score.</p>
-      </section>
-    </div>
+    </Dialog>
   );
 }
 

@@ -34,6 +34,7 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "playwright": "1.63",
     "vite": "^6.0.0"
   }

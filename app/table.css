@@ -22,6 +22,19 @@
  *
  * Colour, type, spacing and radius all come from tokens.css, so this and the
  * hub are finally one system.
+ *
+ * Theme contract (openspec: platform/game-layout). A game gives the shared
+ * landing, entry card, lobby, game bar and dialog its own look by overriding
+ * these on its root class, and nothing else:
+ *
+ *   --accent, --on-accent, --accent-soft   buttons, links, highlights
+ *   --surface, --ink                       cards and text
+ *   --font-display                         headings
+ *   --r-lg                                 corner radius
+ *   --tbl-hue, --tbl-accent-hue            the landing hero gradient (OKLCH hue)
+ *
+ * A game never restyles the structure; if it needs a different control, that
+ * is a slot the component should offer.
  * ==========================================================================*/
 
 /* ── Shared bits ─────────────────────────────────────────────────────────── */
@@ -135,6 +148,7 @@
 }
 
 .tbl-hero {
+  isolation: isolate;
   /* Column layout rather than a positioned fan. The card fan used to be
      absolutely positioned at bottom-right, which overlapped the description and
      hid the third badge at desktop widths. As a flow item pushed down by
@@ -202,6 +216,21 @@
   height: 16px;
 }
 
+.tbl-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tbl-hero-art {
+  position: relative;
+  align-self: flex-end;
+  margin-top: auto;
+  flex: none;
+}
+
 .tbl-hero-fan {
   position: relative;
   align-self: flex-end;
@@ -218,9 +247,12 @@
   box-shadow: 0 22px 35px rgba(0, 0, 0, 0.32);
 }
 
-.tbl-hero-fan .tbl-card:nth-child(1) { left: 0; top: 28px; transform: rotate(-18deg); }
-.tbl-hero-fan .tbl-card:nth-child(2) { left: 95px; top: 0; transform: rotate(-1deg); }
-.tbl-hero-fan .tbl-card:nth-child(3) { left: 190px; top: 25px; transform: rotate(17deg); }
+/* Any art a game deals into the fan is laid out the same way; a game sets only
+   the size of its own pieces. */
+.tbl-hero-fan > * { position: absolute; }
+.tbl-hero-fan > :nth-child(1) { left: 0; top: 28px; transform: rotate(-18deg); }
+.tbl-hero-fan > :nth-child(2) { left: 95px; top: 0; transform: rotate(-1deg); }
+.tbl-hero-fan > :nth-child(3) { left: 190px; top: 25px; transform: rotate(17deg); }
 
 /* ── Entry card ──────────────────────────────────────────────────────────── */
 
@@ -676,6 +708,7 @@
 }
 
 .tbl-game-header {
+  color: var(--ink);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1234,6 +1267,7 @@
 
 .tbl-modal {
   position: relative;
+  color: var(--ink);
   width: min(520px, 100%);
   max-height: calc(100dvh - 36px);
   padding: clamp(25px, 5vw, 40px);
@@ -1248,6 +1282,8 @@
 }
 
 .tbl-modal h2 {
+  /* keep long titles clear of the close button */
+  padding-right: 52px;
   margin: 0;
   font-size: clamp(2rem, 5vw, 3.2rem);
   line-height: 1.02;

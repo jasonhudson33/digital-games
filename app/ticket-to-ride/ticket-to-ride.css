@@ -1,3 +1,14 @@
+/* ticket-to-ride's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.ticket-to-ride-theme {
+  --accent: #c0392b;
+  --accent-hover: #a03024;
+  --accent-soft: rgba(192, 57, 43, 0.1);
+  --on-accent: #ffffff;
+  --tbl-hue: 215;
+  --tbl-accent-hue: 90;
+}
+
 /* ── Palette ────────────────────────────────────────────────────────────────
  * The colours this game repeats, named for how it uses them. Hoisted so that
  * changing one is one edit rather than 10 scattered ones.
@@ -32,43 +43,16 @@
   --ttr-ink: #233035;
 }
 
-.ttr-landing, .ttr-lobby-shell, .ttr-game-shell { font-family: var(--font-ui); }
-.ttr-landing { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); color: var(--ttr-cream); background: #132f40; }
+.ttr-game-shell { font-family: var(--font-ui); }
 .ttr-kicker { margin: 0 0 8px; color: #b1843c; font-size: .7rem; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
-.ttr-hero { position: relative; min-height: 460px; display: grid; grid-template-columns: 1.05fr .95fr; overflow: hidden; background: radial-gradient(circle at 75% 22%, #e0a949 0 8%, transparent 8.5%), linear-gradient(150deg, var(--ttr-teal), #173748 55%, #102938); }
-.ttr-hero::after { content: ""; position: absolute; inset: auto 0 0; height: 9px; background: repeating-linear-gradient(90deg, #cfb16d 0 70px, #77422d 70px 80px); }
-.ttr-hero-copy { z-index: 2; width: min(650px, 100%); padding: clamp(48px, 7vw, 94px) 40px 74px max(32px, calc((100vw - 1180px) / 2)); }
-.ttr-hero-copy .ttr-kicker { color: #dbb767; }
-.ttr-hero-copy h1 { margin: 0; color: #fff8e8; font-family: var(--font-ui); font-size: clamp(4rem, 9vw, 7.6rem); line-height: .73; letter-spacing: -.065em; text-shadow: 0 5px 0 rgba(0,0,0,.12); }
-.ttr-hero-copy h1 em { padding-left: .65em; color: #e2b24e; font-size: 0.625rem; font-weight: 400; }
-.ttr-hero-copy > p:not(.ttr-kicker) { max-width: 610px; margin: 32px 0 24px; color: #d7dcca; font-family: var(--font-ui); font-size: 1.08rem; line-height: 1.65; }
-.ttr-feature-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.ttr-feature-row span { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; color: #e9dfc5; background: rgba(255,255,255,.05); font-size: .78rem; font-weight: 700; }
-.ttr-feature-row svg { width: 16px; }
 .ttr-hero-art { position: relative; min-height: 420px; overflow: hidden; }
 .ttr-sun { position: absolute; top: 58px; right: 21%; width: 90px; height: 90px; border-radius: 50%; background: #e0a949; box-shadow: 0 0 80px #e0a94966; }
 .ttr-mountain { position: absolute; bottom: 65px; width: 0; height: 0; border-left: 230px solid transparent; border-right: 230px solid transparent; border-bottom: 265px solid #274b50; filter: drop-shadow(-16px 14px 0 #1a3b43); }
 .ttr-mountain.one { right: -65px; }.ttr-mountain.two { bottom: 52px; right: 190px; transform: scale(.68); border-bottom-color: #326065; }
 .ttr-rail-line { position: absolute; left: 0; right: -60px; bottom: 40px; height: 42px; border-top: 8px solid #d3b16b; border-bottom: 8px solid #d3b16b; transform: rotate(-3deg); background: repeating-linear-gradient(90deg, transparent 0 32px, #81513b 32px 44px); }
 .ttr-big-train { position: absolute; right: 14%; bottom: 84px; width: 190px; height: 190px; color: #c94739; filter: drop-shadow(0 15px 0 #0c242f); transform: rotate(-3deg); }
-.ttr-station-card { position: relative; z-index: 3; width: min(1040px, calc(100% - 32px)); margin: -24px auto 0; padding: 30px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px 22px; align-items: end; color: var(--ttr-ink); border: 1px solid #cbbd9e; border-radius: 10px; background: #f8f2e3; box-shadow: 0 22px 50px #091d2799; }
-.ttr-station-card h2 { margin: 0 0 7px; font: 700 1.75rem var(--font-display); }.ttr-station-card p { margin: 0; color: #6e6758; line-height: 1.45; }
-.ttr-station-card label { display: grid; gap: 7px; color: #4b4b43; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.ttr-station-card input, .ttr-join-row input { min-width: 0; padding: 13px 14px; border: 1px solid #b8ad92; border-radius: 7px; color: #293439; background: #fffdf5; outline: none; }
-.ttr-station-card input:focus, .ttr-join-row input:focus { border-color: #36758f; box-shadow: 0 0 0 3px #36758f22; }
 .ttr-primary { min-height: 47px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; border: 0; border-radius: 7px; color: white; background: linear-gradient(#c84b40, #a92f2b); box-shadow: inset 0 1px #ffffff44, 0 5px 0 #77221f; font-weight: 900; cursor: pointer; }
-.ttr-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
-.ttr-or { grid-column: 2; align-self: center; display: flex; align-items: center; gap: 8px; color: #8b826f; font-size: .7rem; text-transform: uppercase; }.ttr-or::before, .ttr-or::after { content: ""; height: 1px; flex: 1; background: #d3c7ab; }
-.ttr-join-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }.ttr-join-row input { letter-spacing: .16em; font-weight: 900; text-transform: uppercase; }.ttr-join-row button { padding: 0 22px; border: 1px solid var(--ttr-teal); border-radius: 7px; color: var(--ttr-white); background: var(--ttr-teal); font-weight: 800; cursor: pointer; }
-.ttr-form-error { grid-column: 1 / -1; padding: 10px 12px; border-radius: 6px; color: #8f2d26 !important; background: #f4d8d2; font-size: .85rem; }
-
-.ttr-lobby-shell { min-height: calc(100vh - 74px); min-height: calc(100dvh - 74px); padding: 48px 16px; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; color: var(--ttr-ink); background: radial-gradient(circle at 15% 10%, #e1c78566, transparent 22%), linear-gradient(140deg, #1b4253 0 44%, #d0c5a5 44% 100%); }
-.ttr-lobby-card { width: min(620px, 100%); padding: clamp(28px, 5vw, 52px); border: 1px solid #b9a987; border-radius: 13px; background: #f8f1df; box-shadow: 0 28px 80px #071d2780; text-align: center; }
-.ttr-lobby-card h1, .ttr-final-card h1 { margin: 0 0 10px; font: 700 clamp(2rem, 5vw, 3.4rem)/1.05 var(--font-display); color: #193a49; }
-.ttr-code-display { width: 100%; margin: 20px 0 24px; padding: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px dashed #9b8152; border-radius: 8px; color: #1a3c4b; background: #ebe0c4; cursor: pointer; }.ttr-code-display > span { font-size: 2rem; font-weight: 950; letter-spacing: .25em; }.ttr-code-display small { display: flex; gap: 6px; align-items: center; }
-.ttr-lobby-players { display: grid; gap: 8px; text-align: left; }.ttr-lobby-players > div { min-height: 57px; padding: 10px 14px; display: grid; grid-template-columns: 38px 1fr auto; gap: 8px; align-items: center; border: 1px solid #d5c9ae; border-radius: 8px; background: #fffaf0; }.ttr-lobby-players svg { width: 25px; }.ttr-lobby-players span { display: grid; }.ttr-lobby-players small { color: #817967; }.ttr-lobby-players > div > svg:last-child { width: 18px; color: #4b9161; }.ttr-lobby-players .empty { opacity: .52; border-style: dashed; }
-.ttr-add-computer { width: 100%; min-height: 43px; margin-top: 12px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #927b4e; border-radius: 7px; color: #244653; background: #eee2c5; font-weight: 850; cursor: pointer; }.ttr-add-computer:hover { background: #e6d5ad; }.ttr-add-computer:disabled { opacity: .5; cursor: not-allowed; }.ttr-remove-computer { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid #c8aa9e; border-radius: 50%; color: #9e3e36; background: #fff5eb; cursor: pointer; }.ttr-remove-computer:hover { color: var(--ttr-white); background: #ac4037; }.ttr-remove-computer svg { width: 16px; height: 16px; }
-.ttr-start { width: 100%; margin-top: 22px; }.ttr-quiet { margin-top: 18px; border: 0; color: #6b675f; background: none; text-decoration: underline; cursor: pointer; }.ttr-waiting-copy { color: #716b5e; line-height: 1.55; }.ttr-waiting-train { width: 70px; height: 70px; margin-bottom: 14px; color: #b34238; }.ttr-ready-list { display: grid; gap: 8px; margin-top: 24px; text-align: left; }.ttr-ready-list span { padding: 12px; display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; border-radius: 7px; background: #ebe3ce; }.ttr-ready-list i { width: 10px; height: 10px; border-radius: 50%; }.ttr-ready-list b { color: #8f6742; font-size: .75rem; }.ttr-ready-list .ready b { color: #397c50; }
+.ttr-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }.ttr-waiting-train { width: 70px; height: 70px; margin-bottom: 14px; color: #b34238; }.ttr-ready-list { display: grid; gap: 8px; margin-top: 24px; text-align: left; }.ttr-ready-list span { padding: 12px; display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; border-radius: 7px; background: #ebe3ce; }.ttr-ready-list i { width: 10px; height: 10px; border-radius: 50%; }.ttr-ready-list b { color: #8f6742; font-size: .75rem; }.ttr-ready-list .ready b { color: #397c50; }
 
 /* ── The table ───────────────────────────────────────────────────────────────
  * One screen, no page scroll: the map, both side panels and the player's own
@@ -93,7 +77,6 @@
   color: #e9e5d6;
   background: linear-gradient(145deg, #132e3c, #0c202b);
 }
-.ttr-table-header { flex: none; width: 100%; max-width: 1600px; margin: 0 auto; display: flex; align-items: center; gap: 18px; }.ttr-table-header h1 { margin: 0; font: 700 1.8rem var(--font-display); color: #fff4d7; }.ttr-table-header .ttr-kicker { color: #b59a5d; margin: 0; }.ttr-turn-pill { margin-left: auto; padding: 9px 14px; display: flex; gap: 8px; align-items: center; border: 1px solid #ffffff1f; border-radius: 999px; color: #c9d0c9; background: #ffffff0b; font-size: .83rem; font-weight: 750; }.ttr-turn-pill.mine { color: #fff6dc; border-color: #dfbd6780; background: #bd8f302b; }.ttr-turn-pill span { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 3px #ffffff18; }.ttr-room-code, .ttr-leave-room { padding: 9px 12px; display: flex; gap: 7px; align-items: center; border: 1px solid #ffffff22; border-radius: 6px; color: #d9d6c9; background: #ffffff0b; font-size: .75rem; font-weight: 850; cursor: pointer; }.ttr-room-code { letter-spacing: .12em; }.ttr-leave-room:hover { color: #ffe8df; border-color: #d36e62; background: #a13c352e; }
 .ttr-error, .ttr-final-round { flex: none; width: 100%; max-width: 1600px; margin: 0 auto; padding: 9px 12px; border-radius: 6px; text-align: center; font-size: .82rem; }.ttr-error { color: #ffe4dd; background: #a63833; }.ttr-final-round { color: #37290d; background: #e8bd57; font-weight: 900; }
 .ttr-table-grid { flex: 1; min-height: 0; width: 100%; max-width: 1600px; margin: auto; display: grid; grid-template-columns: 240px minmax(0, 1fr) 265px; gap: 12px; align-items: stretch; }
 .ttr-players-panel, .ttr-market-panel { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -161,7 +144,6 @@
 
 /* Clear of the hand strip: the cards you are choosing to spend are in it. */
 .ttr-claim-panel { position: fixed; z-index: 70; right: 18px; bottom: 148px; width: min(410px, calc(100% - 36px)); padding: 22px; border: 1px solid #c0a86d; border-radius: 10px; color: #27383c; background: #f2ead7; box-shadow: 0 25px 60px #07141dbb; }.ttr-claim-panel h2 { margin: 0; font: 700 1.35rem var(--font-ui); }.ttr-close { position: absolute; top: 8px; right: 10px; border: 0; color: #526269; background: none; font-size: 1.8rem; cursor: pointer; }.ttr-claim-facts { margin: 13px 0; display: flex; gap: 6px; flex-wrap: wrap; }.ttr-claim-facts span { padding: 5px 8px; display: flex; gap: 5px; align-items: center; border-radius: 999px; color: #5c574b; background: #ddd1b5; font-size: .68rem; font-weight: 800; }.ttr-claim-panel p:not(.ttr-kicker) { color: #6f695b; font-size: .78rem; }.ttr-payment-options { display: flex; flex-wrap: wrap; gap: 7px; }.ttr-payment-options button { padding: 8px 11px; display: flex; gap: 7px; align-items: center; border: 1px solid #a99d80; border-radius: 6px; background: #fffaf0; font-weight: 800; cursor: pointer; }.ttr-payment-options i { width: 15px; height: 15px; border: 2px solid #fff8; border-radius: 50%; background: var(--pay-color); box-shadow: 0 0 0 1px #0003; }.ttr-cannot-claim { padding: 10px; border-radius: 6px; color: #8d302a !important; background: #ead1c8; }
-.ttr-overlay { position: fixed; z-index: 100; inset: 0; padding: 20px; display: grid; place-items: center; overflow-y: auto; background: #071922db; backdrop-filter: blur(5px); }.ttr-final-card { width: min(760px, 100%); padding: 34px; border: 1px solid #bba265; border-radius: 12px; color: #27363a; background: #f5edd9; box-shadow: 0 30px 90px #000a; text-align: center; }.ttr-final-card > svg { width: 55px; height: 55px; color: #c09031; }.ttr-score-table { margin: 25px 0 14px; border: 1px solid #cbbd9d; border-radius: 7px; overflow: hidden; text-align: left; }.ttr-score-table > div { min-height: 44px; padding: 8px 12px; display: grid; grid-template-columns: 1.5fr repeat(4, .65fr); gap: 8px; align-items: center; border-bottom: 1px solid #d7ccb4; font-size: .75rem; }.ttr-score-table > div:last-child { border: 0; }.ttr-score-table .heading { color: #776e5c; background: #e4d8bc; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; }.ttr-score-table .winner { background: #e8dfb2; }.ttr-score-table span:first-child { display: flex; gap: 7px; align-items: center; font-weight: 800; }.ttr-score-table i { width: 10px; height: 10px; border-radius: 50%; }.ttr-score-table strong { color: #a13b33; font-size: 1rem; }.ttr-final-note { color: #766f60; font-size: .72rem; line-height: 1.5; }.ttr-final-leave { min-height: 42px; padding: 9px 18px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #9f8c69; border-radius: 6px; color: #594f43; background: #eee2c9; font-weight: 800; cursor: pointer; }.ttr-final-leave:hover { color: var(--ttr-white); border-color: #9f3b34; background: #a9443b; }
 
 @media (max-width: 1100px) {
   /* The market becomes a strip across the bottom of the grid: an auto row under
@@ -172,17 +154,15 @@
      out of the cards, which left them 27px wide and unclickable at 800px. */
   .ttr-table-grid { grid-template-columns: 190px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }.ttr-market-panel { grid-column: 1 / -1; overflow: visible; display: grid; grid-template-columns: minmax(0, 110px) minmax(235px, 1fr) 165px minmax(150px, 1.6fr); gap: 12px; align-items: center; }.ttr-panel-heading { flex-wrap: wrap; gap: 2px 8px; }.ttr-face-up { max-width: 320px; margin: 0; }.ttr-ticket-deck { margin: 0; }.ttr-log { margin: 0; padding: 0 0 0 12px; border: 0; border-left: 1px solid #ffffff18; }.ttr-log p:nth-of-type(n+3) { display: none; }
 }
-@media (max-width: 760px) {
-  .ttr-hero { grid-template-columns: 1fr; }.ttr-hero-copy { padding: 48px 24px 30px; }.ttr-hero-art { min-height: 260px; }.ttr-big-train { width: 130px; height: 130px; }.ttr-station-card { margin-top: 0; grid-template-columns: 1fr; border-radius: 0; }.ttr-or { grid-column: 1; }.ttr-landing { padding-bottom: 20px; }
-  .ttr-code-display { display: grid; justify-content: center; gap: 6px; }.ttr-code-display > span { font-size: 1.6rem; }
+@media (max-width: 760px) {.ttr-hero-art { min-height: 260px; }.ttr-big-train { width: 130px; height: 130px; }
   /* Phones go back to a scrolling page: a whole table will not fit one screen,
      and squeezing it in makes every card unreadable. What does not come back is
      the map eating the scroll — see the map's own phone rules at the end of
      this file, where they can win against the board section. */
-  .ttr-game-shell { height: auto; min-height: calc(100vh - var(--header-h) - 1px); min-height: calc(100dvh - var(--header-h) - 1px); display: block; padding: 10px; overflow: visible; }.ttr-table-header { flex-wrap: wrap; margin-bottom: 10px; }.ttr-turn-pill { order: 3; width: 100%; margin: 0; justify-content: center; }.ttr-table-grid { display: flex; flex-direction: column; }.ttr-board-card { order: 1; width: 100%; }
+  .ttr-game-shell { height: auto; min-height: calc(100vh - var(--header-h) - 1px); min-height: calc(100dvh - var(--header-h) - 1px); display: block; padding: 10px; overflow: visible; }.ttr-table-grid { display: flex; flex-direction: column; }.ttr-board-card { order: 1; width: 100%; }
   .ttr-players-panel, .ttr-market-panel { overflow: visible; }
   .ttr-hand-panel { margin-top: 10px; display: block; }.ttr-hand-tickets { margin-top: 12px; padding: 12px 0 0; border-left: 0; border-top: 1px solid #ffffff17; }.ttr-ticket-list { max-height: none; overflow: visible; }
-  .ttr-claim-panel { bottom: 14px; }.ttr-legend-key { width: 100%; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }.ttr-score-table { overflow-x: auto; }.ttr-score-table > div { min-width: 570px; }
+  .ttr-claim-panel { bottom: 14px; }.ttr-legend-key { width: 100%; }.ttr-players-panel { order: 2; width: 100%; }.ttr-market-panel { order: 3; width: 100%; display: grid; grid-template-columns: 1fr; }.ttr-face-up { max-width: 380px; }.ttr-log { padding: 10px 0 0; border-left: 0; border-top: 1px solid #ffffff18; }
 }
 
 /* ── Board ────────────────────────────────────────────────────────────────────
@@ -613,22 +593,7 @@
   font-family: var(--font-ui);
   background: linear-gradient(145deg, #132e3c, #0c202b);
 }
-
-.ttr-picker-header {
-  flex: none;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  align-items: center;
-}
-
-.ttr-picker-header h1 { margin: 0; font: 700 1.7rem var(--font-display); color: #fff4d7; }
-.ttr-picker-header .ttr-kicker { margin: 0 0 2px; color: #b59a5d; }
 .ttr-picker-sub { max-width: 620px; margin: 0; color: #a9b6b3; font-size: .78rem; line-height: 1.5; }
-.ttr-picker-leave { margin: 0 0 0 auto; display: inline-flex; gap: 6px; align-items: center; color: #b3bfbc; }
 
 .ttr-picker-grid {
   flex: 1;
@@ -751,9 +716,7 @@
      its own height at the top of it rather than being squeezed into a third of
      a screen it shares with three tickets. */
   .ttr-picker-shell { height: auto; min-height: 0; display: block; padding: 10px; overflow: visible; }
-  .ttr-picker-header { margin-bottom: 10px; }
   .ttr-picker-sub { font-size: .74rem; }
-  .ttr-picker-leave { margin-left: 0; }
   /* The table's phone rules give every board card `order: 1` to lift it above
      the panels it shares a column with; here the board is already first and
      that would sink it below the tickets. */
@@ -774,3 +737,5 @@
   .ttr-dock-tickets .ttr-choice-route strong { font-size: .78rem; }
   .ttr-dock-actions { margin-top: 9px; }
 }
+
+.ticket-to-ride-theme .ttr-hero-art { position: absolute; inset: 0; min-height: 0; opacity: 0.8; }

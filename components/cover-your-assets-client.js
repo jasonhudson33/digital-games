@@ -3,20 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bot,
-  Check,
-  CircleHelp,
   Coins,
-  Copy,
   Crown,
   HandCoins,
   Landmark,
-  LogOut,
-  Plus,
   ShieldCheck,
   Sparkles,
   Swords,
   Users,
-  X,
 } from "lucide-react";
 import { CoverYourAssetsRoomService } from "./cover-your-assets-room-service";
 import {
@@ -35,6 +29,7 @@ import {
   topSet,
 } from "../lib/cover-your-assets";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results } from "./ui/table-shell";
 
 /** Opponents' hands are not sent, only a count. */
 const handSize = (player) => player.handCount ?? player.hand.length;
@@ -91,20 +86,39 @@ export default function CoverYourAssetsClient() {
   const me = room?.players.find((player) => player.id === playerId) ?? null;
 
   if (!room || !me) {
-    return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
+    return <SharedLanding
+      gameName="Cover Your Assets"
+      theme="tbl-light cya-theme"
+      hero={<Hero
+        kicker="A game of fortunes & friendly theft"
+        title={<>Build your fortune.<br /><em>Then cover it.</em></>}
+        copy="Pair valuable assets, stack them high, and swipe the exposed fortunes your rivals forgot to protect."
+        badges={[{ icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} players` }, { icon: Bot, label: "Computer seats" }, { icon: Crown, label: "First to $1M" }]}
+        artLayout="free"
+        art={<div className="cya-hero-stack"><div /><div /><div /><span><ShieldCheck /> COVERED</span></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <SharedLobby
+      gameName="Cover Your Assets"
+      theme="tbl-light cya-theme"
       room={room}
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => act("addComputer")}
-      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      min={MIN_PLAYERS}
+      max={MAX_PLAYERS}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
       onStart={() => act("start")}
       onLeave={leaveRoom}
-      setShowRules={setShowRules}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
     />;
   }
 
@@ -122,16 +136,14 @@ export default function CoverYourAssetsClient() {
       : current.length < 2 ? [...current, cardId] : [cardId]);
   }
 
-  return <main className="cya-game-shell">
-    <header className="cya-table-header">
-      <div><p className="cya-kicker">Private room · round {room.round}</p><h1>Cover Your Assets</h1></div>
-      <div className={`cya-turn-pill ${myTurn || myChallengeTurn ? "mine" : ""}`}>
-        {computerThinking ? <><Bot /> {computerToAct?.name} is thinking…</> : myChallengeTurn ? <><Swords /> Your counter</> : myTurn ? <><HandCoins /> Your turn</> : <><Coins /> {active?.name}&apos;s turn</>}
-      </div>
-      <button className="cya-icon-button" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button className="cya-icon-button" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="cya-icon-button" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="cya-game-shell tbl-light cya-theme">
+    <GameHeader
+      title="Cover Your Assets"
+      room={room}
+      status={computerThinking ? `${computerToAct?.name} is thinking…` : myChallengeTurn ? "Your counter" : myTurn ? "Your turn" : `${active?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
 
     {error && <p className="cya-error" role="alert">{error}</p>}
     {room.pendingChallenge && <ChallengeBanner room={room} me={me} busy={busy} selected={selected} toggleCard={toggleCard} onPlay={(cardId) => act("challengeCard", { cardId })} onYield={() => act("yield")} />}
@@ -187,42 +199,6 @@ export default function CoverYourAssetsClient() {
   </main>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="cya-landing">
-    <section className="cya-hero">
-      <div className="cya-hero-copy"><p className="cya-kicker">A game of fortunes & friendly theft</p><h1>Build your fortune.<br /><em>Then cover it.</em></h1><p>Pair valuable assets, stack them high, and swipe the exposed fortunes your rivals forgot to protect.</p><div className="cya-facts"><span><Users /> 2–6 players</span><span><Bot /> Computer seats</span><span><Crown /> First to $1M</span></div></div>
-      <div className="cya-hero-stack" aria-hidden="true"><div /><div /><div /><span><ShieldCheck /> COVERED</span></div>
-    </section>
-    <section className="cya-entry-card">
-      <div><p className="cya-kicker">Open the vault</p><h2>Join a private table</h2><p>Create a room for friends, then fill any open chairs with computer players.</p></div>
-      <label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label>
-      <button className="cya-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button>
-      <div className="cya-or"><span>or join a game</span></div>
-      <div className="cya-join">
-        <label htmlFor="cya-room-code">Room code</label>
-        <input id="cya-room-code" aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} placeholder="ROOM CODE" />
-        <button type="button" disabled={busy} onClick={joinRoom}>Join game</button>
-      </div>
-      <button className="cya-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Read the rules</button>
-      {error && <p className="cya-form-error">{error}</p>}
-    </section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  const canStart = room.players.length >= MIN_PLAYERS && room.players.length <= MAX_PLAYERS;
-  return <main className="cya-lobby"><section className="cya-lobby-card">
-    <div className="cya-lobby-heading"><div><p className="cya-kicker">Your vault is ready</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Share the code, add computer rivals, then start when everyone is seated.</p></div><button className="cya-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button></div>
-    <div className="cya-seat-grid">{room.players.map((player, index) => <div className="cya-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer rival" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}</div>
-    {isHost && room.players.length < MAX_PLAYERS && <button className="cya-add-computer" disabled={busy} onClick={onAddComputer}><Bot /> Add computer rival</button>}
-    <div className={`cya-ready-note ${canStart ? "ready" : ""}`}><strong>{room.players.length} / {MAX_PLAYERS} seats</strong><span>{canStart ? "The table is ready to play" : "Add at least one rival"}</span></div>
-    {isHost ? <button className="cya-primary cya-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="cya-waiting">Waiting for {room.players[0].name} to deal…</p>}
-    <button className="cya-quiet" onClick={onLeave}>Leave room</button>{error && <p className="cya-form-error">{error}</p>}
-  </section></main>;
-}
-
 function PlayerVault({ room, player, isMe, active, canAttack, attackCard, onAttack }) {
   const exposed = topSet(player);
   const visibleSets = player.stack.slice(-2);
@@ -260,12 +236,34 @@ function CardFace({ card, back = false, compact = false }) {
 }
 
 function RulesModal({ onClose }) {
-  return <div className="cya-overlay" role="dialog" aria-modal="true"><section className="cya-rules-modal"><button className="cya-modal-close" onClick={onClose}><X /></button><p className="cya-kicker">Classic rules</p><h1>How to cover your assets</h1><div className="cya-rules-grid"><article><b>1</b><h2>Make a pair</h2><p>Bank two matching assets, or one asset plus a Silver or Gold Wild. You may also pair the top discard with its match from your hand.</p></article><article><b>2</b><h2>Cover the stack</h2><p>Every new set goes on top. Your first “nest egg” is always safe; only an exposed top set above it can be stolen.</p></article><article><b>3</b><h2>Challenge</h2><p>Play a matching asset or Wild against a rival&apos;s exposed set. Take turns countering. The last player to play a card wins the growing set.</p></article><article><b>4</b><h2>Make a million</h2><p>All players refill their hands after each turn. Score every banked card when the deck and hands run out. First past $1,000,000 wins.</p></article></div><div className="cya-rules-notes"><p><strong>On your turn:</strong> bank a pair, take the top discard with a matching hand card, challenge, or discard one card.</p><p><strong>Challenges:</strong> you need a nest egg; your rival needs at least two sets. Discard-pile cards cannot start a challenge.</p><p><strong>Table size:</strong> 2–3 players receive five cards; 4–6 players receive four.</p></div><a className="cya-official-link" href="https://www.grandpabecksgames.com/pages/cover-your-assets-24" target="_blank" rel="noreferrer">Read the publisher&apos;s rulebook</a><button className="cya-primary" onClick={onClose}>Ready to play</button></section></div>;
+  return <ChoiceModal wide title="How to cover your assets" text="Classic rules." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Make a pair</b><p>Bank two matching assets, or one asset plus a Silver or Gold Wild. You may also pair the top discard with its match from your hand.</p></article>
+      <article><b>Cover the stack</b><p>Every new set goes on top. Your first “nest egg” is always safe; only an exposed top set above it can be stolen.</p></article>
+      <article><b>Challenge</b><p>Play a matching asset or Wild against a rival&apos;s exposed set. Take turns countering. The last player to play a card wins the growing set.</p></article>
+      <article><b>Make a million</b><p>All players refill their hands after each turn. Score every banked card when the deck and hands run out. First past $1,000,000 wins.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Also</p>
+    <div className="tbl-rule-grid">
+      <article><b>On your turn</b><p>Bank a pair, take the top discard with a matching hand card, challenge, or discard one card.</p></article>
+      <article><b>Challenges</b><p>You need a nest egg; your rival needs at least two sets. Discard-pile cards cannot start a challenge.</p></article>
+      <article><b>Table size</b><p>2–3 players receive five cards; 4–6 players receive four.</p></article>
+    </div>
+    <a className="tbl-link" href="https://www.grandpabecksgames.com/pages/cover-your-assets-24" target="_blank" rel="noreferrer">Read the publisher&apos;s rulebook</a>
+  </ChoiceModal>;
 }
 
 function RoundModal({ room, me, busy, onNext, onLeave }) {
   const ranked = [...room.players].sort((a, b) => (room.roundScores[b.id] || 0) - (room.roundScores[a.id] || 0));
   const winner = room.players.find((player) => player.id === room.winnerId);
   const isHost = room.hostId === me.id;
-  return <div className="cya-overlay"><section className="cya-round-modal"><span className="cya-winner-mark">{winner ? <Crown /> : <Coins />}</span><p className="cya-kicker">{winner ? "Match complete" : `Round ${room.round} complete`}</p><h1>{winner ? winner.id === me.id ? "You made your million!" : `${winner.name} made a million` : `${ranked[0].name} won the round`}</h1><div className="cya-round-scores">{ranked.map((player, index) => <div key={player.id}><span>{index + 1}</span><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><b>+{formatMoney(room.roundScores[player.id])}</b><small>{formatMoney(player.score)} total</small></div>)}</div>{!winner && isHost && <button className="cya-primary" disabled={busy} onClick={onNext}><Sparkles /> Deal round {room.round + 1}</button>}{!winner && !isHost && <p className="cya-waiting">Waiting for {room.players[0].name} to deal the next round…</p>}<button className="cya-quiet" onClick={onLeave}>{winner ? "Back to Cover Your Assets" : "Leave table"}</button></section></div>;
+  return <Results
+    title={winner ? winner.id === me.id ? "You made your million!" : `${winner.name} made a million` : `${ranked[0].name} won the round`}
+    text={winner ? "Match complete" : `Round ${room.round} complete`}
+    rows={ranked.map((player) => ({ id: player.id, name: `${player.name}${player.id === me.id ? " (you)" : ""}`, value: `+${formatMoney(room.roundScores[player.id])}`, note: `${formatMoney(player.score)} total` }))}
+  >
+    {!winner && isHost && <button type="button" className="tbl-primary" disabled={busy} onClick={onNext}><Sparkles aria-hidden="true" /> Deal round {room.round + 1}</button>}
+    {!winner && !isHost && <p className="tbl-wait">Waiting for {room.players[0].name} to deal the next round…</p>}
+    <button type="button" className="tbl-link" onClick={onLeave}>{winner ? "Back to Cover Your Assets" : "Leave table"}</button>
+  </Results>;
 }

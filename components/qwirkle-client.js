@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Check, CircleHelp, Copy, Crown, LogOut, Plus, RotateCcw, Sparkles, Trash2, Users, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { QwirkleRoomService } from "./qwirkle-room-service";
 import {
   QWIRKLE_COLOR_INFO,
@@ -14,6 +22,7 @@ import {
   validateMove,
 } from "../lib/qwirkle";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
 /** Opponents' racks are not sent, only a count. */
 const rackSize = (player) => player.handCount ?? player.hand.length;
@@ -62,8 +71,41 @@ export default function QwirkleClient() {
     setSelectedTileId(null);
   }
 
-  if (!room || !me) return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} setShowRules={setShowRules} />;
+  if (!room || !me) {
+    return <Landing
+      gameName="Qwirkle"
+      theme="tbl-light qwirkle-theme"
+      hero={<Hero
+        kicker="Color. Shape. Strategy."
+        title={<>Find the match.<br /><em>Build the line.</em></>}
+        copy="Turn a handful of bold tiles into clever crossings, long lines, and the perfect six-piece Qwirkle."
+        badges={[{ icon: Users, label: "2–4 players" }, { icon: Bot, label: "Computer seats" }, { icon: Sparkles, label: "Room play" }]}
+        artLayout="free"
+        art={<div className="qwirkle-hero-grid">{SHOWCASE.map((tile, index) => <span key={index} style={{ "--x": index < 3 ? index : 2, "--y": index < 3 ? 1 : index - 1 }}><Tile tile={tile} /></span>)}</div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <Lobby
+      gameName="Qwirkle"
+      theme="tbl-light qwirkle-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={4}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const myTurn = room.phase === "playing" && activePlayer?.id === playerId;
   const bounds = displayedBounds(room, staged);
@@ -110,14 +152,15 @@ export default function QwirkleClient() {
     await act("exchange", { tileIds: ids });
   }
 
-  return <main className="qwirkle-game-shell">
-    <header className="qwirkle-table-header">
-      <div><p className="qwirkle-kicker">Room {room.roomCode}</p><h1><QwirkleMark /> Qwirkle</h1></div>
-      <div className={`qwirkle-turn ${myTurn ? "mine" : ""}`}>{activePlayer?.isComputer ? <Bot /> : <span style={{ background: activePlayer?.color }} />}{room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : thinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}</div>
-      <button onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="qwirkle-game-shell tbl-light qwirkle-theme">
+    <GameHeader
+      title="Qwirkle"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "finished" ? "Game complete" : myTurn ? "Your turn" : thinking ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
     {error && <p className="qwirkle-error" role="alert">{error}</p>}
     <div className="qwirkle-layout">
       <aside className="qwirkle-sidebar">
@@ -154,32 +197,40 @@ export default function QwirkleClient() {
   </main>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  const showcase = [
-    { color: "red", shape: "circle" }, { color: "red", shape: "star" }, { color: "red", shape: "diamond" },
-    { color: "blue", shape: "diamond" }, { color: "yellow", shape: "diamond" }, { color: "green", shape: "diamond" },
-  ];
-  return <main className="qwirkle-landing">
-    <section className="qwirkle-hero"><div className="qwirkle-hero-grid">{showcase.map((tile, index) => <span key={index} style={{ "--x": index < 3 ? index : 2, "--y": index < 3 ? 1 : index - 1 }}><Tile tile={tile} /></span>)}</div><div className="qwirkle-hero-copy"><p className="qwirkle-kicker">Color. Shape. Strategy.</p><h1>Find the match.<br /><em>Build the line.</em></h1><p>Turn a handful of bold tiles into clever crossings, long lines, and the perfect six-piece Qwirkle.</p><div><span><Users /> 2–4 players</span><span><Bot /> Computer seats</span><span><Sparkles /> Room play</span></div></div></section>
-    <section className="qwirkle-entry"><QwirkleMark /><p className="qwirkle-kicker">Pull up a tile</p><h2>Join the table</h2><p>Create a private room or enter the code from your host.</p><label>Your name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label><button className="qwirkle-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button><div className="qwirkle-divider"><span>or</span></div><div className="qwirkle-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div><button className="qwirkle-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>{error && <p className="qwirkle-form-error">{error}</p>}</section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  return <main className="qwirkle-lobby"><section className="qwirkle-lobby-card"><QwirkleMark /><p className="qwirkle-kicker">Your table is ready</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Invite friends or fill the open seats with computer players.</p><div className="qwirkle-seats">{Array.from({ length: 4 }, (_, index) => { const player = room.players[index]; return player ? <div key={player.id} style={{ "--player": player.color }}><span>{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span><p><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer" : "Human"}</small></p>{player.isComputer && isHost ? <button onClick={() => onRemoveComputer(player.id)} aria-label={`Remove ${player.name}`}><X /></button> : <Check />}</div> : <div className="empty" key={`empty-${index}`}><span>+</span><p><strong>Open seat</strong><small>Invite a player</small></p></div>; })}</div>{isHost && room.players.length < 4 && <button className="qwirkle-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer player</button>}<div className="qwirkle-lobby-actions">{isHost ? <button className="qwirkle-primary" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Start game</button> : <p>Waiting for {room.players[0].name} to start…</p>}<button onClick={() => setShowRules(true)}><CircleHelp /> Rules</button><button onClick={onLeave}><LogOut /> Leave</button></div>{error && <p className="qwirkle-form-error">{error}</p>}</section></main>;
-}
+const SHOWCASE = [
+  { color: "red", shape: "circle" }, { color: "red", shape: "star" }, { color: "red", shape: "diamond" },
+  { color: "blue", shape: "diamond" }, { color: "yellow", shape: "diamond" }, { color: "green", shape: "diamond" },
+];
 
 function RulesModal({ onClose }) {
-  return <div className="qwirkle-overlay" role="dialog" aria-modal="true"><section className="qwirkle-rules"><button className="qwirkle-close" onClick={onClose}><X /></button><p className="qwirkle-kicker">Official classic rules</p><h1>How to play Qwirkle</h1><div className="qwirkle-rules-grid"><article><b>1</b><h2>Match one trait</h2><p>Build a line of one color with different shapes, or one shape with different colors. Exact duplicates cannot share a line.</p></article><article><b>2</b><h2>Play one line</h2><p>Place one or more tiles in a single row or column. Every new line must connect to the existing grid, and no line can exceed six.</p></article><article><b>3</b><h2>Score every line</h2><p>Count every tile in each line you create or extend. A crossing tile can score both its horizontal and vertical lines.</p></article><article><b>4</b><h2>Call Qwirkle</h2><p>Complete a six-tile line to score its six points plus a six-point bonus. Empty your rack after the bag runs out for another six.</p></article></div><div className="qwirkle-rules-notes"><p><strong>Opening:</strong> The player with the largest same-color or same-shape set goes first and plays that set.</p><p><strong>Exchange:</strong> Instead of placing, exchange one or more tiles when the bag contains enough replacements. You score nothing that turn.</p><p><strong>Finish:</strong> The game ends immediately when the bag is empty and a player places their last tile. Highest score wins.</p></div><a href="https://www.mindware.orientaltrading.com/pdf/instructions/32016.pdf" target="_blank" rel="noreferrer">Read the publisher’s complete rules</a><button className="qwirkle-primary" onClick={onClose}>Ready to play</button></section></div>;
+  return <ChoiceModal wide title="How to play Qwirkle" text="Official classic rules." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Match one trait</b><p>Build a line of one color with different shapes, or one shape with different colors. Exact duplicates cannot share a line.</p></article>
+      <article><b>Play one line</b><p>Place one or more tiles in a single row or column. Every new line must connect to the existing grid, and no line can exceed six.</p></article>
+      <article><b>Score every line</b><p>Count every tile in each line you create or extend. A crossing tile can score both its horizontal and vertical lines.</p></article>
+      <article><b>Call Qwirkle</b><p>Complete a six-tile line to score its six points plus a six-point bonus. Empty your rack after the bag runs out for another six.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Also</p>
+    <div className="tbl-rule-grid">
+      <article><b>Opening</b><p>The player with the largest same-color or same-shape set goes first and plays that set.</p></article>
+      <article><b>Exchange</b><p>Instead of placing, exchange one or more tiles when the bag contains enough replacements. You score nothing that turn.</p></article>
+      <article><b>Finish</b><p>The game ends immediately when the bag is empty and a player places their last tile. Highest score wins.</p></article>
+    </div>
+    <a className="tbl-link" href="https://www.mindware.orientaltrading.com/pdf/instructions/32016.pdf" target="_blank" rel="noreferrer">Read the publisher’s complete rules</a>
+  </ChoiceModal>;
 }
 
 function FinishedModal({ room, me, onLeave }) {
   const won = room.winners.includes(me.id);
   const winners = room.players.filter((player) => room.winners.includes(player.id));
   const bestScore = Math.max(...winners.map((player) => player.score));
-  return <div className="qwirkle-overlay"><section className="qwirkle-finished"><span><Crown /></span><p className="qwirkle-kicker">The bag is empty</p><h1>{won ? room.winners.length > 1 ? "You share the win!" : "You win!" : `${winners.map((player) => player.name).join(" and ")} ${winners.length === 1 ? "wins" : "win"}`}</h1><p>The winning score is <strong>{bestScore} points</strong>.</p><div>{[...room.players].sort((a, b) => b.score - a.score).map((player, index) => <p key={player.id}><b>{index + 1}</b><span>{player.name}</span><strong>{player.score}</strong></p>)}</div><button className="qwirkle-primary" onClick={onLeave}>Back to Qwirkle</button></section></div>;
+  return <Results
+    title={won ? room.winners.length > 1 ? "You share the win!" : "You win!" : `${winners.map((player) => player.name).join(" and ")} ${winners.length === 1 ? "wins" : "win"}`}
+    text={`The bag is empty. The winning score is ${bestScore} points.`}
+    rows={[...room.players].sort((a, b) => b.score - a.score).map((player) => ({ id: player.id, name: `${player.name}${player.id === me.id ? " (you)" : ""}`, value: `${player.score}` }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Back to Qwirkle</button>
+  </Results>;
 }
 
 function Tile({ tile, back = false }) {

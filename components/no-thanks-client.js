@@ -4,17 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Ban,
   Bot,
-  CircleHelp,
   Coins,
-  Copy,
-  DoorOpen,
   Hand,
-  LogOut,
-  Plus,
-  Sparkles,
   Trophy,
   Users,
-  X,
 } from "lucide-react";
 import { NoThanksRoomService } from "./no-thanks-room-service";
 import {
@@ -27,6 +20,7 @@ import {
   groupRuns,
 } from "../lib/no-thanks";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
 export default function NoThanksClient() {
   const {
@@ -73,33 +67,42 @@ export default function NoThanksClient() {
   const me = room?.players.find((player) => player.id === playerId) ?? null;
 
   if (!room || !me) {
-    return <Landing {...{
-      name,
-      setName,
-      joinCode,
-      setJoinCode,
-      createRoom,
-      joinRoom,
-      busy,
-      error,
-      showRules,
-      setShowRules,
-    }} />;
+    return <Landing
+      gameName="No Thanks!"
+      theme="tbl-light no-thanks-theme"
+      hero={<Hero
+        kicker="The delightfully mean card game"
+        title={<>No.<br /><em>Thanks!</em></>}
+        copy="Cards are points. Points are bad. Pay a chip to pass—or take the number and every chip piled on it."
+        badges={[
+          { icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} seats` },
+          { icon: Bot, label: "Computer players" },
+          { icon: Trophy, label: "Lowest score wins" },
+        ]}
+        art={[<NumberCard key="a" value={35} />, <span key="b" className="nt-hero-chip">☺</span>, <NumberCard key="c" value={8} />]}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
   }
 
   if (room.phase === "lobby") {
     return <Lobby
+      gameName="No Thanks!"
+      theme="tbl-light no-thanks-theme"
       room={room}
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => act("addComputer")}
-      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      min={MIN_PLAYERS}
+      max={MAX_PLAYERS}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
       onStart={() => act("start")}
       onLeave={leaveRoom}
       onRules={() => setShowRules(true)}
-      showRules={showRules}
-      setShowRules={setShowRules}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
     />;
   }
 
@@ -114,14 +117,8 @@ export default function NoThanksClient() {
         : "No chips left—you must take the card."
       : `${active?.name}'s choice`;
 
-  return <main className="nt-game-shell">
-    <header className="nt-game-header">
-      <div className="nt-brand-lockup"><span>NO</span><div><p>Single-round game</p><h1>Thanks!</h1></div></div>
-      {room.phase === "playing" && <div className={`nt-turn-callout ${myTurn ? "mine" : ""}`}><Hand /> {statusMessage}</div>}
-      <button className="nt-header-button" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button className="nt-header-button" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="nt-header-button" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="nt-game-shell tbl-light no-thanks-theme">
+    <GameHeader title="No Thanks!" room={room} subtitle="Single-round game" status={room.phase === "playing" ? statusMessage : "Game over"} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
 
     {error && <p className="nt-error" role="alert">{error}</p>}
 
@@ -210,63 +207,32 @@ function NumberCard({ value, large = false, tucked = false }) {
   </div>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="nt-landing">
-    <section className="nt-hero">
-      <div className="nt-hero-copy"><p className="nt-kicker">The delightfully mean card game</p><h1>No.<br /><em>Thanks!</em></h1><p>Cards are points. Points are bad. Pay a chip to pass—or take the number and every chip piled on it.</p><div className="nt-facts"><span><Users /> 3–7 seats</span><span><Bot /> Computer players</span><span><Trophy /> Lowest score wins</span></div></div>
-      <div className="nt-hero-art" aria-hidden="true"><NumberCard value={35} /><span className="nt-hero-chip">☺</span><NumberCard value={8} /></div>
-    </section>
-    <section className="nt-entry-card">
-      <div><p className="nt-kicker">Find your table</p><h2>Start a private room</h2><p>Invite friends with a five-character code and add computer players whenever you need them.</p></div>
-      <label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label>
-      <button className="nt-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button>
-      <div className="nt-or"><span>or join one</span></div>
-      <div className="nt-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div>
-      <button className="nt-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>
-      {error && <p className="nt-form-error" role="alert">{error}</p>}
-    </section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave, onRules, showRules, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  const canStart = room.players.length >= MIN_PLAYERS;
-  return <main className="nt-lobby"><section className="nt-lobby-card">
-    <header><div><p className="nt-kicker">The table is open</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Share the code, add computer players, then start with 3–7 seats.</p></div><button className="nt-rules-link" onClick={onRules}><CircleHelp /> Rules</button></header>
-    <div className="nt-seats">{room.players.map((player, index) => <div className="nt-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer player" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Sparkles />}</div>)}</div>
-    {isHost && room.players.length < MAX_PLAYERS && <button className="nt-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer player</button>}
-    <div className={`nt-ready ${canStart ? "yes" : ""}`}><span>{room.players.length} / {MAX_PLAYERS} seats</span><strong>{canStart ? "Ready to decline" : `Add ${MIN_PLAYERS - room.players.length} more player${MIN_PLAYERS - room.players.length === 1 ? "" : "s"}`}</strong></div>
-    {isHost ? <button className="nt-primary nt-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="nt-waiting">Waiting for {room.players[0].name} to start…</p>}
-    <button className="nt-leave" onClick={onLeave}><DoorOpen /> Leave room</button>
-    {error && <p className="nt-form-error">{error}</p>}
-  </section>{showRules && <RulesModal onClose={() => setShowRules(false)} />}</main>;
-}
-
 function RulesModal({ onClose }) {
-  return <div className="nt-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="nt-rules-modal" role="dialog" aria-modal="true" aria-labelledby="no-thanks-rules-title">
-    <button className="nt-modal-close" onClick={onClose} aria-label="Close rules"><X /></button>
-    <p className="nt-kicker">Official rules, one digital round</p><h2 id="no-thanks-rules-title">Points are bad. Chips are good.</h2>
-    <div className="nt-rule-grid">
-      <article><span>1</span><div><strong>Nine cards disappear</strong><p>Cards 3–35 are shuffled and nine are removed unseen. The other 24 make the draw pile.</p></div></article>
-      <article><span>2</span><div><strong>Take it or pass</strong><p>Take the face-up card and its chips, or pay one chip to pass the choice left. With no chips, you must take.</p></div></article>
-      <article><span>3</span><div><strong>Taking keeps your turn</strong><p>Reveal the next card and choose again. Your collected cards stay face-up; your chip count stays secret.</p></div></article>
-      <article><span>4</span><div><strong>Lowest score wins</strong><p>Count only the lowest card in each consecutive run, then subtract one point for every chip you hold.</p></div></article>
+  return <ChoiceModal wide title="Points are bad. Chips are good." text="Official rules, one digital round." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Nine cards disappear</b><p>Cards 3–35 are shuffled and nine are removed unseen. The other 24 make the draw pile.</p></article>
+      <article><b>Take it or pass</b><p>Take the face-up card and its chips, or pay one chip to pass the choice left. With no chips, you must take.</p></article>
+      <article><b>Taking keeps your turn</b><p>Reveal the next card and choose again. Your collected cards stay face-up; your chip count stays secret.</p></article>
+      <article><b>Lowest score wins</b><p>Count only the lowest card in each consecutive run, then subtract one point for every chip you hold.</p></article>
     </div>
-    <div className="nt-score-example"><strong>Example</strong><span>8</span><span>13–14–15</span><span>17</span><b>= 38 card points</b><p>With 13 chips left: 38 − 13 = <strong>25 points</strong>.</p></div>
-    <button className="nt-primary" onClick={onClose}>No more questions</button>
-  </section></div>;
+    <p className="tbl-rule-heading">Example</p>
+    <p className="tbl-modal-copy">Cards 8, 13–14–15 and 17 are 38 card points. With 13 chips left: 38 − 13 = 25 points.</p>
+  </ChoiceModal>;
 }
 
 function ResultsModal({ room, me, onLeave }) {
   const ranking = [...room.players].sort((left, right) => finalScore(left) - finalScore(right));
   const winners = ranking.filter((player) => room.winnerIds.includes(player.id));
-  return <div className="nt-modal-backdrop"><section className="nt-results-modal">
-    <span className="nt-modal-trophy"><Trophy /></span>
-    <p className="nt-kicker">Game over</p>
-    <h2>{winners.length === 1 ? `${winners[0].name} wins!` : `${winners.map((player) => player.name).join(" & ")} tie!`}</h2>
-    <p>Fewest points takes the table.</p>
-    <div className="nt-results">{ranking.map((player, index) => <div key={player.id}><span>{index + 1}</span><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><b>{finalScore(player)} pts</b><small>{cardScore(player.cards)} cards − {player.chips} chips</small></div>)}</div>
-    <button className="nt-primary" onClick={onLeave}>Back to No Thanks!</button>
-  </section></div>;
+  return <Results
+    title={winners.length === 1 ? `${winners[0].name} wins!` : `${winners.map((player) => player.name).join(" & ")} tie!`}
+    text="Fewest points takes the table."
+    rows={ranking.map((player) => ({
+      id: player.id,
+      name: `${player.name}${player.id === me.id ? " (you)" : ""}`,
+      value: `${finalScore(player)} pts`,
+      note: `${cardScore(player.cards)} cards − ${player.chips} chips`,
+    }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Back to No Thanks!</button>
+  </Results>;
 }

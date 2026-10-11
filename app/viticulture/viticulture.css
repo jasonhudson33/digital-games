@@ -1,3 +1,14 @@
+/* viticulture's look on the shared landing, lobby, game bar and dialogs (see the
+   theme contract at the top of table.css). */
+.viticulture-theme {
+  --accent: #7b2f3d;
+  --accent-hover: #63252f;
+  --accent-soft: rgba(123, 47, 61, 0.1);
+  --on-accent: #ffffff;
+  --tbl-hue: 110;
+  --tbl-accent-hue: 90;
+}
+
 :root {
   --route-surface: #eee7d7;
   --route-ink: #252a20;
@@ -6,7 +17,7 @@
   --route-chip: #fffaf0;
 }
 
-.viti-landing, .viti-lobby, .viti-shell {
+.viti-shell, .viticulture-theme {
   --v-ink: #262b22;
   --v-muted: #6b7165;
   --v-paper: #fffaf0;
@@ -23,13 +34,10 @@
 .viti-kicker { margin: 0 0 8px; color: #8a6831; font-size: .65rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
 .viti-primary { min-height: 48px; padding: 11px 18px; border: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #fff; background: linear-gradient(135deg, #754039, #532a2a); box-shadow: 0 12px 24px rgba(91, 44, 42, .2); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; transition: transform .16s ease, filter .16s ease; }
 .viti-primary:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
-.viti-primary:disabled, .viti-shell button:disabled, .viti-lobby button:disabled, .viti-landing button:disabled { opacity: .42; cursor: not-allowed; }
+.viti-primary:disabled, .viti-shell button:disabled { opacity: .42; cursor: not-allowed; }
 .viti-primary svg { width: 17px; }
 
 /* Landing */
-.viti-landing { width: min(1260px, calc(100% - 28px)); min-height: calc(100dvh - 78px); margin: 0 auto; padding: 26px 0 48px; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .72fr); gap: 18px; align-items: stretch; }
-.viti-hero { position: relative; min-height: 670px; padding: clamp(38px, 6vw, 74px); overflow: hidden; border-radius: 30px; display: flex; align-items: flex-end; color: #fff8e7; background: linear-gradient(180deg, #dcb466 0%, #e9ca88 37%, #76805a 38%, #3e5133 100%); box-shadow: 0 26px 70px rgba(63, 65, 43, .2); }
-.viti-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(29, 40, 25, .74), transparent 70%), linear-gradient(0deg, rgba(24, 36, 22, .52), transparent 60%); }
 .viti-hero-sun { position: absolute; top: 9%; right: 10%; width: 180px; height: 180px; border-radius: 50%; background: rgba(255, 239, 179, .83); box-shadow: 0 0 80px rgba(255, 225, 143, .7); }
 .viti-hills { position: absolute; width: 100%; height: 42%; left: 0; bottom: 0; border-radius: 50% 50% 0 0 / 28% 28% 0 0; transform: scaleX(1.3); }
 .hill-one { bottom: 19%; left: 29%; background: #677754; opacity: .88; }
@@ -38,63 +46,13 @@
 .viti-vine-lines i { position: absolute; left: calc(var(--line, 0) * 12%); width: 2px; height: 100%; background: rgba(236, 218, 157, .42); }
 .viti-vine-lines i:nth-child(1) { left: 5%; }.viti-vine-lines i:nth-child(2) { left: 17%; }.viti-vine-lines i:nth-child(3) { left: 29%; }.viti-vine-lines i:nth-child(4) { left: 41%; }.viti-vine-lines i:nth-child(5) { left: 53%; }.viti-vine-lines i:nth-child(6) { left: 65%; }.viti-vine-lines i:nth-child(7) { left: 77%; }.viti-vine-lines i:nth-child(8) { left: 89%; }
 .viti-vine-lines::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 34px, rgba(226, 209, 151, .3) 35px 37px); }
-.viti-hero-copy { position: relative; z-index: 3; width: min(640px, 90%); }
-.viti-hero .viti-kicker { color: #efcc77; }
-.viti-hero h1 { margin: 0; font-size: clamp(3.7rem, 7vw, 7rem); font-weight: 600; letter-spacing: -.075em; line-height: .86; }
-.viti-hero h1 em { color: #f0cf7f; font-weight: 500; }
-.viti-hero-copy > p:not(.viti-kicker) { max-width: 560px; margin: 28px 0; color: rgba(255,255,255,.75); font-size: 1.05rem; line-height: 1.65; }
-.viti-feature-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.viti-feature-row span { padding: 9px 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; display: flex; align-items: center; gap: 7px; background: rgba(25,38,23,.26); font-size: .72rem; font-weight: 700; backdrop-filter: blur(8px); }
-.viti-feature-row svg { width: 15px; }
-.viti-entry { align-self: center; padding: 42px 36px; border: 1px solid var(--v-line); border-radius: 28px; background: rgba(255,250,240,.96); box-shadow: 0 24px 64px rgba(66, 62, 43, .13); }
-.viti-entry-seal { width: 62px; height: 62px; margin: -72px auto 27px; border: 6px solid #eee6d5; border-radius: 50%; display: grid; place-items: center; color: #f4d991; background: var(--v-wine); box-shadow: 0 10px 25px rgba(89,43,42,.25); }
-.viti-entry-seal svg { width: 27px; }
-.viti-entry h2, .viti-lobby-card h1 { margin: 0; font-size: 2.25rem; font-weight: 650; letter-spacing: -.045em; }
-.viti-entry > p:not(.viti-kicker):not(.viti-form-error):not(.viti-fan-note) { margin: 11px 0 24px; color: var(--v-muted); font-size: .88rem; line-height: 1.6; }
-.viti-entry label { display: grid; gap: 7px; color: #555d4d; font-size: .7rem; font-weight: 800; }
-.viti-entry input, .viti-join input { width: 100%; padding: 13px 14px; border: 1px solid rgba(69,75,55,.18); border-radius: 11px; outline: none; color: var(--v-ink); background: #fff; font: inherit; }
-.viti-entry input:focus, .viti-join input:focus { border-color: #b7893f; box-shadow: 0 0 0 4px rgba(183,137,63,.13); }
-.viti-entry > .viti-primary { width: 100%; margin-top: 13px; }
-.viti-divider { height: 38px; display: flex; align-items: center; gap: 10px; color: #97998f; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; }
-.viti-divider::before, .viti-divider::after { content: ""; flex: 1; height: 1px; background: var(--v-line); }
-.viti-join { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
-.viti-join input { text-align: center; text-transform: uppercase; letter-spacing: .18em; font-weight: 900; }
-.viti-join button { padding: 0 14px; border: 1px solid var(--v-line); border-radius: 11px; display: flex; align-items: center; gap: 3px; color: var(--v-wine); background: #f3ebda; font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; }
-.viti-join svg { width: 15px; }
-.viti-form-error { color: #a34040 !important; font-size: .74rem; font-weight: 700; }
-.viti-fan-note { margin: 19px 0 0; color: #999489; font-size: 0.625rem; line-height: 1.4; text-align: center; }
 
 /* Lobby */
-.viti-lobby { min-height: calc(100dvh - 78px); padding: 52px 14px; display: grid; place-items: center; background: radial-gradient(circle at 15% 15%, rgba(197,151,70,.13), transparent 24%), radial-gradient(circle at 85% 75%, rgba(82,104,61,.13), transparent 27%); }
-.viti-lobby-card { width: min(680px, 100%); padding: 43px; border: 1px solid var(--v-line); border-radius: 29px; text-align: center; background: rgba(255,250,240,.98); box-shadow: 0 26px 70px rgba(61,63,44,.15); }
-.viti-lobby-emblem { width: 76px; height: 76px; margin: -83px auto 24px; border: 7px solid #eee7d8; border-radius: 22px; display: grid; place-items: center; color: #f3d27e; background: var(--v-wine); transform: rotate(45deg); box-shadow: 0 13px 26px rgba(88,44,40,.24); }
-.viti-lobby-emblem svg { width: 31px; transform: rotate(-45deg); }
-.viti-lobby-card > p:not(.viti-kicker):not(.viti-waiting):not(.viti-form-error) { color: var(--v-muted); }
-.viti-code-display { margin: 18px auto 24px; padding: 12px 28px; border: 1px dashed rgba(129,91,38,.42); border-radius: 14px; display: grid; gap: 3px; color: #765325; background: #f8efd9; cursor: pointer; }
-.viti-code-display strong { font-size: 1.8rem; letter-spacing: .26em; }
-.viti-code-display span { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.625rem; font-weight: 700; }
-.viti-code-display svg { width: 12px; }
-.viti-lobby-players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; }
-.viti-lobby-players > div { min-height: 61px; padding: 8px 11px; border: 1px solid var(--v-line); border-radius: 13px; display: grid; grid-template-columns: 39px 1fr auto; align-items: center; gap: 9px; background: #fffdf8; }
-.viti-lobby-players p { margin: 0; display: grid; gap: 2px; }
-.viti-lobby-players strong { font-size: .75rem; }.viti-lobby-players small { color: var(--v-muted); font-size: 0.625rem; }
-.viti-lobby-players > div > svg { width: 16px; color: #708458; }
-.viti-lobby-players > div > button { border: 0; color: #a34a47; background: transparent; cursor: pointer; }.viti-lobby-players > div > button svg { width: 17px; }
 .viti-avatar { width: 36px; height: 36px; border-radius: 10px 10px 10px 3px; display: grid; place-items: center; color: white; background: var(--player); font-size: .9rem; font-style: normal; font-weight: 900; box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
 .viti-avatar svg { width: 17px; }
-.viti-add-bot, .viti-quiet { margin: 12px auto 0; border: 0; display: flex; align-items: center; gap: 7px; color: #5d6c4c; background: transparent; font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; }
-.viti-add-bot svg, .viti-quiet svg { width: 16px; }
-.viti-start { width: 100%; margin-top: 16px; }
-.viti-waiting { margin: 12px 0 0; color: var(--v-muted); font-size: .72rem; }
 
 /* Game chrome */
 .viti-shell { width: min(1580px, calc(100% - 22px)); margin: 0 auto; padding: 14px 0 48px; }
-.viti-header { min-height: 70px; margin-bottom: 12px; padding: 9px 11px 9px 14px; border: 1px solid var(--v-line); border-radius: 17px; display: grid; grid-template-columns: 1fr auto auto auto auto auto; align-items: center; gap: 8px; background: rgba(255,250,240,.94); box-shadow: 0 12px 34px rgba(70,67,47,.09); backdrop-filter: blur(12px); }
-.viti-brand { display: flex; align-items: center; gap: 10px; }.viti-brand-mark { width: 39px; height: 39px; border-radius: 12px; display: grid; place-items: center; color: #efd28c; background: var(--v-wine); }.viti-brand-mark svg { width: 21px; }
-.viti-brand p { margin: 0; color: #917d59; font-size: 0.625rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }.viti-brand h1 { margin: 0; font-size: 1.4rem; line-height: 1; letter-spacing: -.045em; }
-.viti-year { min-width: 52px; padding: 4px 10px; border-right: 1px solid var(--v-line); display: grid; text-align: center; }.viti-year span { color: #938a76; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; }.viti-year strong { color: var(--v-wine); font-size: 1.25rem; }
-.viti-turn { min-height: 43px; padding: 7px 12px; border-radius: 11px; display: flex; align-items: center; gap: 8px; color: #5c6257; background: #eee8dc; }.viti-turn.mine { color: white; background: var(--v-olive); box-shadow: 0 8px 18px rgba(73,91,54,.18); }.viti-turn > svg { width: 18px; }.viti-turn span { display: grid; }.viti-turn small { opacity: .7; font-size: 0.625rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.viti-turn span { font-size: .68rem; font-weight: 800; }
-.viti-room-code, .viti-icon-button, .viti-leave { min-height: 42px; padding: 7px 10px; border: 1px solid var(--v-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #5e6258; background: #fffdf8; font: inherit; font-size: .66rem; font-weight: 800; cursor: pointer; }.viti-room-code svg, .viti-icon-button svg, .viti-leave svg { width: 15px; }.viti-icon-button { padding: 7px 9px; }
 .viti-error { position: relative; margin-bottom: 11px; padding: 10px 42px 10px 14px; border-radius: 11px; color: #8d3535; background: #f8dfdb; font-size: .73rem; font-weight: 700; }.viti-error button { position: absolute; top: 5px; right: 7px; border: 0; color: inherit; background: transparent; cursor: pointer; }.viti-error svg { width: 17px; }
 
 .viti-game-grid { display: grid; grid-template-columns: 225px minmax(680px, 1fr) 235px; gap: 11px; align-items: start; }
@@ -126,13 +84,11 @@
 .viti-hand { margin-top: 11px; padding-top: 14px; border-top: 1px solid var(--v-line); }.viti-hand-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }.viti-hand-group { min-width: 0; border: 1px solid var(--v-line); border-radius: 11px; overflow: hidden; background: #fffdf8; }.viti-hand-group > header { padding: 7px 9px; display: flex; justify-content: space-between; color: #fff; background: #607246; font-size: 0.625rem; font-weight: 800; }.hand-order > header { background: #75413c; }.hand-summer > header { color: #53401d; background: #e5bf67; }.hand-winter > header { background: #55767b; }.viti-hand-group > div { max-height: 145px; padding: 6px; overflow-y: auto; display: grid; gap: 4px; }.viti-hand-group article { padding: 6px 7px; border-radius: 6px; display: grid; background: #f4efe6; }.viti-hand-group strong { font-size: 0.625rem; }.viti-hand-group small { margin-top: 2px; color: #77786f; font-size: 0.625rem; line-height: 1.35; }.viti-hand-group p { margin: 15px 0; color: #99978d; font-size: 0.625rem; text-align: center; }
 
 /* Resolver and drawers */
-.viti-overlay, .viti-rules-backdrop { position: fixed; z-index: 80; inset: 0; padding: 18px; display: grid; place-items: center; background: rgba(30,32,27,.57); backdrop-filter: blur(5px); }
-.viti-resolver { position: relative; width: min(700px, 100%); max-height: min(830px, calc(100dvh - 36px)); padding: 31px; overflow-y: auto; border: 1px solid rgba(255,255,255,.4); border-radius: 22px; background: #fffaf0; box-shadow: 0 30px 90px rgba(25,27,22,.35); }.viti-resolver h2, .viti-results h2, .viti-rules h2 { margin: 0; font-size: 2rem; letter-spacing: -.05em; }.viti-resolver > p:not(.viti-kicker) { margin: 9px 0 17px; color: var(--v-muted); font-size: .7rem; line-height: 1.55; }.viti-modal-close { position: absolute; top: 13px; right: 13px; width: 34px; height: 34px; border: 1px solid var(--v-line); border-radius: 9px; display: grid; place-items: center; color: #6a6d64; background: #fffdf8; cursor: pointer; }.viti-modal-close svg { width: 17px; }
+.viti-overlay { position: fixed; z-index: 80; inset: 0; padding: 18px; display: grid; place-items: center; background: rgba(30,32,27,.57); backdrop-filter: blur(5px); }
+.viti-resolver { position: relative; width: min(700px, 100%); max-height: min(830px, calc(100dvh - 36px)); padding: 31px; overflow-y: auto; border: 1px solid rgba(255,255,255,.4); border-radius: 22px; background: #fffaf0; box-shadow: 0 30px 90px rgba(25,27,22,.35); }.viti-resolver h2 { margin: 0; font-size: 2rem; letter-spacing: -.05em; }.viti-resolver > p:not(.viti-kicker) { margin: 9px 0 17px; color: var(--v-muted); font-size: .7rem; line-height: 1.55; }.viti-modal-close { position: absolute; top: 13px; right: 13px; width: 34px; height: 34px; border: 1px solid var(--v-line); border-radius: 9px; display: grid; place-items: center; color: #6a6d64; background: #fffdf8; cursor: pointer; }.viti-modal-close svg { width: 17px; }
 .viti-worker-choice { margin-bottom: 14px; display: grid; grid-template-columns: auto 1fr 1fr; align-items: center; gap: 7px; }.viti-worker-choice > span { color: #89877d; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; }.viti-worker-choice button { min-height: 52px; padding: 7px 9px; border: 1px solid var(--v-line); border-radius: 10px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 0 8px; text-align: left; color: #62665b; background: #fffdf8; font: inherit; font-size: .65rem; font-weight: 800; cursor: pointer; }.viti-worker-choice button.selected { border-color: var(--v-wine); box-shadow: 0 0 0 2px rgba(112,56,52,.11); background: #fbf0e8; }.viti-worker-choice .viti-piece { grid-row: 1 / 3; }.viti-worker-choice small { color: #939188; font-size: 0.625rem; font-weight: 500; }
 .viti-choice-title { margin: 14px 0 7px; color: #77786f; font-size: 0.625rem; text-transform: uppercase; }.viti-choice-grid { margin: 9px 0 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }.viti-choice-grid button { position: relative; min-height: 66px; padding: 9px 34px 9px 10px; border: 1px solid var(--v-line); border-radius: 10px; display: grid; gap: 4px; text-align: left; color: var(--v-ink); background: #fffdf8; font: inherit; cursor: pointer; }.viti-choice-grid button:hover:not(:disabled), .viti-choice-grid button.selected { border-color: rgba(115,58,54,.55); background: #fbf0e6; }.viti-choice-grid button > span { display: flex; justify-content: space-between; gap: 7px; }.viti-choice-grid strong { font-size: 0.625rem; }.viti-choice-grid b { color: #8b6631; font-size: 0.625rem; }.viti-choice-grid small { color: #7d7f75; font-size: 0.625rem; line-height: 1.35; }.viti-choice-grid button > svg { position: absolute; top: 50%; right: 10px; width: 16px; color: var(--v-wine); transform: translateY(-50%); }.viti-resolver > .viti-primary { width: 100%; }
 .viti-immediate { margin: 15px 0; padding: 16px; border-radius: 11px; display: flex; align-items: center; gap: 9px; color: #75602f; background: #f5e9cc; }.viti-immediate > svg { width: 19px; }.viti-immediate span { display: grid; }.viti-immediate strong { font-size: .68rem; }.viti-immediate small { font-size: 0.625rem; }
-.viti-rules-backdrop { place-items: stretch end; padding: 0; }.viti-rules { position: relative; width: min(470px, 100%); height: 100dvh; padding: 40px; overflow-y: auto; color: var(--v-ink); background: #fffaf0; box-shadow: -20px 0 65px rgba(26,28,23,.26); animation: viti-slide .24s ease-out; }.viti-rules > p, .viti-rules li { color: #686d62; font-size: .72rem; line-height: 1.65; }.viti-rules ol { padding-left: 19px; }.viti-rules li { margin-bottom: 8px; }.viti-rules h3 { margin: 23px 0 5px; font-size: .82rem; }.viti-rules a { margin-top: 20px; padding: 11px; border-radius: 10px; display: flex; align-items: center; gap: 7px; color: var(--v-wine); background: #f2e5d5; font-size: .67rem; font-weight: 800; text-decoration: none; }.viti-rules a svg { width: 15px; }.viti-rules a svg:last-child { margin-left: auto; }
-.viti-results { position: relative; width: min(590px, 100%); padding: 43px; border-radius: 23px; text-align: center; background: #fffaf0; box-shadow: 0 30px 90px rgba(24,27,21,.34); }.viti-results-seal { width: 70px; height: 70px; margin: -78px auto 24px; border: 7px solid #eee5d4; border-radius: 50%; display: grid; place-items: center; color: #f0cf79; background: var(--v-wine); }.viti-results-seal svg { width: 30px; }.viti-results > p:not(.viti-kicker) { color: var(--v-muted); font-size: .7rem; }.viti-results > div:not(.viti-results-seal) { margin: 20px 0; display: grid; gap: 6px; text-align: left; }.viti-results article { padding: 8px; border: 1px solid var(--v-line); border-radius: 11px; display: grid; grid-template-columns: 25px 36px 1fr auto auto; align-items: center; gap: 8px; background: #fffdf8; }.viti-results article.winner { border-color: #c2943f; background: #fff3ce; }.viti-results article > b { color: #9b907b; }.viti-results article p { margin: 0; display: grid; }.viti-results article strong { font-size: .68rem; }.viti-results article small { color: #84867b; font-size: 0.625rem; }.viti-results article em { color: var(--v-wine); font-size: 1.1rem; font-style: normal; font-weight: 900; }.viti-results article > svg { width: 17px; color: #bd8d36; }.viti-results .viti-primary { width: 100%; }
 
 /* Digital versions of the physical pieces */
 .viti-piece { --piece: #805246; position: relative; flex: 0 0 auto; display: inline-block; vertical-align: middle; }
@@ -163,8 +119,6 @@
 
 /* Piece legend */
 .viti-component-legend { margin: 20px 0; padding: 14px; border: 1px solid var(--v-line); border-radius: 13px; background: #f6eee0; }.viti-component-legend > h3 { margin-top: 0; }.viti-component-legend > div:first-of-type { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }.viti-component-legend article { padding: 7px; border-radius: 8px; display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 6px; background: rgba(255,255,255,.62); }.viti-component-legend article p { margin: 0; display: grid; }.viti-component-legend article strong { font-size: 0.625rem; }.viti-component-legend article small { color: #7e8076; font-size: 0.625rem; line-height: 1.35; }.viti-deck-legend { margin-top: 9px; display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }.viti-deck-legend > span { overflow: hidden; border: 1px solid var(--v-line); border-radius: 7px; display: grid; grid-template-columns: 33px 1fr; grid-template-rows: 1fr 1fr; align-items: center; background: #fffaf0; }.viti-deck-legend i { grid-row: 1 / 3; width: 33px; height: 46px; border-right: 3px solid var(--deck); display: block; background-position: center; background-size: cover; }.viti-deck-legend b { align-self: end; font-size: 0.625rem; }.viti-deck-legend small { align-self: start; color: #88877d; font-size: 0.625rem; }.legend-vine { --deck:#607246; }.legend-order { --deck:#75413c; }.legend-summer { --deck:#d8a83f; }.legend-winter { --deck:#55767b; }
-.viti-rules > .viti-production-flow { grid-template-columns: 1fr 1fr; overflow: visible; }.viti-rules > .viti-production-flow > div { min-width: 0; }.viti-rules > .viti-production-flow > svg { display: none; }
-.viti-guide-button { padding-inline: 10px; }.viti-guide-button span { white-space: nowrap; }
 
 /* Glass track tokens */
 .viti-track i { position: relative; overflow: hidden; }.viti-track i > span { position: relative; z-index: 2; }.viti-track i.filled::after { content: ""; position: absolute; top: 14%; left: 21%; width: 28%; height: 23%; border-radius: 50%; background: rgba(255,255,255,.58); filter: blur(.4px); }
@@ -212,18 +166,15 @@
 .viti-victory-track { position: relative; z-index: 2; margin-top: 9px; padding: 8px 9px 9px; border: 1px solid rgba(74,58,37,.36); border-radius: 8px; color: #4e4638; background: rgba(241,226,190,.92); box-shadow: 0 3px 9px rgba(47,43,28,.18); }.viti-victory-track header { margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; }.viti-victory-track header span { display: flex; align-items: center; gap: 5px; font-size: 0.625rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }.viti-victory-track header svg { width: 13px; color: #9b6b24; }.viti-victory-track header small { color: #817762; font-size: 0.625rem; }.viti-victory-track > div { display: grid; grid-template-columns: repeat(21,minmax(22px,1fr)); }.viti-victory-track > div > span { position: relative; height: 35px; border: 1px solid rgba(92,77,53,.21); border-right: 0; display: grid; place-items: center; background: rgba(255,250,228,.47); }.viti-victory-track > div > span:first-child { border-radius: 5px 0 0 5px; }.viti-victory-track > div > span:last-child { border-right: 1px solid rgba(92,77,53,.21); border-radius: 0 5px 5px 0; }.viti-victory-track > div > span.milestone { color: #fff6d9; background: #6e493b; }.viti-victory-track > div b { font-size: 0.625rem; }.viti-victory-track > div i { position: absolute; z-index: 2; bottom: 15px; left: 50%; display: flex; transform: translateX(-50%); }.viti-victory-track .piece-cork { width: 16px; height: 16px; margin-left: -6px; border-width: 1px; }.viti-victory-track .piece-cork:first-child { margin-left: 0; }
 
 @keyframes viti-slide { from { transform: translateX(35px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .viti-rules { animation: none; }.viti-action-card, .viti-primary { transition: none; } }
+@media (prefers-reduced-motion: reduce) {.viti-action-card, .viti-primary { transition: none; } }
 
 @media (max-width: 1200px) {
   .viti-game-grid { grid-template-columns: 205px minmax(610px, 1fr); }
   .viti-ledger { grid-column: 1 / -1; display: grid; grid-template-columns: 240px 1fr; gap: 0 15px; }.viti-ledger > .viti-coach { grid-row: 1 / 3; }.viti-log { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 12px; }
   .viti-estate-grid { grid-template-columns: 1.4fr 1fr; }.viti-buildings { grid-column: 1 / -1; }.viti-buildings > div { grid-template-columns: repeat(4, 1fr); }
-  .viti-guide-button span { display: none; }
 }
 
 @media (max-width: 900px) {
-  .viti-landing { grid-template-columns: 1fr; }.viti-hero { min-height: 560px; }.viti-entry { margin-top: 28px; }
-  .viti-header { grid-template-columns: 1fr auto auto auto; }.viti-year { display: none; }.viti-turn { grid-row: 2; grid-column: 1 / 3; }.viti-leave span { display: none; }
   .viti-game-grid { grid-template-columns: 1fr; }.viti-scoreboard { order: 2; }.viti-board { order: 1; }.viti-ledger { order: 3; display: block; }.viti-player-list { grid-template-columns: repeat(2, 1fr); }.viti-goal { display: none; }
   .viti-estate-grid { grid-template-columns: 1fr; }.viti-buildings { grid-column: auto; }.viti-buildings > div { grid-template-columns: repeat(2, 1fr); }
   .viti-hand-groups { grid-template-columns: 1fr 1fr; }
@@ -231,9 +182,7 @@
 }
 
 @media (max-width: 640px) {
-  .viti-landing { width: min(100% - 18px, 1260px); padding-top: 9px; }.viti-hero { min-height: 510px; padding: 27px; border-radius: 22px; }.viti-hero h1 { font-size: 3.45rem; }.viti-hero-copy { width: 100%; }.viti-hero-copy > p:not(.viti-kicker) { font-size: .86rem; }.viti-entry { padding: 36px 22px; border-radius: 22px; }.viti-entry h2 { font-size: 1.9rem; }
-  .viti-lobby { padding: 44px 9px; }.viti-lobby-card { padding: 37px 17px; }.viti-lobby-players { grid-template-columns: 1fr; }
-  .viti-shell { width: calc(100% - 12px); padding-top: 7px; }.viti-header { padding: 8px; border-radius: 13px; }.viti-brand-mark { width: 34px; height: 34px; }.viti-brand h1 { font-size: 1.08rem; }.viti-room-code { font-size: 0.625rem; }
+  .viti-shell { width: calc(100% - 12px); padding-top: 7px; }
   .viti-board { min-height: auto; padding: 6px; border-width: 3px; }.viti-season-banner { grid-template-columns: 1fr auto; }.viti-season-banner p { display: none; }.viti-season-banner button { max-width: 132px; text-align: left; }
   .viti-board-decks { grid-template-columns: 1fr 1fr; gap: 5px; }.viti-board-deck { min-height: 59px; grid-template-columns: 34px 1fr; }.viti-board-card { width: 31px; height: 44px; }.viti-board-deck strong { font-size: 0.625rem; }
   .viti-action-map { overflow-x: auto; overflow-y: hidden; }.viti-map-heading { position: sticky; z-index: 8; left: 0; min-height: 49px; }.viti-map-heading > div { display: none; }.viti-map-player-key { width: 760px; min-width: 760px; }.viti-map-player-key > small { margin-left: auto; display: block; color: #776c57; font-size: 0.625rem; font-weight: 800; }.viti-map-landscape { width: 760px; min-width: 760px; min-height: 0; padding: 0; display: block; }.viti-action-space { width: 27%; min-height: 0; padding: 0; grid-template-columns: 38px 1fr; }.viti-action-landmark { width: 38px; height: 39px; }.viti-action-landmark svg { width: 17px; }.viti-action-space .viti-action-copy strong { font-size: .65rem; }.viti-next-season { position: sticky; left: 0; width: calc(100vw - 24px); grid-template-columns: 1fr; }.viti-next-season > div { display: none; }
@@ -243,5 +192,8 @@
   .viti-scoreboard, .viti-ledger { padding: 11px; }.viti-player-list { grid-template-columns: 1fr 1fr; }.viti-player-row { grid-template-columns: 31px 1fr auto; }.viti-player-row .viti-avatar { width: 31px; height: 31px; }.viti-log { grid-template-columns: 1fr; }.viti-log p:nth-child(n+6) { display: none; }
   .viti-estate { padding: 12px; }.viti-estate-head { display: grid; }.viti-estate-stats { overflow-x: auto; }.viti-estate-stats span { white-space: nowrap; }.viti-production-flow { grid-template-columns: repeat(9, auto); overflow-x: auto; }.viti-production-flow > div { min-width: 112px; }.viti-fields > div { gap: 4px; }.viti-fields article { min-height: 132px; padding: 7px; }.viti-fields article header { font-size: 0.625rem; }.viti-planted-vine { padding: 3px; }.viti-planted-vine strong { font-size: 0.625rem; }.viti-planted-vine small { display: none; }
   .viti-buildings > div, .viti-hand-groups { grid-template-columns: 1fr; }.viti-hand-group > div { max-height: 118px; }
-  .viti-overlay { padding: 8px; align-items: end; }.viti-resolver { max-height: calc(100dvh - 14px); padding: 24px 15px 15px; border-radius: 18px 18px 10px 10px; }.viti-resolver h2 { font-size: 1.65rem; }.viti-worker-choice { grid-template-columns: 1fr 1fr; }.viti-worker-choice > span { grid-column: 1 / -1; }.viti-choice-grid { grid-template-columns: 1fr; }.viti-rules { padding: 36px 24px; }.viti-results { padding: 38px 14px 18px; }.viti-results article { grid-template-columns: 20px 33px 1fr auto; }.viti-results article > svg { display: none; }
+  .viti-overlay { padding: 8px; align-items: end; }.viti-resolver { max-height: calc(100dvh - 14px); padding: 24px 15px 15px; border-radius: 18px 18px 10px 10px; }.viti-resolver h2 { font-size: 1.65rem; }.viti-worker-choice { grid-template-columns: 1fr 1fr; }.viti-worker-choice > span { grid-column: 1 / -1; }.viti-choice-grid { grid-template-columns: 1fr; }
 }
+
+/* Under the shared title the sun is a glow, not a disc. */
+.viticulture-theme .viti-hero-sun { opacity: 0.35; }

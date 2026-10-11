@@ -2,12 +2,29 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bot, Check, ChevronRight, CircleHelp, Coins, Copy, Crown, Droplets, Grape,
-  House, Landmark, Leaf, LogOut, Plus, ScrollText, Sparkles, Sun, Sunset,
-  ThermometerSnowflake, Trophy, Users, Warehouse, Wine, X,
+  Bot,
+  Check,
+  ChevronRight,
+  Coins,
+  Droplets,
+  Grape,
+  House,
+  Landmark,
+  Leaf,
+  ScrollText,
+  Sparkles,
+  Sun,
+  Sunset,
+  ThermometerSnowflake,
+  Trophy,
+  Users,
+  Warehouse,
+  Wine,
+  X,
 } from "lucide-react";
 
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import {
   ACTION_SPACES, BUILDINGS, canFillOrder, canPlant,
   actionCapacity, canUseAction, currentPlayer, wineOptions,
@@ -62,22 +79,54 @@ export default function ViticultureClient() {
     setError("");
   }
 
-  if (!room || !me) return <Landing name={name} setName={setName} joinCode={joinCode} setJoinCode={setJoinCode} createRoom={createRoom} joinRoom={joinRoom} busy={busy} error={error} />;
-  if (room.phase === "lobby") return <Lobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onRemoveComputer={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} />;
+  if (!room || !me) {
+    return <SharedLanding
+      gameName="Viticulture"
+      theme="tbl-light viticulture-theme"
+      hero={<Hero
+        kicker="A Tuscan worker-placement game"
+        title={<>Grow a legacy,<br /><em>one vintage at a time.</em></>}
+        copy="Plant your fields, welcome visitors, age remarkable wines, and build the most celebrated estate in the valley."
+        badges={[{ icon: Users, label: "2-6 vintners" }, { icon: Bot, label: "Computer rivals" }, { icon: Wine, label: "Race to 20 VP" }]}
+        backdrop={<><div className="viti-hero-sun" /><div className="viti-hills hill-one" /><div className="viti-hills hill-two" /><div className="viti-vine-lines">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div></>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <SharedLobby
+      gameName="Viticulture"
+      theme="tbl-light viticulture-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={6}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
+      onStart={() => act("start")}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   const myTurn = room.phase === "playing" && actor?.id === playerId;
   const season = SEASONS[room.season];
   const SeasonIcon = season.icon;
 
-  return <main className={`viti-shell season-${room.season}`}>
-    <header className="viti-header">
-      <div className="viti-brand"><span className="viti-brand-mark"><Grape /></span><div><p>Room {room.roomCode}</p><h1>Viticulture</h1></div></div>
-      <div className="viti-year"><span>Vintage</span><strong>{room.year}</strong></div>
-      <div className={`viti-turn ${myTurn ? "mine" : ""}`}><SeasonIcon /><span><small>{season.label}</small>{room.phase === "finished" ? "Vintage complete" : myTurn ? "Your move" : computerThinking && actor?.isComputer ? `${actor.name} is planning...` : `${actor?.name}'s move`}</span></div>
-      <button className="viti-room-code" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="viti-icon-button viti-guide-button" aria-label="Open pieces and game guide" onClick={() => setShowRules(true)}><CircleHelp /><span>Game guide</span></button>
-      <button className="viti-leave" onClick={leaveRoom}><LogOut /><span>Leave</span></button>
-    </header>
+  return <main className={`viti-shell tbl-light viticulture-theme season-${room.season}`}>
+    <GameHeader
+      title="Viticulture"
+      room={room}
+      subtitle={`Room ${room.roomCode} · Vintage ${room.year}`}
+      status={room.phase === "finished" ? "Vintage complete" : `${season.label} · ${myTurn ? "Your move" : computerThinking && actor?.isComputer ? `${actor.name} is planning...` : `${actor?.name}'s move`}`}
+      onRules={() => setShowRules(true)}
+      onLeave={leaveRoom}
+    />
 
     {error && <div className="viti-error" role="alert">{error}<button aria-label="Dismiss" onClick={() => setError("")}><X /></button></div>}
 
@@ -117,38 +166,6 @@ export default function ViticultureClient() {
     {showRules && <RulesDrawer onClose={() => setShowRules(false)} />}
     {room.phase === "finished" && <Results room={room} playerId={playerId} onLeave={leaveRoom} />}
   </main>;
-}
-
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }) {
-  return <main className="viti-landing">
-    <section className="viti-hero">
-      <div className="viti-hero-sun" /><div className="viti-hills hill-one" /><div className="viti-hills hill-two" />
-      <div className="viti-vine-lines">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div>
-      <div className="viti-hero-copy"><p className="viti-kicker">A Tuscan worker-placement game</p><h1>Grow a legacy,<br /><em>one vintage at a time.</em></h1><p>Plant your fields, welcome visitors, age remarkable wines, and build the most celebrated estate in the valley.</p><div className="viti-feature-row"><span><Users /> 2-6 vintners</span><span><Bot /> Computer rivals</span><span><Wine /> Race to 20 VP</span></div></div>
-    </section>
-    <section className="viti-entry">
-      <div className="viti-entry-seal"><Grape /></div><p className="viti-kicker">The estate gates</p><h2>Begin your vintage</h2><p>Create a private room or join friends with their five-character invite code.</p>
-      <label>Your vintner name<input value={name} maxLength={24} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="e.g. Francesca" /></label>
-      <button className="viti-primary" disabled={busy} onClick={createRoom}><Plus /> Create a vineyard</button>
-      <div className="viti-divider"><span>or join an estate</span></div>
-      <div className="viti-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="GRAPE" /><button disabled={busy} onClick={joinRoom}>Join <ChevronRight /></button></div>
-      {error && <p className="viti-form-error">{error}</p>}
-      <p className="viti-fan-note">An unofficial, original digital interpretation for private play.</p>
-    </section>
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave }) {
-  const isHost = room.hostId === me.id;
-  return <main className="viti-lobby"><section className="viti-lobby-card">
-    <div className="viti-lobby-emblem"><Grape /></div><p className="viti-kicker">Private tasting room</p><h1>Your table is ready</h1><p>Share the estate code, or add computer vintners to fill the valley.</p>
-    <button className="viti-code-display" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><strong>{room.roomCode}</strong><span><Copy /> Copy invite code</span></button>
-    <div className="viti-lobby-players">{room.players.map((player, index) => <div key={player.id}><span className="viti-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}</strong><small>{index === 0 ? "Host" : player.isComputer ? "Computer vintner" : "Ready for spring"}</small></p>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}</div>
-    {isHost && room.players.length < 6 && <button className="viti-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer vintner</button>}
-    {isHost ? <button className="viti-primary viti-start" disabled={busy || room.players.length < 2} onClick={onStart}><Sparkles /> Begin year one</button> : <p className="viti-waiting">Waiting for {room.players[0].name} to begin...</p>}
-    {isHost && room.players.length < 2 && <p className="viti-waiting">Invite at least one vintner or add a computer rival.</p>}
-    <button className="viti-quiet" onClick={onLeave}><LogOut /> Leave room</button>{error && <p className="viti-form-error">{error}</p>}
-  </section></main>;
 }
 
 function PanelHeading({ icon: Icon, eyebrow, title }) { return <div className="viti-panel-heading"><Icon /><span><small>{eyebrow}</small><strong>{title}</strong></span></div>; }
@@ -363,18 +380,6 @@ function ActionChoices({ action, player, payload, setPayload, earnsBonus }) {
 function ChoiceGrid({ children }) { return <div className="viti-choice-grid">{children}</div>; }
 function ChoiceButton({ selected, disabled, title, meta, note, onClick }) { return <button className={selected ? "selected" : ""} disabled={disabled} onClick={onClick}><span><strong>{title}</strong><b>{meta}</b></span><small>{note}</small>{selected && <Check />}</button>; }
 
-function RulesDrawer({ onClose }) {
-  return <div className="viti-rules-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="viti-rules">
-    <button className="viti-modal-close" aria-label="Close game guide" onClick={onClose}><X /></button><p className="viti-kicker">Pieces & game guide</p><h2>From vine to vintage</h2><p>Build the first estate to reach 20 victory points. Each year flows through four seasons.</p>
-    <ComponentLegend />
-    <h3>The production loop</h3><ProductionFlow />
-    <h3>One year at a glance</h3><ol><li><strong>Spring.</strong> Place your rooster on an unoccupied wake-up row. Early rows act sooner; later rows grant better rewards.</li><li><strong>Summer.</strong> Place meeples to draw or plant green vines, give tours, build structures, sell grapes, or play yellow visitors. Pass when you want to save workers for winter.</li><li><strong>Autumn.</strong> Every estate automatically welcomes a new visitor.</li><li><strong>Winter.</strong> Harvest fields, make wine, fill purple orders, train workers, draw orders, or play blue visitors.</li></ol>
-    <h3>Workers and spaces</h3><p>Regular meeples need an open oval. Your larger grande meeple can always use a full action. The first worker on an action receives its printed bonus. Workers used in summer remain there, so keep some for winter.</p>
-    <h3>Wine and victory</h3><p>Harvesting creates glass grape tokens equal to each field's red and white vine totals. Make wine from those grapes; rosé needs a medium cellar and sparkling needs a large cellar. Fill orders with wine at or above each required value to move your cork toward 20 VP and move your bottle up the income track.</p><p>At year end, grapes and wine age, workers return, and residual income is paid. If anyone has at least 20 VP, the highest score wins; coins and total wine value break ties.</p>
-    <a href="https://store.stonemaiergames.com/products/viticulture-essential-edition" target="_blank" rel="noreferrer"><ScrollText /> Visit the official game page <ChevronRight /></a>
-  </aside></div>;
-}
-
 function ComponentLegend() {
   return <section className="viti-component-legend"><h3>What the pieces mean</h3><div>
     <article><GamePiece type="regular" color="#2f6f70" /><p><strong>Worker meeple</strong><small>Place one to take an action once this year.</small></p></article>
@@ -391,9 +396,36 @@ function ComponentLegend() {
   </div></section>;
 }
 
+function RulesDrawer({ onClose }) {
+  return <ChoiceModal wide title="From vine to vintage" text="Pieces & game guide. Build the first estate to reach 20 victory points. Each year flows through four seasons." onClose={onClose}>
+    <ComponentLegend />
+    <p className="tbl-rule-heading">The production loop</p>
+    <ProductionFlow />
+    <p className="tbl-rule-heading">One year at a glance</p>
+    <div className="tbl-rule-grid">
+      <article><b>Spring</b><p>Place your rooster on an unoccupied wake-up row. Early rows act sooner; later rows grant better rewards.</p></article>
+      <article><b>Summer</b><p>Place meeples to draw or plant green vines, give tours, build structures, sell grapes, or play yellow visitors. Pass when you want to save workers for winter.</p></article>
+      <article><b>Autumn</b><p>Every estate automatically welcomes a new visitor.</p></article>
+      <article><b>Winter</b><p>Harvest fields, make wine, fill purple orders, train workers, draw orders, or play blue visitors.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Workers and spaces</p>
+    <p className="tbl-modal-copy">Regular meeples need an open oval. Your larger grande meeple can always use a full action. The first worker on an action receives its printed bonus. Workers used in summer remain there, so keep some for winter.</p>
+    <p className="tbl-rule-heading">Wine and victory</p>
+    <p className="tbl-modal-copy">Harvesting creates glass grape tokens equal to each field&apos;s red and white vine totals. Make wine from those grapes; rosé needs a medium cellar and sparkling needs a large cellar. Fill orders with wine at or above each required value to move your cork toward 20 VP and move your bottle up the income track.</p>
+    <p className="tbl-modal-copy">At year end, grapes and wine age, workers return, and residual income is paid. If anyone has at least 20 VP, the highest score wins; coins and total wine value break ties.</p>
+    <a className="tbl-link" href="https://store.stonemaiergames.com/products/viticulture-essential-edition" target="_blank" rel="noreferrer"><ScrollText aria-hidden="true" /> Visit the official game page</a>
+  </ChoiceModal>;
+}
+
 function Results({ room, playerId, onLeave }) {
   const wineValue = (player) => Object.values(player.wines).flat().reduce((sum, value) => sum + value, 0);
   const ranked = [...room.players].sort((a, b) => b.score - a.score || b.coins - a.coins || wineValue(b) - wineValue(a));
   const won = room.winners.includes(playerId);
-  return <div className="viti-overlay"><section className="viti-results"><div className="viti-results-seal"><Crown /></div><p className="viti-kicker">The final vintage</p><h2>{won ? "Your estate is legendary" : `${ranked[0].name} wins the valley`}</h2><p>Victory points decide the winner, followed by coins and wine value.</p><div>{ranked.map((player, index) => <article className={room.winners.includes(player.id) ? "winner" : ""} key={player.id}><b>{index + 1}</b><span className="viti-avatar" style={{ "--player": player.color }}>{player.isComputer ? <Bot /> : player.name[0]}</span><p><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.coins} coins · {wineValue(player)} wine value</small></p><em>{player.score}<small> VP</small></em>{room.winners.includes(player.id) && <Crown />}</article>)}</div><button className="viti-primary" onClick={onLeave}>Return to the estate gates</button></section></div>;
+  return <SharedResults
+    title={won ? "Your estate is legendary" : `${ranked[0].name} wins the valley`}
+    text="Victory points decide the winner, followed by coins and wine value."
+    rows={ranked.map((player) => ({ id: player.id, name: `${player.name}${player.id === playerId ? " (you)" : ""}`, value: `${player.score} VP`, note: `${player.coins} coins · ${wineValue(player)} wine value` }))}
+  >
+    <button type="button" className="tbl-primary" onClick={onLeave}>Return to the estate gates</button>
+  </SharedResults>;
 }

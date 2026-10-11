@@ -2,15 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shuffled } from "../lib/shuffle.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 import {
   ArrowRightLeft,
   Anchor,
   Castle,
   Check,
-  Copy,
   Crown,
   Dice5,
-  DoorOpen,
   Home,
   Map as MapIcon,
   Shield,
@@ -84,7 +83,7 @@ export default function CatanClient() {
   const [joinCode, setJoinCode] = useState("");
   const [game, setGame] = useState(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [buildMode, setBuildMode] = useState(null);
   const [tradeGive, setTradeGive] = useState("wood");
@@ -613,123 +612,91 @@ export default function CatanClient() {
   };
 
 
+  const rulesDialog = showRules && <RulesModal onClose={() => setShowRules(false)} />;
+
   if (!game) {
-    return (
-      <main className="catan-page catan-setup-page">
-        <section className="catan-setup-card">
-          <div className="catan-mark" aria-hidden="true"><span /><span /><span /></div>
-          <p className="catan-kicker">The island awaits</p>
-          <h1>CATAN</h1>
-          <p className="catan-intro">Create a shared room for up to six settlers. Five- and six-player rooms use the expanded island and paired-player turns.</p>
-
-          <label className="catan-entry-field">
-            <span>Your name</span>
-            <input value={name} maxLength={18} placeholder="Enter your name" onChange={(event) => setName(event.target.value)} />
-          </label>
-
-          <button className="catan-primary catan-start" onClick={createRoom}>
-            <MapIcon size={19} /> Create a room
-          </button>
-
-          <div className="entry-divider"><span>or join a room</span></div>
-          <div className="join-room-row">
-            <input value={joinCode} maxLength={5} placeholder="ROOM CODE" aria-label="Room code" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} />
-            <button onClick={joinRoom}><DoorOpen size={18} /> Join</button>
-          </div>
-          {error && <p className="catan-room-error">{error}</p>}
-          <p className="setup-note">2–6 players · Shared rooms update automatically</p>
-        </section>
-      </main>
-    );
+    return <Landing
+      gameName="Catan"
+      theme="tbl-light catan-theme"
+      hero={<Hero
+        kicker="The island awaits"
+        title="CATAN"
+        copy="Create a shared room for up to six settlers. Five- and six-player rooms use the expanded island and paired-player turns."
+        badges={[{ icon: Users, label: "2–6 players" }, { icon: MapIcon, label: "Original, Seafarers, Cities & Knights" }, { icon: Crown, label: "Shared rooms" }]}
+        artLayout="free"
+        art={<div className="catan-mark"><span /><span /><span /></div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy: false, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
-    const roomLink = typeof window === "undefined" ? "" : `${window.location.origin}/catan?room=${game.roomCode}`;
-    return (
-      <main className="catan-page catan-setup-page">
-        <section className="catan-setup-card catan-lobby-card">
-          <p className="catan-kicker">Gather your settlers</p>
-          <h1>CATAN</h1>
-          <div className="room-code-panel">
-            <span>Room code</span>
-            <strong>{game.roomCode}</strong>
-            <button onClick={() => {
-              void navigator.clipboard.writeText(roomLink);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1600);
-            }}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-          </div>
-          <div className="lobby-player-list">
-            {game.players.map((player) => (
-              <div key={player.id}>
-                <span className={`player-swatch ${player.color}`} />
-                <strong>{player.name}</strong>
-                {player.isComputer && isHost
-                  ? <button className="computer-seat-remove" onClick={() => removeComputer(player.id)} aria-label={`Remove ${player.name}`}><X size={14} /> Remove</button>
-                  : <small>{player.id === game.hostId ? "Host" : player.id === playerId ? "You" : player.isComputer ? "Computer" : "Ready"}</small>}
-              </div>
-            ))}
-            {Array.from({ length: 6 - game.players.length }, (_, index) => <div key={`empty-${index}`} className="empty"><span /> Waiting for player…</div>)}
-          </div>
-          {isHost && <button className="add-computer-button" disabled={game.players.length >= 6} onClick={addComputer}><Users size={17} /> Add computer</button>}
-          <div className="lobby-color-picker">
-            <strong>Choose your color</strong>
-            <div>
-              {PLAYER_STYLES.map((style) => {
-                const takenByAnother = game.players.some((player) => player.id !== playerId && player.color === style.color);
-                const selected = viewerPlayer?.color === style.color;
-                return (
-                  <button
-                    key={style.color}
-                    className={`${style.color} ${selected ? "selected" : ""}`}
-                    disabled={takenByAnother}
-                    aria-label={`Choose ${style.color}`}
-                    aria-pressed={selected}
-                    onClick={() => selectPlayerColor(style.color)}
-                  >
-                    <span style={{ background: style.hex }} />
-                    {style.color}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="ruleset-picker">
-            <div>
-              <strong>Game rules</strong>
-              <span>Host chooses · applies to every device</span>
-            </div>
-            <div className="ruleset-options">
-              {Object.entries(CATAN_RULESETS).map(([ruleset, info]) => (
+    return <Lobby
+      gameName="Catan"
+      theme="tbl-light catan-theme"
+      room={game}
+      me={{ id: playerId }}
+      busy={false}
+      error={error}
+      min={2}
+      max={6}
+      seatNote={`${CATAN_RULESETS[game.ruleset ?? "original"].label} · ${CATAN_RULESETS[game.ruleset ?? "original"].victoryPoints} VP${game.players.length >= 5 ? " · 5–6 player paired turns" : ""}`}
+      options={<>
+        <div className="lobby-color-picker">
+          <strong>Choose your color</strong>
+          <div>
+            {PLAYER_STYLES.map((style) => {
+              const takenByAnother = game.players.some((player) => player.id !== playerId && player.color === style.color);
+              const selected = viewerPlayer?.color === style.color;
+              return (
                 <button
-                  key={ruleset}
-                  className={game.ruleset === ruleset ? "selected" : ""}
-                  disabled={!isHost}
-                  onClick={() => selectRuleset(ruleset)}
+                  type="button"
+                  key={style.color}
+                  className={`${style.color} ${selected ? "selected" : ""}`}
+                  disabled={takenByAnother}
+                  aria-label={`Choose ${style.color}`}
+                  aria-pressed={selected}
+                  onClick={() => selectPlayerColor(style.color)}
                 >
-                  <span>{hasSeafarers(ruleset) ? <Anchor size={17} /> : <MapIcon size={17} />}</span>
-                  <strong>{info.shortLabel}</strong>
-                  <small>{info.description}</small>
-                  <b>{info.victoryPoints} VP</b>
+                  <span style={{ background: style.hex }} />
+                  {style.color}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-          {isHost ? (
-            <button className="catan-primary catan-start" disabled={game.players.length < 2} onClick={startGame}>
-              <Play size={18} /> Start game
-            </button>
-          ) : <p className="lobby-waiting">Waiting for the host to start the game…</p>}
-          {isHost && game.players.length < 2 && <p className="setup-note">At least two players are needed.</p>}
-          <p className="expansion-lobby-note">
-            {CATAN_RULESETS[game.ruleset ?? "original"].label} · {CATAN_RULESETS[game.ruleset ?? "original"].victoryPoints} VP
-            {game.players.length >= 5 ? " · 5–6 player paired turns" : ""}
-          </p>
-          {error && <p className="catan-room-error">{error}</p>}
-          <button className="leave-room-button" onClick={leaveRoom}>Leave room</button>
-        </section>
-      </main>
-    );
+        </div>
+        <div className="ruleset-picker">
+          <div>
+            <strong>Game rules</strong>
+            <span>Host chooses · applies to every device</span>
+          </div>
+          <div className="ruleset-options">
+            {Object.entries(CATAN_RULESETS).map(([ruleset, info]) => (
+              <button
+                type="button"
+                key={ruleset}
+                className={game.ruleset === ruleset ? "selected" : ""}
+                disabled={!isHost}
+                onClick={() => selectRuleset(ruleset)}
+              >
+                <span>{hasSeafarers(ruleset) ? <Anchor size={17} /> : <MapIcon size={17} />}</span>
+                <strong>{info.shortLabel}</strong>
+                <small>{info.description}</small>
+                <b>{info.victoryPoints} VP</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      </>}
+      onAdd={addComputer}
+      onRemove={removeComputer}
+      onStart={startGame}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={rulesDialog}
+    />;
   }
 
   const winner = game.players.find((player) => player.id === game.winnerId);
@@ -740,22 +707,18 @@ export default function CatanClient() {
   const bestArmySize = Math.max(0, ...game.players.map((player) => player.playedKnights ?? 0));
 
   return (
-    <main className="catan-page">
+    <main className="catan-page tbl-light catan-theme">
+      {rulesDialog}
       {winner && <Winner player={winner} target={game.victoryTarget} canRestart={isHost} onRestart={restartRoom} onLeave={leaveRoom} />}
       {barbarianNotice && <div className={`barbarian-notice ${barbarianNotice.kind}`} role="alert"><Shield size={28} /><div><strong>{barbarianNotice.kind === "warning" ? "Prepare your knights" : "Barbarian attack"}</strong><span>{barbarianNotice.message}</span></div></div>}
-      <header className="catan-game-header">
-        <div>
-          <p className="catan-kicker">{CATAN_RULESETS[game.ruleset].shortLabel} · {game.setup ? `Setup round ${game.setup.index < game.players.length ? 1 : 2}` : `Turn ${game.turn}`}</p>
-          <h1>CATAN</h1>
-        </div>
-        <div className="turn-banner">
-          <span className={`player-swatch ${activePlayer.color}`} />
-          <div><small>{game.setup ? "Now placing" : isPairedSecondary ? "Paired player 2" : game.pairedTurn ? "Paired player 1" : "Current turn"}</small><strong>{activePlayer.name}</strong></div>
-        </div>
-        <button className="icon-button" aria-label="Leave room" title="Leave room" onClick={() => window.confirm("Leave this room and return to Catan home?") && leaveRoom()}>
-          <DoorOpen size={18} />
-        </button>
-      </header>
+      <GameHeader
+        title="CATAN"
+        room={game}
+        subtitle={`${CATAN_RULESETS[game.ruleset].shortLabel} · ${game.setup ? `Setup round ${game.setup.index < game.players.length ? 1 : 2}` : `Turn ${game.turn}`}`}
+        status={winner ? "Game over" : `${game.setup ? "Now placing" : isPairedSecondary ? "Paired player 2" : game.pairedTurn ? "Paired player 1" : "Current turn"}: ${activePlayer.name}`}
+        onRules={() => setShowRules(true)}
+        onLeave={() => window.confirm("Leave this room and return to Catan home?") && leaveRoom()}
+      />
 
       <section className="catan-layout">
         <section className="board-panel">
@@ -1564,19 +1527,34 @@ function PortPrivileges({ ports }) {
   );
 }
 
-function Winner({ player, target, canRestart, onRestart, onLeave }) {
-  return (
-    <div className="catan-winner" role="dialog" aria-modal="true" aria-label={`${player.name} won`}>
-      <section>
-        <div className="winner-rays"><Trophy size={64} /></div>
-        <p className="catan-kicker">The island has a new ruler</p>
-        <h2>{player.name} wins!</h2>
-        <p>{target} victory points and a settlement worthy of legend.</p>
-        {canRestart
-          ? <button className="catan-primary" onClick={onRestart}><Users size={18} /> Return room to lobby</button>
-          : <p className="winner-waiting">Waiting for the host to start another game.</p>}
-        <button className="leave-room-button" onClick={onLeave}>Leave room</button>
-      </section>
+function RulesModal({ onClose }) {
+  return <ChoiceModal wide title="How to play Catan" text="Build settlements, cities and roads, trade resources, and be first to reach the victory-point target." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Roll and collect</b><p>Each turn starts with a dice roll. Every settlement or city next to a tile showing that number collects its resource: one for a settlement, two for a city.</p></article>
+      <article><b>Trade</b><p>Trade with other players on your turn, or with the bank at 4:1, or better through a harbor you have built on.</p></article>
+      <article><b>Build</b><p>Road: brick and lumber. Settlement: brick, lumber, wool and grain. City: three ore and two grain. Development card: ore, wool and grain.</p></article>
+      <article><b>Rolling a 7</b><p>Players holding more than seven cards discard half. The roller moves the robber and steals a card from a neighbouring player.</p></article>
     </div>
-  );
+    <p className="tbl-rule-heading">Victory points</p>
+    <div className="tbl-rule-grid">
+      <article><b>Buildings</b><p>A settlement is worth 1 point and a city 2.</p></article>
+      <article><b>Longest Road</b><p>The longest road of five or more segments is worth 2 points.</p></article>
+      <article><b>Largest Army</b><p>The first player to play three Knights, then anyone with more, holds 2 points.</p></article>
+      <article><b>Development cards</b><p>Victory Point cards stay hidden until they win you the game.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Variants</p>
+    <p className="tbl-modal-copy">The host picks the ruleset in the lobby: the original game, Seafarers (ships, new islands and gold), Cities &amp; Knights (commodities, knights and barbarians), or both expansions. Rooms of five or six players use the larger island and paired-player turns.</p>
+  </ChoiceModal>;
+}
+
+function Winner({ player, target, canRestart, onRestart, onLeave }) {
+  return <Results
+    title={`${player.name} wins!`}
+    text={`The island has a new ruler: ${target} victory points and a settlement worthy of legend.`}
+  >
+    {canRestart
+      ? <button type="button" className="tbl-primary" onClick={onRestart}><Users size={18} /> Return room to lobby</button>
+      : <p className="tbl-wait">Waiting for the host to start another game.</p>}
+    <button type="button" className="tbl-link" onClick={onLeave}>Leave room</button>
+  </Results>;
 }

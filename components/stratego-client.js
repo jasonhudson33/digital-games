@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Check, CircleHelp, Copy, Flag, LogOut, RotateCcw, Shield, Shuffle, Swords, Users, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  Flag,
+  RotateCcw,
+  Shield,
+  Shuffle,
+  Swords,
+  Users,
+} from "lucide-react";
 import { StrategoRoomService } from "./stratego-room-service";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 import {
   BOARD_SIZE,
   STRATEGO_ARMY_SIZE,
@@ -47,8 +57,41 @@ export default function StrategoClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleToShow?.at, computerToAct?.id, dismissedBattleAt, playerId, room?.updatedAt]);
 
-  if (!room || !me) return <StrategoLanding {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
-  if (room.phase === "lobby") return <StrategoLobby room={room} me={me} busy={busy} error={error} onAddComputer={() => act("addComputer")} onCopy={copyRoomCode} onLeave={leaveRoom} onRules={() => setShowRules(true)} />;
+  if (!room || !me) {
+    return <Landing
+      gameName="Stratego"
+      theme="tbl-light stratego-theme"
+      hero={<Hero
+        kicker="The hidden battlefield"
+        title={<>Outrank.<br /><em>Outthink.</em><br />Outmaneuver.</>}
+        copy="Deploy forty concealed pieces, probe the enemy line, and find the Flag before your own defenses fall."
+        badges={[{ icon: Users, label: "Exactly 2 players" }, { icon: Bot, label: "Human or computer" }, { icon: Shield, label: "Hidden armies" }]}
+        artLayout="free"
+        art={<div className="stratego-hero-board">{Array.from({ length: 36 }, (_, index) => <i key={index} className={[8, 9, 14, 15, 20, 21].includes(index) ? "lake" : index === 31 ? "flag" : index % 5 === 0 ? "red" : "blue"}>{index === 31 ? "⚑" : ""}</i>)}</div>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <StrategoRules onClose={() => setShowRules(false)} />}
+    />;
+  }
+  if (room.phase === "lobby") {
+    return <Lobby
+      gameName="Stratego"
+      theme="tbl-light stratego-theme"
+      room={room}
+      me={me}
+      busy={busy}
+      error={error}
+      min={2}
+      max={2}
+      autoStart="Deployment opens automatically when your opponent joins."
+      onAdd={() => act("addComputer")}
+      onRemove={() => {}}
+      onLeave={leaveRoom}
+      onRules={() => setShowRules(true)}
+      rules={showRules && <StrategoRules onClose={() => setShowRules(false)} />}
+    />;
+  }
 
   async function chooseBoardSpace(row, column) {
     if (busy || !room) return;
@@ -99,14 +142,15 @@ export default function StrategoClient() {
     await act("ready", { ready: !me.ready });
   }
 
-  return <main className="stratego-game">
-    <header className="stratego-header">
-      <div><p className="stratego-eyebrow">Room {room.roomCode}</p><h1>Stratego</h1></div>
-      <div className={`stratego-turn ${myTurn ? "mine" : ""} ${room.phase}`}>{activePlayer?.isComputer ? <Bot /> : <span className={`stratego-color-dot ${activePlayer?.color ?? me.color}`} />}{room.phase === "setup" ? "Secret deployment" : room.phase === "finished" ? "Battle complete" : myTurn ? "Your turn" : computerToAct ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}</div>
-      <button onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button onClick={copyRoomCode}><Copy /> {room.roomCode}</button>
-      <button onClick={() => { setSelectedPieceId(null); leaveRoom(); }}><LogOut /> Leave</button>
-    </header>
+  return <main className="stratego-game tbl-light stratego-theme">
+    <GameHeader
+      title="Stratego"
+      room={room}
+      subtitle={`Room ${room.roomCode}`}
+      status={room.phase === "setup" ? "Secret deployment" : room.phase === "finished" ? "Battle complete" : myTurn ? "Your turn" : computerToAct ? `${activePlayer?.name} is thinking…` : `${activePlayer?.name}'s turn`}
+      onRules={() => setShowRules(true)}
+      onLeave={() => { setSelectedPieceId(null); leaveRoom(); }}
+    />
     {error && <p className="stratego-error" role="alert">{error}</p>}
 
     <section className="stratego-table">
@@ -129,26 +173,6 @@ export default function StrategoClient() {
     {!showRules && battleToShow && <BattleResult battle={battleToShow} onContinue={() => setDismissedBattleAt(battleToShow.at)} />}
     {!showRules && !battleToShow && room.phase === "finished" && <StrategoFinished room={room} me={me} onLeave={() => { setSelectedPieceId(null); leaveRoom(); }} />}
   </main>;
-}
-
-function StrategoLanding({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="stratego-landing">
-    <section className="stratego-hero">
-      <div className="stratego-hero-copy"><p className="stratego-eyebrow">The hidden battlefield</p><h1>Outrank.<br /><em>Outthink.</em><br />Outmaneuver.</h1><p>Deploy forty concealed pieces, probe the enemy line, and find the Flag before your own defenses fall.</p><div className="stratego-facts"><span><Users /> Exactly 2 players</span><span><Bot /> Human or computer</span><span><Shield /> Hidden armies</span></div></div>
-      <div className="stratego-hero-board" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} className={[8, 9, 14, 15, 20, 21].includes(index) ? "lake" : index === 31 ? "flag" : index % 5 === 0 ? "red" : "blue"}>{index === 31 ? "⚑" : ""}</i>)}</div>
-    </section>
-    <section className="stratego-entry"><div><p className="stratego-eyebrow">Command headquarters</p><h2>Enter the war room</h2><p>Create a private room or join your opponent with a five-character code.</p></div><label>Commander name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label><button className="stratego-primary" disabled={busy} onClick={createRoom}><Flag /> Create room</button><div className="stratego-or"><span>or</span></div><div className="stratego-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div><button className="stratego-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>{error && <p className="stratego-form-error">{error}</p>}</section>
-    {showRules && <StrategoRules onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function StrategoLobby({ room, me, busy, error, onAddComputer, onCopy, onLeave, onRules }) {
-  return <main className="stratego-lobby"><section className="stratego-lobby-card">
-    <div className="stratego-lobby-heading"><div><p className="stratego-eyebrow">Red army assembled</p><h1>Room <button onClick={onCopy}>{room.roomCode} <Copy /></button></h1><p>Send this code to one opponent. Deployment opens automatically when they join.</p></div><button className="stratego-rules-link" onClick={onRules}><CircleHelp /> Rules</button></div>
-    <div className="stratego-seats"><article className="red"><span><Shield /></span><div><strong>{me.name} (you)</strong><small>Red commander · moves first</small></div><Check /></article><article className="empty"><span><Users /></span><div><strong>Blue commander</strong><small>Waiting for one opponent…</small></div><i /></article></div>
-    <div className="stratego-waiting-pulse"><span /><div><strong>Room open</strong><small>Invite a human or deploy a computer opponent</small></div></div>
-    <div className="stratego-lobby-actions"><button className="stratego-primary" disabled={busy} onClick={onCopy}><Copy /> Copy room code</button><button className="stratego-computer-button" disabled={busy} onClick={onAddComputer}><Bot /> Play against computer</button></div><button className="stratego-quiet" onClick={onLeave}>Leave room</button>{error && <p className="stratego-form-error">{error}</p>}
-  </section></main>;
 }
 
 function StrategoBoard({ room, viewerId, viewerColor, selectedPieceId, targetKeys, onChoose }) {
@@ -266,16 +290,6 @@ function battleExplanation(battle) {
   return "Classic Stratego uses lower numbers as stronger ranks, so the lower number wins.";
 }
 
-function StrategoRules({ onClose }) {
-  return <div className="stratego-overlay" role="dialog" aria-modal="true"><section className="stratego-rules"><button className="stratego-modal-close" onClick={onClose}><X /></button><p className="stratego-eyebrow">Classic Hasbro rules</p><h1>Know your army</h1><p className="stratego-rule-intro">This edition uses the classic numbering where <strong>1 is the strongest rank</strong>. Capture the enemy Flag or leave the opponent without a legal move.</p><div className="stratego-rule-cards"><article><b>1</b><h2>Deploy secretly</h2><p>Place all forty pieces in your four home rows. Bombs and the Flag never move.</p></article><article><b>2</b><h2>Move orthogonally</h2><p>Move one square forward, backward, or sideways. Never move diagonally or through a lake.</p></article><article><b>3</b><h2>Attack</h2><p>Move onto an enemy piece. The stronger rank survives; equal ranks remove each other.</p></article><article><b>4</b><h2>Take the Flag</h2><p>Any movable piece can capture the Flag. Red makes the first move.</p></article></div><div className="stratego-special-rules"><p><strong>Scout 9:</strong> Moves any open distance in one straight line and may attack at the end.</p><p><strong>Miner 8:</strong> The only piece that can attack and remove a Bomb.</p><p><strong>Spy:</strong> Defeats the Marshal only when the Spy attacks first. A Marshal attacking a Spy wins.</p><p><strong>Bomb:</strong> Destroys every attacker except a Miner and stays in place.</p><p><strong>Two-square rule:</strong> A piece cannot shuttle over the same boundary more than three consecutive turns.</p></div><a className="stratego-rule-source" href="https://instructions.hasbro.com/en-us/instruction/vintage-stratego-game" target="_blank" rel="noreferrer">Hasbro’s official classic instructions ↗</a><button className="stratego-primary" onClick={onClose}>Ready for battle</button></section></div>;
-}
-
-function StrategoFinished({ room, me, onLeave }) {
-  const winner = room.players.find((player) => player.id === room.winnerId);
-  const won = winner?.id === me.id;
-  return <div className="stratego-overlay"><section className={`stratego-finished ${won ? "won" : "lost"}`}><span><Flag /></span><p className="stratego-eyebrow">Battle complete</p><h1>{won ? "Victory is yours" : `${winner?.name} wins`}</h1><p>{winner?.name} {room.winReason}.</p><button className="stratego-primary" onClick={onLeave}>Return to headquarters</button></section></div>;
-}
-
 function boardHint(room, me, myTurn, selectedPieceId, legalCount) {
   if (room.phase === "setup") return me.ready ? "Deployment locked. Waiting for the other commander." : selectedPieceId ? "Choose a highlighted home square. Selecting an occupied friendly square swaps the pieces." : "Choose a piece from the army tray below.";
   if (room.phase === "finished") return "The final battlefield remains visible behind the result.";
@@ -291,4 +305,32 @@ function pieceHelp(piece) {
   if (piece.kind === "scout") return "Moves any open distance in a straight line and may attack.";
   if (piece.kind === "spy") return "Defeats the Marshal only when attacking first.";
   return `Classic rank ${piece.rank}. Lower numbered ranks defeat higher numbered ranks.`;
+}
+
+function StrategoRules({ onClose }) {
+  return <ChoiceModal wide title="Know your army" text="Classic Hasbro rules. This edition uses the classic numbering where 1 is the strongest rank. Capture the enemy Flag or leave the opponent without a legal move." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Deploy secretly</b><p>Place all forty pieces in your four home rows. Bombs and the Flag never move.</p></article>
+      <article><b>Move orthogonally</b><p>Move one square forward, backward, or sideways. Never move diagonally or through a lake.</p></article>
+      <article><b>Attack</b><p>Move onto an enemy piece. The stronger rank survives; equal ranks remove each other.</p></article>
+      <article><b>Take the Flag</b><p>Any movable piece can capture the Flag. Red makes the first move.</p></article>
+    </div>
+    <p className="tbl-rule-heading">Special pieces</p>
+    <div className="tbl-rule-grid">
+      <article><b>Scout 9</b><p>Moves any open distance in one straight line and may attack at the end.</p></article>
+      <article><b>Miner 8</b><p>The only piece that can attack and remove a Bomb.</p></article>
+      <article><b>Spy</b><p>Defeats the Marshal only when the Spy attacks first. A Marshal attacking a Spy wins.</p></article>
+      <article><b>Bomb</b><p>Destroys every attacker except a Miner and stays in place.</p></article>
+      <article><b>Two-square rule</b><p>A piece cannot shuttle over the same boundary more than three consecutive turns.</p></article>
+    </div>
+    <a className="tbl-link" href="https://instructions.hasbro.com/en-us/instruction/vintage-stratego-game" target="_blank" rel="noreferrer">Hasbro’s official classic instructions ↗</a>
+  </ChoiceModal>;
+}
+
+function StrategoFinished({ room, me, onLeave }) {
+  const winner = room.players.find((player) => player.id === room.winnerId);
+  const won = winner?.id === me.id;
+  return <Results title={won ? "Victory is yours" : `${winner?.name} wins`} text={`${winner?.name} ${room.winReason}.`}>
+    <button type="button" className="tbl-primary" onClick={onLeave}>Return to headquarters</button>
+  </Results>;
 }

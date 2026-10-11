@@ -3,22 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bot,
-  Check,
-  CircleHelp,
-  Copy,
-  Crown,
-  DoorOpen,
   Flame,
   Hand,
-  LogOut,
-  Plus,
   ShieldCheck,
   Snowflake,
   Sparkles,
   Trophy,
   Users,
-  X,
-  Zap,
 } from "lucide-react";
 import { Flip7RoomService } from "./flip-7-room-service";
 import {
@@ -31,6 +22,7 @@ import {
   targetOptions,
 } from "../lib/flip-7";
 import { useEngineRoom } from "../lib/use-engine-room.js";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
 
 const activeRoomKey = "flip-7-active-room";
 
@@ -78,22 +70,42 @@ export default function Flip7Client() {
   const me = room?.players.find((player) => player.id === playerId) ?? null;
 
   if (!room || !me) {
-    return <Landing {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }} />;
+    return <Landing
+      gameName="Flip 7"
+      theme="tbl-light flip-7-theme"
+      hero={<Hero
+        kicker="The press-your-luck card game"
+        title={<>Flip.<br />Don&apos;t <em>flop.</em></>}
+        copy="Collect seven different numbers before a duplicate wipes out your round. Stay safe—or risk it all for the bonus."
+        badges={[
+          { icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} players` },
+          { icon: Bot, label: "Computer seats" },
+          { icon: Trophy, label: "Race to 200" },
+        ]}
+        art={[4, 11, 7].map((value) => <HeroCard key={value} value={value} />)}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />;
   }
 
   if (room.phase === "lobby") {
     return <Lobby
+      gameName="Flip 7"
+      theme="tbl-light flip-7-theme"
       room={room}
       me={me}
       busy={busy}
       error={error}
-      onAddComputer={() => act("addComputer")}
-      onRemoveComputer={(id) => act("removeComputer", { playerId: id })}
+      min={MIN_PLAYERS}
+      max={MAX_PLAYERS}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
       onStart={() => act("start")}
       onLeave={leaveRoom}
       onRules={() => setShowRules(true)}
-      showRules={showRules}
-      setShowRules={setShowRules}
+      rules={showRules && <RulesModal onClose={() => setShowRules(false)} />}
     />;
   }
 
@@ -111,14 +123,8 @@ export default function Flip7Client() {
           ? `${room.players.find((player) => player.id === room.pendingTarget.chooserId)?.name} is choosing a target…`
           : `${active?.name}'s turn`;
 
-  return <main className="f7-game-shell">
-    <header className="f7-game-header">
-      <div className="f7-brand-lockup"><span className="f7-seven">7</span><div><p>Round {room.round} · private room</p><h1>Flip 7</h1></div></div>
-      <div className={`f7-turn-callout ${myTurn || myChoice ? "mine" : ""}`}><Zap />{statusMessage}</div>
-      <button className="f7-header-button" onClick={() => setShowRules(true)}><CircleHelp /> Rules</button>
-      <button className="f7-header-button" onClick={() => navigator.clipboard?.writeText(room.roomCode)}><Copy /> {room.roomCode}</button>
-      <button className="f7-header-button" onClick={leaveRoom}><LogOut /> Leave</button>
-    </header>
+  return <main className="f7-game-shell tbl-light flip-7-theme">
+    <GameHeader title="Flip 7" room={room} status={statusMessage} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
 
     {error && <p className="f7-error" role="alert">{error}</p>}
 
@@ -193,67 +199,46 @@ function CardFace({ card }) {
   return <div className="f7-card f7-chance-card"><ShieldCheck /><strong>SECOND</strong><span>CHANCE</span></div>;
 }
 
-function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
-  return <main className="f7-landing">
-    <section className="f7-hero">
-      <div className="f7-hero-copy"><p className="f7-kicker">The press-your-luck card game</p><h1>Flip.<br />Don&apos;t <em>flop.</em></h1><p>Collect seven different numbers before a duplicate wipes out your round. Stay safe—or risk it all for the bonus.</p><div className="f7-facts"><span><Users /> 2–10 seats</span><span><Bot /> Computer players</span><span><Trophy /> First past 200</span></div></div>
-      <div className="f7-hero-cards" aria-hidden="true"><div className="f7-card f7-number-card tone-2"><small>4</small><strong>4</strong><small>4</small></div><div className="f7-card f7-number-card tone-5"><small>11</small><strong>11</strong><small>11</small></div><div className="f7-card f7-number-card tone-0"><small>7</small><strong>7</strong><small>7</small></div></div>
-    </section>
-    <section className="f7-entry-card">
-      <div><p className="f7-kicker">Find your table</p><h2>Start a private room</h2><p>Invite friends with a five-character code and add computer players to fill the table.</p></div>
-      <label>Your name<input value={name} maxLength={20} autoComplete="nickname" onChange={(event) => setName(event.target.value)} placeholder="Player name" /></label>
-      <button className="f7-primary" disabled={busy} onClick={createRoom}><Plus /> Create a room</button>
-      <div className="f7-or"><span>or join one</span></div>
-      <div className="f7-join"><input aria-label="Room code" value={joinCode} maxLength={5} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ROOM CODE" /><button disabled={busy} onClick={joinRoom}>Join</button></div>
-      <button className="f7-rules-link" onClick={() => setShowRules(true)}><CircleHelp /> How to play</button>
-      {error && <p className="f7-form-error" role="alert">{error}</p>}
-    </section>
-    {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-  </main>;
-}
-
-function Lobby({ room, me, busy, error, onAddComputer, onRemoveComputer, onStart, onLeave, onRules, showRules, setShowRules }) {
-  const isHost = room.hostId === me.id;
-  const canStart = room.players.length >= MIN_PLAYERS;
-  return <main className="f7-lobby"><section className="f7-lobby-card">
-    <header><div><p className="f7-kicker">The table is open</p><h1>Room <button onClick={() => navigator.clipboard?.writeText(room.roomCode)}>{room.roomCode} <Copy /></button></h1><p>Share the code, add computer players, then let the flipping begin.</p></div><button className="f7-rules-link" onClick={onRules}><CircleHelp /> Rules</button></header>
-    <div className="f7-seats">{room.players.map((player, index) => <div className="f7-seat" key={player.id}><span>{player.isComputer ? <Bot /> : <Users />}</span><div><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><small>{index === 0 ? "Host · " : ""}{player.isComputer ? "Computer player" : "Human player"}</small></div>{player.isComputer && isHost ? <button aria-label={`Remove ${player.name}`} onClick={() => onRemoveComputer(player.id)}><X /></button> : <Check />}</div>)}</div>
-    {isHost && room.players.length < MAX_PLAYERS && <button className="f7-add-bot" disabled={busy} onClick={onAddComputer}><Bot /> Add computer player</button>}
-    <div className={`f7-ready ${canStart ? "yes" : ""}`}><span>{room.players.length} / {MAX_PLAYERS} seats</span><strong>{canStart ? "Ready to flip" : "Add at least one more player"}</strong></div>
-    {isHost ? <button className="f7-primary f7-start" disabled={busy || !canStart} onClick={onStart}><Sparkles /> Start game</button> : <p className="f7-waiting">Waiting for {room.players[0].name} to start…</p>}
-    <button className="f7-leave" onClick={onLeave}><DoorOpen /> Leave room</button>
-    {error && <p className="f7-form-error">{error}</p>}
-  </section>{showRules && <RulesModal onClose={() => setShowRules(false)} />}</main>;
+function HeroCard({ value }) {
+  return <div className={`f7-card f7-number-card tone-${value % 6}`}><small>{value}</small><strong>{value}</strong><small>{value}</small></div>;
 }
 
 function RulesModal({ onClose }) {
-  return <div className="f7-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="f7-rules-modal" role="dialog" aria-modal="true" aria-labelledby="flip7-rules-title">
-    <button className="f7-modal-close" onClick={onClose} aria-label="Close rules"><X /></button>
-    <p className="f7-kicker">Rules in a minute</p><h2 id="flip7-rules-title">Flip without matching.</h2>
-    <div className="f7-rule-grid">
-      <article><span>1</span><div><strong>Flip or stay</strong><p>After everyone gets one card, choose to flip another or stay and bank your round score.</p></div></article>
-      <article><span>2</span><div><strong>Duplicates bust</strong><p>Flip a number already in your line and you score zero for the round—unless you have a Second Chance.</p></div></article>
-      <article><span>3</span><div><strong>Flip 7 wins the round</strong><p>Collect seven unique number cards to end the round immediately and add a 15-point bonus.</p></div></article>
-      <article><span>4</span><div><strong>Score to 200</strong><p>Add number cards, double them with ×2, then add + modifiers. Highest score wins once someone reaches 200.</p></div></article>
+  return <ChoiceModal wide title="Flip without matching." text="Rules in a minute." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Flip or stay</b><p>After everyone gets one card, choose to flip another or stay and bank your round score.</p></article>
+      <article><b>Duplicates bust</b><p>Flip a number already in your line and you score zero for the round—unless you have a Second Chance.</p></article>
+      <article><b>Flip 7 wins the round</b><p>Collect seven unique number cards to end the round immediately and add a 15-point bonus.</p></article>
+      <article><b>Score to 200</b><p>Add number cards, double them with ×2, then add + modifiers. Highest score wins once someone reaches 200.</p></article>
     </div>
-    <div className="f7-special-rules"><h3>Special cards</h3><p><Snowflake /> <strong>Freeze</strong> — choose any active player to stay immediately.</p><p><Flame /> <strong>Flip Three</strong> — choose an active player who must take the next three cards.</p><p><ShieldCheck /> <strong>Second Chance</strong> — discards one duplicate instead of busting; you may hold only one.</p></div>
-    <button className="f7-primary" onClick={onClose}>Let&apos;s flip</button>
-  </section></div>;
+    <p className="tbl-rule-heading">Special cards</p>
+    <div className="tbl-rule-grid">
+      <article><b><Snowflake aria-hidden="true" /> Freeze</b><p>Choose any active player to stay immediately.</p></article>
+      <article><b><Flame aria-hidden="true" /> Flip Three</b><p>Choose an active player who must take the next three cards.</p></article>
+      <article><b><ShieldCheck aria-hidden="true" /> Second Chance</b><p>Discards one duplicate instead of busting; you may hold only one.</p></article>
+    </div>
+  </ChoiceModal>;
 }
 
 function RoundModal({ room, me, busy, onNext, onLeave }) {
   const winner = room.players.find((player) => player.id === room.winnerId);
   const isHost = room.hostId === me.id;
   const ranking = [...room.players].sort((a, b) => (room.roundScores[b.id] - room.roundScores[a.id]) || (b.score - a.score));
-  return <div className="f7-modal-backdrop"><section className="f7-round-modal">
-    <span className="f7-modal-trophy">{winner ? <Crown /> : room.flipSevenId ? <Sparkles /> : <Trophy />}</span>
-    <p className="f7-kicker">{winner ? "Game over" : `Round ${room.round} complete`}</p>
-    <h2>{winner ? `${winner.name} wins!` : room.flipSevenId ? `${room.players.find((player) => player.id === room.flipSevenId)?.name} flipped 7!` : "Scores are banked."}</h2>
-    <div className="f7-results">{ranking.map((player, index) => <div key={player.id}><span>{index + 1}</span><strong>{player.name}{player.id === me.id ? " (you)" : ""}</strong><b>+{room.roundScores[player.id]}</b><small>{player.score} total</small></div>)}</div>
-    {!winner && isHost && <button className="f7-primary" disabled={busy} onClick={onNext}><Sparkles /> Deal round {room.round + 1}</button>}
-    {!winner && !isHost && <p className="f7-waiting">Waiting for {room.players[0].name} to deal the next round…</p>}
-    <button className="f7-leave" onClick={onLeave}>{winner ? "Back to Flip 7" : "Leave table"}</button>
-  </section></div>;
+  const flipSevenName = room.players.find((player) => player.id === room.flipSevenId)?.name;
+  return <Results
+    title={winner ? `${winner.name} wins!` : flipSevenName ? `${flipSevenName} flipped 7!` : "Scores are banked."}
+    text={winner ? "Game over" : `Round ${room.round} complete`}
+    rows={ranking.map((player) => ({
+      id: player.id,
+      name: `${player.name}${player.id === me.id ? " (you)" : ""}`,
+      value: `+${room.roundScores[player.id]}`,
+      note: `${player.score} total`,
+    }))}
+  >
+    {!winner && isHost && <button type="button" className="tbl-primary" disabled={busy} onClick={onNext}><Sparkles aria-hidden="true" /> Deal round {room.round + 1}</button>}
+    {!winner && !isHost && <p className="tbl-wait">Waiting for {room.players[0].name} to deal the next round…</p>}
+    <button type="button" className="tbl-link" onClick={onLeave}>{winner ? "Back to Flip 7" : "Leave table"}</button>
+  </Results>;
 }
 
 function actionName(action) {

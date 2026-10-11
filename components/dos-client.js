@@ -6,7 +6,7 @@ import { Bot, Trophy, Users } from "lucide-react";
 import { CardBack, ColorGameCard, cardName } from "./color-game-card";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import { DosRoomService } from "./dos-room-service";
-import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import { MAX_PLAYERS, MIN_PLAYERS, currentPlayer, matchOptions } from "../lib/dos";
 
 const keys = { name: "dos-player-name", room: "dos-active-room" };
@@ -238,25 +238,24 @@ function DosTable({ room, viewerId, active }) {
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
   return (
-    <main className="tbl-landing dos-theme">
-      <section className="tbl-hero">
-        <p className="tbl-kicker">Two piles. Two-card sums. Twice the strategy.</p>
-        <h1>Make a match.<br /><em>Call DOS.</em></h1>
-        <p className="tbl-hero-copy">Match center numbers singly or with two-card sums, then turn color matches into table-changing bonuses.</p>
-        <div className="tbl-hero-badges">
-          <span><Users aria-hidden="true" /> 2–4 players</span>
-          <span><Bot aria-hidden="true" /> Computer seats</span>
-          <span><Trophy aria-hidden="true" /> Race to 200</span>
-        </div>
-        <div className="tbl-hero-fan" aria-hidden="true">
+    <SharedLanding
+      gameName="DOS"
+      theme="dos-theme"
+      hero={<Hero
+        kicker="Two piles. Two-card sums. Twice the strategy."
+        title={<>Make a match.<br /><em>Call DOS.</em></>}
+        copy="Match center numbers singly or with two-card sums, then turn color matches into table-changing bonuses."
+        badges={[{ icon: Users, label: "2–4 players" }, { icon: Bot, label: "Computer seats" }, { icon: Trophy, label: "Race to 200" }]}
+        art={<>
           <ColorGameCard card={{ type: "number", color: "blue", value: 3 }} />
           <ColorGameCard card={{ type: "number", color: "yellow", value: 7 }} />
           <ColorGameCard card={{ type: "wildDos", color: null, value: 2 }} />
-        </div>
-      </section>
-      <EntryCard gameName="DOS" {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} onRules={() => setShowRules(true)} />
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-    </main>
+        </>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />
   );
 }
 

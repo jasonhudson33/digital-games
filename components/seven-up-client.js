@@ -557,7 +557,7 @@ export default function SevenUpClient() {
           error={error}
         />
       ) : (
-        <main className="tbl-landing seven-up-theme">
+        <main className="tbl-landing seven-up-theme" data-layout="landing">
           <section className="tbl-hero">
             <p className="tbl-kicker">Lay the sevens, then run the suits</p>
             <h1>

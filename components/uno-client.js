@@ -6,7 +6,7 @@ import { Bot, Trophy, Users } from "lucide-react";
 import { ColorGameCard, CardBack, cardName } from "./color-game-card";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import { UnoRoomService } from "./uno-room-service";
-import { ChoiceModal, EntryCard, GameHeader, Lobby, RoundModal } from "./ui/table-shell";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import {
   MAX_PLAYERS, MIN_PLAYERS, cardFace, colorsForGame, currentPlayer, isPlayable, topDiscard,
 } from "../lib/uno";
@@ -125,7 +125,7 @@ export default function UnoClient() {
         </div>
       </section>
     );
-    return <Lobby gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} settings={settings} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
+    return <Lobby gameName="UNO" room={room} me={me} busy={busy} error={error} max={MAX_PLAYERS} min={MIN_PLAYERS} options={settings} onAdd={() => act("addComputer")} onRemove={(id) => act("removeComputer", { playerId: id })} onStart={() => act("start")} onLeave={leaveRoom} onRules={() => setShowRules(true)} rules={showRules && <RulesModal onClose={() => setShowRules(false)} />} />;
   }
 
   const active = currentPlayer(room);
@@ -258,25 +258,24 @@ function UnoTable({ room, viewerId, active, darkSide, flipMode }) {
 
 function Landing({ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, showRules, setShowRules }) {
   return (
-    <main className="tbl-landing uno-theme">
-      <section className="tbl-hero">
-        <p className="tbl-kicker">Classic on one side. Chaos on the other.</p>
-        <h1>ONE card.<br /><em>Two ways.</em></h1>
-        <p className="tbl-hero-copy">Choose Classic UNO or flip the whole table between light and dark sides in UNO Flip.</p>
-        <div className="tbl-hero-badges">
-          <span><Users aria-hidden="true" /> 2–10 players</span>
-          <span><Bot aria-hidden="true" /> Computer seats</span>
-          <span><Trophy aria-hidden="true" /> Classic + Flip</span>
-        </div>
-        <div className="tbl-hero-fan" aria-hidden="true">
+    <SharedLanding
+      gameName="UNO"
+      theme="uno-theme"
+      hero={<Hero
+        kicker="Classic on one side. Chaos on the other."
+        title={<>ONE card.<br /><em>Two ways.</em></>}
+        copy="Choose Classic UNO or flip the whole table between light and dark sides in UNO Flip."
+        badges={[{ icon: Users, label: "2–10 players" }, { icon: Bot, label: "Computer seats" }, { icon: Trophy, label: "Classic + Flip" }]}
+        art={<>
           <ColorGameCard card={{ type: "number", color: "red", value: 7 }} />
           <ColorGameCard card={{ type: "flip", color: "yellow" }} />
           <ColorGameCard card={{ type: "draw5", color: "purple" }} dark />
-        </div>
-      </section>
-      <EntryCard gameName="UNO" {...{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }} onRules={() => setShowRules(true)} />
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-    </main>
+        </>}
+      />}
+      entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setShowRules(true)}
+      dialogs={showRules && <RulesModal onClose={() => setShowRules(false)} />}
+    />
   );
 }
 

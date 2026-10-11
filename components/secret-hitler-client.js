@@ -3,14 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bot,
-  BookOpen,
   Check,
   Copy,
   Crown,
-  DoorOpen,
   Eye,
   Gavel,
-  Plus,
   RotateCcw,
   Shield,
   Skull,
@@ -20,6 +17,7 @@ import {
 } from "lucide-react";
 import { eligibleChancellorIndices, getSecretHitlerPower } from "../lib/secret-hitler";
 import { SecretHitlerRoomService } from "./secret-hitler-room-service";
+import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby } from "./ui/table-shell";
 
 const NAME_KEY = "secret-hitler-player-name";
 
@@ -31,7 +29,6 @@ export default function SecretHitlerClient() {
   const [game, setGame] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const latestGame = useRef(null);
@@ -123,89 +120,71 @@ export default function SecretHitlerClient() {
     window.history.replaceState(null, "", "/secret-hitler");
   }
 
-  function copyInvite() {
-    if (!game?.roomCode) return;
-    void navigator.clipboard.writeText(`${window.location.origin}/secret-hitler?room=${game.roomCode}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+
+  const rulesDialog = <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />;
+
+  if (!game) {
+    return <SharedLanding
+      gameName="Secret Hitler"
+      theme="tbl-light secret-hitler-theme"
+      hero={<Hero
+        kicker="A game of hidden loyalties"
+        title={<>Trust no one.<br /><em>Elect someone.</em></>}
+        copy="Build a room of five to ten players, mix humans with computer opponents, and govern from one shared tabletop."
+        badges={[{ icon: UserPlus, label: "5–10 players" }, { icon: Bot, label: "Computer opponents" }, { icon: Eye, label: "Private roles" }]}
+        artLayout="free"
+        art={<section className="sh-party-preview" aria-label="The two parties">
+          <div><span className="sh-mini-emblem liberal"><Shield size={26} /></span><strong>The Liberals</strong><p>Enact five Liberal policies or find and execute Hitler.</p></div>
+          <div><span className="sh-mini-emblem fascist"><Skull size={26} /></span><strong>The Fascists</strong><p>Enact six Fascist policies or elect Hitler at the right moment.</p></div>
+        </section>}
+      />}
+      entry={{ name: playerName, setName: setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
-  if (!game) return <Landing {...{ playerName, setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }} />;
-  if (game.phase === "lobby") return <Lobby {...{ game, action, copyInvite, copied, leaveRoom, busy, error, rulesOpen, setRulesOpen }} />;
+  if (game.phase === "lobby") {
+    const me = game.players.find((player) => player.isViewer) ?? game.players[0];
+    const missing = 5 - game.players.length;
+    return <SharedLobby
+      gameName="Secret Hitler"
+      theme="tbl-light secret-hitler-theme"
+      room={{ roomCode: game.roomCode, hostId: game.hostControls ? me.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
+      me={{ id: me.playerId }}
+      busy={busy}
+      error={error}
+      min={5}
+      max={10}
+      seatNote={missing > 0 ? `Need ${missing} more ${missing === 1 ? "player" : "players"}` : "Ready to deal secret roles"}
+      onAdd={() => action("addComputer")}
+      onRemove={(id) => action("removeComputer", { playerId: id })}
+      onStart={() => action("start")}
+      onLeave={leaveRoom}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
+    />;
+  }
 
   return (
-    <main className="sh-app sh-game">
-      <GameHeader game={game} copied={copied} onCopy={copyInvite} onRole={() => setRoleOpen(true)} onRules={() => setRulesOpen(true)} onLeave={leaveRoom} />
+    <main className="sh-app sh-game tbl-light secret-hitler-theme">
+      <GameHeader
+        title="Secret Hitler"
+        room={game}
+        subtitle={`Government ${game.turnNumber} · ${game.players.filter((player) => player.alive).length} alive`}
+        status={game.message ?? ""}
+        actions={<>
+          <button type="button" className="tbl-header-action role-reminder" onClick={() => setRoleOpen(true)}><Eye aria-hidden="true" /><span className="tbl-header-action-label">My role</span></button>
+        </>}
+        onRules={() => setRulesOpen(true)}
+        onLeave={leaveRoom}
+      />
       <Table game={game} busy={busy} action={action} />
       {error && <div className="sh-toast" role="alert">{error}</div>}
       <RoleDialog game={game} open={roleOpen} busy={busy} onClose={() => game.privateRole?.acknowledged && setRoleOpen(false)} onAcknowledge={async () => { await action("acknowledgeRole"); setRoleOpen(false); }} />
-      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
+      {rulesDialog}
     </main>
   );
-}
-
-function Landing({ playerName, setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error, rulesOpen, setRulesOpen }) {
-  return (
-    <main className="sh-app sh-landing">
-      <section className="sh-hero">
-        <div className="sh-hero-copy">
-          <span className="sh-overline"><Shield size={15} /> A game of hidden loyalties</span>
-          <h1>Trust no one.<br /><em>Elect someone.</em></h1>
-          <p>Build a room of five to ten players, mix humans with computer opponents, and govern from one shared tabletop.</p>
-          <button className="sh-link-button" type="button" onClick={() => setRulesOpen(true)}><BookOpen size={17} /> How to play</button>
-        </div>
-        <div className="sh-entry-card">
-          <div className="sh-seal" aria-hidden="true"><Gavel size={34} /></div>
-          <h2>Take your seat</h2>
-          <label><span>Your name</span><input value={playerName} maxLength={18} placeholder="Player" onChange={(event) => setPlayerName(event.target.value)} /></label>
-          <button className="sh-primary" type="button" disabled={busy} onClick={createRoom}><Plus size={18} /> Create a room</button>
-          <div className="sh-divider"><span>or join an existing table</span></div>
-          <div className="sh-join-row">
-            <input aria-label="Room code" value={joinCode} maxLength={5} placeholder="ROOM CODE" onChange={(event) => setJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
-            <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={17} /> Join</button>
-          </div>
-          {error && <p className="sh-form-error" role="alert">{error}</p>}
-          <small>5–10 players · private roles · shared live board</small>
-        </div>
-      </section>
-      <section className="sh-party-preview" aria-label="The two parties">
-        <div><span className="sh-mini-emblem liberal"><Shield size={26} /></span><strong>The Liberals</strong><p>Enact five Liberal policies or find and execute Hitler.</p></div>
-        <div><span className="sh-mini-emblem fascist"><Skull size={26} /></span><strong>The Fascists</strong><p>Enact six Fascist policies or elect Hitler at the right moment.</p></div>
-      </section>
-      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-    </main>
-  );
-}
-
-function Lobby({ game, action, copyInvite, copied, leaveRoom, busy, error, rulesOpen, setRulesOpen }) {
-  const canStart = game.players.length >= 5;
-  return (
-    <main className="sh-app sh-lobby-shell">
-      <header className="sh-lobby-header"><div><span className="sh-overline">Cabinet room</span><h1>Assemble the government.</h1></div><button className="sh-icon-text" type="button" onClick={leaveRoom}><DoorOpen size={17} /> Leave</button></header>
-      <section className="sh-lobby-grid">
-        <div className="sh-room-card">
-          <span>Room code</span><strong>{game.roomCode}</strong>
-          <button type="button" onClick={copyInvite}><Copy size={17} /> {copied ? "Invite copied" : "Copy invite link"}</button>
-          <p>Friends can join this room from their own device. Every screen stays synced to the same tabletop.</p>
-        </div>
-        <div className="sh-seats-card">
-          <div className="sh-card-heading"><div><span>Players</span><h2>{game.players.length} / 10 seats</h2></div>{game.hostControls && game.players.length < 10 && <button type="button" disabled={busy} onClick={() => action("addComputer")}><Bot size={17} /> Add computer</button>}</div>
-          <div className="sh-seat-list">
-            {game.players.map((player, index) => <div className="sh-lobby-seat" key={player.playerId}><span className="sh-avatar">{player.isComputer ? <Bot size={18} /> : player.name.charAt(0).toUpperCase()}</span><div><strong>{player.name}</strong><small>{player.isViewer ? "You" : player.isComputer ? "Computer player" : "Human player"}{index === 0 ? " · Host" : ""}</small></div>{game.hostControls && player.isComputer && <button aria-label={`Remove ${player.name}`} type="button" onClick={() => action("removeComputer", { playerId: player.playerId })}><X size={16} /></button>}</div>)}
-            {Array.from({ length: Math.max(0, 5 - game.players.length) }, (_, index) => <div className="sh-lobby-seat empty" key={`empty-${index}`}><span className="sh-avatar">+</span><div><strong>Open seat</strong><small>Invite a friend or add a computer</small></div></div>)}
-          </div>
-          {game.hostControls ? <button className="sh-primary sh-start" type="button" disabled={busy || !canStart} onClick={() => action("start")}><Gavel size={18} /> {canStart ? "Deal secret roles" : `Need ${5 - game.players.length} more ${5 - game.players.length === 1 ? "player" : "players"}`}</button> : <p className="sh-waiting">Waiting for the host to start the game…</p>}
-          {error && <p className="sh-form-error" role="alert">{error}</p>}
-        </div>
-      </section>
-      <button className="sh-link-button lobby-rules" type="button" onClick={() => setRulesOpen(true)}><BookOpen size={17} /> Review the rules</button>
-      <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-    </main>
-  );
-}
-
-function GameHeader({ game, copied, onCopy, onRole, onRules, onLeave }) {
-  return <header className="sh-gamebar"><div className="sh-wordmark"><span><Gavel size={19} /></span><strong>Secret Hitler</strong></div><div className="sh-game-meta"><span>Room {game.roomCode}</span><i /><span>Government {game.turnNumber}</span><i /><span>{game.players.filter((player) => player.alive).length} alive</span></div><div className="sh-game-actions"><button onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button><button className="role-reminder" onClick={onRole}><Eye size={16} /> My role</button><button onClick={onRules}><BookOpen size={16} /> Rules</button><button onClick={onLeave}><DoorOpen size={16} /> Leave</button></div></header>;
 }
 
 function Table({ game, busy, action }) {
@@ -291,12 +270,34 @@ function RoleDialog({ game, open, busy, onClose, onAcknowledge }) {
   const role = game.privateRole.role;
   const party = game.privateRole.party;
   const acknowledged = game.privateRole.acknowledged;
-  return <div className="sh-modal-backdrop" role="presentation"><section className={`sh-modal sh-role-card ${party}`} role="dialog" aria-modal="true" aria-labelledby="role-title"><div className="sh-role-crest">{party === "liberal" ? <Shield size={48} /> : <Skull size={48} />}</div>{acknowledged && <button className="sh-modal-close" aria-label="Close role reminder" onClick={onClose}><X size={20} /></button>}<span className="sh-overline">Your secret role</span><h2 id="role-title">{roleLabel(role)}</h2><p>{role === "liberal" ? "Build trust carefully. Enact five Liberal policies or help execute Hitler." : role === "hitler" ? "Stay hidden. Your team wins if you are elected Chancellor after three Fascist policies—or if six Fascist policies pass." : "Protect Hitler, sow doubt, and guide six Fascist policies onto the board."}</p>{game.privateRole.knownTeam.length > 0 ? <div className="sh-known-team"><span>You recognize</span>{game.privateRole.knownTeam.map((member) => <div key={member.index}><strong>{member.name}</strong><small>{roleLabel(member.role)}</small></div>)}</div> : role === "hitler" && game.players.length >= 7 ? <div className="sh-unknown-team"><Eye size={19} /><span>With 7–10 players, Hitler does not know who the Fascists are.</span></div> : <div className="sh-unknown-team"><Shield size={19} /><span>You have no confirmed teammates.</span></div>}{acknowledged ? <p className="sh-reminder-note">This information is hidden again when you close it. Use “My role” anytime you need a reminder.</p> : <button className="sh-primary" disabled={busy} onClick={onAcknowledge}><Check size={18} /> I understand — hide my role</button>}</section></div>;
+  return <ChoiceModal
+    title={roleLabel(role)}
+    text={role === "liberal" ? "Build trust carefully. Enact five Liberal policies or help execute Hitler." : role === "hitler" ? "Stay hidden. Your team wins if you are elected Chancellor after three Fascist policies—or if six Fascist policies pass." : "Protect Hitler, sow doubt, and guide six Fascist policies onto the board."}
+    onClose={acknowledged ? onClose : undefined}
+  >
+    <p className="tbl-rule-heading">Your secret role · {party}</p>
+    {game.privateRole.knownTeam.length > 0
+      ? <div className="sh-known-team"><span>You recognize</span>{game.privateRole.knownTeam.map((member) => <div key={member.index}><strong>{member.name}</strong><small>{roleLabel(member.role)}</small></div>)}</div>
+      : role === "hitler" && game.players.length >= 7
+        ? <div className="sh-unknown-team"><Eye size={19} /><span>With 7–10 players, Hitler does not know who the Fascists are.</span></div>
+        : <div className="sh-unknown-team"><Shield size={19} /><span>You have no confirmed teammates.</span></div>}
+    {acknowledged
+      ? <p className="sh-reminder-note">This information is hidden again when you close it. Use “My role” anytime you need a reminder.</p>
+      : <button type="button" className="tbl-primary" disabled={busy} onClick={onAcknowledge}><Check size={18} /> I understand — hide my role</button>}
+  </ChoiceModal>;
 }
 
 function RulesDialog({ open, onClose }) {
   if (!open) return null;
-  return <div className="sh-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="sh-modal sh-rules" role="dialog" aria-modal="true" aria-labelledby="rules-title"><button className="sh-modal-close" aria-label="Close rules" onClick={onClose}><X size={20} /></button><span className="sh-overline">Field guide</span><h2 id="rules-title">How to play</h2><div className="sh-rules-grid"><div><b>1</b><section><strong>Nominate & vote</strong><p>The President nominates a Chancellor. Every living player votes Ja or Nein. A tied vote fails.</p></section></div><div><b>2</b><section><strong>Pass a policy</strong><p>The President discards one of three policies. The Chancellor discards one of the remaining two; the last is enacted.</p></section></div><div><b>3</b><section><strong>Use new powers</strong><p>Fascist policies unlock investigations, a policy peek, a special election, executions, and eventually veto power.</p></section></div><div><b>4</b><section><strong>Win the state</strong><p>Liberals win with five policies or Hitler’s execution. Fascists win with six policies, or by electing Hitler Chancellor after three Fascist policies.</p></section></div></div><div className="sh-rule-note"><Vote size={20} /><p>After three failed elections, the top policy is enacted automatically and term limits reset. In a 5–6 player game Hitler recognizes the Fascist; with 7–10, Hitler begins in the dark.</p></div></section></div>;
+  return <ChoiceModal wide title="How to play" text="Field guide." onClose={onClose}>
+    <div className="tbl-rule-grid">
+      <article><b>Nominate &amp; vote</b><p>The President nominates a Chancellor. Every living player votes Ja or Nein. A tied vote fails.</p></article>
+      <article><b>Pass a policy</b><p>The President discards one of three policies. The Chancellor discards one of the remaining two; the last is enacted.</p></article>
+      <article><b>Use new powers</b><p>Fascist policies unlock investigations, a policy peek, a special election, executions, and eventually veto power.</p></article>
+      <article><b>Win the state</b><p>Liberals win with five policies or Hitler’s execution. Fascists win with six policies, or by electing Hitler Chancellor after three Fascist policies.</p></article>
+    </div>
+    <p className="tbl-modal-copy">After three failed elections, the top policy is enacted automatically and term limits reset. In a 5–6 player game Hitler recognizes the Fascist; with 7–10, Hitler begins in the dark.</p>
+  </ChoiceModal>;
 }
 
 function roleLabel(role) {

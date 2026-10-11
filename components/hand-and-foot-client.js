@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Copy, DoorOpen, Footprints, Hand, Layers3, Play, Plus, Sparkles, UserPlus, Users, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Footprints,
+  Hand,
+  Layers3,
+  Play,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 import {
   HAND_FOOT_SUIT_SYMBOLS,
   activeCardsFor,
   canPlayHandFootCards,
-  chooseHandFootBotDiscard,
-  chooseHandFootBotMove,
-  createHandFootMatch,
-  discardHandFootCard,
-  drawHandFootCards,
   formatHandFootCard,
   getHandFootGoOutBlockReason,
   handFootCardPoints,
@@ -18,19 +21,15 @@ import {
   handFootRankLabel,
   isThree,
   isWildCard,
-  playHandFootCards,
-  startNextHandFootRound,
   toggleHandFootCardSelection,
 } from "../lib/hand-and-foot";
 import { HandFootRoomService } from "./hand-and-foot-room-service";
+import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 
-const BOT_NAMES = ["Marlow", "Vega", "Kit", "Rowan", "Jules", "Nova", "Ash", "Sage", "Remy", "Quinn", "Blair", "Drew", "Lane", "Parker", "Sky"];
 const PLAYER_NAME_KEY = "hand-foot-player-name";
 
 export default function HandAndFootClient() {
   const [playerName, setPlayerName] = useState("");
-  const [playerCount, setPlayerCount] = useState(4);
-  const [teammateName, setTeammateName] = useState(BOT_NAMES[0]);
   const [isReady, setIsReady] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [roomToken, setRoomToken] = useState("");
@@ -40,10 +39,7 @@ export default function HandAndFootClient() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const latestGame = useRef(null);
-
-  const availableTeammates = useMemo(() => BOT_NAMES.slice(0, playerCount - 1), [playerCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -87,57 +83,9 @@ export default function HandAndFootClient() {
   }, [game?.phase, game?.roundNumber]);
 
   useEffect(() => {
-    if (!availableTeammates.includes(teammateName)) setTeammateName(availableTeammates[0]);
-  }, [playerCount, teammateName, availableTeammates]);
-
-  useEffect(() => {
-    if (!game || game.roomCode || game.phase !== "playing" || game.currentPlayerIndex === 0) return undefined;
-    const timer = window.setTimeout(() => {
-      setGame((current) => {
-        if (!current || current.phase !== "playing" || current.currentPlayerIndex === 0) return current;
-        try {
-          let next = current;
-          const botIndex = next.currentPlayerIndex;
-          if (next.turnStage === "draw") next = drawHandFootCards(next, botIndex);
-          let attempts = 0;
-          while (next.phase === "playing" && attempts < 12) {
-            attempts += 1;
-            const move = chooseHandFootBotMove(next, botIndex);
-            if (!move?.cardIds.length) break;
-            try {
-              next = playHandFootCards(next, botIndex, move.cardIds, move.targetRank);
-            } catch {
-              break;
-            }
-          }
-          if (next.phase !== "playing") return next;
-          const discard = chooseHandFootBotDiscard(next, botIndex);
-          return discard ? discardHandFootCard(next, botIndex, discard.id) : next;
-        } catch (botError) {
-          return { ...current, message: `${current.players[current.currentPlayerIndex].name} could not complete the turn.` };
-        }
-      });
-    }, game.playerCount > 8 ? 280 : 720);
-    return () => window.clearTimeout(timer);
-  }, [game]);
-
-  useEffect(() => {
     setSelectedIds([]);
     setSelectedMeldTarget(null);
   }, [game?.currentPlayerIndex, game?.turnStage, game?.roundNumber]);
-
-  function startGame() {
-    const cleanName = usePlayerName();
-    setGame(createHandFootMatch({
-      playerName: cleanName,
-      playerCount,
-      teammateName,
-      startingPlayerIndex: Math.floor(Math.random() * playerCount),
-    }));
-    setSelectedIds([]);
-    setSelectedMeldTarget(null);
-    setError("");
-  }
 
   function usePlayerName() {
     const cleanName = playerName.trim() || "Player";
@@ -220,28 +168,6 @@ export default function HandAndFootClient() {
     window.history.replaceState(null, "", "/hand-and-foot");
   }
 
-  function copyInvite() {
-    if (!game?.roomCode) return;
-    void navigator.clipboard.writeText(`${window.location.origin}/hand-and-foot?room=${game.roomCode}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }
-
-  function performAction(roomActionName, roomValues, localAction) {
-    if (game?.roomCode) void roomAction(roomActionName, roomValues);
-    else runAction(localAction);
-  }
-
-  function runAction(action) {
-    try {
-      setGame((current) => action(current));
-      setSelectedIds([]);
-      setSelectedMeldTarget(null);
-      setError("");
-    } catch (actionError) {
-      setError(actionError.message);
-    }
-  }
 
   function toggleCard(cardId) {
     setError("");
@@ -257,94 +183,70 @@ export default function HandAndFootClient() {
   }
 
 
+  const rulesDialog = <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />;
+
   if (!game) {
-    return (
-      <main className="hf-app hf-intro-shell">
-        <section className="hf-intro">
-          <div className="hf-intro-copy">
-            <span className="hf-kicker"><Sparkles size={15} /> Partners, piles, and big-point books</span>
-            <h1>Hand <em>&amp;</em><br />Foot</h1>
-            <p>
-              Race through your hand, unlock your hidden foot, and build towering melds with
-              the teammate sitting across from you.
-            </p>
-
-            <div className="hf-setup-grid">
-              <label>
-                <span>Your name</span>
-                <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={18} placeholder="You" />
-              </label>
-              <label>
-                <span>Players</span>
-                <select value={playerCount} onChange={(event) => setPlayerCount(Number(event.target.value))}>
-                  {[4, 6, 8, 10, 12, 14, 16].map((count) => <option key={count} value={count}>{count} players</option>)}
-                </select>
-              </label>
-              <label>
-                <span>Your teammate</span>
-                <select value={teammateName} onChange={(event) => setTeammateName(event.target.value)}>
-                  {availableTeammates.map((name) => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </label>
-              <button type="button" className="hf-primary" onClick={startGame}>Play with computers <span>→</span></button>
-            </div>
-            <p className="hf-seat-note"><Users size={16} /> Your chosen teammate will sit directly across from you in the turn order.</p>
-            <div className="hf-entry-divider"><span>or use a shared room</span></div>
-            <div className="hf-room-entry">
-              <button type="button" className="hf-secondary" disabled={busy} onClick={createRoom}><Plus size={17} /> Create a room</button>
-              <div className="hf-join-row">
-                <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => event.key === "Enter" && joinRoom()}
-                  maxLength={5}
-                  placeholder="ROOM CODE"
-                  aria-label="Room code"
-                />
-                <button type="button" disabled={busy} onClick={joinRoom}><UserPlus size={16} /> Join</button>
-              </div>
-            </div>
-            {error && <div className="hf-error" role="alert">{error}</div>}
-            <button type="button" className="hf-text-button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Read the rules</button>
-          </div>
-
-          <div className="hf-hero-art" aria-label="Two stacks of playing cards">
-            <div className="hf-sun" />
-            <div className="hf-art-stack hf-art-hand"><span>HAND</span><Hand size={34} /></div>
-            <div className="hf-art-stack hf-art-foot"><span>FOOT</span><Footprints size={34} /></div>
-            <div className="hf-art-card art-seven">7<span>♦</span></div>
-            <div className="hf-art-card art-joker">J<small>OKER</small></div>
-            <div className="hf-art-badge"><b>4</b><span>rounds</span></div>
-          </div>
-        </section>
-        <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
-      </main>
-    );
+    return <Landing
+      gameName="Hand & Foot"
+      theme="tbl-light hand-and-foot-theme"
+      hero={<Hero
+        kicker="Partners, piles, and big-point books"
+        title={<>Hand <em>&amp;</em><br />Foot</>}
+        copy="Race through your hand, unlock your hidden foot, and build towering melds with the teammate sitting across from you."
+        badges={[{ icon: Users, label: "4–16 players" }, { icon: Layers3, label: "Partners across the table" }, { icon: Sparkles, label: "4 rounds" }]}
+        artLayout="free"
+        art={<div className="hf-hero-art" aria-label="Two stacks of playing cards">
+          <div className="hf-art-stack hf-art-hand"><span>HAND</span><Hand size={34} /></div>
+          <div className="hf-art-stack hf-art-foot"><span>FOOT</span><Footprints size={34} /></div>
+          <div className="hf-art-card art-seven">7<span>♦</span></div>
+          <div className="hf-art-card art-joker">J<small>OKER</small></div>
+        </div>}
+      />}
+      entry={{ name: playerName, setName: setPlayerName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
+      onRules={() => setRulesOpen(true)}
+      dialogs={rulesDialog}
+    />;
   }
 
   if (game.phase === "lobby") {
-    return (
-      <HandFootLobby
-        game={game}
-        copied={copied}
-        error={error}
-        onCopy={copyInvite}
-        onLeave={leaveGame}
-        onAction={roomAction}
-        onRules={() => setRulesOpen(true)}
-        rulesOpen={rulesOpen}
-        onCloseRules={() => setRulesOpen(false)}
-      />
-    );
+    const viewer = game.players.find((player) => player.isViewer) ?? game.players[0];
+    const playerNameById = Object.fromEntries(game.players.map((player) => [player.playerId, player.name]));
+    const canStart = game.players.length >= 4 && game.players.length <= 16 && game.players.length % 2 === 0;
+    return <SharedLobby
+      gameName="Hand & Foot"
+      theme="tbl-light hand-and-foot-theme"
+      room={{ roomCode: game.roomCode, hostId: game.hostControls ? viewer.playerId : game.players[0].playerId, players: game.players.map((player) => ({ ...player, id: player.playerId })) }}
+      me={{ id: viewer.playerId }}
+      busy={busy}
+      error={error}
+      min={4}
+      max={16}
+      canStart={canStart}
+      seatNote={canStart ? `${Math.floor(game.players.length / 2)} teams · 13-card hand + foot` : "Add players until there is an even table of at least four."}
+      options={<label className="hf-team-choice">
+        <span>Your preferred teammate</span>
+        <select value={game.viewerTeammateId || ""} onChange={(event) => roomAction("chooseTeammate", { teammateId: event.target.value })}>
+          <option value="" disabled>Choose a player</option>
+          {game.players.filter((player) => player.playerId !== viewer.playerId).map((player) => <option key={player.playerId} value={player.playerId}>{player.name}{game.teammatePreferences[player.playerId] ? ` (prefers ${playerNameById[game.teammatePreferences[player.playerId]]})` : ""}</option>)}
+        </select>
+        <small>Mutual choices take priority. Remaining players are paired in lobby order.</small>
+      </label>}
+      onAdd={() => roomAction("addComputer")}
+      onRemove={(id) => roomAction("removeComputer", { playerId: id })}
+      onStart={() => roomAction("start")}
+      onLeave={leaveGame}
+      onRules={() => setRulesOpen(true)}
+      rules={rulesDialog}
+    />;
   }
 
   if (game.phase === "round-over" || game.phase === "game-over") {
     return (
-      <RoundResults
-        game={game}
-        onNext={() => game.roomCode ? roomAction("nextRound") : runAction((current) => startNextHandFootRound(current))}
-        onLeave={leaveGame}
-      />
+      <main className="hf-app hf-game-shell tbl-light hand-and-foot-theme">
+        <GameHeader title="Hand & Foot" room={game} subtitle={`Round ${game.roundNumber} of 4`} status={game.phase === "game-over" ? "Game complete" : "Round complete"} onRules={() => setRulesOpen(true)} onLeave={leaveGame} />
+        <RoundResults game={game} onNext={() => roomAction("nextRound")} onLeave={leaveGame} />
+        {rulesDialog}
+      </main>
     );
   }
 
@@ -382,20 +284,12 @@ export default function HandAndFootClient() {
   const canDiscardSelected = yourTurn && game.turnStage === "play" && selectedIds.length === 1;
 
   function drawFromPile(pileIndex) {
-    performAction(
-      "draw",
-      { pileIndex, cardCount: 1 },
-      (current) => drawHandFootCards(current, viewerPlayerIndex, pileIndex, 1),
-    );
+    void roomAction("draw", { pileIndex, cardCount: 1 });
   }
 
   function discardSelectedCard() {
     if (!canDiscardSelected) return;
-    performAction(
-      "discard",
-      { cardId: selectedIds[0] },
-      (current) => discardHandFootCard(current, viewerPlayerIndex, selectedIds[0]),
-    );
+    void roomAction("discard", { cardId: selectedIds[0] });
   }
 
   function deselectAll() {
@@ -405,15 +299,15 @@ export default function HandAndFootClient() {
   }
 
   return (
-    <main className="hf-app hf-game-shell">
-      <header className="hf-gamebar">
-        <div className="hf-game-title"><span><Layers3 size={19} /></span><div><strong>Hand &amp; Foot</strong><small>{game.roomCode ? `Room ${game.roomCode} · ` : ""}Round {game.roundNumber} of 4 · Open with {game.roundRequirement} points</small></div></div>
-        <div className="hf-game-actions">
-          {game.roomCode && <button type="button" onClick={copyInvite}><Copy size={16} /> {copied ? "Copied" : "Invite"}</button>}
-          <button type="button" onClick={() => setRulesOpen(true)}><BookOpen size={16} /> Rules</button>
-          <button type="button" onClick={leaveGame}><DoorOpen size={16} /> Leave game</button>
-        </div>
-      </header>
+    <main className="hf-app hf-game-shell tbl-light hand-and-foot-theme">
+      <GameHeader
+        title="Hand & Foot"
+        room={game}
+        subtitle={`Round ${game.roundNumber} of 4 · Open with ${game.roundRequirement} points`}
+        status={yourTurn ? "Your turn" : `${game.players[game.currentPlayerIndex]?.name ?? "…"}'s turn`}
+        onRules={() => setRulesOpen(true)}
+        onLeave={leaveGame}
+      />
 
       <section className="hf-scoreboard" aria-label="Team scores">
         {game.teams.map((team) => (
@@ -480,9 +374,9 @@ export default function HandAndFootClient() {
             <small>{human.usingFoot ? "Playing from your foot" : `Your foot is hidden (${human.footCount ?? human.foot.length} cards)`} · Team {humanTeam.opened ? "is open" : `needs ${game.roundRequirement} points`}</small>
           </div>
           <div className="hf-turn-actions">
-            {canDrawCards && <button type="button" className="hf-primary compact" onClick={() => performAction("draw", {}, (current) => drawHandFootCards(current, viewerPlayerIndex))}>{yourTurn ? "Draw" : "Draw ahead"} {cardsStillToDraw}</button>}
+            {canDrawCards && <button type="button" className="hf-primary compact" onClick={() => roomAction("draw", {})}>{yourTurn ? "Draw" : "Draw ahead"} {cardsStillToDraw}</button>}
             {yourTurn && game.turnStage === "play" && <>
-              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => performAction("play", { cardIds: selectedIds, targetRank: selectedMeldTarget }, (current) => playHandFootCards(current, viewerPlayerIndex, selectedIds, selectedMeldTarget))}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
+              <button type="button" className="hf-secondary" disabled={!selectedCanPlay} onClick={() => roomAction("play", { cardIds: selectedIds, targetRank: selectedMeldTarget })}>{humanTeam.opened ? "Play selected" : "Open with selected"}</button>
               <button type="button" className="hf-discard-button" disabled={!canDiscardSelected} onClick={discardSelectedCard}>Discard selected</button>
               <button type="button" className="hf-deselect-button" disabled={selectedIds.length === 0} onClick={deselectAll}><X size={15} /> Deselect All</button>
             </>}
@@ -534,65 +428,6 @@ export default function HandAndFootClient() {
   );
 }
 
-function HandFootLobby({ game, copied, error, onCopy, onLeave, onAction, onRules, rulesOpen, onCloseRules }) {
-  const canStart = game.players.length >= 4 && game.players.length <= 16 && game.players.length % 2 === 0;
-  const viewer = game.players.find((player) => player.isViewer);
-  const playerNameById = Object.fromEntries(game.players.map((player) => [player.playerId, player.name]));
-  return (
-    <main className="hf-app hf-intro-shell hf-lobby-shell">
-      <section className="hf-lobby-card">
-        <span className="hf-kicker"><Sparkles size={15} /> Gather your teams</span>
-        <h1>Hand <em>&amp;</em> Foot</h1>
-        <p>Invite an even table of four to sixteen. Everyone can name a preferred teammate; mutual choices are paired first and seated opposite.</p>
-
-        <div className="hf-room-code">
-          <span>Room code</span>
-          <strong>{game.roomCode}</strong>
-          <button type="button" onClick={onCopy}><Copy size={16} /> {copied ? "Copied" : "Copy invite"}</button>
-        </div>
-
-        <div className="hf-lobby-players">
-          {game.players.map((player, index) => (
-            <div key={player.playerId}>
-              <span>{player.name.slice(0, 1).toUpperCase()}</span>
-              <strong>{player.name}{player.isViewer ? " · You" : ""}</strong>
-              <small>
-                {index === 0 ? "Host" : player.isComputer ? "Computer" : "Ready"}
-                {game.teammatePreferences[player.playerId] ? ` · prefers ${playerNameById[game.teammatePreferences[player.playerId]]}` : ""}
-              </small>
-              {player.isComputer && game.hostControls && <button type="button" onClick={() => onAction("removeComputer", { playerId: player.playerId })}><X size={14} /> Remove</button>}
-            </div>
-          ))}
-        </div>
-
-        {game.players.length < 16 && game.hostControls && (
-          <button type="button" className="hf-add-computer" onClick={() => onAction("addComputer")}><UserPlus size={17} /> Add computer</button>
-        )}
-
-        <label className="hf-team-choice">
-          <span>Your preferred teammate</span>
-          <select value={game.viewerTeammateId || ""} onChange={(event) => onAction("chooseTeammate", { teammateId: event.target.value })}>
-            <option value="" disabled>Choose a player</option>
-            {game.players.filter((player) => player.playerId !== viewer.playerId).map((player) => <option key={player.playerId} value={player.playerId}>{player.name}</option>)}
-          </select>
-          <small>Mutual choices take priority. Remaining players are paired in lobby order.</small>
-        </label>
-
-        <div className="hf-lobby-summary"><span>{game.players.length} players</span><span>{Math.floor(game.players.length / 2)} teams at start</span><span>13-card hand + foot</span></div>
-        {game.hostControls ? (
-          <button type="button" className="hf-primary hf-lobby-start" disabled={!canStart} onClick={() => onAction("start")}><Play size={18} /> Start game</button>
-        ) : (
-          <p className="hf-lobby-waiting">Waiting for the host to start the game…</p>
-        )}
-        {!canStart && game.hostControls && <p className="hf-lobby-waiting">Add players until there is an even table of at least four.</p>}
-        {error && <div className="hf-error" role="alert">{error}</div>}
-        <div className="hf-lobby-footer"><button type="button" onClick={onRules}><BookOpen size={16} /> Rules</button><button type="button" onClick={onLeave}><DoorOpen size={16} /> Leave game</button></div>
-      </section>
-      <RulesDialog open={rulesOpen} onClose={onCloseRules} />
-    </main>
-  );
-}
-
 function PlayingCard({ card, selected, disabled, onClick }) {
   const red = card.suit === "hearts" || card.suit === "diamonds";
   return (
@@ -630,49 +465,40 @@ function RoundResults({ game, onNext, onLeave }) {
   const winner = game.phase === "game-over" ? game.teams[game.winnerTeamId] : null;
   const drawPileEndedRound = game.roundSummary?.endReason === "draw-pile-empty";
   return (
-    <main className="hf-app hf-results-shell">
-      <section className="hf-results-card">
-        <span className="hf-kicker">{winner ? "Game complete" : `Round ${game.roundNumber} complete`}</span>
-        <h1>{winner ? `Team ${winner.id + 1} wins!` : drawPileEndedRound ? "The draw pile ran out." : "Count the table."}</h1>
-        <p>{winner ? `${winner.memberIds.map((id) => game.players[id].name).join(" and ")} finish with ${winner.score.toLocaleString()} points.` : drawPileEndedRound ? "The discard pile stays put. Laid cards and books are counted, and every card left in a hand or foot is subtracted." : "Books are counted, loose cards come off, and the next opening gets tougher."}</p>
-        <div className="hf-result-teams">
-          {game.teams.map((team) => {
-            const breakdown = game.roundSummary.breakdowns[team.id];
-            return <article key={team.id} className={winner?.id === team.id ? "winner" : ""}>
-              <header><span>Team {team.id + 1}</span><strong>{team.score.toLocaleString()}</strong></header>
-              <small>{team.memberIds.map((id) => game.players[id].name).join(" + ")}</small>
-              <dl><div><dt>Cards laid</dt><dd>+{breakdown.laidPoints}</dd></div><div><dt>Book bonuses</dt><dd>+{breakdown.bookBonus}</dd></div><div><dt>Cards left</dt><dd>{breakdown.leftoverPoints}</dd></div><div className="total"><dt>Round total</dt><dd>{breakdown.total}</dd></div></dl>
-            </article>;
-          })}
-        </div>
-        <div className="hf-result-actions">
-          {!winner && (!game.roomCode || game.hostControls) && <button type="button" className="hf-primary" onClick={onNext}>Start round {game.roundNumber + 1}</button>}
-          {!winner && game.roomCode && !game.hostControls && <p className="hf-lobby-waiting">Waiting for the host to start round {game.roundNumber + 1}…</p>}
-          <button type="button" className="hf-secondary" onClick={onLeave}><DoorOpen size={16} /> Leave game</button>
-        </div>
-      </section>
-    </main>
+    <Results
+      title={winner ? `Team ${winner.id + 1} wins!` : drawPileEndedRound ? "The draw pile ran out." : "Count the table."}
+      text={winner ? `${winner.memberIds.map((id) => game.players[id].name).join(" and ")} finish with ${winner.score.toLocaleString()} points.` : drawPileEndedRound ? "The discard pile stays put. Laid cards and books are counted, and every card left in a hand or foot is subtracted." : "Books are counted, loose cards come off, and the next opening gets tougher."}
+      rows={game.teams.map((team) => {
+        const breakdown = game.roundSummary.breakdowns[team.id];
+        return {
+          id: String(team.id),
+          name: `Team ${team.id + 1} · ${team.memberIds.map((id) => game.players[id].name).join(" + ")}`,
+          value: team.score.toLocaleString(),
+          note: `laid +${breakdown.laidPoints} · books +${breakdown.bookBonus} · left ${breakdown.leftoverPoints} · round ${breakdown.total}`,
+        };
+      })}
+    >
+      {!winner && game.hostControls && <button type="button" className="tbl-primary" onClick={onNext}>Start round {game.roundNumber + 1}</button>}
+      {!winner && !game.hostControls && <p className="tbl-wait">Waiting for the host to start round {game.roundNumber + 1}…</p>}
+      <button type="button" className="tbl-link" onClick={onLeave}>Leave game</button>
+    </Results>
   );
 }
 
 function RulesDialog({ open, onClose }) {
   if (!open) return null;
   return (
-    <div className="hf-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="hf-dialog" role="dialog" aria-modal="true" aria-labelledby="hf-rules-title">
-        <button type="button" className="hf-dialog-close" onClick={onClose} aria-label="Close rules"><X size={20} /></button>
-        <span className="hf-kicker">How to play</span><h2 id="hf-rules-title">Hand &amp; Foot</h2>
-        <div className="hf-rules-grid">
-          <article><b>1</b><div><h3>Partners sit opposite</h3><p>Four to sixteen players, in even-numbered groups, form two-person teams. The shoe uses one more deck than the number of players. Every player gets a 13-card hand and a hidden 13-card foot.</p></div></article>
-          <article><b>2</b><div><h3>Draw, meld, discard</h3><p>Draw two with the button, or click piles one card at a time. After the current player draws two, draw-ahead permission passes clockwise: each player may draw after the player immediately before them finishes drawing two. The active player cannot draw twice before discarding, and ahead-drawn cards stay separate until their turn. Natural ranks select together, while twos, jokers, and threes select individually. Use Deselect All to clear a trial selection.</p></div></article>
-          <article><b>3</b><div><h3>Open as a team</h3><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></div></article>
-          <article><b>4</b><div><h3>Manage wilds</h3><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></div></article>
-          <article><b>5</b><div><h3>Reach your foot</h3><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></div></article>
-          <article><b>6</b><div><h3>Score four rounds</h3><p>Count laid cards and books, then subtract every card left. The draw pile is never reshuffled; if fewer than two cards remain for a draw, the round ends and is scored. Seven-card books score 500 clean, 300 dirty, or 2,500 wild; a clean book of sevens scores 3,000, but sevens with a wild score 300.</p></div></article>
-        </div>
-        <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
-      </section>
-    </div>
+    <ChoiceModal wide title="Hand & Foot" text="How to play." onClose={onClose}>
+      <div className="tbl-rule-grid">
+        <article><b>Partners sit opposite</b><p>Four to sixteen players, in even-numbered groups, form two-person teams. The shoe uses one more deck than the number of players. Every player gets a 13-card hand and a hidden 13-card foot.</p></article>
+        <article><b>Draw, meld, discard</b><p>Draw two with the button, or click piles one card at a time. After the current player draws two, draw-ahead permission passes clockwise: each player may draw after the player immediately before them finishes drawing two. The active player cannot draw twice before discarding, and ahead-drawn cards stay separate until their turn. Natural ranks select together, while twos, jokers, and threes select individually. Use Deselect All to clear a trial selection.</p></article>
+        <article><b>Open as a team</b><p>One teammate must lay 50, 90, 120, then 150 points in rounds one through four. After that, either teammate may add legal cards.</p></article>
+        <article><b>Manage wilds</b><p>Twos and jokers are wild. Choose which team pile receives a wild. A regular meld may hold at most two, and must always have more natural cards than wilds. Wild-only melds are allowed.</p></article>
+        <article><b>Reach your foot</b><p>Empty your hand to reveal a sorted foot. Until your teammate reaches their foot and has no 3, melds must leave you at least two foot cards before your discard. Once clear, you may meld or discard your last card to go out.</p></article>
+        <article><b>Score four rounds</b><p>Count laid cards and books, then subtract every card left. The draw pile is never reshuffled; if fewer than two cards remain for a draw, the round ends and is scored. Seven-card books score 500 clean, 300 dirty, or 2,500 wild; a clean book of sevens scores 3,000, but sevens with a wild score 300.</p></article>
+      </div>
+      <div className="hf-point-row"><span>4–7 <b>5</b></span><span>8–K <b>10</b></span><span>A &amp; 2 <b>20</b></span><span>Joker <b>50</b></span><span>Red 3 <b>−100</b></span><span>Black 3 <b>−300</b></span></div>
+    </ChoiceModal>
   );
 }
 
