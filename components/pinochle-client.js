@@ -519,7 +519,9 @@ function TurnControls({ game, busy, yourTurn, minimumBid, bidAmount, setBidAmoun
        trick you are about to clear. */
     return (
       <button type="button" className="tbl-felt-sweep" disabled={busy} onClick={() => onAction("clearTrick")}>
-        Clear trick
+        {game.players[game.lastTrick?.winnerPlayerIndex]?.name
+          ? `${game.players[game.lastTrick.winnerPlayerIndex].name} won · Clear trick`
+          : "Clear trick"}
       </button>
     );
   }

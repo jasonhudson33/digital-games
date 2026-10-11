@@ -422,6 +422,7 @@ export default function SkullKingClient() {
           dock={game.phase === "collecting" ? (
             <div className="tbl-felt-dock wide skull-bid-dock">
               <h2>Trick complete</h2>
+              <p className="skull-trick-result">{trickResultText(game)}</p>
               <p>Review the cards, then clear the trick to continue.</p>
               <button type="button" className="skull-primary full" onClick={() => updateGame("collectTrick", {}, (current) => collectSkullKingTrick(current))}>
                 Clear trick
@@ -1164,4 +1165,11 @@ function decisionControllerIndex(game, decisionPlayerIndex) {
   return decisionPlayerIndex === ghostIndex
     ? getSkullKingGhostControllerIndex(game)
     : decisionPlayerIndex;
+}
+
+function trickResultText(game) {
+  const result = game.lastTrick;
+  if (!result) return "";
+  if (result.winnerIndex === null || result.winnerIndex === undefined) return "No one won this trick.";
+  return `${game.players[result.winnerIndex].name} won the trick.`;
 }
