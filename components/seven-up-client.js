@@ -7,6 +7,8 @@ import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/tab
 import { SevenUpRoomService } from "./seven-up-room-service";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { SUITS, buildSequence, capitalize, formatCard, sameCard } from "../lib/game";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const SUIT_SYMBOLS = {
   clubs: "♣",
@@ -140,8 +142,8 @@ export default function SevenUpClient() {
         {room.hand.length === 0 ? (
           <div className="hand empty-hand">No cards remaining.</div>
         ) : (
-          <div className="hand">
-            {room.hand.map((card) => {
+          <CardFan className="hand" count={room.hand.length}>
+            {orderHand("seven-up", room.hand).map((card) => {
               const playable = yourTurn && room.legalMoves.some((candidate) => sameCard(candidate, card));
               return (
                 <button
@@ -156,7 +158,7 @@ export default function SevenUpClient() {
                 </button>
               );
             })}
-          </div>
+          </CardFan>
         )}
         <div className="tbl-actions">
           <button className="tbl-secondary" type="button" disabled={!mustPass || busy} onClick={() => act("pass")}>

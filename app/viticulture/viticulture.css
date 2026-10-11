@@ -9,7 +9,7 @@
   --tbl-accent-hue: 90;
 }
 
-:root {
+html[data-route="viticulture"] {
   --route-surface: #eee7d7;
   --route-ink: #252a20;
   --route-muted: rgba(37, 42, 32, .64);

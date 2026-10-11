@@ -23,7 +23,7 @@
  * ground explicitly. Without this a dark OS preference would put near-black
  * behind cream panels — the game is a light room by design.
  */
-:root {
+html[data-route="splendor"] {
   --route-surface: #f1f2f5;
   --route-ink: #0e1015;
   --route-muted: rgba(14, 16, 21, 0.62);

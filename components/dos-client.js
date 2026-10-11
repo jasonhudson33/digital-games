@@ -8,6 +8,7 @@ import { Seat, SeatedTable } from "./ui/seated-table";
 import { DosRoomService } from "./dos-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import { MAX_PLAYERS, MIN_PLAYERS, currentPlayer, matchOptions } from "../lib/dos";
+import CardFan from "./card-fan";
 
 const keys = { name: "dos-player-name", room: "dos-active-room" };
 
@@ -153,11 +154,11 @@ export default function DosClient() {
           </button>
         </header>
 
-        <div className="tbl-hand">
+        <CardFan className="tbl-hand" count={me.cards.length}>
           {me.cards.map((held) => (
             <ColorGameCard key={held.id} card={held} selected={selectedHand.includes(held.id)} disabled={busy || !myTurn} onClick={myTurn ? () => mustPlace ? act("placeCenterCard", { cardId: held.id }) : toggleHand(held.id) : undefined} label={`${cardName(held)}${mustPlace ? ", place in center" : ""}`} />
           ))}
-        </div>
+        </CardFan>
 
         {myTurn && (
           <div className="dos-action-panel">

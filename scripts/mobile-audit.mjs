@@ -20,6 +20,8 @@
  *   FAIL  page scrolls sideways (document wider than the viewport)
  *   FAIL  uncaught page error, or a React error boundary on screen
  *   FAIL  text field under 16px — iOS Safari zooms the page on focus
+ *   FAIL  a card hand (.tbl-fan) scrolls sideways, has a card outside its box,
+ *         or leaves under 24px of a card showing (platform/card-hands)
  *   FAIL  a game does not show the landing entry, lobby, game bar or Rules
  *         dialog (scripts/layout-check.mjs lists games not yet migrated)
  *   WARN  readable text under 9px, tap targets under 24px
@@ -113,9 +115,33 @@ function inspect(MIN_TEXT) {
     }
   }
 
+  // Card hands (platform/card-hands): fit the box, never scroll, keep a finger-sized strip of every card.
+  const hands = [...document.querySelectorAll(".tbl-fan")].map((hand) => {
+    const box = hand.getBoundingClientRect();
+    const cards = [...hand.children].filter((c) => c.getBoundingClientRect().width);
+    const rows = new Map();
+    for (const c of cards) {
+      // offsetTop is layout, so a lifted (hovered or selected) card stays on its row.
+      const r = c.getBoundingClientRect();
+      const key = c.offsetTop + c.offsetHeight;
+      (rows.get(key) ?? rows.set(key, []).get(key)).push(r);
+    }
+    let narrowest = Infinity;
+    for (const row of rows.values()) {
+      row.sort((a, b) => a.left - b.left);
+      for (let i = 0; i < row.length - 1; i++) narrowest = Math.min(narrowest, row[i + 1].left - row[i].left);
+    }
+    const outside = cards.filter((c) => { const r = c.getBoundingClientRect(); return r.right > box.right + 1 || r.left < box.left - 1; }).length;
+    const cs = getComputedStyle(hand);
+    return {
+      name: label(hand), n: cards.length, rows: rows.size, width: Math.round(box.width), narrowest: narrowest === Infinity ? null : Math.round(narrowest),
+      scrolls: ["auto", "scroll"].includes(cs.overflowX) && hand.scrollWidth > hand.clientWidth + 1, outside,
+    };
+  });
+
   const parts = [...new Set([...document.querySelectorAll("[data-layout]")].map((el) => el.dataset.layout))];
   const boundary = /something broke|application error/i.test(document.body.innerText);
-  return { vw, sw, wide: wide.slice(0, 5), tinyText, smallTargets, smallInputs, boundary, parts };
+  return { vw, sw, wide: wide.slice(0, 5), tinyText, smallTargets, smallInputs, boundary, parts, hands };
 }
 
 let failures = 0;
@@ -128,6 +154,14 @@ function report(stage, r, errors, seen) {
   if (r.boundary) fail(`${stage}: error boundary on screen`);
   for (const e of errors.splice(0)) fail(`${stage}: ${e}`);
   if (r.smallInputs.length) fail(`${stage}: text fields under 16px (iOS zooms on focus): ${r.smallInputs.join(", ")}`);
+
+  for (const h of r.hands) {
+    const where = `${stage}: hand ${h.name} (${h.n} cards, ${h.rows} row${h.rows > 1 ? "s" : ""}, ${h.width}px wide)`;
+    if (h.scrolls) fail(`${where} scrolls sideways`);
+    if (h.outside) fail(`${where} has ${h.outside} card(s) outside its box`);
+    if (h.narrowest !== null && h.narrowest < 24) fail(`${where} shows only ${h.narrowest}px of a card`);
+    if (verbose) warn(`${where}: narrowest visible ${h.narrowest}px`);
+  }
 
   const tiny = Object.entries(r.tinyText);
   if (tiny.length) warn(`${stage}: text under ${MIN_TEXT}px in ${tiny.length} selector(s)${verbose ? ": " + tiny.map(([k, v]) => `${k} ${v}px`).join(", ") : ""}`);

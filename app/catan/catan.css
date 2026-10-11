@@ -32,7 +32,7 @@
  * global --bg, so it stops cutting a cool grey band across the top of a
  * warm page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="catan"] {
   --route-surface: #ecddc5;
   --route-ink: #1e1a15;
   --route-muted: rgba(30, 26, 21, 0.62);

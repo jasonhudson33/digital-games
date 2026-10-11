@@ -11,7 +11,7 @@
   --tbl-accent-hue: 12;
 }
 
-:root {
+html[data-route="camel-up"] {
   --route-surface: #efe1bd;
   --route-ink: #342518;
   --route-muted: rgba(52, 37, 24, .64);

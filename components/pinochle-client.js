@@ -18,6 +18,8 @@ import {
 import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { PinochleRoomService } from "./pinochle-room-service";
 import { ChoiceModal, Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -307,8 +309,8 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
 
       <section className="pn-hand-zone">
         <div className="pn-hand-heading"><span className={`pn-turn-dot ${yourTurn ? "on" : ""}`} /><strong>{handInstruction(game, yourTurn) || (yourTurn ? "Your turn" : "Your hand")}</strong><small>{viewer.hand.length} cards</small></div>
-        <div className="pn-hand" aria-label="Your hand">
-          {viewer.hand.map((card) => {
+        <CardFan className="pn-hand" count={viewer.hand.length} aria-label="Your hand">
+          {orderHand("pinochle", viewer.hand, { trump: game.trump }).map((card) => {
             const playable = legalIds.has(card.id);
             const selected = selectedIds.includes(card.id);
             const canSelectCards = ["discarding-kitty", "partner-passing", "bidder-returning"].includes(game.phase) && yourTurn;
@@ -326,7 +328,7 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
               </button>
             );
           })}
-        </div>
+        </CardFan>
       </section>
 
       {error && <p className="pn-error pn-game-error" role="alert">{error}</p>}

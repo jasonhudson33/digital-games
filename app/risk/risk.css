@@ -21,7 +21,7 @@
  * global --bg, so it stops cutting a grey band across the top of a
  * dark page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="risk"] {
   --route-surface: #153e4c;
   --route-ink: #f0f3f4;
   --route-muted: rgba(240, 243, 244, 0.66);

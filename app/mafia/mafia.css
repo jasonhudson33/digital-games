@@ -5,7 +5,7 @@
  * global --bg, so it stops cutting a grey band across the top of a
  * dark page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="mafia"]{
   --route-surface: #05081e;
   --route-ink: #f0f1f4;
   --route-muted: rgba(240, 241, 244, 0.66);

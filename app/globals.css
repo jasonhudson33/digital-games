@@ -1210,9 +1210,10 @@ input {
 }
 
 .hand {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  /* A slot is the card (52px) plus the button's padding and border. */
+  --card-w: 66px;
+  --fan-gap: 10px;
+  padding-top: 14px;
 }
 
 .hand-actions {
@@ -1320,6 +1321,10 @@ input {
   .table-card,
   .hand-card {
     width: 56px;
+  }
+
+  .hand {
+    --card-w: 70px;
   }
 
   .lane-card,

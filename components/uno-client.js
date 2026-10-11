@@ -10,6 +10,7 @@ import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundMo
 import {
   MAX_PLAYERS, MIN_PLAYERS, cardFace, colorsForGame, currentPlayer, isPlayable, topDiscard,
 } from "../lib/uno";
+import CardFan from "./card-fan";
 
 const keys = { name: "uno-player-name", room: "uno-active-room" };
 
@@ -165,14 +166,14 @@ export default function UnoClient() {
           </button>
         </header>
 
-        <div className="tbl-hand">
+        <CardFan className="tbl-hand" count={me.cards.length}>
           {me.cards.map((held) => {
             const playable = myTurn && (!room.drawnCardId || room.drawnCardId === held.id) && isPlayable(room, held, me);
             const face = cardFace(room, held);
             const wild = ["wild", "wild4", "wildDraw2", "wildDrawColor"].includes(face.type);
             return <ColorGameCard key={held.id} card={face} dark={darkSide} disabled={busy || !playable} onClick={playable ? () => wild ? setWildCardId(held.id) : play(held) : undefined} label={`${cardName(face)}${playable ? ", play card" : ""}`} />;
           })}
-        </div>
+        </CardFan>
 
         {myTurn && (
           <div className="tbl-actions">

@@ -109,10 +109,13 @@
      down their own — cream, warm sand, near-black green — while the header was
      painting itself from --bg, so every one of those routes had a grey band
      cut across the top of the window.
-     Each game's stylesheet overrides these, and because route CSS only loads on
-     its own route, the override is automatically scoped to that page. Games
-     that sit on --bg (the hub, UNO, DOS, Qwirkle, Splendor and the rest) need
-     to declare nothing and inherit the defaults below. */
+     Each game's stylesheet overrides these under html[data-route="<slug>"],
+     never on :root. Route CSS does NOT unload on a client-side navigation, so
+     a :root override outlived its page and the hub inherited a dark game's
+     ground. The attribute is set by components/route-theme.js and stops
+     matching as soon as the route changes. Games that sit on --bg (the hub,
+     UNO, DOS and the rest) need to declare nothing and inherit the defaults
+     below. */
   --route-surface: var(--bg);
   --route-ink: var(--ink);
   --route-muted: var(--muted);

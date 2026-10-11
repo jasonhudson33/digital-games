@@ -14,6 +14,8 @@ import {
   rankLabel,
 } from "../lib/hearts";
 import { BookOpen, Heart, Skull, Users, Bot } from "lucide-react";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const VARIANTS = {
   classic: {
@@ -170,8 +172,8 @@ export default function HeartsClient() {
                 ? "Your turn"
                 : "Waiting for the table"}
           </div>
-          <div className="player-hand" aria-label="Your hand">
-            {room.players[viewerIndex].hand.map((card, index) => {
+          <CardFan className="player-hand" count={room.players[viewerIndex].hand.length} aria-label="Your hand">
+            {orderHand("hearts", room.players[viewerIndex].hand).map((card, index) => {
               const selected = selectedPass.includes(card.id) || Boolean(room.myPass?.includes(card.id));
               const playable = legalIds.has(card.id);
               return (
@@ -192,7 +194,7 @@ export default function HeartsClient() {
                 </button>
               );
             })}
-          </div>
+          </CardFan>
         </div>
       </section>
 

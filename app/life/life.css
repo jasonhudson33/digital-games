@@ -27,7 +27,7 @@
  * global --bg, so it stops cutting a cool grey band across the top of a
  * warm page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="life"] {
   --route-surface: #e9f2e9;
   --route-ink: #151e15;
   --route-muted: rgba(21, 30, 21, 0.62);

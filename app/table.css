@@ -997,15 +997,91 @@
 }
 
 .tbl-hand {
-  display: flex;
-  gap: 8px;
+  --card-w: 105px;
+  /* The index sits in the corner; leave room for "+4" and the like. */
+  --fan-visible: 30px;
   min-height: 164px;
-  overflow-x: auto;
-  padding: 12px 3px 7px;
+  padding-block: 18px 7px;
 }
 
-.tbl-hand .tbl-card {
-  flex: 0 0 auto;
+/* ── Card fan ──────────────────────────────────────────────────────────────
+ * The one hand layout every game uses (platform/card-hands), rendered by
+ * components/card-fan.js. Cards sit at --fan-gap while they fit and overlap by
+ * the least that makes them fit; the box's own width does the sum, so there is
+ * no resize observer and no sideways scroll.
+ *
+ *   --n            card count, set by the component
+ *   --card-w       width of one slot; the game's card fills it
+ *   --fan-gap      spacing while the hand fits
+ *   --fan-visible  least width of each card left showing (a finger target)
+ *
+ * Later cards paint over earlier ones, so each card's left edge, where the
+ * rank and suit sit, stays readable. When even the tightest overlap will not
+ * fit, the hand wraps to a second row instead of overlapping further.
+ *
+ * The overlap is a negative end margin, and a flex line breaks on outer size,
+ * so a wrapped row's last card counts as only --fan-visible wide while it
+ * paints --card-w wide. A wrapped hand therefore reserves that difference
+ * (--fan-over) as end padding; a hand on one row reserves nothing.
+ * Games add only appearance (vertical padding, lift, shadow) on top of this:
+ * no horizontal padding on the fan, and sizing of the slot belongs here.
+ */
+.tbl-fan-box {
+  container-type: inline-size;
+}
+
+/* Defaults at zero specificity, so a game's own --card-w wins whatever order the sheets load in. */
+:where(.tbl-fan) {
+  --card-w: 72px;
+  --fan-gap: 8px;
+  --fan-visible: 24px;
+}
+
+.tbl-fan {
+  --fan-over: calc(var(--card-w) - var(--fan-visible));
+  /* Room between each pair of cards if the hand were laid on one row. The 1px
+     keeps a row that fits exactly from wrapping on sub-pixel rounding. */
+  --fan-fit: calc((100cqw - 1px - var(--n, 1) * var(--card-w)) / max(var(--n, 1) - 1, 1));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  row-gap: 8px;
+  /* Zero while one row fits; --fan-over once it cannot. */
+  padding-inline-end: clamp(0px, (var(--fan-visible) - var(--card-w) - var(--fan-fit)) * 1000, var(--fan-over));
+}
+
+.tbl-fan > * {
+  position: relative;
+  flex: 0 0 var(--card-w);
+  box-sizing: border-box;
+  width: var(--card-w);
+  min-width: 0;
+  max-width: none;
+  /* Its own stacking context, so a card's raised parts (a corner, a big glyph)
+     cannot paint over the card laid on top of it. */
+  isolation: isolate;
+  margin-inline-start: 0;
+  margin-inline-end: clamp(var(--fan-visible) - var(--card-w), var(--fan-fit), var(--fan-gap));
+}
+
+.tbl-fan > :last-child {
+  margin-inline-end: 0;
+}
+
+/* A see-through card shows the one beneath it, so a hand dims with a filter, never opacity. */
+.tbl-fan > .tbl-card:disabled {
+  opacity: 1;
+  filter: saturate(0.52) brightness(0.8);
+}
+
+.tbl-fan > :is(.selected, :hover:not(:disabled), :focus-visible) {
+  z-index: 4;
+}
+
+@supports not (width: 1cqw) {
+  /* No container units: keep the normal gap and let the hand wrap. */
+  .tbl-fan > * { margin-inline-end: var(--fan-gap); }
 }
 
 .tbl-hand .tbl-card:not(:disabled):hover {
@@ -1613,6 +1689,7 @@
   .tbl-table { grid-template-columns: 1fr; }
   .tbl-side { min-height: 120px; }
   .tbl-piles { gap: 20px; }
+  .tbl-hand { --card-w: 92px; }
   .tbl-hand .tbl-card { width: 92px; height: 128px; }
   .tbl-actions,
   .dos-action-panel { flex-wrap: wrap; justify-content: stretch; }

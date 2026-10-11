@@ -30,7 +30,7 @@
  * global --bg, so it stops cutting a cool grey band across the top of a
  * warm page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="scum"] {
   --route-surface: #f1ead8;
   --route-ink: #1e1b15;
   --route-muted: rgba(30, 27, 21, 0.62);
@@ -271,19 +271,12 @@
 .your-turn-chip { margin-left: auto; padding: 5px 10px; border-radius: 999px; color: var(--scum-gold); background: rgba(226,184,79,.1); text-transform: uppercase; letter-spacing: .1em; font-size: 0.625rem; font-weight: 800; }
 
 .scum-hand {
+  --card-w: 72px;
   min-height: 126px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  padding: 8px 8px 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  padding-block: 18px 0;
 }
-.hand-card-button {
-  width: clamp(42px, 6.4vw, 72px);
-  min-width: clamp(42px, 6.4vw, 72px);
-  height: 111px;
-  margin: 0 0 0 -8px;
+.scum-hand-card {
+  height: calc(var(--card-w) * 1.54);
   padding: 0;
   border: 0;
   border-radius: 8px;
@@ -291,11 +284,11 @@
   cursor: pointer;
   transition: transform 150ms ease, filter 150ms ease;
 }
-.hand-card-button:first-child { margin-left: 0; }
-.hand-card-button:hover:not(:disabled) { transform: translateY(-8px); }
-.hand-card-button.selected { transform: translateY(-15px); }
-.hand-card-button.dimmed { filter: brightness(.55); }
-.hand-card-button:disabled { cursor: default; }
+.scum-hand-card:hover:not(:disabled) { transform: translateY(-8px); }
+.scum-hand-card.selected { transform: translateY(-15px); }
+.scum-hand-card.dimmed { filter: brightness(.55); }
+.scum-hand-card:disabled { cursor: default; }
+.scum-hand > .hand-empty { flex: 1 1 auto; width: auto; margin: auto; }
 
 .playing-card {
   position: relative;
@@ -346,9 +339,9 @@
 .trade-choice { margin: 0 0 18px; padding: 15px; border-radius: 16px; background: rgba(24, 63, 51, .07); }
 .trade-choice > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .trade-choice > div:first-child strong { font-size: .82rem; }.trade-choice > div:first-child small { color: var(--scum-ink-grey); font-size: .72rem; }
-.trade-hand { display: flex; align-items: flex-end; min-height: 102px; padding-top: 10px; overflow-x: auto; overflow-y: hidden; }
-.trade-hand button { width: 55px; min-width: 55px; height: 92px; margin-left: -7px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; transition: transform 140ms ease; }
-.trade-hand button:first-child { margin-left: 0; }.trade-hand button.selected { transform: translateY(-10px); }
+.trade-hand { --card-w: 55px; min-height: 102px; padding-top: 14px; }
+.trade-hand button { height: 92px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; transition: transform 140ms ease; }
+.trade-hand button.selected { transform: translateY(-10px); }
 .trade-notice { padding: 13px 15px; border-radius: 13px; color: #6b5540; background: rgba(226, 184, 79, .13); font-size: .78rem; line-height: 1.5; }
 
 .scum-room-loading {
@@ -406,9 +399,7 @@
   .scum-pile { min-height: 175px; }
   .scum-table-order span { display: none; }.scum-table-order b { font-size: 0.625rem; }
   .scum-your-seat { padding: 9px 8px 10px; }
-  .scum-hand { justify-content: flex-start; min-height: 112px; }
-  .hand-card-button { min-width: 48px; width: 48px; height: 98px; margin-left: -9px; }
-  .hand-card-button:first-child { margin-left: 0; }
+  .scum-hand { --card-w: 58px; min-height: 112px; }
   .scum-controls > span { display: none; }
   .scum-controls { justify-content: flex-end; }
   .scum-controls .scum-pass { margin-left: auto; }
@@ -418,7 +409,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .thinking-dots i { animation: none; }
-  .hand-card-button { transition: none; }
+  .scum-hand-card { transition: none; }
 }
 
 .scum-theme .scum-intro-art { width: 300px; min-height: 250px; }

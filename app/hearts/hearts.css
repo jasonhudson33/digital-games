@@ -30,7 +30,7 @@
  * global --bg, so it stops cutting a cool grey band across the top of a
  * warm page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="hearts"] {
   --route-surface: #f5eddf;
   --route-ink: #1e1b15;
   --route-muted: rgba(30, 27, 21, 0.62);
@@ -349,19 +349,13 @@
 .turn-dot.on { background: #64d89e; box-shadow: 0 0 0 4px rgba(100,216,158,.1); }
 
 .player-hand {
+  --card-w: 94px;
+  --fan-gap: 6px;
   min-height: 146px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  padding: 5px 62px 8px;
+  padding-block: 18px 8px;
 }
 
 .hand-card-button {
-  position: relative;
-  flex: 0 1 72px;
-  min-width: 28px;
-  max-width: 72px;
-  margin-left: -7px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -369,8 +363,7 @@
   transition: transform 150ms ease, filter 150ms ease;
 }
 
-.hand-card-button:first-child { margin-left: 0; }
-.hand-card-button .hearts-playing-card { width: 94px; max-width: none; }
+.hand-card-button .hearts-playing-card { width: 100%; max-width: none; }
 .hand-card-button:hover:not(:disabled),
 .hand-card-button:focus-visible,
 .hand-card-button.selected { z-index: 4; transform: translateY(-17px); outline: none; }
@@ -423,9 +416,7 @@
   .hearts-game-shell { padding: 10px; }
   .hearts-board { gap: 8px; }
   .hearts-message { font-size: .74rem; padding: 6px 10px; }
-  .player-hand { justify-content: flex-start; overflow-x: auto; min-height: 132px; padding: 6px 0 7px; }
-  .hand-card-button { flex: 0 0 52px; min-width: 52px; margin-left: -3px; }
-  .hand-card-button .hearts-playing-card { width: 82px; }
+  .player-hand { --card-w: 78px; min-height: 132px; padding-block: 16px 7px; }
   .your-seat { padding-inline: 8px; }
 }
 

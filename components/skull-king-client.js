@@ -22,6 +22,8 @@ import {
   getSkullKingLeadSuit,
 } from "../lib/skull-king";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const PLAYER_NAME_KEY = "skull-king-player-name";
 
@@ -355,8 +357,8 @@ export default function SkullKingClient() {
           <small>{viewer.bid === null ? "" : `Bid ${viewer.bid} · Won ${viewer.tricks}`}</small>
         </div>
         {error && <div className="skull-error game-error" role="alert">{error}</div>}
-        <div className="skull-hand" aria-label="Your hand">
-          {viewer.hand.map((card, index) => {
+        <CardFan className="skull-hand" count={viewer.hand.length} aria-label="Your hand">
+          {orderHand("skull-king", viewer.hand).map((card, index) => {
             const playable = legalIds.has(card.id);
             /* A card dims to mark it unplayable, which only means something
                while a trick is actually being played — every card in your
@@ -382,14 +384,15 @@ export default function SkullKingClient() {
                     className="skull-card-help-link"
                     onClick={() => setAbilityCard(card)}
                     aria-label={`Explain ${formatSkullKingCard(card)}`}
+                    title="What does this do?"
                   >
-                    What does this do?
+                    ?
                   </button>
                 )}
               </div>
             );
           })}
-        </div>
+        </CardFan>
         {ghost && (
           <div className={`skull-ghost-area ${game.currentPlayerIndex === ghostPlayerIndex ? "active" : ""}`}>
             <div className="skull-ghost-heading">

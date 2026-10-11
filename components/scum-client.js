@@ -21,6 +21,8 @@ import {
 } from "../lib/scum";
 import { ScumRoomService } from "./scum-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const SET_NAMES = { 1: "single", 2: "pair", 3: "triple", 4: "four of a kind" };
 const PLAYER_NAME_KEY = "scum-player-name";
@@ -325,15 +327,15 @@ export default function ScumClient() {
             </span>
           </div>
 
-          <div className="scum-hand" aria-label="Your hand">
-            {viewer.hand.map((card, index) => {
+          <CardFan className="scum-hand" count={viewer.hand.length} aria-label="Your hand">
+            {orderHand("scum", viewer.hand).map((card, index) => {
               const selected = selectedIds.includes(card.id);
               const playable = legalCardIds.has(card.id);
               return (
                 <button
                   key={card.id}
                   type="button"
-                  className={`hand-card-button ${selected ? "selected" : ""} ${humanTurn && !playable ? "dimmed" : ""}`}
+                  className={`scum-hand-card ${selected ? "selected" : ""} ${humanTurn && !playable ? "dimmed" : ""}`}
                   style={{ "--card-index": index }}
                   disabled={!humanTurn || !playable}
                   aria-pressed={selected}
@@ -345,7 +347,7 @@ export default function ScumClient() {
               );
             })}
             {!viewer.handCount && <div className="hand-empty"><Trophy size={24} /> Hand cleared</div>}
-          </div>
+          </CardFan>
 
           <div className="scum-controls">
             <span>
@@ -475,8 +477,8 @@ function TradeDialog({ game, viewerPlayerIndex, selectedIds, onToggle, onComplet
       {upperTrade && !alreadySubmitted && (
         <div className="trade-choice">
           <div><strong>Choose {requiredCount} to give away</strong><small>{selectedIds.length} of {requiredCount} selected</small></div>
-          <div className="trade-hand" aria-label="Choose cards to trade">
-            {viewer.hand.map((card) => {
+          <CardFan className="trade-hand" count={viewer.hand.length} aria-label="Choose cards to trade">
+            {orderHand("scum", viewer.hand).map((card) => {
               const selected = selectedIds.includes(card.id);
               return (
                 <button
@@ -489,7 +491,7 @@ function TradeDialog({ game, viewerPlayerIndex, selectedIds, onToggle, onComplet
                 ><PlayingCard card={card} /></button>
               );
             })}
-          </div>
+          </CardFan>
         </div>
       )}
 

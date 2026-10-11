@@ -32,7 +32,7 @@
  * global --bg, so it stops cutting a grey band across the top of a
  * dark page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="skull-king"] {
   --route-surface: #112a2d;
   --route-ink: #f0f4f4;
   --route-muted: rgba(240, 244, 244, 0.66);
@@ -464,8 +464,8 @@
 .turn-beacon { width: 8px; height: 8px; border-radius: 50%; background: #566865; }
 .turn-beacon.on { background: var(--skull-gold); box-shadow: 0 0 0 5px rgba(228,184,75,.1), 0 0 14px rgba(228,184,75,.75); }
 
-.skull-hand { min-height: 215px; overflow-x: auto; display: flex; align-items: flex-start; justify-content: center; gap: 8px; padding: 10px 7px 15px; scrollbar-color: #6b5e49 transparent; }
-.skull-hand-item { min-width: 102px; flex: 0 0 auto; display: grid; justify-items: center; align-content: start; }
+.skull-hand { --card-w: 102px; --fan-gap: 8px; min-height: 215px; align-items: flex-start; padding-block: 14px 15px; }
+.skull-hand-item { display: grid; justify-items: start; align-content: start; }
 .skull-hand-card { flex: 0 0 auto; padding: 0; border: 0; border-radius: 11px; background: transparent; transform: translateY(15px); transition: transform 150ms ease, filter 150ms ease; }
 .skull-hand-card:disabled { cursor: default; }
 /* Dimmed only mid-trick, when this card genuinely cannot be played — not
@@ -477,7 +477,8 @@
 .skull-hand-card.forced { filter: drop-shadow(0 0 10px rgba(228,184,75,.9)); }
 .skull-hand-card.forced::after { content: "FORCED"; position: absolute; z-index: 8; top: -7px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 999px; background: var(--skull-gold); transform: translateX(-50%); font-size: 0.625rem; font-weight: 900; }
 .skull-hand-card .skull-playing-card { width: 102px; }
-.skull-card-help-link { max-width: 102px; margin-top: 19px; padding: 6px 2px; min-height: 24px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: 0.625rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
+/* A round "?" under the card's left edge: the visible strip of an overlapped card, so a neighbour never covers it. */
+.skull-card-help-link { width: 24px; height: 24px; margin-top: 19px; padding: 0; color: #d8bd78; border: 1px solid rgba(216,189,120,.5); border-radius: 50%; background: transparent; cursor: pointer; font-size: 0.75rem; font-weight: 800; line-height: 1; }
 .skull-card-help-link:hover, .skull-card-help-link:focus-visible { color: #ffe4a0; text-decoration-color: currentColor; }
 .skull-ghost-area { margin-top: 5px; padding: 12px 10px 2px; border: 1px solid rgba(168,221,215,.15); border-radius: 18px 18px 0 0; background: linear-gradient(180deg,rgba(104,184,178,.075),rgba(255,255,255,.012)); }
 .skull-ghost-area.active { border-color: rgba(147,226,216,.46); box-shadow: inset 0 0 28px rgba(75,178,169,.08), 0 0 18px rgba(75,178,169,.08); }
@@ -608,7 +609,6 @@
   .art-purple { top: 130px; left: calc(50% - 180px); }
   .art-pirate { top: 88px; left: calc(50% - 75px); }
   .art-black { top: 130px; left: calc(50% + 30px); }
-  .skull-hand { justify-content: flex-start; }
   .skull-ghost-hand { justify-content: flex-start; }
 }
 
@@ -621,10 +621,9 @@
   .special-art { font-size: 2.5rem; }
   .skull-card-corner { top: 6px; left: 6px; }
   .skull-your-seat { width: calc(100% - 16px); }
+  .skull-hand { --card-w: 88px; }
   .skull-hand-card .skull-playing-card { width: 88px; }
-  .skull-hand-item { min-width: 88px; }
   .skull-ghost-card-back { width: 88px; }
-  .skull-card-help-link { max-width: 88px; font-size: 0.625rem; }
   .card-ability-content { grid-template-columns: 98px minmax(0, 1fr); gap: 16px; }
   .card-ability-content .ability-preview-card { width: 98px; }
   .rules-grid { grid-template-columns: 1fr; }

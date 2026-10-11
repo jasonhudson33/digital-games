@@ -30,6 +30,21 @@ for (const f of cssFiles) {
 }
 console.log(`  parsed ${cssFiles.length} stylesheets`);
 
+// A route stylesheet stays loaded after a client-side navigation, so a
+// --route-* value on a bare :root outlives its page and paints the hub with
+// a game's ground. Games scope them as html[data-route="<slug>"] instead.
+console.log("Route theme scope:");
+for (const f of cssFiles) {
+  if (f === path.join("app", "tokens.css")) continue;
+  try {
+    postcss.parse(fs.readFileSync(f, "utf8"), { from: f }).walkDecls(/^--route-/, (decl) => {
+      if (decl.parent.type === "rule" && decl.parent.selector.trim() === ":root") {
+        fail(`${f}:${decl.source.start.line}: ${decl.prop} set on :root; use html[data-route="<slug>"]`);
+      }
+    });
+  } catch { /* parse failures are reported above */ }
+}
+
 // ── 2. JSX parses ──────────────────────────────────────────────────────────
 console.log("JSX/JS parse:");
 let parser = null;

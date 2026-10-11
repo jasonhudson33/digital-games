@@ -30,6 +30,7 @@ import {
 } from "../lib/dominion";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
+import CardFan from "./card-fan";
 
 /** Opponents' hands and every draw pile are not sent, only counts. */
 const handSize = (player) => player.handCount ?? player.hand.length;
@@ -156,7 +157,7 @@ export default function DominionClient() {
 
     <section className="dom-player-area">
       <div className="dom-hand-heading"><div><p className="dom-kicker">Your private cards</p><h2>Your hand <span>{me.hand.length}</span></h2></div><div className="dom-zone-counts"><span><strong>{me.deckCount}</strong> deck</span><span><strong>{me.discard.length}</strong> discard</span><span><strong>{me.inPlay.length}</strong> in play</span></div></div>
-      <div className="dom-hand">{me.hand.map((id, index) => <CardFace key={`${id}-${index}`} id={id} compact disabled={!myTurn || busy || room.turnPhase !== "action" || me.actions < 1 || !CARD_DEFINITIONS[id].types.includes("action") || Boolean(room.pendingChoice)} onClick={() => act("play", { handIndex: index })} />)}</div>
+      <CardFan className="dom-hand" count={me.hand.length}>{me.hand.map((id, index) => <CardFace key={`${id}-${index}`} id={id} compact disabled={!myTurn || busy || room.turnPhase !== "action" || me.actions < 1 || !CARD_DEFINITIONS[id].types.includes("action") || Boolean(room.pendingChoice)} onClick={() => act("play", { handIndex: index })} />)}</CardFan>
       {me.inPlay.length > 0 && <div className="dom-in-play"><strong>In play</strong><div>{me.inPlay.map((id, index) => <span key={`${id}-${index}`}>{CARD_DEFINITIONS[id].name}</span>)}</div></div>}
     </section>
 

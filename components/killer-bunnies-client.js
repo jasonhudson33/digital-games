@@ -25,6 +25,7 @@ import { bankTotal, getKaballasMarket, getKillerBunniesKaballasPrice, getKillerB
 import { KILLER_BUNNIES_EXPANSIONS } from "../lib/killer-bunnies-expansions";
 import { KillerBunniesRoomService } from "./killer-bunnies-room-service";
 import { Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
+import CardFan from "./card-fan";
 
 const NAME_KEY = "killer-bunnies-player-name";
 const TOKEN_PREFIX = "killer-bunnies-room-token:";
@@ -395,7 +396,7 @@ function GameTable({ game, error, busy, onAction, onLeave, onRules, rulesOpen, o
           </div>
         </div>
 
-        <div className="kb-hand-area"><div className="kb-hand-heading"><span>YOUR HAND · {viewer.hand.length} CARDS</span>{isTrimTurn ? <b>Discard {viewer.hand.length - 5} extra card{viewer.hand.length - 5 === 1 ? "" : "s"}</b> : game.phase === "replace" && yourTurn ? <b>Choose one for BOTTOM RUN</b> : isOpeningTurn ? <b>{!openingTopId ? "Choose TOP RUN first" : !openingBottomId ? "Now choose BOTTOM RUN" : "Review and confirm your program"}</b> : null}</div><div className="kb-hand">{viewer.hand.map((card) => { const openingSlot = openingTopId === card.id ? "TOP · 1" : openingBottomId === card.id ? "BOTTOM · 2" : ""; return <button key={card.id} className={`${openingSlot ? "opening-selected" : ""} ${isTrimTurn ? "trim-choice" : ""}`} type="button" disabled={busy || (!isOpeningTurn && !isTrimTurn && (game.phase !== "replace" || !yourTurn))} onClick={() => isOpeningTurn ? selectOpeningRunCard(card.id) : isTrimTurn ? onAction("discardExtra", { cardId: card.id }) : onAction("replaceRun", { cardId: card.id })}>{openingSlot && <i className="kb-opening-badge">{openingSlot}</i>}<GameCard card={card} /></button>; })}</div></div>
+        <div className="kb-hand-area"><div className="kb-hand-heading"><span>YOUR HAND · {viewer.hand.length} CARDS</span>{isTrimTurn ? <b>Discard {viewer.hand.length - 5} extra card{viewer.hand.length - 5 === 1 ? "" : "s"}</b> : game.phase === "replace" && yourTurn ? <b>Choose one for BOTTOM RUN</b> : isOpeningTurn ? <b>{!openingTopId ? "Choose TOP RUN first" : !openingBottomId ? "Now choose BOTTOM RUN" : "Review and confirm your program"}</b> : null}</div><CardFan className="kb-hand" count={viewer.hand.length}>{viewer.hand.map((card) => { const openingSlot = openingTopId === card.id ? "TOP · 1" : openingBottomId === card.id ? "BOTTOM · 2" : ""; return <button key={card.id} className={`${openingSlot ? "opening-selected" : ""} ${isTrimTurn ? "trim-choice" : ""}`} type="button" disabled={busy || (!isOpeningTurn && !isTrimTurn && (game.phase !== "replace" || !yourTurn))} onClick={() => isOpeningTurn ? selectOpeningRunCard(card.id) : isTrimTurn ? onAction("discardExtra", { cardId: card.id }) : onAction("replaceRun", { cardId: card.id })}>{openingSlot && <i className="kb-opening-badge">{openingSlot}</i>}<GameCard card={card} /></button>; })}</CardFan></div>
       </section>
 
       {error && <div className="kb-toast" role="alert">{error}</div>}

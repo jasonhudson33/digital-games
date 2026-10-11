@@ -18,6 +18,7 @@ import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby } from "./ui/table-shell";
 import { Phase10Card, Phase10CardBack } from "./phase-10-card";
 import { Phase10RoomService } from "./phase-10-room-service";
+import CardFan from "./card-fan";
 
 /** Opponents' hands are not sent, only a count. */
 const handSize = (player) => player.handCount ?? player.hand.length;
@@ -122,9 +123,9 @@ export default function Phase10Client() {
 
       <section className="p10-hand-panel">
         <header><div><p className="p10-kicker">Your hand</p><h2>{me.hand.length} card{me.hand.length === 1 ? "" : "s"}</h2></div><p>{!myTurn ? `Waiting for ${actor?.name}` : !room.turnDrawn ? "Choose a pile to draw from." : !me.phaseLaid ? `Select ${phaseSize} cards that make ${PHASES[me.phaseNumber - 1].label}.` : "Select one card to hit or discard."}</p></header>
-        <div className="p10-hand">
+        <CardFan className="p10-hand" count={me.hand.length}>
           {[...me.hand].sort(cardOrder).map((card) => <button type="button" className={selectedIds.includes(card.id) ? "selected" : ""} disabled={!myTurn || !room.turnDrawn || busy} onClick={() => toggle(card.id)} key={card.id}><Phase10Card card={card} /></button>)}
-        </div>
+        </CardFan>
         {myTurn && room.turnDrawn && (
           <div className="p10-actions">
             {!me.phaseLaid && <button type="button" className="p10-primary" disabled={!validPhase || busy} onClick={() => { act("layPhase", { cardIds: selectedIds }); setSelectedIds([]); }}><Sparkles /> Lay down Phase {me.phaseNumber}</button>}

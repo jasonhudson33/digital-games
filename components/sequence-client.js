@@ -27,6 +27,7 @@ import {
 } from "../lib/sequence";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
+import CardFan from "./card-fan";
 
 export default function SequenceClient() {
   const {
@@ -161,7 +162,7 @@ function TeamPanel({ room, teamIndex, playerId }) {
 }
 
 function HandPanel({ room, me, myTurn, selectedCardId, setSelectedCardId, busy, onExchange }) {
-  return <section className="sequence-hand"><div className="sequence-hand-heading"><div><p className="sequence-kicker">Your hand</p><h2>{myTurn ? "Choose your play" : "Waiting for your turn"}</h2></div><span>{me.hand.length} cards</span></div><div className="sequence-cards">{me.hand.map((card) => { const dead = room.phase === "playing" && isDeadCard(room, card); const jackType = isTwoEyedJack(card.code) ? "Wild" : isOneEyedJack(card.code) ? "Remove" : null; return <div className="sequence-hand-card-wrap" key={card.id}><button aria-label={`${cardLabel(card.code)}${jackType ? `, ${jackType}` : ""}`} className={`sequence-playing-card ${selectedCardId === card.id ? "selected" : ""}`} disabled={!myTurn || busy || dead} onClick={() => setSelectedCardId((selected) => selected === card.id ? null : card.id)}><CardFace code={card.code} />{jackType && <span className="sequence-card-action">{jackType}</span>}</button>{dead && <button className="sequence-dead-card" disabled={busy || room.deadCardExchanged || !myTurn} onClick={() => onExchange(card.id)}><RotateCcw /> Exchange dead card</button>}</div>; })}</div></section>;
+  return <section className="sequence-hand"><div className="sequence-hand-heading"><div><p className="sequence-kicker">Your hand</p><h2>{myTurn ? "Choose your play" : "Waiting for your turn"}</h2></div><span>{me.hand.length} cards</span></div><CardFan className="sequence-cards" count={me.hand.length}>{me.hand.map((card) => { const dead = room.phase === "playing" && isDeadCard(room, card); const jackType = isTwoEyedJack(card.code) ? "Wild" : isOneEyedJack(card.code) ? "Remove" : null; return <div className="sequence-hand-card-wrap" key={card.id}><button aria-label={`${cardLabel(card.code)}${jackType ? `, ${jackType}` : ""}`} className={`sequence-playing-card ${selectedCardId === card.id ? "selected" : ""}`} disabled={!myTurn || busy || dead} onClick={() => setSelectedCardId((selected) => selected === card.id ? null : card.id)}><CardFace code={card.code} />{jackType && <span className="sequence-card-action">{jackType}</span>}</button>{dead && <button className="sequence-dead-card" disabled={busy || room.deadCardExchanged || !myTurn} onClick={() => onExchange(card.id)}><RotateCcw /> Exchange dead card</button>}</div>; })}</CardFan></section>;
 }
 
 function CardFace({ code, back = false }) {

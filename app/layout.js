@@ -2,6 +2,7 @@ import Script from "next/script";
 import { Anton, Inter, Space_Grotesk } from "next/font/google";
 
 import DialogFocusManager from "../components/dialog-focus";
+import RouteTheme, { ROUTE_SCRIPT } from "../components/route-theme";
 import SiteHeader from "../components/site-header";
 import { siteUrl } from "../lib/metadata";
 import "./tokens.css";
@@ -80,8 +81,16 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${anton.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Sets data-route before first paint so a direct load of a dark game
+            does not flash the default ground. RouteTheme keeps it current on
+            client-side navigation. */}
+        <script dangerouslySetInnerHTML={{ __html: ROUTE_SCRIPT }} />
+      </head>
       <body>
+        <RouteTheme />
         {/* First tab stop on every route. Without it a keyboard or switch user
             walks the whole header before reaching the game. */}
         <a className="skip-link" href="#main">Skip to content</a>

@@ -30,7 +30,7 @@
  * global --bg, so it stops cutting a grey band across the top of a
  * dark page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="pinochle"] {
   --route-surface: #154333;
   --route-ink: #f0f4f3;
   --route-muted: rgba(240, 244, 243, 0.66);
@@ -157,8 +157,8 @@
 .pn-hand-heading small { margin-left: auto; }
 .pn-turn-dot { width: 8px; height: 8px; border-radius: 50%; background: #aeb6b1; }
 .pn-turn-dot.on { background: #d5a52e; box-shadow: 0 0 0 4px rgba(213,165,46,.17); }
-.pn-hand { display: flex; overflow-x: auto; gap: 5px; padding: 5px 2px 7px; }
-.pn-hand-card { flex: 0 0 73px; padding: 0; border: 0; border-radius: 8px; background: transparent; transition: transform .12s ease, filter .12s ease; }
+.pn-hand { --card-w: 73px; --fan-gap: 5px; padding-block: 14px 7px; }
+.pn-hand-card { padding: 0; border: 0; border-radius: 8px; background: transparent; transition: transform .12s ease, filter .12s ease; }
 .pn-hand-card:not(.playable):not(.selected):disabled { filter: saturate(.55) brightness(.8); }
 .pn-hand-card.playable { cursor: pointer; }
 .pn-hand-card.playable:hover { transform: translateY(-8px); }

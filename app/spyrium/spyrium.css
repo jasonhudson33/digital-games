@@ -14,7 +14,7 @@
  * global --bg, so it stops cutting a grey band across the top of a
  * dark page. Measured from the rendered page, not guessed.
  */
-:root {
+html[data-route="spyrium"] {
   --route-surface: #142a24;
   --route-ink: #f0f4f3;
   --route-muted: rgba(240, 244, 243, 0.66);

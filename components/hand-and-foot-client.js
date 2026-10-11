@@ -25,6 +25,8 @@ import {
 } from "../lib/hand-and-foot";
 import { HandFootRoomService } from "./hand-and-foot-room-service";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
+import { orderHand } from "../lib/hand-order";
+import CardFan from "./card-fan";
 
 const PLAYER_NAME_KEY = "hand-foot-player-name";
 
@@ -419,9 +421,9 @@ export default function HandAndFootClient() {
             </div>
           </div>
         )}
-        <div className="hf-hand" aria-label={human.usingFoot ? "Your foot" : "Your hand"}>
-          {activeCards.map((card) => <PlayingCard key={card.id} card={card} selected={selectedIds.includes(card.id)} disabled={!yourTurn || game.turnStage !== "play"} onClick={() => toggleCard(card.id)} />)}
-        </div>
+        <CardFan className="hf-hand" count={activeCards.length} aria-label={human.usingFoot ? "Your foot" : "Your hand"}>
+          {orderHand("hand-and-foot", activeCards).map((card) => <PlayingCard key={card.id} card={card} selected={selectedIds.includes(card.id)} disabled={!yourTurn || game.turnStage !== "play"} onClick={() => toggleCard(card.id)} />)}
+        </CardFan>
       </section>
       <RulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} />
     </main>
