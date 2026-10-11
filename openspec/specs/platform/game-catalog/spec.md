@@ -13,11 +13,11 @@ The hub grid, command palette, site header and per-route metadata SHALL all deri
 - **THEN** the hub tile, the command palette entry and the route metadata all show the new name
 
 ### Requirement: Catalog covers every shipped game
-The catalog SHALL list each of the 29 playable games exactly once, and SHALL NOT list tools or admin routes as games.
+The catalog SHALL list each of the 30 playable games exactly once, and SHALL NOT list tools or admin routes as games.
 
 #### Scenario: Game count
 - **WHEN** the catalog is loaded
-- **THEN** it contains 29 distinct slugs and none of them is an admin or tool route
+- **THEN** it contains 30 distinct slugs and none of them is an admin or tool route
 
 ### Requirement: Filter by player count
 The hub SHALL let a visitor choose a player count and SHALL show only games whose player range includes that count.
@@ -44,6 +44,10 @@ A game's catalog player range SHALL equal the range its rules engine accepts, an
 #### Scenario: Hearts modes
 - **WHEN** Hearts offers no shared room
 - **THEN** its catalog modes do not include `online`
+
+#### Scenario: Camel Up metadata
+- **WHEN** the Camel Up catalog entry is read
+- **THEN** its range is 3–8 players and its modes include online rooms and computer players
 
 ### Requirement: Estimated fields are flagged
 A catalog value that is a guess rather than a recorded rule SHALL be listed in that game's `estimated` set, and SHALL be removed from it once verified.
