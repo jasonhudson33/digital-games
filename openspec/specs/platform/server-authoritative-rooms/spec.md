@@ -1,7 +1,7 @@
 # platform/server-authoritative-rooms Specification
 
 ## Purpose
-Defines the room model for games with private information (7-Up, BANG!, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Stratego, Ticket to Ride, UNO, Viticulture, Life, No Thanks!, Monopoly), where the server holds the whole game and each seat sees only its own view.
+Defines the room model for games with private information (7-Up, BANG!, Catan, Cover Your Assets, Dominion, DOS, Five Crowns, Flip 7, Hand and Foot, Killer Bunnies, Phase 10, Pinochle, Qwirkle, Risk, Scum, Secret Hitler, Sequence, Skull King, Splendor, Spyrium, Stratego, Ticket to Ride, UNO, Viticulture, Life, No Thanks!, Monopoly), where the server holds the whole game and each seat sees only its own view.
 
 ## Requirements
 
@@ -90,3 +90,18 @@ Every die roll, spin, shuffle and draw in an engine-backed game SHALL be chosen 
 #### Scenario: Client-supplied result
 - **WHEN** a request carries a number, roll or random source alongside a move
 - **THEN** the server ignores it and uses its own
+
+### Requirement: Host-driven local seats
+A game that lets the host add local seats on the host's own device SHALL let the host's seat act as a local seat, and SHALL refuse an action as a local seat from any other seat.
+
+#### Scenario: Host acts for a local seat
+- **WHEN** the host sends an action naming a local seat
+- **THEN** the server applies it as that seat
+
+#### Scenario: Guest names a local seat
+- **WHEN** a non-host seat sends an action naming a local seat
+- **THEN** the action is rejected
+
+#### Scenario: Host names a real seat
+- **WHEN** the host sends an action naming another human's seat
+- **THEN** the action is rejected

@@ -37,7 +37,7 @@
 There are three online room models here, and the difference decides whether a
 player can read a rival's hand.
 
-- **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Cover
+- **Server-authoritative, filtered per viewer.** **7-Up**, **BANG!**, **Catan**, **Cover
   Your Assets**, **Dominion**, **DOS**, **Five Crowns**, **Flip 7**, **Hand and
   Foot**, **Killer Bunnies**, **Life**, **Monopoly**, **No Thanks!**, **Phase 10**, **Pinochle**,
   **Qwirkle**, **Risk**, **Scum**, **Secret Hitler**, **Sequence**, **Skull King**,
@@ -46,13 +46,9 @@ player can read a rival's hand.
   server decides what that seat may see, and returns only that. Private hands
   and hidden roles stay private.
 
-- **Client-authoritative, fully readable.** Only **Catan** still computes state
-  in the browser. It stores it whole through `GET`/`PUT` on
-  `/api/catan/rooms/<code>` (server-only storage, no database access from the
-  browser, changes arrive by polling), so anyone holding a room code can read and
-  replace that room. See
-  [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how
-  the other games moved off this model.
+- No game keeps its state in the browser any more. See
+  [ADR 0004](./docs/adr/0004-seat-tokens-for-client-authoritative-rooms.md) for how the
+  games moved off that model.
 
 - **Hearts** has no shared rooms: it runs in one browser against computer players.
 
