@@ -1,41 +1,81 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Bot, Coins, Dices, Flag, Handshake, Trophy, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bot, Trophy, Users } from "lucide-react";
 import { CamelUpRoomService } from "./camel-up-room-service.js";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
-  RACING_CAMELS,
-  TRACK_SPACES,
   currentPlayer,
-  legalSpectatorSpace,
   partnerRewardOptions,
   raceRanking,
 } from "../lib/camel-up.js";
+import { legalSpaces } from "../lib/camel-up-actions.js";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby, Results } from "./ui/table-shell";
-
-const CAMEL_LABELS = { blue: "Blue", green: "Green", purple: "Purple", red: "Red", yellow: "Yellow", black: "Black", white: "White" };
+import { Board, Camel, OrderList } from "./camel-up-board.js";
+import { ActionPanel } from "./camel-up-actions.js";
+import { BetsPanel, Scoreboard } from "./camel-up-players.js";
+import { DiceTray, FinishBetsModal, LegRecapModal, pendingRecap, recapStorageKey } from "./camel-up-recap.js";
 
 export default function CamelUpClient() {
+  // Leg recaps the host has not dismissed hold the computers so they cannot run past the dialog.
+  const dismissedRef = useRef(0);
+  const [dismissedLeg, setDismissedLeg] = useState(0);
+  const [finalStep, setFinalStep] = useState(0);
   const {
     room, playerId, name, setName, joinCode, setJoinCode, busy, error,
-    createRoom, joinRoom, act, leaveRoom: leaveEngineRoom,
+    createRoom, joinRoom, act, stepComputer, leaveRoom: leaveEngineRoom,
   } = useEngineRoom({
     service: CamelUpRoomService,
     storageKey: "camel-up",
     computerDelay: 760,
-    computerDue: (state) => Boolean(currentPlayer(state)?.isComputer),
+    computerDue: (state) => Boolean(currentPlayer(state)?.isComputer) && !pendingRecap(state, dismissedRef.current),
   });
   const [showRules, setShowRules] = useState(false);
-  const [spectatorSpace, setSpectatorSpace] = useState(2);
-  const [spectatorSide, setSpectatorSide] = useState("cheer");
-  const [finishCamel, setFinishCamel] = useState("blue");
-  const [finishType, setFinishType] = useState("winner");
-  const [partnerId, setPartnerId] = useState("");
+  const [action, setAction] = useState("roll");
+  const [tileSide, setTileSide] = useState("cheer");
+  const [tileSpace, setTileSpace] = useState(null);
 
   const me = room?.players?.find((player) => player.id === playerId) ?? null;
+
+  function computerWaiting(state) {
+    return state?.hostId === playerId && state.phase === "playing" && Boolean(currentPlayer(state)?.isComputer);
+  }
+
+  // A refreshed tab remembers which leg recap it already closed for this room.
+  useEffect(() => {
+    if (!room?.roomCode) return;
+    let stored = 0;
+    try { stored = Number(sessionStorage.getItem(recapStorageKey(room.roomCode))) || 0; } catch { /* no storage: show the recap again */ }
+    const previous = dismissedRef.current;
+    dismissedRef.current = stored;
+    setDismissedLeg(stored);
+    if (stored > previous && computerWaiting(room)) void stepComputer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.roomCode]);
+
+  useEffect(() => {
+    if (room?.phase !== "finished") setFinalStep(0);
+  }, [room?.phase]);
+
+  // The turn moved on (or the tab changed): drop any half-made choice.
+  const turnPlayerId = room ? currentPlayer(room)?.id : null;
+  useEffect(() => {
+    setAction("roll");
+    setTileSpace(null);
+  }, [turnPlayerId, room?.phase]);
+
+  function cancelTile() {
+    setTileSpace(null);
+  }
+
+  function dismissRecap(leg) {
+    dismissedRef.current = leg;
+    setDismissedLeg(leg);
+    try { sessionStorage.setItem(recapStorageKey(room.roomCode), String(leg)); } catch { /* the dialog just reopens after a refresh */ }
+    if (computerWaiting(room)) void stepComputer();
+  }
 
   function leaveRoom() {
     if (room?.phase !== "lobby" && !window.confirm("Leave the race? You can rejoin with the room code.")) return;
@@ -87,8 +127,8 @@ export default function CamelUpClient() {
   const myTurn = room.phase === "playing" && active?.id === playerId;
   const myScoringChoice = room.phase === "partnership-scoring" && active?.id === playerId;
   const ranking = raceRanking(room);
-  const legalSpaces = Array.from({ length: TRACK_SPACES - 1 }, (_, index) => index + 2).filter((space) => legalSpectatorSpace(room, playerId, space));
-  const availablePartners = room.players.filter((player) => player.id !== playerId && !player.partnerId);
+  const placing = myTurn && action === "tile" ? { side: tileSide, space: tileSpace } : null;
+  const legalSet = new Set(placing ? legalSpaces(room, playerId) : []);
   const status = room.phase === "finished"
     ? "Race finished"
     : room.phase === "partnership-scoring"
@@ -99,85 +139,42 @@ export default function CamelUpClient() {
     <GameHeader title="Camel Up" room={room} subtitle={`Leg ${room.leg} · private room`} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
     {error && <p className="camel-error" role="alert">{error}</p>}
 
-    <section className="camel-scoreboard" aria-label="Bettors">
-      {room.players.map((player) => <article className={`camel-player ${player.id === playerId ? "mine" : ""} ${active?.id === player.id ? "active" : ""}`} key={player.id}>
-        <span className="camel-avatar">{player.isComputer ? <Bot /> : player.name.slice(0, 1).toUpperCase()}</span>
-        <div><strong>{player.name}{player.id === playerId ? " (you)" : ""}</strong><small>{player.partnerId ? `Partnered with ${room.players.find((item) => item.id === player.partnerId)?.name}` : `${player.legTickets.length} leg bet${player.legTickets.length === 1 ? "" : "s"}`}</small></div>
-        <b><Coins /> {player.money}</b>
-      </article>)}
-    </section>
+    <Scoreboard room={room} playerId={playerId} active={active} />
 
-    <section className="camel-table">
-      <div className="camel-track" aria-label="Sixteen-space camel racetrack">
-        {Array.from({ length: TRACK_SPACES }, (_, index) => index + 1).map((space) => <TrackSpace key={space} space={space} stack={room.stacks[String(space)] || []} tile={room.players.find((player) => player.spectator?.space === space)} />)}
-        <div className="camel-center">
-          <div className="camel-pyramid"><Dices /><strong>{room.remainingDice.length}</strong><span>dice inside</span></div>
-          <ol className="camel-ranking" aria-label="Current racing order">
-            {ranking.map((camelId, index) => <li key={camelId}><b>{index + 1}</b><Camel camelId={camelId} /> {CAMEL_LABELS[camelId]}</li>)}
-          </ol>
-          {room.lastRoll && <p className="camel-last" role="status">Last roll: {CAMEL_LABELS[room.lastRoll.camelId]} moved {room.lastRoll.value}</p>}
-        </div>
+    <div className="camel-layout">
+      <div className="camel-main">
+        <DiceTray room={room} />
+        <OrderList ranking={ranking} strip />
+        <Board room={room} ranking={ranking} placing={placing} legalSet={legalSet} onPickSpace={setTileSpace} />
       </div>
+      <BetsPanel room={room} me={me} />
+    </div>
 
-      <aside className="camel-bets">
-        <header><span><Flag /> Leg bets</span><small>First / second / other</small></header>
-        <div className="camel-ticket-grid">
-          {RACING_CAMELS.map((camelId) => {
-            const stack = room.legBetStacks[camelId] || [];
-            return <button key={camelId} disabled={!myTurn || busy || !stack.length} onClick={() => act("takeLegTicket", { camelId })}>
-              <Camel camelId={camelId} /><span>{CAMEL_LABELS[camelId]}</span><b>{stack.at(-1) ?? "—"}</b><small>{stack.length} left</small>
-            </button>;
-          })}
-        </div>
-        <div className="camel-overall">
-          {(["winner", "loser"]).map((type) => <div key={type}><strong>Overall {type}</strong><span>{room.finishBets[type].map((bet, index) => <i key={`${bet.playerId}-${index}`} title={bet.camelId ? CAMEL_LABELS[bet.camelId] : "Hidden camel"}>{bet.camelId ? bet.camelId.slice(0, 1).toUpperCase() : "?"}</i>)}</span></div>)}
-        </div>
-        <div className="camel-log">{room.log.slice(0, 7).map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div>
-      </aside>
-    </section>
-
-    {room.phase === "playing" && <section className={`camel-actions ${myTurn ? "ready" : ""}`} aria-label="Turn actions">
-      <div><strong>{myTurn ? "Choose one action" : `Waiting for ${active?.name}`}</strong><small>Every bet, tile, or pyramid roll uses your whole turn.</small></div>
-      <button className="camel-roll" disabled={!myTurn || busy || room.pyramidTicketsTaken >= 5} onClick={() => act("rollPyramid")}><Dices /> Roll pyramid <small>{5 - room.pyramidTicketsTaken} ticket{5 - room.pyramidTicketsTaken === 1 ? "" : "s"} left</small></button>
-      <fieldset disabled={!myTurn || busy || !legalSpaces.length}>
-        <legend>Spectator tile</legend>
-        <select aria-label="Spectator space" value={legalSpaces.includes(spectatorSpace) ? spectatorSpace : legalSpaces[0] ?? 2} onChange={(event) => setSpectatorSpace(Number(event.target.value))}>{legalSpaces.map((space) => <option key={space} value={space}>Space {space}</option>)}</select>
-        <select aria-label="Spectator side" value={spectatorSide} onChange={(event) => setSpectatorSide(event.target.value)}><option value="cheer">Cheer +1</option><option value="boo">Boo −1</option></select>
-        <button type="button" onClick={() => act("placeSpectator", { space: legalSpaces.includes(spectatorSpace) ? spectatorSpace : legalSpaces[0], side: spectatorSide })}>Place tile</button>
-      </fieldset>
-      <fieldset disabled={!myTurn || busy || !me.finishCards.length}>
-        <legend>Secret finish bet</legend>
-        <select aria-label="Finish camel" value={me.finishCards.includes(finishCamel) ? finishCamel : me.finishCards[0] ?? "blue"} onChange={(event) => setFinishCamel(event.target.value)}>{me.finishCards.map((camelId) => <option key={camelId} value={camelId}>{CAMEL_LABELS[camelId]}</option>)}</select>
-        <select aria-label="Finish bet type" value={finishType} onChange={(event) => setFinishType(event.target.value)}><option value="winner">Winner</option><option value="loser">Loser</option></select>
-        <button type="button" onClick={() => act("placeFinishBet", { bet: finishType, camelId: me.finishCards.includes(finishCamel) ? finishCamel : me.finishCards[0] })}>Place secret bet</button>
-      </fieldset>
-      {room.players.length >= 6 && !me.partnerId && <fieldset disabled={!myTurn || busy || !availablePartners.length}>
-        <legend>Betting partnership</legend>
-        <select aria-label="Betting partner" value={availablePartners.some((player) => player.id === partnerId) ? partnerId : availablePartners[0]?.id ?? ""} onChange={(event) => setPartnerId(event.target.value)}>{availablePartners.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select>
-        <button type="button" onClick={() => act("formPartnership", { partnerId: availablePartners.some((player) => player.id === partnerId) ? partnerId : availablePartners[0]?.id })}><Handshake /> Partner</button>
-      </fieldset>}
-    </section>}
+    {room.phase === "playing" && <ActionPanel
+      room={room}
+      me={me}
+      active={active}
+      busy={busy}
+      act={act}
+      action={action}
+      setAction={setAction}
+      tileSide={tileSide}
+      setTileSide={setTileSide}
+      tileSpace={tileSpace}
+      onCancelTile={cancelTile}
+    />}
 
     {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     {myScoringChoice && <PartnershipModal room={room} me={me} busy={busy} choose={(choiceId) => act("choosePartnerTicket", { choiceId })} />}
-    {room.phase === "finished" && <RaceResults room={room} me={me} onLeave={leaveRoom} />}
+    {room.phase === "playing" && pendingRecap(room, dismissedLeg) && <LegRecapModal recap={room.legRecap} onClose={() => dismissRecap(room.legRecap.leg)} />}
+    {room.phase === "finished" && room.legRecap && finalStep === 0 && <LegRecapModal recap={room.legRecap} final onContinue={() => setFinalStep(1)} />}
+    {room.phase === "finished" && room.legRecap && finalStep === 1 && <FinishBetsModal recap={room.legRecap} onContinue={() => setFinalStep(2)} />}
+    {room.phase === "finished" && (finalStep >= 2 || !room.legRecap) && <RaceResults room={room} me={me} onLeave={leaveRoom} />}
   </main>;
 }
 
-function TrackSpace({ space, stack, tile }) {
-  return <div className={`camel-space space-${space}`} aria-label={`Space ${space}: ${stack.length ? stack.map((id) => CAMEL_LABELS[id]).join(", ") : "empty"}`}>
-    <small>{space}{space === 16 ? " · finish" : ""}</small>
-    <div className="camel-stack">{stack.map((camelId, index) => <Camel camelId={camelId} key={`${camelId}-${index}`} />)}</div>
-    {tile && <span className={`camel-spectator ${tile.spectator.side}`}>{tile.spectator.side === "cheer" ? "+1" : "−1"}</span>}
-  </div>;
-}
-
-function Camel({ camelId }) {
-  return <span className={`camel-piece camel-${camelId}`} title={`${CAMEL_LABELS[camelId]} camel`} aria-label={`${CAMEL_LABELS[camelId]} camel`}><i /><i /></span>;
-}
-
 function HeroCamels() {
-  return <div className="camel-hero-art">{["purple", "yellow", "red", "blue"].map((id) => <Camel key={id} camelId={id} />)}<span className="camel-hero-sun" /></div>;
+  return <div className="camel-hero-art">{["purple", "yellow", "red", "blue"].map((id) => <Camel key={id} camelId={id} size="hero" />)}<span className="camel-hero-sun" /></div>;
 }
 
 function PartnershipModal({ room, me, busy, choose }) {

@@ -186,3 +186,169 @@ test("computer turns and partnership choices always make one legal transition", 
   assert.notEqual(JSON.stringify(game), before);
   assert.notEqual(currentPlayer(game)?.id, JSON.parse(before).players[JSON.parse(before).currentPlayerIndex].id);
 });
+
+// ---- leg roll record and recap ----
+
+const FIELD = { 1: ["green", "purple", "red", "yellow"], 16: ["black", "white"] };
+
+function legStart(overrides = {}) {
+  const base = started(3, () => 0);
+  return { ...base, ...overrides, legRolls: [], pyramidTicketsTaken: overrides.pyramidTicketsTaken ?? 0 };
+}
+
+function withTile(game, ownerIndex, space, side) {
+  return { ...game, players: game.players.map((player, index) => index === ownerIndex ? { ...player, spectator: { space, side } } : player) };
+}
+
+function expectedAfter(row) {
+  const tickets = row.tickets.reduce((sum, ticket) => sum + ticket.reward, 0);
+  return Math.max(0, row.before + row.tileIncome + tickets + row.pyramid + (row.copied?.reward || 0));
+}
+
+test("a racing roll is recorded with roller, die, camel and value", () => {
+  const game = legStart();
+  const roller = currentPlayer(game);
+  const next = rollPyramid(game, roller.id, () => 0);
+  assert.equal(next.legRolls.length, 1);
+  assert.deepEqual(next.legRolls[0], { n: 1, playerId: roller.id, playerName: roller.name, dieId: "blue", face: "blue", camelId: "blue", value: 1, tile: null });
+  assert.equal(next.lastRoll.value, 1);
+  assert.equal("moveEvent" in next, false);
+});
+
+test("a grey roll records the crazy camel that moved and the face shown", () => {
+  const game = legStart({ remainingDice: ["grey", "blue"] });
+  const next = rollPyramid(game, currentPlayer(game).id, () => 0);
+  const [entry] = next.legRolls;
+  assert.equal(entry.dieId, "grey");
+  assert.equal(entry.face, "white");
+  assert.ok(CRAZY_CAMELS.includes(entry.camelId));
+  assert.equal(entry.value, 1);
+});
+
+test("cheering and booing tiles are recorded with owner, side and destination", () => {
+  const stacks = { 6: ["blue"], ...FIELD };
+  const cheer = withTile(legStart({ stacks }), 1, 7, "cheer");
+  const cheered = rollPyramid(cheer, currentPlayer(cheer).id, () => 0);
+  assert.deepEqual(cheered.legRolls[0].tile, { ownerId: "p1", ownerName: "P1", side: "cheer", from: 7, to: 8 });
+  assert.equal(cheered.players[1].money, cheer.players[1].money + 1);
+  const boo = withTile(legStart({ stacks }), 1, 7, "boo");
+  const booed = rollPyramid(boo, currentPlayer(boo).id, () => 0);
+  assert.deepEqual(booed.legRolls[0].tile, { ownerId: "p1", ownerName: "P1", side: "boo", from: 7, to: 6 });
+});
+
+test("the roll that ends the race is recorded and recapped", () => {
+  const game = legStart();
+  const stacks = { 16: ["blue"], 1: ["green", "purple", "red", "yellow"], 14: ["black", "white"] };
+  const next = rollPyramid({ ...game, stacks }, currentPlayer(game).id, () => 0);
+  assert.equal(next.phase, "finished");
+  assert.equal(next.legRecap.final, true);
+  assert.equal(next.legRecap.rolls.length, 1);
+  assert.equal(next.legRecap.rolls[0].camelId, "blue");
+});
+
+test("rooms stored without roll history or leg-start money still roll and score", () => {
+  let game = legStart();
+  game = { ...game, players: game.players.map(({ moneyAtLegStart, ...player }) => player) };
+  delete game.legRolls;
+  delete game.legRecap;
+  for (let count = 0; count < 5; count += 1) game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  assert.equal(game.leg, 2);
+  assert.equal(game.legRecap.rolls.length, 5);
+  assert.ok(game.legRecap.rows.every((row) => Number.isFinite(row.before) && Number.isFinite(row.after)));
+});
+
+test("the fifth roll survives in a leg recap whose rows match scored money", () => {
+  let game = legStart();
+  const ticketHolder = currentPlayer(game);
+  game = takeLegTicket(game, ticketHolder.id, "blue");
+  for (let count = 0; count < 5; count += 1) game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  assert.equal(game.leg, 2);
+  assert.equal(game.legRolls.length, 0);
+  assert.equal(game.legRecap.leg, 1);
+  assert.equal(game.legRecap.final, false);
+  assert.equal(game.legRecap.finish, null);
+  assert.deepEqual(game.legRecap.rolls.map((roll) => roll.n), [1, 2, 3, 4, 5]);
+  assert.equal(game.legRecap.ranking.length, 5);
+  for (const row of game.legRecap.rows) {
+    assert.equal(row.after, expectedAfter(row));
+    assert.equal(row.legAfter, row.after);
+    assert.equal(row.after, game.players.find((player) => player.id === row.playerId).money);
+    assert.equal(game.players.find((player) => player.id === row.playerId).moneyAtLegStart, row.after);
+  }
+  const holderRow = game.legRecap.rows.find((row) => row.playerId === ticketHolder.id);
+  assert.equal(holderRow.tickets.length, 1);
+  assert.equal(holderRow.tickets[0].camelId, "blue");
+});
+
+test("a leg recap counts spectator-tile income separately from the paid-in money", () => {
+  const base = withTile(legStart({ stacks: { 6: ["blue"], ...FIELD }, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"] }), 1, 7, "cheer");
+  const game = rollPyramid(base, currentPlayer(base).id, () => 0);
+  const row = game.legRecap.rows.find((item) => item.playerId === "p1");
+  assert.equal(row.tileIncome, 1);
+  assert.equal(row.after, expectedAfter(row));
+  assert.equal(game.legRecap.rolls[0].tile.ownerId, "p1");
+});
+
+test("a leg recap flags a zero floor and reports the authoritative total", () => {
+  const stacks = { 1: ["yellow"], 10: ["blue"], 11: ["green"], 12: ["purple"], 13: ["red"], 16: ["black", "white"] };
+  let game = legStart({ stacks, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"] });
+  game = {
+    ...game,
+    players: game.players.map((player, index) => index === 1
+      ? { ...player, money: 0, moneyAtLegStart: 0, legTickets: [{ id: "y1", camelId: "yellow", value: 2 }, { id: "y2", camelId: "yellow", value: 2 }] }
+      : player),
+  };
+  game = { ...game, currentPlayerIndex: 0 };
+  game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  const row = game.legRecap.rows.find((item) => item.playerId === "p1");
+  assert.equal(row.floored, true);
+  assert.equal(row.after, 0);
+  assert.equal(game.players[1].money, 0);
+});
+
+test("a partner copy is recorded in the leg recap", () => {
+  let game = started(6, () => 0);
+  const first = currentPlayer(game);
+  const second = game.players.find((player) => player.id !== first.id);
+  game = formPartnership(game, first.id, second.id);
+  game = { ...game, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"],
+    players: game.players.map((player) => player.id === second.id ? { ...player, legTickets: [{ id: "b5", camelId: "blue", value: 5 }] } : player) };
+  game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  let copiedReward = null;
+  while (game.phase === "partnership-scoring") {
+    const chooser = currentPlayer(game);
+    const best = [...partnerRewardOptions(game, chooser.id)].sort((a, b) => b.reward - a.reward)[0];
+    if (chooser.id === first.id) copiedReward = best.reward;
+    game = choosePartnerTicket(game, chooser.id, best?.id ?? null);
+  }
+  const row = game.legRecap.rows.find((item) => item.playerId === first.id);
+  assert.equal(row.copied.reward, copiedReward);
+  assert.equal(row.after, expectedAfter(row));
+});
+
+test("final recap resolves overall bets in placement order and matches final money", () => {
+  let game = started(3, () => 0);
+  for (const camelId of ["blue", "blue", "red"]) game = placeFinishBet(game, currentPlayer(game).id, "winner", camelId);
+  game = placeFinishBet(game, currentPlayer(game).id, "loser", "yellow");
+  game = { ...game, stacks: { 16: ["blue"], 1: ["green", "purple", "red", "yellow"], 14: ["black", "white"] }, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"] };
+  game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  assert.equal(game.phase, "finished");
+  const { winner, loser } = game.legRecap.finish;
+  assert.equal(winner.camelId, "blue");
+  assert.deepEqual(winner.cards.map((card) => [card.camelId, card.correct]), [["blue", true], ["blue", true], ["red", false]]);
+  assert.deepEqual(winner.cards.map((card) => card.delta), [8, 5, -1]);
+  assert.equal(loser.cards.length, 1);
+  for (const row of game.legRecap.rows) assert.equal(row.after, game.players.find((player) => player.id === row.playerId).money);
+  const betTotal = [...winner.cards, ...loser.cards].reduce((sum, card) => sum + card.delta, 0);
+  assert.equal(game.legRecap.rows.reduce((sum, row) => sum + row.after - row.legAfter, 0), betTotal);
+});
+
+test("no recap or roll record reveals a finish card before the race ends", () => {
+  let game = started(3, () => 0);
+  game = placeFinishBet(game, currentPlayer(game).id, "winner", "red");
+  game = { ...game, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"] };
+  game = rollPyramid(game, currentPlayer(game).id, () => 0);
+  assert.equal(game.phase, "playing");
+  assert.equal(game.legRecap.finish, null);
+  assert.equal(JSON.stringify(game.legRecap).includes("winner"), false);
+});

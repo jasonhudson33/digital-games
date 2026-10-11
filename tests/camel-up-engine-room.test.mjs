@@ -4,7 +4,7 @@ import test from "node:test";
 import { createEngineRoom } from "../lib/engine-room.js";
 import { camelUpAdapter, camelUpView } from "../lib/camel-up-room-adapter.js";
 import { currentPlayer } from "../lib/camel-up.js";
-import { createSupabaseRoomStore } from "../lib/supabase-server-room-store.js";
+import { adoptVersion, createSupabaseRoomStore } from "../lib/supabase-server-room-store.js";
 import { startedRoom } from "./engine-test-helpers.mjs";
 
 test("finish-card colors are visible only to their owner before final scoring", async () => {
@@ -21,6 +21,8 @@ test("finish-card colors are visible only to their owner before final scoring", 
     for (const player of view.players) {
       if (player.id !== seat.playerId) assert.deepEqual(player.finishCards, []);
     }
+    // Other seats see that a card was placed and by whom, never which camel it names.
+    if (seat.playerId !== actor.playerId) assert.equal(JSON.stringify(view.finishBets).includes('"red"'), false);
   }
 });
 
@@ -88,4 +90,26 @@ test("the standalone view masks hidden cards without mutating the game", () => {
   assert.deepEqual(view.players[1].finishCards, []);
   assert.equal(view.finishBets.winner[0].camelId, null);
   assert.deepEqual(game.players[1].finishCards, ["red"]);
+});
+
+test("the fifth roll's recap reaches every seat, hides finish cards, and leaves the next leg playable", async () => {
+  const { room, store, code, seats } = await startedRoom(camelUpAdapter, { humans: 3 });
+  const seatFor = (state) => seats.find((seat) => seat.playerId === currentPlayer(state).id);
+  let raw = await store.load(code);
+  await room.act({ roomCode: code, token: seatFor(raw).token, action: "placeFinishBet", args: { bet: "winner", camelId: "red" } });
+  raw = await store.load(code);
+  await store.save(adoptVersion({ ...raw, pyramidTicketsTaken: 4, remainingDice: ["blue", "grey"], updatedAt: raw.updatedAt + 1 }, raw));
+  raw = await store.load(code);
+  await room.act({ roomCode: code, token: seatFor(raw).token, action: "rollPyramid", args: {} });
+  for (const seat of seats) {
+    const view = (await room.get({ roomCode: code, token: seat.token })).state;
+    assert.equal(view.leg, 2);
+    assert.equal(view.legRecap.leg, 1);
+    assert.equal(view.legRecap.rolls.length, 1);
+    assert.equal(view.legRecap.finish, null);
+    for (const player of view.players) if (player.id !== seat.playerId) assert.deepEqual(player.finishCards, []);
+  }
+  const next = (await store.load(code));
+  const view = (await room.act({ roomCode: code, token: seatFor(next).token, action: "takeLegTicket", args: { camelId: "green" } })).state;
+  assert.equal(view.players.find((player) => player.id === currentPlayer(next).id).legTickets.length, 1);
 });
