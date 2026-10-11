@@ -186,11 +186,11 @@
 .pn-seat-meld summary { display: block; position: static; translate: none; list-style: none; text-align: center; cursor: pointer; }
 .pn-seat-meld summary::-webkit-details-marker { display: none; }
 .pn-seat-meld[open] > div { position: absolute; left: 50%; top: calc(100% + 5px); translate: -50% 0; z-index: 6; width: 176px; padding: 8px 9px; border-radius: 10px; color: #e6f0e8; background: rgba(6,30,22,.97); box-shadow: 0 10px 24px rgba(4,18,13,.5); }
-.pn-seat-meld p { display: grid; grid-template-columns: 1fr auto; gap: 1px 6px; margin: 0 0 6px; font-size: .62rem; }
+.pn-seat-meld p { display: grid; grid-template-columns: 1fr auto; gap: 1px 6px; margin: 0 0 6px; font-size: 0.625rem; }
 .pn-seat-meld p:last-child { margin: 0; }
 .pn-seat-meld b { font-family: var(--font-ui); }
 .pn-seat-meld em { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 3px; font-style: normal; }
-.pn-seat-meld i { padding: 0 3px; border-radius: 3px; background: rgba(255,255,255,.1); font-style: normal; font-size: .58rem; }
+.pn-seat-meld i { padding: 0 3px; border-radius: 3px; background: rgba(255,255,255,.1); font-style: normal; font-size: 0.625rem; }
 .pn-seat-meld i.red { color: #f2a3a1; }
 
 /* The summary is a pill, so it follows the pill rule: away from the middle of
@@ -261,7 +261,7 @@
   .pn-landing { padding: 30px 18px; }
   .pn-hero { min-height: auto; }
   .pn-hero h1 { font-size: 3.5rem; }
-  .pn-hero-art { min-height: 380px; transform: scale(.84); margin: -25px -30px; }
+  .pn-hero-art { overflow: clip; min-height: 380px; transform: scale(.84); margin: -25px -30px; }
   .pn-room-shell,
   .pn-game-shell { padding: 12px; }
   .pn-room-header,

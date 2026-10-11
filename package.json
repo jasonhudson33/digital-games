@@ -14,6 +14,7 @@
     "start": "next start",
     "lint": "npm run typecheck",
     "validate": "node scripts/validate-frontend.mjs",
+    "audit:mobile": "node scripts/mobile-audit.mjs",
     "typecheck:js": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
+    "playwright": "1.63",
     "vite": "^6.0.0"
   }
 }

@@ -213,7 +213,7 @@
 .cya-asset-set strong, .cya-asset-set small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cya-asset-set strong { font-size: .84rem; }
 .cya-asset-set small { color: #7b827d; font-size: .7rem; }
-.cya-asset-set em { float: right; margin-top: -25px; padding: 4px 6px; border-radius: 6px; color: #527064; background: #e8efe9; font-size: .59rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+.cya-asset-set em { float: right; margin-top: -25px; padding: 4px 6px; border-radius: 6px; color: #527064; background: #e8efe9; font-size: 0.625rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
 .cya-asset-set.top:not(:first-child) { outline: 2px solid color-mix(in srgb, var(--set-color), transparent 58%); }
 .cya-asset-set.covered { transform: scale(.97); opacity: .72; }
 .cya-challenge-button { width: 100%; margin-top: 9px; padding: 9px; border-radius: 11px; color: white; background: var(--cya-red); font-size: .76rem; }
@@ -238,7 +238,7 @@
 .cya-card-icon { display: grid; place-items: center; height: 63px; font: 900 2.2rem/1 var(--font-display); text-align: center; }
 .cya-card > strong, .cya-card > small { position: relative; z-index: 1; display: block; }
 .cya-card > strong { font: 700 .9rem/1.05 var(--font-ui); }
-.cya-card > small { margin-top: 5px; color: rgba(255,255,255,.76); font-size: .52rem; font-weight: 800; letter-spacing: .12em; }
+.cya-card > small { margin-top: 5px; color: rgba(255,255,255,.76); font-size: 0.625rem; font-weight: 800; letter-spacing: .12em; }
 .cya-card.wild { color: #fff8dd; background: linear-gradient(145deg, #6e7c84, #353f45); }
 .cya-card.wild.gold { color: #2e250f; border-color: #fff2c4; background: linear-gradient(145deg, #f0ce68, #a97518); }
 .cya-card-back { display: grid; place-items: center; border-color: #ead9aa; color: #f0d37b; background: repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 8px, transparent 8px 16px), #9d352d; text-align: center; }

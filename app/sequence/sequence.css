@@ -85,7 +85,7 @@ button, input { font: inherit; }
 .sequence-game-shell { padding-bottom: 2rem; background: linear-gradient(#e9e0c8, #ddd2b5); }
 .sequence-table-header { position: sticky; z-index: 20; top: 73px; display: flex; align-items: center; gap: .65rem; padding: .75rem 1.2rem; color: white; background: #123f34f2; box-shadow: 0 .3rem 1rem #142f2840; backdrop-filter: blur(12px); }
 .sequence-table-header > div:first-child { margin-right: auto; }
-.sequence-table-header .sequence-kicker { margin: 0; color: #eab965; font-size: .62rem; }
+.sequence-table-header .sequence-kicker { margin: 0; color: #eab965; font-size: 0.625rem; }
 .sequence-table-header h1 { margin: 0; font: 700 1.45rem/1 var(--font-ui); }
 .sequence-turn { display: inline-flex; align-items: center; gap: .45rem; padding: .55rem .8rem; border: 1px solid #ffffff2b; border-radius: 99px; font-size: .78rem; font-weight: 800; }
 .sequence-turn.mine { color: #193e34; background: #f5c965; }
@@ -142,8 +142,8 @@ button, input { font: inherit; }
 .sequence-playing-card:hover:not(:disabled), .sequence-playing-card.selected { transform: translateY(-.4rem); box-shadow: 0 .65rem 1rem #503a2838; }
 .sequence-playing-card.selected { outline: .22rem solid #e8aa36; }
 .sequence-playing-card:disabled { cursor: default; opacity: .55; }
-.sequence-card-action { position: absolute; right: .35rem; bottom: .35rem; z-index: 2; padding: .18rem .35rem; border-radius: 99px; color: white; background: #153f35e8; box-shadow: 0 .1rem .3rem #0004; font-size: .58rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
-.sequence-dead-card { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; padding: .35rem; border: 1px solid #b78345; border-radius: .4rem; color: #865719; background: #fff3d5; font-size: .59rem; font-weight: 800; cursor: pointer; }
+.sequence-card-action { position: absolute; right: .35rem; bottom: .35rem; z-index: 2; padding: .18rem .35rem; border-radius: 99px; color: white; background: #153f35e8; box-shadow: 0 .1rem .3rem #0004; font-size: 0.625rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.sequence-dead-card { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; padding: .35rem; border: 1px solid #b78345; border-radius: .4rem; color: #865719; background: #fff3d5; font-size: 0.625rem; font-weight: 800; cursor: pointer; }
 .sequence-dead-card svg { width: .7rem; height: .7rem; }
 
 .sequence-overlay { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 1rem; background: #102a24c7; backdrop-filter: blur(5px); }
@@ -192,7 +192,7 @@ button, input { font: inherit; }
   .sequence-log { display: none; }
   .sequence-board-wrap { width: 100%; }
   .sequence-board { border-width: .45rem; gap: 1px; padding: .3rem; border-radius: .55rem; }
-  .sequence-space strong { font-size: .42rem; }
+  .sequence-space strong { font-size: 0.625rem; }
   .sequence-space > span:not(.sequence-chip) { font-size: .65rem; }
   .sequence-hand { width: calc(100% - 1.3rem); padding: .75rem; }
   .sequence-cards { justify-content: start; }

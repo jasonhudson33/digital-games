@@ -274,6 +274,10 @@
 .scum-board {
   min-height: calc(100vh - 139px); min-height: calc(100dvh - 139px);
   display: grid;
+  /* minmax(0, 1fr), not the implicit auto column: the no-wrap turn-order row
+     and the hand have a wide min-content, and an auto track grows to it,
+     pushing the whole table past the viewport on a phone. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(260px, 1fr) auto;
   gap: 16px;
   padding: 18px clamp(14px, 3vw, 42px) 22px;
@@ -338,7 +342,7 @@
   text-align: center;
 }
 .scum-pile::before { content: ""; position: absolute; width: 230px; height: 150px; border: 1px solid rgba(240,224,183,.12); border-radius: 50%; }
-.pile-rule { position: absolute; top: 0; color: var(--scum-gold); text-transform: uppercase; letter-spacing: .12em; font-size: .62rem; font-weight: 800; }
+.pile-rule { position: absolute; top: 0; color: var(--scum-gold); text-transform: uppercase; letter-spacing: .12em; font-size: 0.625rem; font-weight: 800; }
 .pile-cards { position: relative; width: 120px; height: 128px; }
 .scum-pile > small { position: absolute; bottom: 0; color: rgba(246,238,218,.5); font-size: .68rem; }
 .pile-card {
@@ -356,8 +360,8 @@
 .empty-pile strong { margin-top: -7px; color: rgba(246,238,218,.67); font-family: var(--font-ui); font-size: 1rem; }
 .empty-pile small { margin-top: 4px; color: rgba(246,238,218,.35); font-size: .66rem; }
 
-.scum-table-order { max-width: 620px; display: flex; align-items: center; gap: clamp(5px, 1.2vw, 12px); color: rgba(245,236,215,.34); }
-.scum-table-order span { font-size: .57rem; text-transform: uppercase; letter-spacing: .1em; }
+.scum-table-order { max-width: 620px; flex-wrap: wrap; justify-content: center; display: flex; align-items: center; gap: clamp(5px, 1.2vw, 12px); color: rgba(245,236,215,.34); }
+.scum-table-order span { font-size: 0.625rem; text-transform: uppercase; letter-spacing: .1em; }
 .scum-table-order b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font: 600 .68rem var(--font-ui); }
 .scum-table-order b.current { color: #153a30; background: var(--scum-gold); }
 
@@ -375,7 +379,7 @@
 .your-avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #173d32; background: var(--scum-gold); font: 700 .9rem var(--font-ui); }
 .your-seat-meta div strong, .your-seat-meta div small { display: block; }
 .your-seat-meta div strong { font-size: .8rem; }.your-seat-meta div small { margin-top: 2px; color: rgba(245,236,215,.48); font-size: .64rem; }
-.your-turn-chip { margin-left: auto; padding: 5px 10px; border-radius: 999px; color: var(--scum-gold); background: rgba(226,184,79,.1); text-transform: uppercase; letter-spacing: .1em; font-size: .58rem; font-weight: 800; }
+.your-turn-chip { margin-left: auto; padding: 5px 10px; border-radius: 999px; color: var(--scum-gold); background: rgba(226,184,79,.1); text-transform: uppercase; letter-spacing: .1em; font-size: 0.625rem; font-weight: 800; }
 
 .scum-hand {
   min-height: 126px;
@@ -660,9 +664,9 @@
   .scum-gamebar-actions button { width: 38px; height: 38px; justify-content: center; padding: 0; }
   .scum-gamebar-actions button { font-size: 0; }
   .scum-board { min-height: calc(100vh - 129px); min-height: calc(100dvh - 129px); grid-template-rows: auto minmax(235px, 1fr) auto; gap: 8px; }
-  .opponent-avatar { width: 31px; height: 31px; }.opponent-copy strong { font-size: .72rem; }.opponent-copy small { font-size: .57rem; }
+  .opponent-avatar { width: 31px; height: 31px; }.opponent-copy strong { font-size: .72rem; }.opponent-copy small { font-size: 0.625rem; }
   .scum-pile { min-height: 175px; }
-  .scum-table-order span { display: none; }.scum-table-order b { font-size: .59rem; }
+  .scum-table-order span { display: none; }.scum-table-order b { font-size: 0.625rem; }
   .scum-your-seat { padding: 9px 8px 10px; }
   .scum-hand { justify-content: flex-start; min-height: 112px; }
   .hand-card-button { min-width: 48px; width: 48px; height: 98px; margin-left: -9px; }

@@ -125,7 +125,7 @@
 .nt-run { position: relative; display: flex; flex: 0 0 auto; padding-bottom: 14px; }
 .nt-run .nt-number-card { flex: 0 0 auto; width: 54px; height: 75px; border-width: 3px; border-radius: 8px; }
 .nt-run .nt-number-card.tucked { margin-left: -37px; }
-.nt-run-score { position: absolute; left: 4px; bottom: 0; padding: 2px 5px; border-radius: 5px; color: white; background: #49415b; font-size: .54rem; font-weight: 900; }
+.nt-run-score { position: absolute; left: 4px; bottom: 0; padding: 2px 5px; border-radius: 5px; color: white; background: #49415b; font-size: 0.625rem; font-weight: 900; }
 .nt-empty-line { display: grid; place-items: center; width: 100%; min-height: 78px; border: 1px dashed rgba(41,35,66,.15); border-radius: 10px; color: #9d98a3; font-size: .72rem; }
 .nt-player-board footer { display: flex; justify-content: space-between; gap: 6px; align-items: center; padding-top: 7px; border-top: 1px solid rgba(41,35,66,.08); }
 .nt-player-board footer span { display: inline-flex; align-items: center; gap: 4px; color: #817b88; font-size: .64rem; font-weight: 800; }
@@ -133,7 +133,7 @@
 
 .nt-number-card { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 104px; height: 144px; padding: 7px; overflow: hidden; border: 5px solid #fff; border-radius: 13px; color: #2b2737; box-shadow: 0 5px 13px rgba(41,35,66,.22), inset 0 0 0 1px rgba(0,0,0,.08); }
 .nt-number-card::after { content: ""; position: absolute; width: 72px; height: 72px; right: -38px; bottom: -38px; border: 2px solid rgba(255,255,255,.36); border-radius: 50%; box-shadow: 0 0 0 9px rgba(255,255,255,.12), 0 0 0 18px rgba(255,255,255,.08); }
-.nt-number-card small { align-self: flex-start; font-size: .6em; font-weight: 950; }
+.nt-number-card small { align-self: flex-start; font-size: 0.625rem; font-weight: 950; }
 .nt-number-card small:last-child { align-self: flex-end; transform: rotate(180deg); }
 .nt-number-card strong { font: 950 2.3em/.8 var(--font-poster); text-shadow: 0 2px 0 rgba(255,255,255,.28); }
 .nt-number-card.mint { background: linear-gradient(145deg, #8ce4cd, #54bea4); }
@@ -149,7 +149,7 @@
 .nt-mini-deck { display: grid; grid-template-columns: 1fr auto; align-items: end; max-width: 150px; margin: 15px 0; padding: 13px; border: 4px solid #f4eefa; border-radius: 13px; color: white; background: repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 7px, transparent 7px 14px), linear-gradient(145deg, #7256c5, #46328c); box-shadow: 7px -6px 0 #b3a4df, 12px -10px 0 #7664ad; }
 .nt-mini-deck span { color: var(--nt-yellow); font-weight: 950; }
 .nt-mini-deck strong { grid-row: span 2; font: 950 3rem/.9 var(--font-poster); }
-.nt-mini-deck small { font-size: .61rem; }
+.nt-mini-deck small { font-size: 0.625rem; }
 .nt-offer-stage { position: relative; display: grid; grid-template-columns: 1fr 1fr; place-items: center; min-height: 260px; overflow: hidden; border: 1px solid rgba(41,35,66,.1); border-radius: 18px; background: radial-gradient(circle at 45% 48%, rgba(255,216,103,.31), transparent 30%), rgba(255,253,248,.92); }
 .nt-offer-glow { position: absolute; width: 230px; height: 230px; border: 1px solid rgba(85,64,168,.08); border-radius: 50%; box-shadow: 0 0 0 26px rgba(85,64,168,.035), 0 0 0 52px rgba(85,64,168,.02); }
 .nt-pot { z-index: 2; display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 12px; }
@@ -171,12 +171,12 @@
 .nt-pass-button { background: linear-gradient(135deg, #6751b8, #49358f); }
 .nt-take-button { background: linear-gradient(135deg, #ff6d99, #df416f); box-shadow: 0 8px 18px rgba(255,93,143,.23); }
 .nt-pass-button svg, .nt-take-button svg { grid-row: span 2; width: 22px; }
-.nt-pass-button small, .nt-take-button small { font-size: .62rem; font-weight: 700; opacity: .8; }
+.nt-pass-button small, .nt-take-button small { font-size: 0.625rem; font-weight: 700; opacity: .8; }
 .nt-must-take { display: flex; align-items: center; gap: 9px; min-width: 155px; min-height: 56px; padding: 8px 14px; border: 1px solid rgba(219,65,111,.2); border-radius: 13px; color: #9f2f54; background: #fde7ed; }
 .nt-must-take > svg { width: 22px; }
 .nt-must-take span { display: grid; gap: 2px; }
 .nt-must-take strong { font-size: .78rem; }
-.nt-must-take small { font-size: .62rem; font-weight: 750; }
+.nt-must-take small { font-size: 0.625rem; font-weight: 750; }
 
 .nt-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: rgba(28,23,45,.78); backdrop-filter: blur(7px); }
 .nt-rules-modal, .nt-results-modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); padding: clamp(23px, 5vw, 40px); overflow-y: auto; border-radius: 25px; background: #fffdf8; box-shadow: 0 30px 90px rgba(0,0,0,.32); }

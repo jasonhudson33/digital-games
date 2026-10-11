@@ -1078,7 +1078,7 @@
 
 .tbl-card-face b {
   max-width: 66px;
-  font-size: 0.53rem;
+  font-size: 0.625rem;
   line-height: 1;
   text-align: center;
   text-transform: uppercase;
@@ -1163,7 +1163,7 @@
 }
 
 .tbl-card-back span {
-  font-size: 0.48rem;
+  font-size: 0.625rem;
   font-weight: 800;
   letter-spacing: 0.11em;
 }
@@ -1199,7 +1199,7 @@
   border-radius: var(--r-xs);
 }
 
-.tbl-mini-stack .tbl-card span { font-size: 0.25rem; }
+.tbl-mini-stack .tbl-card span { font-size: 0.625rem; }
 .tbl-mini-stack .tbl-card strong { font-size: 0.8rem; }
 
 /* ── Side badge (UNO Flip) ───────────────────────────────────────────────── */
@@ -1678,7 +1678,7 @@
    is told otherwise — the label line is what a hand-sized card needs and a
    felt-sized one does not, same trade Skull King made for its own cards. */
 .tbl-felt-table .tbl-played .tbl-card { padding: calc(3 * var(--px)); border-width: calc(2 * var(--px)); }
-.tbl-felt-table .tbl-played .tbl-card-corner { font-size: calc(7 * var(--px)); }
+.tbl-felt-table .tbl-played .tbl-card-corner { font-size: max(10px, calc(7 * var(--px))); }
 .tbl-felt-table .tbl-played .tbl-card-face { gap: calc(2 * var(--px)); }
 .tbl-felt-table .tbl-played .tbl-card-face strong { font-size: calc(20 * var(--px)); }
 .tbl-felt-table .tbl-played .tbl-card-face b { display: none; }
@@ -1810,6 +1810,16 @@
        the shell scroll is what "a window too short scrolls a little instead"
        was supposed to mean; without this it silently covered things instead. */
     overflow-y: auto;
+  }
+
+  /* A phone on its side is 390px tall — less than the felt's own floor — so a
+     fixed-height shell leaves a ~290px window to scroll the whole game through
+     inside the page. Let the page scroll instead; the felt keeps its floor. */
+  @media (max-height: 520px) and (orientation: landscape) {
+    .tbl-felt-shell {
+      height: auto;
+      overflow-y: visible;
+    }
   }
 
   .tbl-felt-fit {
@@ -1999,7 +2009,7 @@
   color: #123527;
   background: var(--felt-avatar);
   font-family: var(--font-ui);
-  font-size: calc(var(--seat-avatar) * .5);
+  font-size: max(9px, calc(var(--seat-avatar) * .5));
   font-weight: 800;
 }
 
@@ -2017,7 +2027,7 @@
    plate — it hangs 5px off the corner — so a name gives up as little as it can. */
 .tbl-chair-plate:has(.tbl-mark) { padding-right: calc(var(--mark-w) - (3 * var(--px))); }
 .tbl-chair-plate:has(.tbl-mark + .tbl-mark) { padding-right: calc(var(--mark-w) * 2); }
-.tbl-mark { display: grid; place-items: center; min-width: var(--mark-w); height: var(--mark-h); padding: 0 calc(5 * var(--px)); border-radius: calc(6 * var(--px)); font-family: var(--font-ui); font-size: calc(var(--mark-h) * .48); font-style: normal; font-weight: 800; }
+.tbl-mark { display: grid; place-items: center; min-width: var(--mark-w); height: var(--mark-h); padding: 0 calc(5 * var(--px)); border-radius: calc(6 * var(--px)); font-family: var(--font-ui); font-size: max(10px, calc(var(--mark-h) * .48)); font-style: normal; font-weight: 800; }
 .tbl-mark.deal { color: #dcecdf; background: rgba(255, 255, 255, .16); }
 .tbl-mark.lead { color: #2a1c02; background: var(--felt-accent); }
 .tbl-mark.quiet { color: var(--felt-ink); background: rgba(255, 255, 255, .1); }
@@ -2151,7 +2161,7 @@
   background: rgba(6, 28, 20, .55);
   color: #a9c6b6;
   font-family: var(--font-ui);
-  font-size: calc(9.3 * var(--px));
+  font-size: max(10px, calc(9.3 * var(--px)));
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -2176,13 +2186,13 @@
     --seat-gap: calc(4 * var(--px));
     --seat-round: calc(9 * var(--px));
     --seat-avatar: calc(18 * var(--px));
-    --seat-name: calc(9.3 * var(--px));
-    --seat-note: calc(7.7 * var(--px));
+    --seat-name: max(9px, calc(9.3 * var(--px)));
+    --seat-note: max(9px, calc(7.7 * var(--px)));
     --card-w: calc(40 * var(--px));
     --card-h: calc(56 * var(--px));
     --mark-w: calc(15 * var(--px));
     --mark-h: calc(15 * var(--px));
-    --pill-font: calc(8 * var(--px));
+    --pill-font: max(9px, calc(8 * var(--px)));
     /* No fan of backs at this size, so nothing to clear. */
     --pill-lift: calc(5 * var(--px));
     aspect-ratio: 360 / 500;
@@ -2190,7 +2200,7 @@
   .tbl-felt-table.crowded {
     --seat-w: calc(72 * var(--px));
     --seat-pad: calc(4 * var(--px)) calc(5 * var(--px));
-    --seat-name: calc(8 * var(--px));
+    --seat-name: max(9px, calc(8 * var(--px)));
     --card-w: calc(32 * var(--px));
     --card-h: calc(44 * var(--px));
     --mark-w: calc(12 * var(--px));
@@ -2215,12 +2225,12 @@
     min-width: calc(120 * var(--px));
     max-width: calc(220 * var(--px));
     padding: calc(5 * var(--px)) calc(12 * var(--px));
-    font-size: calc(9.5 * var(--px));
+    font-size: max(10px, calc(9.5 * var(--px)));
   }
   .tbl-felt-mark { width: calc(28 * var(--px)); height: calc(28 * var(--px)); margin-top: 0; font-size: calc(16 * var(--px)); }
   /* Right down on the rim: the seat at the bottom hangs its own pill into the
      strip just above this, and six pixels between the two was not enough. */
-  .tbl-felt-meta { top: auto; bottom: 3.5%; translate: -50% 0; margin-top: 0; max-width: calc(165 * var(--px)); font-size: calc(7.4 * var(--px)); }
+  .tbl-felt-meta { top: auto; bottom: 3.5%; translate: -50% 0; margin-top: 0; max-width: 92%; letter-spacing: .02em; text-overflow: ellipsis; font-size: max(10px, calc(7.4 * var(--px))); }
 
   /* The portrait felt's middle band is narrow between the left and right
      seats — a 2-column tableau collides with their plates the way the wide
@@ -2250,7 +2260,7 @@
     width: calc(29 * var(--px));
   }
   .seven-up-lane-empty {
-    font-size: calc(9 * var(--px));
+    font-size: max(10px, calc(9 * var(--px)));
   }
   .seven-up-felt .tbl-felt-meta {
     bottom: 3.5%;

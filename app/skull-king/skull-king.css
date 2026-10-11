@@ -222,13 +222,13 @@
 .skull-error.game-error { margin: 9px 0 0; }
 .skull-room-loading { width: min(520px,100%); margin: 12vh auto 0; padding: 40px; color: var(--skull-gold); border: 1px solid rgba(235,199,111,.17); border-radius: 24px; background: rgba(7,25,31,.7); text-align: center; font-family: var(--font-ui); font-size: 1.25rem; }
 
-.skull-lobby-shell { display: grid; place-items: start center; }
+.skull-lobby-shell { display: grid; grid-template-columns: minmax(0, 1fr); place-items: start center; }
 .skull-lobby-card { width: min(760px,100%); padding: clamp(30px,5vw,54px); border: 1px solid rgba(235,199,111,.18); border-radius: 30px; background: radial-gradient(circle at 90% 5%, rgba(49,126,116,.15), transparent 26%), linear-gradient(150deg,#112f33,#091e27); box-shadow: 0 28px 80px rgba(0,0,0,.42); }
 .skull-lobby-card h1 { margin: 15px 0 9px; font-family: var(--font-ui); font-size: clamp(3rem,8vw,5.2rem); font-weight: 500; line-height: .95; }
 .skull-lobby-card h1 span { color: var(--skull-gold); font-style: italic; }
 .skull-lobby-card > p { margin: 0 0 23px; color: var(--skull-muted); line-height: 1.6; }
 .skull-room-code { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 16px; padding: 17px 19px; margin-bottom: 17px; border: 1px solid rgba(228,184,75,.22); border-radius: 15px; background: rgba(228,184,75,.055); }
-.skull-room-code > span { color: #9f9483; font-size: .62rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+.skull-room-code > span { color: #9f9483; font-size: 0.625rem; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
 .skull-room-code strong { grid-row: 2; color: var(--skull-gold); font-family: var(--font-ui); font-size: 2rem; letter-spacing: .18em; }
 .skull-room-code button { grid-column: 2; grid-row: 1 / 3; display: inline-flex; align-items: center; gap: 7px; padding: 10px 13px; color: var(--skull-ink); border: 1px solid rgba(235,199,111,.16); border-radius: 10px; background: rgba(255,255,255,.05); cursor: pointer; font-weight: 750; }
 .skull-lobby-players { display: grid; gap: 7px; }
@@ -246,7 +246,7 @@
 .skull-deck-option-buttons { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
 .skull-deck-option-buttons button { display: grid; gap: 3px; padding: 10px 8px; color: #b9ad99; border: 1px solid rgba(235,199,111,.13); border-radius: 10px; background: rgba(255,255,255,.035); cursor: pointer; }
 .skull-deck-option-buttons button strong { font-size: .68rem; }
-.skull-deck-option-buttons button small { color: #8f8576; font-size: .57rem; }
+.skull-deck-option-buttons button small { color: #8f8576; font-size: 0.625rem; }
 .skull-deck-option-buttons button.selected { color: #14282b; border-color: var(--skull-gold); background: var(--skull-gold); }
 .skull-deck-option-buttons button.selected small { color: #4f493c; }
 .skull-deck-option-buttons button:disabled { opacity: .35; cursor: not-allowed; }
@@ -373,10 +373,10 @@
 .skull-playing-card.yellow .skull-card-corner b { color: #382707; background: #f1c84d; }
 .skull-playing-card.purple .skull-card-corner b { color: #fff3dc; background: #714779; }
 .skull-playing-card.black .skull-card-corner b { color: #f6dda0; background: #111b1f; }
-.skull-playing-card.choice .skull-card-corner b { font-size: .56rem; letter-spacing: -.04em; }
+.skull-playing-card.choice .skull-card-corner b { font-size: 0.625rem; letter-spacing: -.04em; }
 .skull-card-corner i { margin-top: 3px; font-size: 0.72rem; font-style: normal; }
 .skull-playing-card > strong { position: relative; z-index: 2; font-family: var(--font-ui); font-size: 1.75rem; }
-.skull-playing-card > small { position: relative; z-index: 2; max-width: 80%; margin-top: 5px; text-align: center; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.skull-playing-card > small { position: relative; z-index: 2; max-width: 80%; margin-top: 5px; text-align: center; font-size: 0.625rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 
 .skull-playing-card.suit-card { justify-content: flex-end; padding-bottom: 10px; }
 .skull-playing-card.suit-card > small { max-width: 88%; padding: 3px 6px; color: #fff2d2; border-radius: 999px; background: #15272a; box-shadow: 0 1px 3px rgba(0,0,0,.45); text-shadow: none; }
@@ -398,12 +398,12 @@
   background: var(--skull-gold);
   transform: rotate(-42deg);
   text-align: center;
-  font-size: 0.61rem;
+  font-size: 0.625rem;
   font-weight: 900;
 }
 
 .bonus-ribbon.penalty { color: #fff3ea; background: #a53d31; }
-.expansion-mark { position: absolute; z-index: 4; right: 7px; top: 7px; color: currentColor; opacity: .58; font-size: .43rem; font-weight: 900; letter-spacing: .08em; }
+.expansion-mark { position: absolute; z-index: 4; right: 7px; top: 7px; color: currentColor; opacity: .58; font-size: 0.625rem; font-weight: 900; letter-spacing: .08em; }
 
 .special-art {
   position: relative;
@@ -585,7 +585,7 @@
 .tbl-felt-table .tbl-played .expansion-mark { display: none; }
 .tbl-felt-table .tbl-played .skull-card-corner { inset: 3px auto auto 3px; }
 .tbl-felt-table .tbl-played .skull-card-corner b { font-size: .82em; }
-.tbl-felt-table .tbl-played .skull-card-corner i { margin-top: 1px; font-size: .62em; }
+.tbl-felt-table .tbl-played .skull-card-corner i { margin-top: 1px; font-size: 0.625rem; }
 .tbl-felt-table .tbl-played .special-art { font-size: 1.9em; }
 .tbl-felt-table .tbl-played .card-illustration { inset: 0; }
 .tbl-felt-table .tbl-played .skull-playing-card.illustrated-character::before,
@@ -646,9 +646,9 @@
 .skull-hand-card.playable { cursor: pointer; transform: translateY(5px); }
 .skull-hand-card.playable:hover { z-index: 3; transform: translateY(-4px) rotate(calc((var(--card-index) - 4) * .25deg)); filter: drop-shadow(0 12px 12px rgba(0,0,0,.3)); }
 .skull-hand-card.forced { filter: drop-shadow(0 0 10px rgba(228,184,75,.9)); }
-.skull-hand-card.forced::after { content: "FORCED"; position: absolute; z-index: 8; top: -7px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 999px; background: var(--skull-gold); transform: translateX(-50%); font-size: .48rem; font-weight: 900; }
+.skull-hand-card.forced::after { content: "FORCED"; position: absolute; z-index: 8; top: -7px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 999px; background: var(--skull-gold); transform: translateX(-50%); font-size: 0.625rem; font-weight: 900; }
 .skull-hand-card .skull-playing-card { width: 102px; }
-.skull-card-help-link { max-width: 102px; margin-top: 19px; padding: 2px 1px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: .6rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
+.skull-card-help-link { max-width: 102px; margin-top: 19px; padding: 2px 1px; color: #d8bd78; border: 0; background: transparent; cursor: pointer; font-size: 0.625rem; font-weight: 800; line-height: 1.25; text-decoration: underline; text-decoration-color: rgba(216,189,120,.5); text-underline-offset: 2px; }
 .skull-card-help-link:hover, .skull-card-help-link:focus-visible { color: #ffe4a0; text-decoration-color: currentColor; }
 .skull-ghost-area { margin-top: 5px; padding: 12px 10px 2px; border: 1px solid rgba(168,221,215,.15); border-radius: 18px 18px 0 0; background: linear-gradient(180deg,rgba(104,184,178,.075),rgba(255,255,255,.012)); }
 .skull-ghost-area.active { border-color: rgba(147,226,216,.46); box-shadow: inset 0 0 28px rgba(75,178,169,.08), 0 0 18px rgba(75,178,169,.08); }
@@ -664,7 +664,7 @@
 .skull-ghost-card-back::before { top: 11px; left: 12px; }
 .skull-ghost-card-back::after { right: 12px; bottom: 11px; }
 .skull-ghost-card-back > span { font-size: 2.2rem; text-shadow: 0 2px 5px var(--sk-shadow-black); }
-.skull-ghost-card-back > small { font-size: .55rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+.skull-ghost-card-back > small { font-size: 0.625rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
 .skull-ghost-card-back > b { position: absolute; right: 10px; top: 9px; min-width: 22px; height: 22px; display: grid; place-items: center; color: #17353a; border-radius: 50%; background: #d9c078; font-size: .68rem; }
 .skull-ghost-card-back:disabled { opacity: .57; filter: saturate(.6) brightness(.78); }
 .skull-ghost-card-back.playable { cursor: pointer; transform: translateY(5px); }
@@ -745,11 +745,11 @@
 .pirate-number-choices button { min-width: 110px; padding: 17px; display: grid; gap: 4px; color: var(--skull-ink); border: 1px solid rgba(228,184,75,.2); border-radius: 15px; background: rgba(255,255,255,.045); cursor: pointer; }
 .pirate-number-choices button:hover { color: var(--sk-ink-deep-green); background: var(--skull-gold); }
 .pirate-number-choices b { font-family: var(--font-ui); font-size: 1.8rem; }
-.pirate-number-choices span { font-size: .62rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.pirate-number-choices span { font-size: 0.625rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .bendt-draw-note { margin: 18px 0 8px; color: #a99d8b; font-size: .72rem; }
 .pirate-discard-hand { max-height: 310px; overflow: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 10px; margin-bottom: 16px; border-radius: 15px; background: rgba(0,0,0,.14); }
 .pirate-discard-hand button { position: relative; padding: 0; border: 0; border-radius: 11px; background: transparent; cursor: pointer; transition: transform 130ms ease, filter 130ms ease; }
-.pirate-discard-hand button.drawn::after { content: "DRAWN"; position: absolute; z-index: 6; top: -5px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 99px; background: var(--skull-gold); transform: translateX(-50%); font-size: .52rem; font-weight: 900; }
+.pirate-discard-hand button.drawn::after { content: "DRAWN"; position: absolute; z-index: 6; top: -5px; left: 50%; padding: 3px 7px; color: var(--sk-ink-deep-green); border-radius: 99px; background: var(--skull-gold); transform: translateX(-50%); font-size: 0.625rem; font-weight: 900; }
 .pirate-discard-hand button.selected { transform: translateY(-5px); filter: drop-shadow(0 0 8px rgba(228,184,75,.72)); }
 .pirate-discard-hand button.selected .skull-playing-card { outline: 3px solid var(--skull-gold); }
 .pirate-discard-hand .skull-playing-card { width: 88px; }
@@ -770,10 +770,10 @@
 .deck-option-rules > div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
 .deck-option-rules article { padding: 13px; border: 1px solid rgba(235,199,111,.1); border-radius: 12px; background: rgba(255,255,255,.035); }
 .deck-option-rules article.selected { border-color: rgba(228,184,75,.7); box-shadow: inset 0 0 0 1px rgba(228,184,75,.2); }
-.deck-option-rules article > span { color: #8fc7bb; font-size: .58rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.deck-option-rules article > span { color: #8fc7bb; font-size: 0.625rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .deck-option-rules h3 { margin: 6px 0; color: #e8dcc7; font-size: .82rem; }
 .deck-option-rules article p { margin: 0 0 9px; color: var(--sk-ink-rust-2); font-size: .68rem; line-height: 1.5; }
-.deck-option-rules article small { color: #958a79; font-size: .6rem; }
+.deck-option-rules article small { color: #958a79; font-size: 0.625rem; }
 .deck-option-rules > p { margin: 13px 0 0; color: #aa9e8c; font-size: .68rem; line-height: 1.5; }
 .deck-option-rules > p b { color: #d9c483; }
 .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -861,7 +861,7 @@
   .choice-dialog, .skull-rules-dialog, .skull-round-dialog, .pirate-ability-dialog, .card-ability-dialog { padding: 28px 20px 22px; border-radius: 19px; }
   .skull-hand-item { min-width: 88px; }
   .skull-ghost-card-back { width: 88px; }
-  .skull-card-help-link { max-width: 88px; font-size: .56rem; }
+  .skull-card-help-link { max-width: 88px; font-size: 0.625rem; }
   .card-ability-content { grid-template-columns: 98px minmax(0, 1fr); gap: 16px; }
   .card-ability-content .ability-preview-card { width: 98px; }
   .rules-grid { grid-template-columns: 1fr; }

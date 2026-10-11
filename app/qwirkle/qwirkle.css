@@ -108,7 +108,7 @@
 .qwirkle-table-header { min-height: 68px; margin-bottom: 12px; padding: 9px 12px 9px 18px; border: 1px solid var(--qw-line); border-radius: 18px; display: grid; grid-template-columns: 1fr auto auto auto auto; align-items: center; gap: 8px; background: rgba(255,253,248,.93); box-shadow: 0 12px 35px rgba(27,30,38,.08); backdrop-filter: blur(12px); }
 .qwirkle-table-header h1 { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 1.45rem; letter-spacing: -.04em; }
 .qwirkle-table-header h1 .qwirkle-mark { width: 22px; height: 22px; }
-.qwirkle-table-header .qwirkle-kicker { margin-bottom: 0; font-size: .55rem; }
+.qwirkle-table-header .qwirkle-kicker { margin-bottom: 0; font-size: 0.625rem; }
 .qwirkle-turn { min-height: 36px; padding: 8px 12px; border-radius: 999px; display: flex; align-items: center; gap: 7px; color: #626670; background: #eeece7; font-size: .72rem; font-weight: 850; }
 .qwirkle-turn.mine { color: white; background: #10877d; }
 .qwirkle-turn > span { width: 9px; height: 9px; border-radius: 50%; }
@@ -127,24 +127,24 @@
 .qwirkle-player > span svg { width: 17px; }
 .qwirkle-player p { min-width: 0; margin: 0; display: grid; }
 .qwirkle-player strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .73rem; }
-.qwirkle-player small { color: var(--qw-muted); font-size: .57rem; }
+.qwirkle-player small { color: var(--qw-muted); font-size: 0.625rem; }
 .qwirkle-player > b { display: grid; color: #252934; font-size: 1.12rem; text-align: center; }
-.qwirkle-player > b small { margin-top: -2px; font-size: .45rem; font-weight: 800; text-transform: uppercase; }
+.qwirkle-player > b small { margin-top: -2px; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; }
 .qwirkle-bag { margin: 18px 0; padding: 12px; border-radius: 14px; display: flex; align-items: center; gap: 11px; color: white; background: var(--qwk-surface-slate); }
 .qwirkle-bag .qwirkle-tile { width: 44px; height: 44px; }
 .qwirkle-bag .qwirkle-mark { width: 22px; height: 22px; }
 .qwirkle-bag p { margin: 0; display: grid; }
 .qwirkle-bag strong { font-size: 1.25rem; }
-.qwirkle-bag small { color: rgba(255,255,255,.52); font-size: .56rem; }
+.qwirkle-bag small { color: rgba(255,255,255,.52); font-size: 0.625rem; }
 .qwirkle-log { padding-top: 14px; border-top: 1px solid var(--qw-line); }
 .qwirkle-log h3 { margin: 0 0 5px; font-size: .72rem; }
-.qwirkle-log p { margin: 0; padding: 6px 0; border-bottom: 1px dotted var(--qw-line); color: #777a83; font-family: var(--font-ui); font-size: .62rem; line-height: 1.35; }
+.qwirkle-log p { margin: 0; padding: 6px 0; border-bottom: 1px dotted var(--qw-line); color: #777a83; font-family: var(--font-ui); font-size: 0.625rem; line-height: 1.35; }
 
 .qwirkle-board-panel { min-width: 0; padding: 13px; border-radius: 19px; display: flex; flex-direction: column; background: var(--qwk-surface-slate); }
 .qwirkle-board-toolbar { min-height: 43px; padding: 1px 4px 10px; display: flex; align-items: center; justify-content: space-between; color: white; }
 .qwirkle-board-toolbar > div { display: grid; }
 .qwirkle-board-toolbar strong { font-size: .78rem; }
-.qwirkle-board-toolbar span { color: rgba(255,255,255,.45); font-size: .55rem; }
+.qwirkle-board-toolbar span { color: rgba(255,255,255,.45); font-size: 0.625rem; }
 .qwirkle-board-toolbar > b { padding: 6px 9px; border-radius: 999px; display: flex; align-items: center; gap: 5px; color: #282008; background: var(--qwk-gold); font-size: .66rem; }
 .qwirkle-board-toolbar > b svg { width: 14px; }
 .qwirkle-board-scroll { min-height: 440px; max-height: 63vh; overflow: auto; border: 1px solid rgba(255,255,255,.08); border-radius: 13px; background: #15171e; scrollbar-color: #555a68 #1b1e26; }
@@ -161,7 +161,7 @@
 .qwirkle-move-status { min-height: 62px; padding: 11px 3px 0; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; color: white; }
 .qwirkle-move-status > div { display: grid; }
 .qwirkle-move-status strong { font-size: .76rem; }
-.qwirkle-move-status span { color: rgba(255,255,255,.48); font-size: .58rem; }
+.qwirkle-move-status span { color: rgba(255,255,255,.48); font-size: 0.625rem; }
 .qwirkle-move-status.ready strong { color: #70e1d6; }
 .qwirkle-move-status > button:not(.qwirkle-primary) { min-height: 44px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,.65); background: rgba(255,255,255,.05); font-size: .65rem; font-weight: 800; cursor: pointer; }
 .qwirkle-move-status > button svg { width: 15px; }
@@ -170,7 +170,7 @@
 .qwirkle-rack { position: sticky; z-index: 5; bottom: 8px; margin-top: 12px; padding: 13px 17px; border-radius: 19px; background: rgba(255,253,248,.96); backdrop-filter: blur(15px); }
 .qwirkle-rack-heading { display: flex; align-items: center; justify-content: space-between; }
 .qwirkle-rack-heading h2 { margin: 0; font-size: 1rem; }
-.qwirkle-rack-heading .qwirkle-kicker { margin-bottom: 1px; font-size: .53rem; }
+.qwirkle-rack-heading .qwirkle-kicker { margin-bottom: 1px; font-size: 0.625rem; }
 .qwirkle-rack-actions { display: flex; gap: 7px; }
 .qwirkle-rack-actions > button:not(.qwirkle-primary) { min-height: 44px; padding: 7px 10px; border: 1px solid var(--qw-line); border-radius: 10px; display: flex; align-items: center; gap: 5px; color: #666a73; background: white; font-size: .66rem; font-weight: 800; cursor: pointer; }
 .qwirkle-rack-actions svg { width: 14px; }
@@ -180,8 +180,8 @@
 .qwirkle-hand > button:hover:not(:disabled) { transform: translateY(-3px); }
 .qwirkle-hand > button.selected { border-color: #11a094; box-shadow: 0 0 0 3px rgba(17,160,148,.12); background: #e9faf7; transform: translateY(-3px); }
 .qwirkle-hand > button.placed { opacity: .32; }
-.qwirkle-hand small { max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .49rem; font-weight: 800; text-transform: uppercase; }
-.qwirkle-rack-tip { margin: 7px 0 0; color: #858890; font-size: .6rem; text-align: center; }
+.qwirkle-hand small { max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; }
+.qwirkle-rack-tip { margin: 7px 0 0; color: #858890; font-size: 0.625rem; text-align: center; }
 
 .qwirkle-tile { width: 50px; height: 50px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; display: grid; place-items: center; color: var(--tile-color); background: linear-gradient(145deg, #2d313c, #171920); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 4px 7px rgba(0,0,0,.35); }
 .qwirkle-tile svg { width: 70%; height: 70%; fill: currentColor; filter: drop-shadow(0 2px 1px rgba(0,0,0,.28)); }

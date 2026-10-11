@@ -52,7 +52,7 @@
   border-radius: 4px;
   color: #4c3504;
   background: #f6cc61;
-  font: 900 .45rem/1 sans-serif;
+  font: 900 .625rem/1 sans-serif;
   letter-spacing: .06em;
 }
 .fc-svg-back { border-color: #8f302f; background: #fffdf8; }
@@ -73,5 +73,5 @@
 
 @media (max-width: 560px) {
   .fc-svg-card { border-width: 2px; border-radius: 8px; }
-  .fc-svg-card.wild::after { top: 3px; right: 2px; font-size: .38rem; }
+  .fc-svg-card.wild::after { top: 3px; right: 2px; font-size: 0.625rem; }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { shuffleInPlace } from "../lib/shuffle.js";
 import { Bot, Copy, DoorOpen, LogOut, Sparkles, Users } from "lucide-react";
 import { Seat, SeatedTable } from "./ui/seated-table";
@@ -976,8 +976,16 @@ function SevenUpTable({ playerRail, mode, tableau, turnCount }) {
   );
 }
 
+const subscribeNever = () => () => {};
+
 function PlayingCard({ card, className }) {
   const cid = `${rankCode(card.rank)}${SUIT_CODES[card.suit]}`;
+  // <playing-card> rewrites its own children as soon as cardmeister loads, which
+  // can be before React hydrates the landing hero's fan — React then finds an
+  // <img> the server never sent and throws the whole tree away. Render the
+  // element on the client only; the fan is decorative (aria-hidden) anyway.
+  const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
+  if (!mounted) return null;
   return <playing-card className={className} cid={cid} bordercolor="#2f261f" shadow="2,4,3" />;
 }
 

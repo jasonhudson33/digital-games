@@ -15,9 +15,10 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
   /* Adopts the route's own ground — see --route-surface in tokens.css. */
-  background: color-mix(in oklab, var(--route-surface) 82%, transparent);
+  background: color-mix(in oklab, var(--route-surface) 92%, transparent);
   border-bottom: 1px solid var(--route-line);
   color: var(--route-ink);
 }
@@ -41,6 +42,10 @@
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: var(--tracking-display);
+  /* The route pill next to it used to win the width and fold the name onto
+     two lines on a phone. The pill is the one that gives. */
+  flex: none;
+  white-space: nowrap;
 }
 
 .site-brand-mark {
@@ -69,9 +74,13 @@
   font-size: var(--step--1);
   font-weight: 600;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .site-current-dot {
+  flex: none;
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -1423,5 +1432,21 @@ input {
   }
   to {
     background-position: -200% 0;
+  }
+}
+
+/* ── Text entry on touch screens ─────────────────────────────────────────────
+ * iOS Safari zooms the whole page when an input under 16px takes focus, and
+ * leaves it zoomed after the keyboard closes — the table then sits half off
+ * screen until the player pinches back out. Most game stylesheets size their
+ * name and room-code fields at 11–15px, so the floor is set here once rather
+ * than in 30 places. !important because those rules are more specific than
+ * anything a shared stylesheet could write.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]),
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }

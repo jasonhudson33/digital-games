@@ -17,6 +17,19 @@ npm run typecheck
 npm run build
 ```
 
+## Mobile audit
+
+`scripts/mobile-audit.mjs` plays every game in an emulated iPhone (WebKit) at 390×844, 320×568 and 844×390: it loads the lobby, creates a room, adds computers and starts the game. It fails on sideways page scroll, uncaught errors and text fields under 16px (iOS zooms the page on focus), and warns about text under 9px and tap targets under 24px.
+
+```bash
+npx playwright install webkit     # once
+npm run dev                       # in another terminal
+BASE_URL=http://localhost:3000 npm run audit:mobile
+npm run audit:mobile -- --games uno,scum --viewport 320x568 --shots /tmp/shots --verbose
+```
+
+Mafia needs Supabase keys, so only its lobby is checked.
+
 ## Multiplayer storage
 
 Every online game except Mafia stores its rooms in Supabase through the app's room routes. Apply the SQL files under `supabase/migrations` in filename order, then configure these server-only Vercel variables:
