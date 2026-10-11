@@ -101,7 +101,7 @@ export default function ViticultureClient() {
         title={<>Grow a legacy,<br /><em>one vintage at a time.</em></>}
         copy="Plant your fields, welcome visitors, age remarkable wines, and build the most celebrated estate in the valley."
         badges={[{ icon: Users, label: "2-6 vintners" }, { icon: Bot, label: "Computer rivals" }, { icon: Wine, label: "Race to 20 VP" }]}
-        backdrop={<><div className="viti-hero-sun" /><div className="viti-hills hill-one" /><div className="viti-hills hill-two" /><div className="viti-vine-lines">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div></>}
+        backdrop={<><div className="viti-hero-sun" /><div className="viti-hills viti-hill-one" /><div className="viti-hills viti-hill-two" /><div className="viti-vine-lines">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div></>}
       />}
       entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
       onRules={() => setShowRules(true)}

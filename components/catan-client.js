@@ -783,7 +783,7 @@ export default function CatanClient() {
           <section className="turn-card">
             <div className="turn-card-head">
               <div>
-                <p className="panel-kicker">{game.setup ? "Starting placement" : isMyTurn ? "Your turn" : "Current turn"}</p>
+                <p className="catan-panel-kicker">{game.setup ? "Starting placement" : isMyTurn ? "Your turn" : "Current turn"}</p>
                 <h2>{activePlayer.name}</h2>
               </div>
               <span className={`victory-chip ${activePlayer.color}`}><Crown size={16} /> {activePlayer.id === playerId ? totalVictoryPoints(activePlayer) : activePlayer.points}/{game.victoryTarget}</span>
@@ -1132,14 +1132,14 @@ function pipIsVisible(value, index) {
 function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selection, onAdjust, onConfirm, players, onVictimChoice, onCardChoice, onTokenChoice, viewerPlayerId, ruleset }) {
   const isRobberController = activePlayer.id === viewerPlayerId;
   if (pendingSeven.phase === "chooseToken") {
-    return <section className="seven-card token-choice-card"><p className="panel-kicker">Seven rolled</p><h2>Move the robber or pirate?</h2><p>The robber targets a land hex and adjacent buildings. The pirate targets a sea hex and adjacent ships.</p><div className="token-choice-buttons"><button disabled={!isRobberController} onClick={() => onTokenChoice("robber")}>♟ Robber</button><button disabled={!isRobberController} onClick={() => onTokenChoice("pirate")}>☠ Pirate</button></div></section>;
+    return <section className="seven-card token-choice-card"><p className="catan-panel-kicker">Seven rolled</p><h2>Move the robber or pirate?</h2><p>The robber targets a land hex and adjacent buildings. The pirate targets a sea hex and adjacent ships.</p><div className="token-choice-buttons"><button disabled={!isRobberController} onClick={() => onTokenChoice("robber")}>♟ Robber</button><button disabled={!isRobberController} onClick={() => onTokenChoice("pirate")}>☠ Pirate</button></div></section>;
   }
   if (pendingSeven.phase === "moveRobber") {
     return (
       <section className="seven-card robber-choice-card">
         <div className="seven-badge">7</div>
         <div>
-          <p className="panel-kicker">Move the robber</p>
+          <p className="catan-panel-kicker">Move the robber</p>
           <h2>{activePlayer.name}, choose a new tile</h2>
           <p>{isRobberController ? "Every available tile is highlighted. The robber cannot stay on its previous tile." : `Waiting for ${activePlayer.name} to choose on their device.`}</p>
         </div>
@@ -1147,14 +1147,14 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
     );
   }
   if (pendingSeven.phase === "movePirate") {
-    return <section className="seven-card robber-choice-card"><div className="seven-badge">☠</div><div><p className="panel-kicker">Move the pirate</p><h2>{activePlayer.name}, choose a new sea tile</h2><p>{isRobberController ? "Available sea tiles are highlighted. After placing it, choose a player with a ship on that hex and steal one hidden card. The pirate cannot stay in its previous location." : `Waiting for ${activePlayer.name} to choose on their device.`}</p></div></section>;
+    return <section className="seven-card robber-choice-card"><div className="seven-badge">☠</div><div><p className="catan-panel-kicker">Move the pirate</p><h2>{activePlayer.name}, choose a new sea tile</h2><p>{isRobberController ? "Available sea tiles are highlighted. After placing it, choose a player with a ship on that hex and steal one hidden card. The pirate cannot stay in its previous location." : `Waiting for ${activePlayer.name} to choose on their device.`}</p></div></section>;
   }
   if (pendingSeven.phase === "chooseVictim") {
     const victims = players.filter((player) => pendingSeven.eligibleVictimIds.includes(player.id));
     return (
       <section className="seven-card victim-choice-card">
         <div className="section-title">
-          <div><p className="panel-kicker">{pendingSeven.stealSource === "pirate" ? "Pirate placed" : "Robber placed"}</p><h2>Choose who to steal from</h2></div>
+          <div><p className="catan-panel-kicker">{pendingSeven.stealSource === "pirate" ? "Pirate placed" : "Robber placed"}</p><h2>Choose who to steal from</h2></div>
           <span>{pendingSeven.stealSource === "pirate" ? "Ship owners on this sea hex" : "Adjacent players only"}</span>
         </div>
         <div className="victim-list">
@@ -1176,7 +1176,7 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
     return (
       <section className="seven-card card-choice-card">
         <div className="section-title">
-          <div><p className="panel-kicker">Choose a card</p><h2>Take one from {victim.name}</h2></div>
+          <div><p className="catan-panel-kicker">Choose a card</p><h2>Take one from {victim.name}</h2></div>
           <span>{cardCount(victim)} cards available</span>
         </div>
         <p className="hidden-card-copy">{isRobberController ? "The cards are face down. Pick one without seeing its resource." : `Waiting for ${activePlayer.name} to pick a face-down card.`}</p>
@@ -1198,7 +1198,7 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
     return (
       <section className="seven-card discard-card waiting-discard-card">
         <div className="section-title">
-          <div><p className="panel-kicker">Seven rolled</p><h2>Waiting for {discardingPlayer.name}</h2></div>
+          <div><p className="catan-panel-kicker">Seven rolled</p><h2>Waiting for {discardingPlayer.name}</h2></div>
           <span>{required} cards</span>
         </div>
         <p className="discard-copy">They are choosing cards privately on their device.</p>
@@ -1209,7 +1209,7 @@ function SevenResolution({ pendingSeven, activePlayer, discardingPlayer, selecti
   return (
     <section className="seven-card discard-card">
       <div className="section-title">
-        <div><p className="panel-kicker">Seven rolled</p><h2>{discardingPlayer.name} discards</h2></div>
+        <div><p className="catan-panel-kicker">Seven rolled</p><h2>{discardingPlayer.name} discards</h2></div>
         <span>{selected} of {required} selected</span>
       </div>
       <p className="discard-copy">Choose exactly {required} of your {totalResources(discardingPlayer.resources)} cards.</p>
@@ -1240,7 +1240,7 @@ function GoldChoice({ pendingGold, players, viewerPlayerId, onChoose }) {
   const isChooser = player.id === viewerPlayerId;
   return (
     <section className="seven-card gold-choice-card">
-      <p className="panel-kicker">Gold field production</p>
+      <p className="catan-panel-kicker">Gold field production</p>
       <h2>{player.name} chooses {claim.count} resource{claim.count === 1 ? "" : "s"}</h2>
       <p>{isChooser ? "Choose one resource at a time. Gold itself is not a resource card." : `Waiting for ${player.name} to choose privately.`}</p>
       <div className="gold-resource-buttons">
@@ -1253,12 +1253,12 @@ function GoldChoice({ pendingGold, players, viewerPlayerId, onChoose }) {
 function DevelopmentResolution({ pending, activePlayer, viewerPlayerId, onChooseResource, hasShips, transportKind, onTransportChange }) {
   const isChooser = pending.playerId === viewerPlayerId;
   if (pending.type === "roadBuilding") {
-    return <section className="development-card development-resolution"><p className="panel-kicker">Road Building</p><h2>Place {pending.remaining} free route piece{pending.remaining === 1 ? "" : "s"}</h2><p>{isChooser ? "Choose a highlighted board edge. The card pays the building cost." : `Waiting for ${activePlayer.name} to place free routes.`}</p>{isChooser && hasShips && <div className="setup-route-choice"><button className={transportKind === "road" ? "active" : ""} onClick={() => onTransportChange("road")}>Road</button><button className={transportKind === "ship" ? "active" : ""} onClick={() => onTransportChange("ship")}>Ship</button></div>}</section>;
+    return <section className="development-card development-resolution"><p className="catan-panel-kicker">Road Building</p><h2>Place {pending.remaining} free route piece{pending.remaining === 1 ? "" : "s"}</h2><p>{isChooser ? "Choose a highlighted board edge. The card pays the building cost." : `Waiting for ${activePlayer.name} to place free routes.`}</p>{isChooser && hasShips && <div className="setup-route-choice"><button className={transportKind === "road" ? "active" : ""} onClick={() => onTransportChange("road")}>Road</button><button className={transportKind === "ship" ? "active" : ""} onClick={() => onTransportChange("ship")}>Ship</button></div>}</section>;
   }
   const title = pending.type === "monopoly" ? "Choose a monopoly resource" : `Choose ${pending.remaining} resource${pending.remaining === 1 ? "" : "s"}`;
   return (
     <section className="development-card development-resolution">
-      <p className="panel-kicker">{DEVELOPMENT_CARD_INFO[pending.type].label}</p>
+      <p className="catan-panel-kicker">{DEVELOPMENT_CARD_INFO[pending.type].label}</p>
       <h2>{title}</h2>
       <p>{isChooser ? (pending.type === "monopoly" ? "All other players will give you every card of the chosen resource." : "Choose one resource at a time from the supply.") : `Waiting for ${activePlayer.name} to choose.`}</p>
       <div className="development-resource-buttons">
@@ -1289,7 +1289,7 @@ function CityLossChoice({ pending, player, viewerPlayerId }) {
   const isChooser = pending.currentPlayerId === viewerPlayerId;
   return (
     <section className="seven-card city-loss-card">
-      <div className="section-title"><div><p className="panel-kicker">Barbarian pillage</p><h2>{player.name} chooses the city</h2></div><Shield size={23} /></div>
+      <div className="section-title"><div><p className="catan-panel-kicker">Barbarian pillage</p><h2>{player.name} chooses the city</h2></div><Shield size={23} /></div>
       <p>{isChooser ? "Choose one of your highlighted cities on the board. It becomes a settlement, costs 1 victory point, and its city wall is removed." : `Waiting for ${player.name} to choose on their device.`}</p>
     </section>
   );
@@ -1299,7 +1299,7 @@ function ProgressDiscardChoice({ pending, player, viewerPlayerId, onDiscard }) {
   const isChooser = pending.currentPlayerId === viewerPlayerId;
   return (
     <section className="progress-card-panel progress-discard-card">
-      <div className="section-title"><div><p className="panel-kicker">Progress hand limit</p><h2>Return {pending.required} card{pending.required === 1 ? "" : "s"}</h2></div><span>Maximum 4</span></div>
+      <div className="section-title"><div><p className="catan-panel-kicker">Progress hand limit</p><h2>Return {pending.required} card{pending.required === 1 ? "" : "s"}</h2></div><span>Maximum 4</span></div>
       <p>{isChooser ? "Choose which card to return face-down to the bottom of its matching deck." : `Waiting for ${player.name} to choose privately.`}</p>
       {isChooser && <div className="progress-hand">{player.progressCards.map((card) => <button key={card.id} className={card.color} onClick={() => onDiscard(card.id)}><strong>{PROGRESS_CARD_INFO[card.type].label}</strong><small>{PROGRESS_CARD_INFO[card.type].description}</small></button>)}</div>}
     </section>
@@ -1332,7 +1332,7 @@ function ProgressResolution({ pending, players, viewerPlayerId, onChoose }) {
   };
   return (
     <section className="progress-card-panel progress-resolution-card">
-      <div className="section-title"><div><p className="panel-kicker">{info.label}</p><h2>{isChooser ? stageCopy[pending.stage] ?? "Resolve the card" : `Waiting for ${chooser?.name ?? owner.name}`}</h2></div><span>{info.color} card</span></div>
+      <div className="section-title"><div><p className="catan-panel-kicker">{info.label}</p><h2>{isChooser ? stageCopy[pending.stage] ?? "Resolve the card" : `Waiting for ${chooser?.name ?? owner.name}`}</h2></div><span>{info.color} card</span></div>
       <p>{isChooser ? info.description : `${chooser?.name ?? owner.name} must make this private choice on their device.`}</p>
       {isChooser && <div className="progress-choice-grid">{pending.options.map((option) => <button key={option.id} className={info.color} onClick={() => onChoose(option.id)}><strong>{option.label}</strong>{option.detail && <small>{option.detail}</small>}</button>)}</div>}
     </section>
@@ -1450,7 +1450,7 @@ function TradeDecision({ game, viewerPlayerId, onRespond }) {
   const recipientName = toPlayer?.name ?? "Accepting player";
   return (
     <section className="player-trade-card trade-decision-card">
-      <p className="panel-kicker">{isOpenOffer ? "Open trade offer" : `Trade offer for ${toPlayer?.name}`}</p>
+      <p className="catan-panel-kicker">{isOpenOffer ? "Open trade offer" : `Trade offer for ${toPlayer?.name}`}</p>
       <h2>{fromPlayer?.name} proposes a trade</h2>
       <div className="trade-summary">
         <div><span>{recipientName} receives</span><strong>{formatResourceBundle(trade.offer)}</strong></div>

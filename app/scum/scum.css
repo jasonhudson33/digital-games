@@ -205,9 +205,9 @@ html[data-route="scum"] {
   background: repeating-linear-gradient(45deg, #8f362c 0 3px, #a94a3b 3px 6px);
   box-shadow: 0 3px 8px rgba(0,0,0,.2);
 }
-.thinking-dots { position: absolute; left: 50%; bottom: -10px; display: flex; gap: 3px; transform: translateX(-50%); }
-.thinking-dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--scum-gold); animation: scum-dot 900ms infinite alternate; }
-.thinking-dots i:nth-child(2) { animation-delay: 150ms; }.thinking-dots i:nth-child(3) { animation-delay: 300ms; }
+.scum-thinking-dots { position: absolute; left: 50%; bottom: -10px; display: flex; gap: 3px; transform: translateX(-50%); }
+.scum-thinking-dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--scum-gold); animation: scum-dot 900ms infinite alternate; }
+.scum-thinking-dots i:nth-child(2) { animation-delay: 150ms; }.scum-thinking-dots i:nth-child(3) { animation-delay: 300ms; }
 @keyframes scum-dot { to { transform: translateY(-4px); opacity: .4; } }
 
 .scum-table-center {
@@ -304,10 +304,10 @@ html[data-route="scum"] {
 }
 .playing-card.red { color: #bd3c31; }
 .playing-card.joker .card-center-suit { font-size: 2.5rem; text-shadow: 0 2px 0 rgba(0, 0, 0, .08); }
-.playing-card.joker .card-corner b { font-size: .72rem; letter-spacing: -.04em; }
-.card-corner { position: absolute; left: 7px; top: 6px; text-align: center; font-family: var(--font-ui); line-height: .75; }
-.card-corner b { display: block; font-size: clamp(.82rem, 1.4vw, 1rem); }.card-corner i { display: block; margin-top: 4px; font-style: normal; font-size: .72rem; }
-.card-corner-bottom { inset: auto 7px 6px auto; transform: rotate(180deg); }
+.playing-card.joker .scum-card-corner b { font-size: .72rem; letter-spacing: -.04em; }
+.scum-card-corner { position: absolute; left: 7px; top: 6px; text-align: center; font-family: var(--font-ui); line-height: .75; }
+.scum-card-corner b { display: block; font-size: clamp(.82rem, 1.4vw, 1rem); }.scum-card-corner i { display: block; margin-top: 4px; font-style: normal; font-size: .72rem; }
+.scum-card-corner-bottom { inset: auto 7px 6px auto; transform: rotate(180deg); }
 .card-center-suit { position: absolute; inset: 0; display: grid; place-items: center; font: 2rem var(--font-display); }
 .pile-card .card-center-suit { font-size: 2.3rem; }
 
@@ -408,7 +408,7 @@ html[data-route="scum"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thinking-dots i { animation: none; }
+  .scum-thinking-dots i { animation: none; }
   .scum-hand-card { transition: none; }
 }
 

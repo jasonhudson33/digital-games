@@ -530,6 +530,25 @@ test("First Mate Con chains every captured named Pirate ability", () => {
   assert.equal(game.forcedPlay.playerIndex, 0);
 });
 
+// Pins the engine's existing rule: only Harry still acts once the round is over, so Mary
+// never asks for a target when no next trick exists.
+test("Mary Thorne on the last trick of a round asks for nothing", () => {
+  const mary = createSkullKingDeck().find((card) => card.pirateKey === "mary");
+  let game = createSkullKingMatch({ playerCount: 3, random: () => 0.5 });
+  game = {
+    ...game,
+    roundNumber: 1,
+    phase: "playing",
+    currentPlayerIndex: 2,
+    trick: [{ playerIndex: 0, card: number("green", 3) }, { playerIndex: 1, card: number("green", 4) }],
+    players: game.players.map((player, index) => ({ ...player, hand: index === 2 ? [mary] : [] })),
+  };
+  game = playSkullKingCard(game, 2, mary.id);
+  assert.equal(game.pendingPirateAbility, null, "nothing is left to ask");
+  assert.notEqual(game.phase, "pirateAbility");
+  assert.equal(game.forcedPlay ?? null, null);
+});
+
 test("Davy Jones destroys all Sea Monsters and awards 20 per monster to its player", () => {
   const result = resolveSkullKingTrick(plays(
     number("green", 9),

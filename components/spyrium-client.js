@@ -82,7 +82,7 @@ export default function SpyriumClient() {
         copy="Mine a miraculous crystal. Recruit brilliant minds. Build an industrial empire in the smoke and splendor of an alternate London."
         badges={[{ icon: Users, label: "2–5 players" }, { icon: Bot, label: "Computer rivals" }, { icon: History, label: "Six rounds" }]}
         artLayout="free"
-        art={<div className="spyrium-machine"><div className="spyrium-orbit orbit-one" /><div className="spyrium-orbit orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div>}
+        art={<div className="spyrium-machine"><div className="spyrium-orbit spy-orbit-one" /><div className="spyrium-orbit spy-orbit-two" /><div className="spyrium-core"><Gem /></div><Factory className="spyrium-skyline" /><i /><i /><i /></div>}
       />}
       entry={{ name, setName, joinCode, setJoinCode, createRoom, joinRoom, busy, error }}
       onRules={() => setShowRules(true)}

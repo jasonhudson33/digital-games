@@ -31,7 +31,8 @@ html[data-route="sequence"] {
 }
 
 .sequence-game-shell { min-height: 100vh; min-height: 100dvh; color: var(--sequence-ink); background: radial-gradient(circle at 18% 12%, #f8df9d 0, transparent 23rem), linear-gradient(135deg, #f8f1df, #e8efe5 70%, #d9e8df); }
-button, input { font: inherit; }
+/* Scoped (at the same specificity) so it cannot restyle every control on the next page. */
+:where(.sequence-theme) :is(button, input) { font: inherit; }
 .sequence-kicker { margin: 0 0 .35rem; color: #a96c18; font-size: .72rem; font-weight: 900; letter-spacing: .17em; text-transform: uppercase; }
 .sequence-error { color: #9c242c; font-weight: 750; }
 .sequence-hero-board { width: 250px; aspect-ratio: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4%; padding: 7%; border: .7rem solid #6e3c25; border-radius: 1.8rem; background: #deb36f; box-shadow: 0 2rem 4rem #52351f33, inset 0 0 0 .22rem #f6d798; transform: rotate(-5deg); }

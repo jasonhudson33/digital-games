@@ -409,9 +409,9 @@ function PlayingCard({ card, className = "", style }) {
   const cardRank = joker ? "JK" : scumRankLabel(card.rank);
   return (
     <span style={style} className={`playing-card ${red ? "red" : "black"} ${joker ? "joker" : ""} ${className}`}>
-      <span className="card-corner"><b>{cardRank}</b><i>{SCUM_SUIT_SYMBOLS[card.suit]}</i></span>
+      <span className="scum-card-corner"><b>{cardRank}</b><i>{SCUM_SUIT_SYMBOLS[card.suit]}</i></span>
       <span className="card-center-suit">{SCUM_SUIT_SYMBOLS[card.suit]}</span>
-      <span className="card-corner card-corner-bottom"><b>{cardRank}</b><i>{SCUM_SUIT_SYMBOLS[card.suit]}</i></span>
+      <span className="scum-card-corner scum-card-corner-bottom"><b>{cardRank}</b><i>{SCUM_SUIT_SYMBOLS[card.suit]}</i></span>
     </span>
   );
 }
@@ -431,7 +431,7 @@ function Opponent({ player, playerCount, active }) {
       <div className="opponent-cards" aria-hidden="true">
         {Array.from({ length: Math.min(5, player.handCount) }, (_, index) => <span key={index} style={{ "--i": index }} />)}
       </div>
-      {active && <span className="thinking-dots"><i /><i /><i /></span>}
+      {active && <span className="scum-thinking-dots"><i /><i /><i /></span>}
     </div>
   );
 }

@@ -40,8 +40,8 @@ html[data-route="viticulture"] {
 /* Landing */
 .viti-hero-sun { position: absolute; top: 9%; right: 10%; width: 180px; height: 180px; border-radius: 50%; background: rgba(255, 239, 179, .83); box-shadow: 0 0 80px rgba(255, 225, 143, .7); }
 .viti-hills { position: absolute; width: 100%; height: 42%; left: 0; bottom: 0; border-radius: 50% 50% 0 0 / 28% 28% 0 0; transform: scaleX(1.3); }
-.hill-one { bottom: 19%; left: 29%; background: #677754; opacity: .88; }
-.hill-two { bottom: -8%; left: -15%; background: #35482f; }
+.viti-hill-one { bottom: 19%; left: 29%; background: #677754; opacity: .88; }
+.viti-hill-two { bottom: -8%; left: -15%; background: #35482f; }
 .viti-vine-lines { position: absolute; z-index: 1; right: -7%; bottom: -1%; width: 72%; height: 45%; transform: perspective(460px) rotateX(58deg) rotateZ(-6deg); transform-origin: bottom; }
 .viti-vine-lines i { position: absolute; left: calc(var(--line, 0) * 12%); width: 2px; height: 100%; background: rgba(236, 218, 157, .42); }
 .viti-vine-lines i:nth-child(1) { left: 5%; }.viti-vine-lines i:nth-child(2) { left: 17%; }.viti-vine-lines i:nth-child(3) { left: 29%; }.viti-vine-lines i:nth-child(4) { left: 41%; }.viti-vine-lines i:nth-child(5) { left: 53%; }.viti-vine-lines i:nth-child(6) { left: 65%; }.viti-vine-lines i:nth-child(7) { left: 77%; }.viti-vine-lines i:nth-child(8) { left: 89%; }

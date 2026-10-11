@@ -110,12 +110,12 @@ html[data-route="splendor"] {
 /* Solved so every gem takes its ink at 5.9:1 or better and the closest pair under
    any dichromacy is 75 — see GEM_INFO in lib/splendor.js. --gem-mark is the
    letter drawn on the disc, which is what makes the board work in greyscale. */
-.white { --gem: #ede4ca; --gem-ink: #181d22; --gem-mark: "D"; }
-.blue  { --gem: #005eae; --gem-ink: #fffdf7; --gem-mark: "S"; }
-.green { --gem: #00af6a; --gem-ink: #181d22; --gem-mark: "E"; }
-.red   { --gem: #a13835; --gem-ink: #fffdf7; --gem-mark: "R"; }
-.black { --gem: #181a21; --gem-ink: #fffdf7; --gem-mark: "O"; }
-.gold  { --gem: #d09400; --gem-ink: #181d22; --gem-mark: "G"; }
+:where(.splendor-theme) .white { --gem: #ede4ca; --gem-ink: #181d22; --gem-mark: "D"; }
+:where(.splendor-theme) .blue  { --gem: #005eae; --gem-ink: #fffdf7; --gem-mark: "S"; }
+:where(.splendor-theme) .green { --gem: #00af6a; --gem-ink: #181d22; --gem-mark: "E"; }
+:where(.splendor-theme) .red   { --gem: #a13835; --gem-ink: #fffdf7; --gem-mark: "R"; }
+:where(.splendor-theme) .black { --gem: #181a21; --gem-ink: #fffdf7; --gem-mark: "O"; }
+:where(.splendor-theme) .gold  { --gem: #d09400; --gem-ink: #181d22; --gem-mark: "G"; }
 .splendor-mini-bonuses i, .splendor-card-cost i, .splendor-noble i {
   position: relative;
   background: var(--gem);

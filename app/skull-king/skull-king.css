@@ -55,17 +55,6 @@ html[data-route="skull-king"] {
     linear-gradient(155deg, #102d2e 0%, #091d25 52%, #07151d 100%);
 }
 
-.panel-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--skull-gold);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 .skull-primary,
 .skull-secondary {
   min-height: 50px;

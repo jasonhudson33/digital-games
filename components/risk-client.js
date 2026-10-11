@@ -326,7 +326,7 @@ function CardHand({ cards, deckCount, tradeMode }) {
           ))}
         </div>
       ) : (
-        <p className="empty-hand">Conquer at least one territory, then finish your turn to draw a card.</p>
+        <p className="risk-empty-hand">Conquer at least one territory, then finish your turn to draw a card.</p>
       )}
     </section>
   );
@@ -795,7 +795,7 @@ export default function RiskClient() {
             <div className={`phase-medallion ${game.phase}`}><PhaseIcon size={20} /></div>
             <div><span>{currentPlayer.name}</span><strong>{phase.label} phase</strong></div>
             <p>{instruction}</p>
-            {botThinking && <span className="thinking-dots" aria-label="Computer is thinking"><i /><i /><i /></span>}
+            {botThinking && <span className="risk-thinking-dots" aria-label="Computer is thinking"><i /><i /><i /></span>}
           </div>
           <WorldMap
             game={game}

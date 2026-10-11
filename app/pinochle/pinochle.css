@@ -75,12 +75,25 @@ html[data-route="pinochle"] {
 .pn-game-shell { padding: 24px; background: #f1e8d7; }
 
 .pn-game-shell { --felt-shell-offset: 73px; min-height: calc(100vh - 73px); min-height: calc(100dvh - 73px); padding: 14px 18px 20px; background: #eae0cc; }
-.pn-scoreboard { flex: 0 0 auto; width: min(1240px, 100%); margin: 0 auto 8px; display: flex; overflow-x: auto; gap: 8px; }
-.pn-score { min-width: 145px; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; color: #52625a; background: rgba(255,255,255,.66); }
-.pn-score.viewer-team { box-shadow: inset 0 0 0 1px #d6a637; background: #fff9e7; }
-.pn-score.contract-team { box-shadow: inset 0 0 0 1px #d6a637; background: #fff5cf; }
-.pn-score span { overflow: hidden; font-size: .79rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.pn-score strong { color: var(--pn-green); font-family: var(--font-ui); font-size: 1.3rem; }
+.pn-scoreboard { flex: 0 0 auto; width: min(1240px, 100%); margin: 10px auto 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 8px; }
+.pn-score { min-width: 0; padding: 10px 14px 11px; border: 1px solid rgba(38,68,55,.1); border-radius: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tags tags" "name score" "bar bar"; align-items: end; gap: 3px 12px; color: #52625a; background: rgba(255,255,255,.66); }
+.pn-score.viewer-team { border-color: #d6a637; background: #fff9e7; }
+.pn-score.contract-team { background: #fff5cf; }
+.pn-score-tags { grid-area: tags; min-height: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+.pn-score-tags em { padding: 1px 7px; border-radius: 999px; color: #6b5316; background: rgba(214,166,55,.2); font-size: .6rem; font-style: normal; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pn-score-tags em.bidding { color: #fff; background: #2f6a50; }
+.pn-score-name { grid-area: name; align-self: center; font-size: .86rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; color: #2f4339; }
+.pn-score strong { grid-area: score; display: inline-flex; align-items: baseline; gap: 4px; color: var(--pn-green); font-family: var(--font-ui); font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.pn-score strong small { color: #7c897f; font-size: .66rem; font-weight: 700; }
+.pn-score-bar { grid-area: bar; height: 5px; margin-top: 5px; border-radius: 5px; overflow: hidden; background: rgba(38,68,55,.12); }
+.pn-score-bar b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f8e6b, #d6a637); transition: width .5s ease; }
+@media (prefers-reduced-motion: reduce) { .pn-score-bar b { transition: none; } }
+@media (max-width: 520px) {
+  /* Narrow cards: the name gets the full width and the score sits under it, so three-name teams do not wrap four deep. */
+  .pn-score { grid-template-columns: minmax(0, 1fr); grid-template-areas: "tags" "name" "score" "bar"; gap: 2px; }
+  .pn-score-name { align-self: start; font-size: .82rem; }
+  .pn-score strong { justify-self: start; margin-top: 2px; font-size: 1.5rem; }
+}
 .pn-wash-notice { width: min(1180px, 100%); margin: 0 auto 10px; padding: 10px 13px; border: 1px solid #d2a43a; border-radius: 12px; color: #624714; background: #fff4cf; }
 .pn-wash-notice > strong { font-family: var(--font-ui); }
 .pn-wash-notice p { margin: 3px 0 7px; font-size: .75rem; }

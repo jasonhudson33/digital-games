@@ -46,6 +46,35 @@ for (const f of cssFiles) {
 }
 
 // ── 2. JSX parses ──────────────────────────────────────────────────────────
+// A route stylesheet stays loaded after a client-side navigation, so a rule in
+// one game's sheet that matches another game's markup restyles it. Two ways in:
+// a bare element selector (every button on every later page), and a class that
+// two games both define on its own (whichever sheet loaded last wins in both).
+// Extending the shared table classes (tbl-*) is the one sanctioned overlap.
+console.log("Game stylesheet scope:");
+{
+  const gameSheets = cssFiles.filter((f) => /^app[\\/][a-z0-9-]+[\\/][^\\/]+\.css$/.test(f));
+  const owners = new Map(); // class -> Set of sheets that style it as a first compound
+  for (const f of gameSheets) {
+    let root;
+    try { root = postcss.parse(fs.readFileSync(f, "utf8"), { from: f }); } catch { continue; }
+    root.walkRules((rule) => {
+      if (rule.parent?.type === "atrule" && /keyframes$/i.test(rule.parent.name)) return;
+      for (const selector of rule.selectors) {
+        const first = selector.trim().split(/[\s>+~]/)[0];
+        if (/^(\*|[a-z][a-z0-9]*|#[\w-]+)$/i.test(first) && first !== "html") {
+          fail(`${f}:${rule.source?.start.line}: "${selector.trim().slice(0, 50)}" restyles every ${first === "*" ? "element" : first} once this sheet has loaded; scope it to the game's root class`);
+        }
+        const cls = first.match(/^\.([A-Za-z_][\w-]*)/)?.[1];
+        if (cls && !cls.startsWith("tbl-")) (owners.get(cls) ?? owners.set(cls, new Set()).get(cls)).add(f);
+      }
+    });
+  }
+  for (const [cls, sheets] of owners) {
+    if (sheets.size > 1) fail(`.${cls} is styled by ${[...sheets].join(" and ")}; give each game its own prefix`);
+  }
+}
+
 console.log("JSX/JS parse:");
 let parser = null;
 try {

@@ -257,11 +257,22 @@ function GameTable({ game, busy, error, bidAmount, setBidAmount, selectedIds, se
       />
 
       <section className="pn-scoreboard" aria-label="Scoreboard">
-        {game.teams.map((team) => (
-          <div className={`pn-score ${team.id === viewer.teamId ? "viewer-team" : ""} ${game.contractPlayerIndexes?.includes(team.id) ? "contract-team" : ""}`} key={team.id}>
-            <span>{pinochleTeamName(game, team.id)}</span><strong>{team.score}</strong>
-          </div>
-        ))}
+        {game.teams.map((team) => {
+          const mine = team.id === viewer.teamId;
+          const bidding = Boolean(game.contractPlayerIndexes?.includes(team.id));
+          const progress = Math.max(0, Math.min(1, team.score / game.targetScore));
+          return (
+            <div className={`pn-score ${mine ? "viewer-team" : ""} ${bidding ? "contract-team" : ""}`} key={team.id}>
+              <small className="pn-score-tags">
+                {mine && <em>{game.partnershipGame ? "Your team" : "You"}</em>}
+                {bidding && <em className="bidding">Bidding</em>}
+              </small>
+              <span className="pn-score-name">{pinochleTeamName(game, team.id)}</span>
+              <strong aria-label={`${team.score} of ${game.targetScore} points`}>{team.score}<small>/ {game.targetScore}</small></strong>
+              <i className="pn-score-bar" aria-hidden="true"><b style={{ width: `${progress * 100}%` }} /></i>
+            </div>
+          );
+        })}
       </section>
 
       {game.lastWashSummary && (

@@ -173,8 +173,6 @@ html[data-route="hearts"] {
   border-radius: 50%;
 }
 
-.orbit-one { inset: 42px 0 8px 16px; }
-.orbit-two { inset: 105px 60px 70px 78px; }
 
 .hearts-playing-card {
   position: relative;
