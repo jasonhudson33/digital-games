@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canParticipateInDay, dayBallotRound, mergeDayActions, resolveDayVote } from '../mafia-main/services/DayRules.ts';
+import { canParticipateInDay, createVoteReveal, dayBallotRound, groupBallotsByCandidate, mergeDayActions, resolveDayVote } from '../mafia-main/services/DayRules.ts';
 
 const player = (overrides = {}) => ({
   id: 'player-1',
@@ -49,4 +49,16 @@ test('later seconds do not erase earlier nominations', () => {
   );
 
   assert.deepEqual(candidates.sort(), ['a', 'b', 'c']);
+});
+
+test('ballots are grouped by candidate, including candidates with no votes', () => {
+  const grouped = groupBallotsByCandidate(['a', 'b', 'c'], { one: 'a', two: 'a', three: 'b', four: 'ghost' });
+  assert.deepEqual(grouped, { a: ['one', 'two'], b: ['three'], c: [] });
+});
+
+test('a vote reveal copies the ballots', () => {
+  const ballots = { one: 'a' };
+  const reveal = createVoteReveal(ballots, true);
+  ballots.two = 'b';
+  assert.deepEqual(reveal, { ballots: { one: 'a' }, isRunoff: true });
 });

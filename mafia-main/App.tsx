@@ -12,13 +12,14 @@ import Button from './components/Button';
 import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
-import { canParticipateInDay, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
+import { canParticipateInDay, createVoteReveal, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
 import { canSelectNightTarget, resolveNight } from './services/NightRules';
 import { prepareReplayPlayers } from './services/ReplayRules';
 import {
   acknowledgePhaseResult,
   createNightPhaseResult,
   createVotePhaseResult,
+  createVoteTiePhaseResult,
 } from './services/ResultRules';
 import { getMafiaIdentity, getSupabaseSetupError } from './supabase';
 import { addComputerPlayer, removeComputerPlayer } from './services/LobbyRules';
@@ -588,6 +589,7 @@ const App: React.FC = () => {
           (targetId) => (state.seconds[targetId] || []).length > 0
         );
         const { top } = resolveDayVote(candidates, state.dayVotes);
+        const voteReveal = createVoteReveal(state.dayVotes, Boolean(state.isRunoff));
 
         if (top.length !== 1) {
           if (!state.isRunoff && top.length > 1) {
@@ -599,19 +601,22 @@ const App: React.FC = () => {
               seconds,
               dayVotes: {},
               isRunoff: true,
+              voteReveal,
             });
             await RoomService.clearRoundIntents(state.roomCode, dayBallotRound(state.round, false));
             return;
           }
 
           await hostUpdateState({
-            phase: GamePhase.NIGHT_TRANSITION,
-            round: state.round + 1,
+            phase: GamePhase.DAY_RESULTS,
+            nightResults: ['The vote was tied again. No one is eliminated.'],
+            phaseResult: createVoteTiePhaseResult(state.round),
             nominations: {},
             seconds: {},
             dayVotes: {},
             isRunoff: false,
             nightSelectionHistory: {},
+            voteReveal,
           });
           await RoomService.clearRoundIntents(
             state.roomCode,
@@ -638,6 +643,7 @@ const App: React.FC = () => {
           seconds: {},
           dayVotes: {},
           isRunoff: false,
+          voteReveal,
           winner,
           revealedRoles: undefined,
         });
@@ -798,6 +804,7 @@ const App: React.FC = () => {
       seconds: {},
       dayVotes: {},
       isRunoff: false,
+      voteReveal: null,
       winner: null,
       revealedRoles: undefined,
     });
@@ -826,6 +833,7 @@ const App: React.FC = () => {
       seconds: {},
       dayVotes: {},
       isRunoff: false,
+      voteReveal: null,
       winner: null,
       revealedRoles: undefined,
     });
@@ -849,6 +857,7 @@ const App: React.FC = () => {
         seconds: {},
         dayVotes: {},
         isRunoff: false,
+        voteReveal: null,
       });
       return;
     }
@@ -861,6 +870,7 @@ const App: React.FC = () => {
       seconds: {},
       dayVotes: {},
       isRunoff: false,
+      voteReveal: null,
       nightSelectionHistory: transition.phase === GamePhase.NIGHT_TRANSITION ? {} : state.nightSelectionHistory,
       revealedRoles: transition.phase === GamePhase.GAME_OVER ? rolesMapRef.current : undefined,
     });

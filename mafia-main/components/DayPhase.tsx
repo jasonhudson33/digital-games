@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { GamePhase, GameState } from '../types';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
-import { canParticipateInDay, dayBallotRound } from '../services/DayRules';
+import { canParticipateInDay, dayBallotRound, groupBallotsByCandidate } from '../services/DayRules';
 import { displayCardCode } from '../services/CardState';
 
 interface DayPhaseProps {
@@ -30,8 +30,34 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
     }) as string[];
   }, [nominations, seconds]);
 
+  const renderBallots = (heading: string) => {
+    const ballots = state.voteReveal?.ballots;
+    if (!ballots || Object.keys(ballots).length === 0) return null;
+    const candidateIds = Array.from(new Set(Object.values(ballots)));
+    const grouped = groupBallotsByCandidate(candidateIds, ballots);
+    const nameOf = (id: string) => state.players.find(p => p.id === id)?.name || 'Unknown';
+    const ordered = [...candidateIds].sort((a, b) => grouped[b].length - grouped[a].length);
+    return (
+      <div className="w-full max-w-xl text-left pt-4 border-t border-slate-700" data-testid="vote-reveal">
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3 text-center">{heading}</p>
+        <div className="space-y-3">
+          {ordered.map(candidateId => (
+            <div key={candidateId} className="flex items-start justify-between gap-4">
+              <span className="text-slate-200 font-bold">{nameOf(candidateId)}</span>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {grouped[candidateId].map(voterId => (
+                  <span key={voterId} className={`text-xs px-2 py-0.5 rounded border ${voterId === myPlayerId ? 'text-indigo-300 border-indigo-400/40' : 'text-slate-300 border-slate-600'}`}>{nameOf(voterId)}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const handleStartVote = () => {
-    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false });
+    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false, voteReveal: null });
   };
 
     const handleCastVote = async (candidateId: string) => {
@@ -104,6 +130,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
               </p>
             </div>
           )}
+          {renderBallots('How the town voted')}
         </div>
         {isHost ? (
           <Button className="mt-12" onClick={onAcknowledgeResult}>Narrator: Acknowledge Result</Button>
@@ -206,6 +233,9 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
       </div>
 
       <div className="max-w-xl mx-auto space-y-4">
+        {state.isRunoff && (
+          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700">{renderBallots('Tied vote')}</div>
+        )}
         {trialPlayers.map(player => {
           const isMySelection = dayVotes[myPlayerId] === player.id;
           const voteCount = Object.values(dayVotes).filter(vid => vid === player.id).length;

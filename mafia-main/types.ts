@@ -68,6 +68,11 @@ export interface DetectiveResult {
   ts: number;
 }
 
+export interface VoteReveal {
+  ballots: Record<string, string>; // voterId -> targetId
+  isRunoff: boolean;
+}
+
 export interface PhaseResult {
   eliminatedPlayerId: string | null;
   eliminatedRole: Role | null;
@@ -103,6 +108,8 @@ export interface GameState {
   seconds: Record<string, string[]>;
   dayVotes: Record<string, string>; // voterId -> targetId
   isRunoff?: boolean;
+  /** Final ballots of the most recent completed vote, shown to everyone after voting ends. */
+  voteReveal?: VoteReveal | null;
 
   winner: 'CITIZENS' | 'KILLERS' | null;
 

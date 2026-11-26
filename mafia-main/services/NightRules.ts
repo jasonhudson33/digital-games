@@ -48,7 +48,11 @@ export const resolveNight = (
   const updatedPlayers = players.map((player) => ({ ...player }));
 
   if (killerTargetId && killerTargetId === angelSaveId) {
-    return { players: updatedPlayers, results: ['A life was spared in the night.'], eliminatedPlayerId: null };
+    const spared = updatedPlayers.find((player) => player.id === killerTargetId);
+    const result = spared
+      ? `${spared.name} was attacked in the night but was spared.`
+      : 'A life was spared in the night.';
+    return { players: updatedPlayers, results: [result], eliminatedPlayerId: null };
   }
 
   if (killerTargetId) {

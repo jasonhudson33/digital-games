@@ -28,6 +28,14 @@ export const createVotePhaseResult = (
   nextRound: winner ? round : round + 1,
 });
 
+export const createVoteTiePhaseResult = (round: number): PhaseResult => ({
+  eliminatedPlayerId: null,
+  eliminatedRole: null,
+  source: 'VOTE',
+  nextPhase: 'NIGHT_TRANSITION' as PhaseResult['nextPhase'],
+  nextRound: round + 1,
+});
+
 export const acknowledgePhaseResult = (result: PhaseResult) => ({
   phase: result.nextPhase,
   round: result.nextRound,

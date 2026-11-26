@@ -20,6 +20,7 @@ export const createInitialGameState = (): GameState => ({
   seconds: {},
   dayVotes: {},
   isRunoff: false,
+  voteReveal: null,
   winner: null,
   lastUpdated: 0,
 });
@@ -34,6 +35,7 @@ export const migrateGameState = (state: GameState): GameState => ({
   seconds: state.seconds || {},
   dayVotes: state.dayVotes || {},
   isRunoff: state.isRunoff || false,
+  voteReveal: state.voteReveal || null,
 });
 
 export const shouldApplyRemoteState = (remote: GameState, local: GameState): boolean => (
@@ -47,13 +49,18 @@ export const selectActingHostId = (
   presenceReady: boolean,
   now = Date.now(),
 ): string | null => {
-  const alive = players.filter((player) => player.isAlive && !player.hasLeft);
+  // The first player (host-flagged) hosts for the whole game, alive or not. If they are
+  // absent, host duty falls to the next present player in seat order.
+  const candidates = [
+    ...players.filter((player) => player.isHost && !player.hasLeft),
+    ...players.filter((player) => !player.isHost && !player.hasLeft),
+  ];
   if (presenceReady) {
     const cutoff = now - PRESENCE_TIMEOUT_MS;
-    const online = alive.filter((player) => (presence[player.id] || 0) > cutoff);
-    return online.find((player) => player.isHost)?.id || online[0]?.id || null;
+    const online = candidates.find((player) => (presence[player.id] || 0) > cutoff);
+    return online?.id || candidates[0]?.id || null;
   }
-  return alive.find((player) => player.isHost)?.id || alive[0]?.id || null;
+  return candidates[0]?.id || null;
 };
 
 export const playersFromJoinRequests = (

@@ -26,7 +26,15 @@ test('the Ace prevents the selected player from being eliminated', () => {
 
   assert.equal(result.players.find((player) => player.id === 'target')?.isAlive, true);
   assert.equal(result.eliminatedPlayerId, null);
+  assert.deepEqual(result.results, ['Target was attacked in the night but was spared.']);
+});
+
+test('a spared attack with an unknown target id falls back to the generic message', () => {
+  const result = resolveNight(players, 'ghost', 'ghost');
+
+  assert.equal(result.eliminatedPlayerId, null);
   assert.deepEqual(result.results, ['A life was spared in the night.']);
+  assert.ok(result.players.every((player) => player.isAlive));
 });
 
 test('an Ace can save themselves but cannot repeat the previous save', () => {

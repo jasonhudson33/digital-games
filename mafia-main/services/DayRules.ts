@@ -1,4 +1,4 @@
-import type { DayIntent, Player } from '../types';
+import type { DayIntent, Player, VoteReveal } from '../types';
 
 const RUNOFF_ROUND_OFFSET = 1_000_000;
 
@@ -47,4 +47,21 @@ export const mergeDayActions = (
   }
 
   return { nominations, seconds };
+};
+
+export const createVoteReveal = (ballots: Record<string, string>, isRunoff: boolean): VoteReveal => ({
+  ballots: { ...ballots },
+  isRunoff,
+});
+
+/** Groups ballots by candidate, preserving candidate order. Ballots for non-candidates are ignored. */
+export const groupBallotsByCandidate = (
+  candidateIds: string[],
+  ballots: Record<string, string>,
+): Record<string, string[]> => {
+  const grouped: Record<string, string[]> = Object.fromEntries(candidateIds.map((id) => [id, []]));
+  for (const [voterId, targetId] of Object.entries(ballots)) {
+    if (targetId in grouped) grouped[targetId].push(voterId);
+  }
+  return grouped;
 };

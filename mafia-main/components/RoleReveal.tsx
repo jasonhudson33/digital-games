@@ -18,6 +18,7 @@ interface RoleRevealProps {
 
 const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCode, round, onComplete, isHost, teammates = [] }) => {
   const [hasAcknowledged, setHasAcknowledged] = useState<boolean>(!!player.isReady);
+  const [isRevealed, setIsRevealed] = useState(false);
 
   const details = ROLE_DETAILS[myRole];
   const cardCode = displayCardCode(player.cardCode, myRole);
@@ -38,7 +39,14 @@ const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCo
 
   return (
     <div className="flex flex-col items-center py-10 animate-in fade-in zoom-in duration-700">
-      {!hasAcknowledged && (
+      {!hasAcknowledged && !isRevealed && (
+        <div className="text-center mb-10 p-10 rounded-3xl border-4 border-slate-700 bg-slate-900/70 shadow-2xl max-w-xl w-full">
+          <h2 className="text-2xl font-serif text-slate-400 mb-3 tracking-widest uppercase">Your Role</h2>
+          <p className="text-xl text-slate-300 leading-relaxed">Make sure no one else is looking at your screen.</p>
+        </div>
+      )}
+
+      {!hasAcknowledged && isRevealed && (
         <div className={`text-center mb-10 p-10 rounded-3xl border-4 ${details.borderColor} ${details.bgColor} shadow-2xl max-w-xl w-full`}>
           <h2 className="text-2xl font-serif text-slate-400 mb-3 tracking-widest uppercase">Your Role</h2>
           <div
@@ -61,7 +69,9 @@ const RoleReveal: React.FC<RoleRevealProps> = ({ player, myRole, players, roomCo
         </div>
       )}
 
-      {!hasAcknowledged ? (
+      {!hasAcknowledged && !isRevealed ? (
+        <Button onClick={() => setIsRevealed(true)}>Reveal My Card</Button>
+      ) : !hasAcknowledged ? (
         <Button onClick={handleAcknowledge}>I Understand</Button>
       ) : (
         <div className="max-w-xl w-full rounded-3xl border border-slate-700 bg-slate-900/70 p-10 text-center shadow-2xl" aria-live="polite">

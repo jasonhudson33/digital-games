@@ -5,6 +5,7 @@ import {
   acknowledgePhaseResult,
   createNightPhaseResult,
   createVotePhaseResult,
+  createVoteTiePhaseResult,
 } from '../mafia-main/services/ResultRules.ts';
 
 test('night deaths wait for acknowledgment before daytime deliberation', () => {
@@ -36,4 +37,13 @@ test('a game-ending death waits for acknowledgment before game over', () => {
 
   assert.equal(result.nextPhase, 'GAME_OVER');
   assert.equal(result.nextRound, 3);
+});
+
+test('an unbroken tie eliminates no one and moves to the next night after acknowledgment', () => {
+  const result = createVoteTiePhaseResult(3);
+
+  assert.equal(result.eliminatedPlayerId, null);
+  assert.equal(result.eliminatedRole, null);
+  assert.equal(result.source, 'VOTE');
+  assert.deepEqual(acknowledgePhaseResult(result), { phase: 'NIGHT_TRANSITION', round: 4, phaseResult: null });
 });
