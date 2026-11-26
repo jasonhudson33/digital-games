@@ -3,7 +3,7 @@ import { GamePhase, GameState, Role, Player, DetectiveResult, RoleMap } from '..
 import { ROLE_DETAILS } from '../constants';
 import Button from './Button';
 import { RoomService } from '../services/RoomService';
-import { canSelectNightTarget, nightActorsForRole, nightSelectionsByTarget } from '../services/NightRules';
+import { canSelectNightTarget, detectiveAckRound, nightActorsForRole, nightSelectionsByTarget } from '../services/NightRules';
 
 interface NightPhaseProps {
   state: GameState;
@@ -11,11 +11,44 @@ interface NightPhaseProps {
   myRole: Role;
   roomCode: string;
   rolesMap?: RoleMap; // host will have full map; others may have only their own role
+  isHost?: boolean;
+  detectiveWait?: { ready: number; total: number } | null;
+  onContinueDetectives?: () => void;
 }
 
-const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, roomCode, rolesMap }) => {
+const readAck = (key: string): boolean => {
+  try {
+    return sessionStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const writeAck = (key: string) => {
+  try {
+    sessionStorage.setItem(key, '1');
+  } catch {
+    // Acknowledgement still works for this session without storage.
+  }
+};
+
+const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, roomCode, rolesMap, isHost = false, detectiveWait = null, onContinueDetectives }) => {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [detectiveResult, setDetectiveResult] = useState<DetectiveResult | null>(null);
+  const [ackedKeys, setAckedKeys] = useState<string[]>([]);
+  const ackKey = `mafia_detective_ack_${roomCode}_${state.round}`;
+  const showDetectivePopup = myRole === Role.DETECTIVE && Boolean(detectiveResult) && !ackedKeys.includes(ackKey) && !readAck(ackKey);
+
+  const handleAcknowledgeResult = async () => {
+    try {
+      await RoomService.submitReady(roomCode, detectiveAckRound(state.round), myPlayerId);
+      writeAck(ackKey);
+      setAckedKeys((keys) => [...keys, ackKey]);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to confirm. Please try again.');
+    }
+  };
 
   const me = state.players.find(p => p.id === myPlayerId);
   const alivePlayers = state.players.filter(p => p.isAlive);
@@ -65,7 +98,7 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
   }, [votes]);
 
   const handleSelect = async (targetId: string) => {
-    if (!amActor || !phaseRole) return;
+    if (!amActor || !phaseRole || state.detectivePending) return;
 
     const kind = phaseRole === Role.KILLER ? 'KILL'
       : phaseRole === Role.DETECTIVE ? 'CHECK'
@@ -111,6 +144,13 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
         {consensusTargetId && (
           <p className="text-green-400 mt-2">Consensus reached.</p>
         )}
+        {isHost && detectiveWait && onContinueDetectives && (
+          <div className="mt-4">
+            <Button variant="secondary" onClick={onContinueDetectives}>
+              Continue ({detectiveWait.ready} of {detectiveWait.total} detectives ready)
+            </Button>
+          </div>
+        )}
       </div>
 
       {feedback && (
@@ -132,15 +172,18 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
         </div>
       )}
 
-      {myRole === Role.DETECTIVE && detectiveResult && state.phase === GamePhase.NIGHT_DETECTIVE && (
-        <div className="max-w-xl mx-auto mb-6 bg-slate-900 border border-slate-700 rounded-xl p-4">
-          <p className="text-slate-200">
-            Your check: {detectiveResult.isKiller ? (
-              <span className="text-red-400 font-semibold">KILLER detected</span>
-            ) : (
-              <span className="text-blue-300 font-semibold">Not a killer</span>
-            )}
-          </p>
+      {showDetectivePopup && detectiveResult && (
+        <div role="dialog" aria-modal="true" aria-label="Detective result" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4">
+          <div className={`w-full max-w-sm rounded-3xl border-4 p-8 text-center shadow-2xl bg-slate-900 ${detectiveResult.isKiller ? 'border-red-500/60' : 'border-blue-400/50'}`}>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Your check</p>
+            <h3 className="text-3xl font-serif font-bold text-slate-100 mb-2">
+              {state.players.find((player) => player.id === detectiveResult.targetId)?.name || 'This player'}
+            </h3>
+            <p className={`text-2xl font-black mb-8 ${detectiveResult.isKiller ? 'text-red-400' : 'text-blue-300'}`}>
+              {detectiveResult.isKiller ? 'is a killer' : 'is not a killer'}
+            </p>
+            <Button onClick={handleAcknowledgeResult}>OK</Button>
+          </div>
         </div>
       )}
 
@@ -172,7 +215,7 @@ const NightPhase: React.FC<NightPhaseProps> = ({ state, myPlayerId, myRole, room
                       </p>
                     )}
                   </div>
-                  {amActor && canSelect && (
+                  {amActor && canSelect && !state.detectivePending && (
                     <Button onClick={() => handleSelect(p.id)}>
                       Select
                     </Button>

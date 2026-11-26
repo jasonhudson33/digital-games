@@ -73,3 +73,18 @@ export const resolveNight = (
     eliminatedPlayerId: null,
   };
 };
+
+const DETECTIVE_ACK_ROUND_OFFSET = 2_000_000;
+
+/** Round key for detective result acknowledgements, kept apart from role-reveal ready intents. */
+export const detectiveAckRound = (round: number): number => round + DETECTIVE_ACK_ROUND_OFFSET;
+
+/** Living human detectives who have not yet acknowledged their result. Computers never block. */
+export const pendingDetectiveAcks = (
+  players: Player[],
+  detectiveIds: string[],
+  acknowledgedIds: string[],
+): string[] => detectiveIds.filter((detectiveId) => {
+  const player = players.find((candidate) => candidate.id === detectiveId);
+  return Boolean(player && player.isAlive && !player.isComputer && !acknowledgedIds.includes(detectiveId));
+});

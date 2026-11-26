@@ -13,7 +13,7 @@ import { RoomService } from './services/RoomService';
 import { MAFIA_NARRATION, narrator } from './services/SpeechService';
 import { resolvePrivateRole } from './services/RoleState';
 import { canParticipateInDay, createVoteReveal, dayBallotRound, mergeDayActions, resolveDayVote } from './services/DayRules';
-import { canSelectNightTarget, resolveNight } from './services/NightRules';
+import { canSelectNightTarget, detectiveAckRound, nightActorsForRole, pendingDetectiveAcks, resolveNight } from './services/NightRules';
 import { prepareReplayPlayers } from './services/ReplayRules';
 import {
   acknowledgePhaseResult,
@@ -290,6 +290,49 @@ const App: React.FC = () => {
     });
   }, [computeWinner, hostUpdateState]);
 
+  const detectiveStepRef = useRef('');
+  const advancingDetectivesRef = useRef(false);
+  const [detectiveAcks, setDetectiveAcks] = useState<string[]>([]);
+
+  const advanceFromDetectives = useCallback(async () => {
+    const state = gameStateRef.current;
+    if (state.phase !== GamePhase.NIGHT_DETECTIVE || !state.detectivePending || advancingDetectivesRef.current) return;
+    advancingDetectivesRef.current = true;
+    try {
+      await narrator.speak(MAFIA_NARRATION.angelsWake);
+      await hostUpdateState({ nightActions: {}, detectivePending: false, phase: GamePhase.NIGHT_ANGEL });
+      await RoomService.clearRoundIntents(state.roomCode, detectiveAckRound(state.round));
+    } finally {
+      advancingDetectivesRef.current = false;
+      detectiveStepRef.current = '';
+    }
+  }, [hostUpdateState]);
+
+  // Host: move on once every living human detective has acknowledged their result.
+  useEffect(() => {
+    const state = gameState;
+    if (!isActingHost || !state.roomCode || state.phase !== GamePhase.NIGHT_DETECTIVE || !state.detectivePending) {
+      setDetectiveAcks((previous) => (previous.length ? [] : previous));
+      return;
+    }
+    return RoomService.subscribeToReady(state.roomCode, detectiveAckRound(state.round), (acks) => {
+      const acknowledged = Object.keys(acks);
+      setDetectiveAcks(acknowledged);
+      const current = gameStateRef.current;
+      const detectiveIds = nightActorsForRole(current.players, Role.DETECTIVE, rolesMapRef.current).map((player) => player.id);
+      if (!pendingDetectiveAcks(current.players, detectiveIds, acknowledged).length) {
+        void advanceFromDetectives().catch(console.error);
+      }
+    });
+  }, [gameState.roomCode, gameState.phase, gameState.round, gameState.detectivePending, isActingHost, advanceFromDetectives]);
+
+  const detectiveWait = useMemo(() => {
+    if (!isActingHost || gameState.phase !== GamePhase.NIGHT_DETECTIVE || !gameState.detectivePending) return null;
+    const detectiveIds = nightActorsForRole(gameState.players, Role.DETECTIVE, rolesMap).map((player) => player.id);
+    const pending = pendingDetectiveAcks(gameState.players, detectiveIds, detectiveAcks);
+    return { ready: detectiveIds.length - pending.length, total: detectiveIds.length };
+  }, [isActingHost, gameState.phase, gameState.detectivePending, gameState.players, rolesMap, detectiveAcks]);
+
   // ---------- Host aggregation: join/leave/ready/intents ----------
   useEffect(() => {
     if (!gameState.roomCode || !isActingHost) return;
@@ -368,6 +411,8 @@ const App: React.FC = () => {
       const state = gameStateRef.current;
       if (![GamePhase.NIGHT_KILLER, GamePhase.NIGHT_DETECTIVE, GamePhase.NIGHT_ANGEL].includes(state.phase)) return;
 
+      if (state.phase === GamePhase.NIGHT_DETECTIVE && state.detectivePending) return;
+
       const rm = rolesMapRef.current;
       if (!state.players.every((player) => rm[player.id])) return;
 
@@ -433,7 +478,10 @@ const App: React.FC = () => {
           phase: GamePhase.NIGHT_DETECTIVE,
         });
       } else if (state.phase === GamePhase.NIGHT_DETECTIVE) {
-        // Save private results for each detective
+        const stepKey = `${state.roomCode}:${state.round}`;
+        if (detectiveStepRef.current === stepKey) return;
+        detectiveStepRef.current = stepKey;
+        // Save private results for each detective, then wait for them to acknowledge.
         for (const uid of actors) {
           await RoomService.setDetectiveResult(code, state.round, uid, {
             targetId,
@@ -441,12 +489,10 @@ const App: React.FC = () => {
             ts: Date.now(),
           });
         }
-        await narrator.speak(MAFIA_NARRATION.angelsWake);
         await hostUpdateState({
           detectiveCheckId: targetId,
-          nightActions: {},
           nightSelectionHistory: { ...state.nightSelectionHistory, DETECTIVE: aggregated },
-          phase: GamePhase.NIGHT_ANGEL,
+          detectivePending: true,
         });
       } else if (state.phase === GamePhase.NIGHT_ANGEL) {
         await finishNight(state, targetId, rm);
@@ -583,13 +629,18 @@ const App: React.FC = () => {
     const alive = state.players.filter(p => p.isAlive);
     const votedCount = Object.keys(state.dayVotes || {}).length;
 
-    if (alive.length > 0 && votedCount === alive.length) {
+    const finishedEarly = Boolean(state.voteClosed) && votedCount > 0;
+    if (alive.length > 0 && (votedCount === alive.length || finishedEarly)) {
       const timer = setTimeout(async () => {
         const candidates = Array.from(new Set(Object.values(state.nominations))).filter(
           (targetId) => (state.seconds[targetId] || []).length > 0
         );
         const { top } = resolveDayVote(candidates, state.dayVotes);
-        const voteReveal = createVoteReveal(state.dayVotes, Boolean(state.isRunoff));
+        const voteReveal = createVoteReveal(
+          state.dayVotes,
+          Boolean(state.isRunoff),
+          state.players.filter((player) => player.isAlive).map((player) => player.id),
+        );
 
         if (top.length !== 1) {
           if (!state.isRunoff && top.length > 1) {
@@ -600,6 +651,7 @@ const App: React.FC = () => {
               nominations,
               seconds,
               dayVotes: {},
+              voteClosed: false,
               isRunoff: true,
               voteReveal,
             });
@@ -614,6 +666,7 @@ const App: React.FC = () => {
             nominations: {},
             seconds: {},
             dayVotes: {},
+            voteClosed: false,
             isRunoff: false,
             nightSelectionHistory: {},
             voteReveal,
@@ -642,6 +695,7 @@ const App: React.FC = () => {
           nominations: {},
           seconds: {},
           dayVotes: {},
+          voteClosed: false,
           isRunoff: false,
           voteReveal,
           winner,
@@ -803,8 +857,10 @@ const App: React.FC = () => {
       nominations: {},
       seconds: {},
       dayVotes: {},
+      voteClosed: false,
       isRunoff: false,
       voteReveal: null,
+      detectivePending: false,
       winner: null,
       revealedRoles: undefined,
     });
@@ -832,8 +888,10 @@ const App: React.FC = () => {
       nominations: {},
       seconds: {},
       dayVotes: {},
+      voteClosed: false,
       isRunoff: false,
       voteReveal: null,
+      detectivePending: false,
       winner: null,
       revealedRoles: undefined,
     });
@@ -856,6 +914,7 @@ const App: React.FC = () => {
         nominations: {},
         seconds: {},
         dayVotes: {},
+        voteClosed: false,
         isRunoff: false,
         voteReveal: null,
       });
@@ -869,6 +928,7 @@ const App: React.FC = () => {
       nominations: {},
       seconds: {},
       dayVotes: {},
+      voteClosed: false,
       isRunoff: false,
       voteReveal: null,
       nightSelectionHistory: transition.phase === GamePhase.NIGHT_TRANSITION ? {} : state.nightSelectionHistory,
@@ -1001,6 +1061,9 @@ const App: React.FC = () => {
           myRole={myRole}
           roomCode={gameState.roomCode}
           rolesMap={rolesMap}
+          isHost={isActingHost}
+          detectiveWait={detectiveWait}
+          onContinueDetectives={() => void advanceFromDetectives().catch(console.error)}
         />
       </>
     );

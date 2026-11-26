@@ -60,5 +60,11 @@ test('a vote reveal copies the ballots', () => {
   const ballots = { one: 'a' };
   const reveal = createVoteReveal(ballots, true);
   ballots.two = 'b';
-  assert.deepEqual(reveal, { ballots: { one: 'a' }, isRunoff: true });
+  assert.deepEqual(reveal, { ballots: { one: 'a' }, nonVoterIds: [], isRunoff: true });
+});
+
+test('a vote reveal lists living players who did not vote', () => {
+  const reveal = createVoteReveal({ one: 'a', two: 'a' }, false, ['one', 'two', 'three', 'four']);
+  assert.deepEqual(reveal.nonVoterIds, ['three', 'four']);
+  assert.deepEqual(createVoteReveal({ one: 'a' }, false, ['one']).nonVoterIds, []);
 });

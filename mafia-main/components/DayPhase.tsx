@@ -37,6 +37,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
     const grouped = groupBallotsByCandidate(candidateIds, ballots);
     const nameOf = (id: string) => state.players.find(p => p.id === id)?.name || 'Unknown';
     const ordered = [...candidateIds].sort((a, b) => grouped[b].length - grouped[a].length);
+    const nonVoterIds = state.voteReveal?.nonVoterIds || [];
     return (
       <div className="w-full max-w-xl text-left pt-4 border-t border-slate-700" data-testid="vote-reveal">
         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3 text-center">{heading}</p>
@@ -52,19 +53,29 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
             </div>
           ))}
         </div>
+        {nonVoterIds.length > 0 && (
+          <p className="mt-4 text-xs text-slate-500 text-center">
+            Did not vote: <span className="text-slate-400">{nonVoterIds.map(nameOf).join(', ')}</span>
+          </p>
+        )}
       </div>
     );
   };
 
   const handleStartVote = () => {
-    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false, voteReveal: null });
+    onHostAction({ phase: GamePhase.DAY_VOTING, dayVotes: {}, isRunoff: false, voteReveal: null, voteClosed: false });
   };
 
     const handleCastVote = async (candidateId: string) => {
     // LOCK-IN: If user already voted, don't allow changes
-    if (!canParticipate || dayVotes[myPlayerId]) return;
+    if (!canParticipate || dayVotes[myPlayerId] || state.voteClosed) return;
 
     await RoomService.submitDayIntent(roomCode, dayBallotRound(state.round, Boolean(state.isRunoff)), myPlayerId, { kind: 'VOTE', targetId: candidateId, ts: Date.now() });
+  };
+
+  const handleFinishVoting = () => {
+    if (!isHost || Object.keys(dayVotes).length === 0) return;
+    onHostAction({ voteClosed: true });
   };
 
   const handleSkipTrial = () => {
@@ -230,6 +241,17 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
           <div className="bg-indigo-500 h-full transition-all duration-700" style={{ width: `${voteProgress}%` }}></div>
         </div>
         <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-widest font-bold">{totalVotesCount} / {alivePlayers.length} Voted</p>
+        {isHost && (
+          <div className="mt-6">
+            <Button
+              variant="secondary"
+              disabled={totalVotesCount === 0 || Boolean(state.voteClosed)}
+              onClick={handleFinishVoting}
+            >
+              {state.voteClosed ? 'Finishing…' : `Finish Voting (${totalVotesCount} of ${alivePlayers.length} voted)`}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="max-w-xl mx-auto space-y-4">
@@ -244,7 +266,7 @@ const DayPhase: React.FC<DayPhaseProps> = ({ state, myPlayerId, onHostAction, is
             <button
               key={player.id}
               onClick={() => handleCastVote(player.id)}
-              disabled={!canParticipate || hasVoted}
+              disabled={!canParticipate || hasVoted || Boolean(state.voteClosed)}
               className={`w-full p-6 rounded-2xl border-2 transition-all flex justify-between items-center group relative overflow-hidden
                 ${isMySelection ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'}
                 ${hasVoted && !isMySelection ? 'opacity-50 grayscale-[0.5]' : ''}`}

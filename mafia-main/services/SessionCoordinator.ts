@@ -21,6 +21,8 @@ export const createInitialGameState = (): GameState => ({
   dayVotes: {},
   isRunoff: false,
   voteReveal: null,
+  voteClosed: false,
+  detectivePending: false,
   winner: null,
   lastUpdated: 0,
 });
@@ -36,6 +38,8 @@ export const migrateGameState = (state: GameState): GameState => ({
   dayVotes: state.dayVotes || {},
   isRunoff: state.isRunoff || false,
   voteReveal: state.voteReveal || null,
+  voteClosed: state.voteClosed || false,
+  detectivePending: state.detectivePending || false,
 });
 
 export const shouldApplyRemoteState = (remote: GameState, local: GameState): boolean => (

@@ -70,6 +70,7 @@ export interface DetectiveResult {
 
 export interface VoteReveal {
   ballots: Record<string, string>; // voterId -> targetId
+  nonVoterIds: string[]; // living players who did not vote
   isRunoff: boolean;
 }
 
@@ -110,6 +111,10 @@ export interface GameState {
   isRunoff?: boolean;
   /** Final ballots of the most recent completed vote, shown to everyone after voting ends. */
   voteReveal?: VoteReveal | null;
+  /** Set by the acting host to end the current vote with the ballots cast so far. */
+  voteClosed?: boolean;
+  /** True while the night waits for detectives to acknowledge their check result. */
+  detectivePending?: boolean;
 
   winner: 'CITIZENS' | 'KILLERS' | null;
 

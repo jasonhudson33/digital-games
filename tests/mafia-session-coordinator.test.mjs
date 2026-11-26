@@ -24,11 +24,15 @@ test('the session coordinator creates a complete landing state', () => {
   assert.deepEqual(state.nominations, {});
   assert.deepEqual(state.nightSelectionHistory, {});
   assert.equal(state.voteReveal, null);
+  assert.equal(state.voteClosed, false);
+  assert.equal(state.detectivePending, false);
 });
 
 test('migrating an older room state defaults the vote reveal to none', () => {
   const { voteReveal, ...older } = createInitialGameState();
   assert.equal(migrateGameState(older).voteReveal, null);
+  assert.equal(migrateGameState({ ...older, voteClosed: undefined }).voteClosed, false);
+  assert.equal(migrateGameState({ ...older, detectivePending: undefined }).detectivePending, false);
 });
 
 test('remote state ordering accepts newer updates and equal-time phase transitions', () => {

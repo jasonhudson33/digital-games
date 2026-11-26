@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   canSelectNightTarget,
+  detectiveAckRound,
   nightActorsForRole,
+  pendingDetectiveAcks,
   nightSelectionsByTarget,
   resolveNight,
 } from '../mafia-main/services/NightRules.ts';
@@ -61,4 +63,22 @@ test('night selections are grouped by target with the selecting teammates attach
     nightSelectionsByTarget({ king: 'target', 'king-2': 'king' }, ['king', 'king-2']),
     { target: ['king'], king: ['king-2'] },
   );
+});
+
+const seat = (id, overrides = {}) => ({ id, name: id, cardCode: '', isAlive: true, voteCount: 0, ...overrides });
+
+test('detective acknowledgements wait only on living human detectives', () => {
+  const table = [seat('a'), seat('b'), seat('bot', { isComputer: true }), seat('gone', { isAlive: false })];
+  const detectives = ['a', 'b', 'bot', 'gone'];
+
+  assert.deepEqual(pendingDetectiveAcks(table, detectives, []), ['a', 'b']);
+  assert.deepEqual(pendingDetectiveAcks(table, detectives, ['a']), ['b']);
+  assert.deepEqual(pendingDetectiveAcks(table, detectives, ['a', 'b']), []);
+  assert.deepEqual(pendingDetectiveAcks(table, ['bot'], []), []);
+  assert.deepEqual(pendingDetectiveAcks(table, ['missing'], []), []);
+});
+
+test('detective acknowledgements use a round key apart from role-reveal readiness', () => {
+  assert.notEqual(detectiveAckRound(1), 1);
+  assert.notEqual(detectiveAckRound(1), detectiveAckRound(2));
 });

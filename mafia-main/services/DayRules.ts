@@ -49,8 +49,13 @@ export const mergeDayActions = (
   return { nominations, seconds };
 };
 
-export const createVoteReveal = (ballots: Record<string, string>, isRunoff: boolean): VoteReveal => ({
+export const createVoteReveal = (
+  ballots: Record<string, string>,
+  isRunoff: boolean,
+  livingPlayerIds: string[] = Object.keys(ballots),
+): VoteReveal => ({
   ballots: { ...ballots },
+  nonVoterIds: livingPlayerIds.filter((playerId) => !(playerId in ballots)),
   isRunoff,
 });
 
