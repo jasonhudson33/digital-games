@@ -11,9 +11,9 @@
 ## 3. Phone layout
 
 - [x] 3.1 In `app/scum/scum.css`, under `max-width: 560px`: a `100dvh` flex column for the board, the opponent strip as sideways-scrolling chips (with passed, finished and active states), a one-line last-play message, a smaller pile, the rank strip hidden, `.scum-hand` `--card-w` about 44px, sticky controls with the safe-area inset, and the site header hidden via `body:has(.scum-game-shell)`. Verify with browser screenshots at 390x844 for 4 and 20 players: `document.documentElement.scrollHeight <= innerHeight`, and the opponents, message, pile, hand and buttons all visible.
-- [ ] 3.2 Scroll the active opponent chip into view when the turn changes. Verify at 20 players on a phone that the active chip is visible.
-- [ ] 3.3 Check 320x568 and the trading and results screens on a phone. Verify there's no sideways page scroll and the controls are reachable, and that desktop at 1280px is unchanged (compared against a screenshot taken before the change).
+- [x] 3.2 Scroll the active opponent chip into view when the turn changes. Verify at 20 players on a phone that the active chip is visible.
+- [x] 3.3 Check 320x568 and the trading and results screens on a phone. Verify there's no sideways page scroll and the controls are reachable, and that desktop at 1280px is unchanged (compared against a screenshot taken before the change).
 
 ## 4. Integration
 
-- [ ] 4.1 Run `npm test`, including `tests/layout-check.test.mjs`, and verify it passes.
+- [x] 4.1 Run `npm test`, including `tests/layout-check.test.mjs`, and verify it passes.

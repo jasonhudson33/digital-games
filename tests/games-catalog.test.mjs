@@ -111,6 +111,7 @@ test("advertised player counts match what each engine will actually start", asyn
     { slug: "cover-your-assets", load: async () => await import("../lib/cover-your-assets.js") },
     { slug: "secret-hitler", load: async () => { const m = await import("../lib/secret-hitler.js"); return { min: m.SECRET_HITLER_MIN_PLAYERS, max: m.SECRET_HITLER_MAX_PLAYERS }; } },
     { slug: "scum", load: async () => { const m = await import("../lib/scum-rooms.js"); return { min: m.SCUM_MIN_PLAYERS, max: m.SCUM_MAX_PLAYERS }; } },
+    { slug: "what-if", load: async () => await import("../lib/what-if.js") },
   ];
 
   for (const engine of engines) {

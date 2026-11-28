@@ -223,7 +223,7 @@ export function Lobby({
 
         {computerSpeed && <ComputerSpeedControl variant="inline" value={computerSpeed.value} onChange={computerSpeed.onChange} />}
 
-        {isHost && room.players.length < max && (
+        {isHost && onAdd && room.players.length < max && (
           <button type="button" className="tbl-add-seat" disabled={busy} onClick={onAdd}>
             <Bot aria-hidden="true" /> Add computer player
           </button>
