@@ -21,6 +21,7 @@ import {
   scumRankLabel,
 } from "../lib/scum";
 import { ScumRoomService } from "./scum-room-service";
+import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
@@ -52,7 +53,7 @@ export default function ScumClient() {
     const code = params.get("room")?.toUpperCase() || "";
     setPlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
     setJoinCode(code);
-    setRoomToken(code ? sessionStorage.getItem(roomTokenKey(code)) || "" : "");
+    setRoomToken(code ? readSeatToken(roomTokenKey(code)) : "");
     setIsReady(true);
   }, []);
 
@@ -61,17 +62,23 @@ export default function ScumClient() {
   }, [game]);
 
   useEffect(() => {
-    if (!isReady || game || !joinCode || !roomToken) return;
-    let cancelled = false;
-    void ScumRoomService.load(joinCode, roomToken).then((state) => {
-      if (cancelled) return;
-      setGame(state);
-      latestGame.current = state;
-    }).catch(() => {
-      sessionStorage.removeItem(roomTokenKey(joinCode));
-      setRoomToken("");
+    if (!isReady || game || !joinCode || !roomToken) return undefined;
+    // A phone that slept may reload before its network is back: keep the seat
+    // and retry rather than treating the first failure as "you were removed".
+    return resumeRoom({
+      load: () => ScumRoomService.load(joinCode, roomToken),
+      onState: (state) => {
+        setError("");
+        setGame(state);
+        latestGame.current = state;
+      },
+      onStale: () => {
+        forgetSeatToken(roomTokenKey(joinCode));
+        setRoomToken("");
+        setError("");
+      },
+      onRetrying: () => setError(`Reconnecting to room ${joinCode}…`),
     });
-    return () => { cancelled = true; };
   }, [game, isReady, joinCode, roomToken]);
 
   useEffect(() => {
@@ -101,7 +108,7 @@ export default function ScumClient() {
   }
 
   function enterRoom(state, token) {
-    sessionStorage.setItem(roomTokenKey(state.roomCode), token);
+    writeSeatToken(roomTokenKey(state.roomCode), token);
     setRoomToken(token);
     setJoinCode(state.roomCode);
     setGame(state);
@@ -128,6 +135,16 @@ export default function ScumClient() {
     setBusy(true);
     setError("");
     try {
+      const savedToken = readSeatToken(roomTokenKey(code));
+      if (savedToken) {
+        try {
+          enterRoom(await ScumRoomService.load(code, savedToken), savedToken);
+          return;
+        } catch (seatError) {
+          if (!isStaleSeatError(seatError)) throw seatError;
+          forgetSeatToken(roomTokenKey(code));
+        }
+      }
       const payload = await ScumRoomService.join(code, usePlayerName());
       enterRoom(payload.state, payload.token);
     } catch (roomError) {
@@ -162,7 +179,7 @@ export default function ScumClient() {
   const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
 
   function leaveRoom() {
-    if (game?.roomCode) sessionStorage.removeItem(roomTokenKey(game.roomCode));
+    if (game?.roomCode) forgetSeatToken(roomTokenKey(game.roomCode));
     setGame(null);
     latestGame.current = null;
     setRoomToken("");

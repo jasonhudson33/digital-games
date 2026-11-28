@@ -24,6 +24,7 @@ import {
 import { bankTotal, getKaballasMarket, getKillerBunniesKaballasPrice, getKillerBunniesCardPlayStatus, getKillerBunniesCloverCards, getKillerBunniesCloverReduction, getKillerBunniesDefenseUnits, getKillerBunniesExtraRunStatus, getKillerBunniesFeedingStatus, getKillerBunniesPileStatus, getKillerBunniesSavedSpecialStatus, getKillerBunniesShopItemStatus, getKillerBunniesSupplyUnits } from "../lib/killer-bunnies";
 import { KILLER_BUNNIES_EXPANSIONS } from "../lib/killer-bunnies-expansions";
 import { KillerBunniesRoomService } from "./killer-bunnies-room-service";
+import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
 import { Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby } from "./ui/table-shell";
 import CardFan from "./card-fan";
 import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
@@ -63,25 +64,25 @@ export default function KillerBunniesClient() {
     const code = params.get("room")?.toUpperCase() || "";
     setPlayerName(localStorage.getItem(NAME_KEY) || "");
     setJoinCode(code);
-    setRoomToken(code ? localStorage.getItem(`${TOKEN_PREFIX}${code}`) || "" : "");
+    setRoomToken(code ? readSeatToken(`${TOKEN_PREFIX}${code}`) : "");
     setReady(true);
   }, []);
 
   useEffect(() => { latestGame.current = game; }, [game]);
 
   useEffect(() => {
-    if (!ready || game || !joinCode || !roomToken) return;
-    let cancelled = false;
-    void KillerBunniesRoomService.load(joinCode, roomToken).then((state) => {
-      if (!cancelled) setGame(state);
-    }).catch((loadError) => {
-      if (!cancelled) {
-        localStorage.removeItem(`${TOKEN_PREFIX}${joinCode}`);
+    if (!ready || game || !joinCode || !roomToken) return undefined;
+    // Keep the seat through a slow wake-up; forget it only if the room says so.
+    return resumeRoom({
+      load: () => KillerBunniesRoomService.load(joinCode, roomToken),
+      onState: (state) => { setError(""); setGame(state); },
+      onStale: (loadError) => {
+        forgetSeatToken(`${TOKEN_PREFIX}${joinCode}`);
         setRoomToken("");
         setError(loadError instanceof Error ? loadError.message : "Could not reconnect to the room.");
-      }
+      },
+      onRetrying: () => setError(`Reconnecting to room ${joinCode}…`),
     });
-    return () => { cancelled = true; };
   }, [ready, game, joinCode, roomToken]);
 
   useEffect(() => {
@@ -99,7 +100,7 @@ export default function KillerBunniesClient() {
   }
 
   function enterRoom(state, token) {
-    localStorage.setItem(`${TOKEN_PREFIX}${state.roomCode}`, token);
+    writeSeatToken(`${TOKEN_PREFIX}${state.roomCode}`, token);
     setRoomToken(token);
     setJoinCode(state.roomCode);
     setGame(state);
@@ -123,13 +124,16 @@ export default function KillerBunniesClient() {
     if (!code) return setError("Enter a room code first.");
     setBusy(true); setError("");
     try {
-      const savedToken = localStorage.getItem(`${TOKEN_PREFIX}${code}`);
+      const savedToken = readSeatToken(`${TOKEN_PREFIX}${code}`);
       if (savedToken) {
         try {
           const state = await KillerBunniesRoomService.load(code, savedToken);
           enterRoom(state, savedToken);
           return;
-        } catch { localStorage.removeItem(`${TOKEN_PREFIX}${code}`); }
+        } catch (seatError) {
+          if (!isStaleSeatError(seatError)) throw seatError;
+          forgetSeatToken(`${TOKEN_PREFIX}${code}`);
+        }
       }
       const payload = await KillerBunniesRoomService.join(code, cleanName());
       enterRoom(payload.state, payload.token);

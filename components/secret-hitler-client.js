@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { eligibleChancellorIndices, getSecretHitlerPower } from "../lib/secret-hitler";
 import { SecretHitlerRoomService } from "./secret-hitler-room-service";
+import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby as SharedLobby } from "./ui/table-shell";
 import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
 import { useComputerPacer } from "../lib/use-computer-pacer.js";
@@ -40,22 +41,21 @@ export default function SecretHitlerClient() {
     const code = params.get("room")?.toUpperCase() || "";
     setPlayerName(localStorage.getItem(NAME_KEY) || "");
     setJoinCode(code);
-    setToken(code ? sessionStorage.getItem(tokenKey(code)) || "" : "");
+    setToken(code ? readSeatToken(tokenKey(code)) : "");
     setReady(true);
   }, []);
 
   useEffect(() => { latestGame.current = game; }, [game]);
 
   useEffect(() => {
-    if (!ready || game || !joinCode || !token) return;
-    let cancelled = false;
-    void SecretHitlerRoomService.load(joinCode, token).then((state) => {
-      if (!cancelled) enterState(state);
-    }).catch(() => {
-      sessionStorage.removeItem(tokenKey(joinCode));
-      setToken("");
+    if (!ready || game || !joinCode || !token) return undefined;
+    // Keep the seat through a slow wake-up; forget it only if the room says so.
+    return resumeRoom({
+      load: () => SecretHitlerRoomService.load(joinCode, token),
+      onState: (state) => { setError(""); enterState(state); },
+      onStale: () => { forgetSeatToken(tokenKey(joinCode)); setToken(""); setError(""); },
+      onRetrying: () => setError(`Reconnecting to room ${joinCode}…`),
     });
-    return () => { cancelled = true; };
   }, [ready, game, joinCode, token]);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function SecretHitlerClient() {
   }
 
   function enterRoom(payload) {
-    sessionStorage.setItem(tokenKey(payload.state.roomCode), payload.token);
+    writeSeatToken(tokenKey(payload.state.roomCode), payload.token);
     setToken(payload.token);
     setJoinCode(payload.state.roomCode);
     enterState(payload.state);
@@ -94,7 +94,18 @@ export default function SecretHitlerClient() {
   async function joinRoom() {
     const code = joinCode.trim().toUpperCase();
     if (!code) return setError("Enter a room code first.");
-    await perform(async () => enterRoom(await SecretHitlerRoomService.join(code, useName())));
+    await perform(async () => {
+      const savedToken = readSeatToken(tokenKey(code));
+      if (savedToken) {
+        try {
+          return enterRoom({ state: await SecretHitlerRoomService.load(code, savedToken), token: savedToken });
+        } catch (seatError) {
+          if (!isStaleSeatError(seatError)) throw seatError;
+          forgetSeatToken(tokenKey(code));
+        }
+      }
+      return enterRoom(await SecretHitlerRoomService.join(code, useName()));
+    });
   }
 
   async function action(name, values = {}) {
@@ -123,7 +134,7 @@ export default function SecretHitlerClient() {
   }
 
   function leaveRoom() {
-    if (game?.roomCode) sessionStorage.removeItem(tokenKey(game.roomCode));
+    if (game?.roomCode) forgetSeatToken(tokenKey(game.roomCode));
     setGame(null);
     latestGame.current = null;
     setToken("");
