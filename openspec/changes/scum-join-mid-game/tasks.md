@@ -12,10 +12,10 @@
 
 ## 3. Client
 
-- [ ] 3.1 In `components/scum-client.js`, add a `WaitingScreen` for `phase === "waiting"` (room code, round, seated players, "You'll be dealt in next round as Scum", and Leave, which calls the `leave` action and forgets the seat). Verify in the running app that a second browser joining mid-game sees it.
+- [x] 3.1 In `components/scum-client.js`, add a `WaitingScreen` for `phase === "waiting"` (room code, round, seated players, "You'll be dealt in next round as Scum", and Leave, which calls the `leave` action and forgets the seat). Verify in the running app that a second browser joining mid-game sees it.
 - [ ] 3.2 Show "Joins next round: …" on the results screen and a short line on the table while anyone is waiting. Verify in the running app from the host's browser.
 
 ## 4. Integration
 
-- [ ] 4.1 Run `npm test` and verify it passes.
+- [x] 4.1 Run `npm test` and verify it passes.
 - [ ] 4.2 Play through end to end in two browsers: the host plays with computers, a second browser joins mid-round, sees the waiting screen, and is dealt in as Scum when the host starts the next round (including the President trade).
