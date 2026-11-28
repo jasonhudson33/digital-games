@@ -419,3 +419,88 @@ html[data-route="scum"] {
 
 .scum-joining-note { margin: 6px 0 0; text-align: center; color: var(--scum-gold); font-size: .72rem; font-weight: 700; letter-spacing: .04em; }
 .tbl-results + .scum-joining-note { color: inherit; opacity: .75; }
+
+/*
+ * Phone table (games/scum "Phone table fits one screen"): the whole table —
+ * opponents, last play, pile, hand and Pass/Play — inside one screen with no
+ * page scroll. The board is a flex column sized to the viewport; the pile is
+ * the part that gives way. The hand keeps platform/card-hands' 24px touch
+ * targets, so a big hand may take two short rows of smaller cards.
+ */
+@media (max-width: 560px) {
+  body:has(.scum-game-shell) .site-header { display: none; }
+
+  .scum-game-shell {
+    height: 100vh; height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .scum-game-shell > .tbl-game-header { flex: none; }
+
+  .scum-game-shell .scum-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Opponents: one row of chips that scrolls sideways at big tables. */
+  .scum-opponents {
+    position: relative;
+    flex: none;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: 2px 0 4px;
+  }
+  .scum-opponents::-webkit-scrollbar { display: none; }
+  .scum-opponent {
+    flex: none;
+    max-width: 132px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px 3px 3px;
+    border-radius: 999px;
+  }
+  .scum-opponent .opponent-avatar { width: 26px; height: 26px; font-size: .8rem; }
+  .scum-opponent .opponent-copy { min-width: 0; display: flex; flex-direction: column; }
+  .scum-opponent .opponent-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .68rem; }
+  .scum-opponent .opponent-copy small { margin-top: 1px; font-size: .58rem; white-space: nowrap; }
+  .scum-opponent .opponent-passed { margin-top: 1px; padding: 0 5px; font-size: .5rem; align-self: flex-start; }
+  .scum-opponent .opponent-cards,
+  .scum-opponent .scum-thinking-dots { display: none; }
+
+  /* Last play stays on one line above a smaller pile. */
+  .scum-game-shell .scum-table-center {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .scum-turn-message { flex: none; max-width: 100%; font-size: .74rem; }
+  .scum-turn-message strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scum-joining-note { flex: none; margin: 0; font-size: .64rem; }
+  .scum-game-shell .scum-pile { flex: 1 1 auto; min-height: 96px; min-width: 0; width: 100%; }
+  .scum-pile::before { width: 170px; height: 96px; }
+  .pile-cards { width: 92px; height: 88px; }
+  .pile-card { left: 14px; width: 60px !important; height: 84px !important; }
+  .empty-pile > span { font-size: 2rem; }
+  .empty-pile strong { font-size: .86rem; }
+  .scum-table-order { display: none; }
+
+  /* Your seat: compact header, smaller cards, Pass/Play always in reach. */
+  .scum-game-shell .scum-your-seat { flex: none; padding: 6px 8px 8px; }
+  .your-seat-meta .your-avatar { width: 28px; height: 28px; }
+  .scum-hand { --card-w: 44px; min-height: 0; }
+  .scum-hand .scum-hand-card.selected { transform: translateY(-8px); }
+  .scum-controls { padding-top: 6px; }
+}

@@ -9,6 +9,8 @@ import {
   Trophy,
   Bot,
   Users,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import {
   SCUM_SUIT_SYMBOLS,
@@ -22,6 +24,7 @@ import {
 } from "../lib/scum";
 import { ScumRoomService } from "./scum-room-service";
 import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
+import { createTurnAlert } from "../lib/turn-alert.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
@@ -95,6 +98,43 @@ export default function ScumClient() {
   useEffect(() => {
     setSelectedIds([]);
   }, [game?.currentPlayerIndex, game?.pile?.rank]);
+
+  // Turn alert: one chime when the turn (or a trade choice) becomes yours.
+  const turnAlert = useRef(null);
+  const [soundOn, setSoundOn] = useState(true);
+  useEffect(() => {
+    const alerts = createTurnAlert();
+    turnAlert.current = alerts;
+    setSoundOn(!alerts.isMuted());
+    const unlock = () => alerts.unlock();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+  // On a phone the opponents are one sideways-scrolling strip: keep whoever is
+  // up in view. Only the strip scrolls, never the page.
+  const opponentStrip = useRef(null);
+  useEffect(() => {
+    const strip = opponentStrip.current;
+    const chip = strip?.querySelector(".scum-opponent.active");
+    if (!strip || !chip || strip.scrollWidth <= strip.clientWidth) return;
+    const left = chip.offsetLeft; // the strip is position: relative on phones
+    const right = left + chip.offsetWidth;
+    if (left < strip.scrollLeft) strip.scrollTo({ left: left - 8, behavior: "smooth" });
+    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: right - strip.clientWidth + 8, behavior: "smooth" });
+  }, [game?.currentPlayerIndex, game?.phase]);
+  const alertKey = scumTurnAlertKey(game);
+  useEffect(() => {
+    if (alertKey) turnAlert.current?.alert(alertKey);
+  }, [alertKey]);
+  function toggleSound() {
+    const next = !soundOn;
+    turnAlert.current?.setMuted(!next);
+    setSoundOn(next);
+  }
 
   useEffect(() => {
     setTradeSelectedIds([]);
@@ -314,10 +354,22 @@ export default function ScumClient() {
         status={humanTurn ? "Your turn" : `${game.players[game.currentPlayerIndex]?.name ?? "…"}'s turn`}
         onRules={() => setRulesOpen(true)}
         onLeave={leaveRoom}
+        actions={
+          <button
+            type="button"
+            className="tbl-header-action scum-sound-toggle"
+            aria-pressed={soundOn}
+            title={soundOn ? "Turn sound on" : "Turn sound off"}
+            onClick={toggleSound}
+          >
+            {soundOn ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+            <span className="tbl-header-action-label">Sound</span>
+          </button>
+        }
       />
 
       <section className="scum-board" aria-label="Scum card table">
-        <div className="scum-opponents">
+        <div className="scum-opponents" ref={opponentStrip}>
           {game.players.map((player, playerIndex) => playerIndex === viewerPlayerIndex ? null : (
             <Opponent
               key={player.playerId || player.id}
@@ -629,4 +681,25 @@ function IntroCard({ rank, suit, className }) {
 
 function roomTokenKey(roomCode) {
   return `scum-room-token:${String(roomCode || "").toUpperCase()}`;
+}
+
+/**
+ * Changes exactly when a new turn (or a trade choice) becomes the viewer's, so
+ * repeated room refreshes during one turn do not repeat the chime.
+ */
+function scumTurnAlertKey(game) {
+  if (!game?.roomCode || game.viewerPlayerIndex === undefined || game.viewerPlayerIndex < 0) return null;
+  const me = game.viewerPlayerIndex;
+  const round = game.roundNumber || 1;
+  if (game.phase === "playing" && game.currentPlayerIndex === me) {
+    return `${game.roomCode}:${round}:play:${game.turnNumber ?? 0}:${game.currentPlayerIndex}`;
+  }
+  if (
+    game.phase === "trading"
+    && (game.pendingTrades || []).some((trade) => trade.upperPlayerIndex === me)
+    && !game.tradeSelections?.[me]
+  ) {
+    return `${game.roomCode}:${round}:trade`;
+  }
+  return null;
 }
