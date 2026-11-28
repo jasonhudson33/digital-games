@@ -8,6 +8,7 @@ import {
   createScumGame,
   getLegalScumPlays,
   getScumDeckCount,
+  getScumMaxPassGroups,
   getScumTradeGroups,
   moveOnScumPile,
   passScumTurn,
@@ -25,11 +26,41 @@ test("each deck has 52 suited cards and two Jokers", () => {
   assert.equal(deck.filter((card) => card.rank === 2).length, 8);
 });
 
+test("trade groups are capped at four and at half the table", () => {
+  assert.equal(getScumMaxPassGroups(20), 4);
+  assert.equal(getScumMaxPassGroups(10), 4);
+  assert.equal(getScumMaxPassGroups(6), 3);
+  assert.equal(getScumMaxPassGroups(3), 1);
+
+  const standings = Array.from({ length: 20 }, (_, index) => index);
+  const groups = getScumTradeGroups(standings, 10);
+  assert.deepEqual(
+    groups.map(({ upperPlace, lowerPlace, count }) => [upperPlace, lowerPlace, count]),
+    [[1, 20, 4], [2, 19, 3], [3, 18, 2], [4, 17, 1]]
+  );
+
+  const game = createScumGame({ playerCount: 10, passGroupCount: 5, random: still });
+  assert.equal(game.passGroupCount, 4);
+});
+
+test("a twenty-seat game deals five decks to distinctly named players", () => {
+  const game = createScumGame({ playerCount: 20, random: still });
+  assert.equal(game.players.length, 20);
+  assert.equal(game.deckCount, 5);
+  for (const player of game.players) {
+    assert.ok(player.hand.length === 13 || player.hand.length === 14, `${player.name} has ${player.hand.length}`);
+  }
+  const names = game.players.map((player) => player.name);
+  assert.equal(new Set(names).size, 20);
+  assert.ok(names.every((name) => !/^Player \d+$/.test(name)), names.join(", "));
+});
+
 test("the game uses one deck for every four players", () => {
   assert.equal(getScumDeckCount(4), 1);
   assert.equal(getScumDeckCount(5), 2);
   assert.equal(getScumDeckCount(8), 2);
   assert.equal(getScumDeckCount(9), 3);
+  assert.equal(getScumDeckCount(20), 5);
 
   const game = createScumGame({ playerCount: 9, random: still });
   assert.equal(game.players.length, 9);

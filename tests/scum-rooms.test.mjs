@@ -10,6 +10,7 @@ import {
   joinScumRoom,
   playScumRoomCards,
   setScumComputerSpeed,
+  setScumRoomOptions,
   startScumRoom,
   stepScumComputer,
 } from "../lib/scum-rooms.js";
@@ -54,9 +55,8 @@ test("only the host can add computer seats", async () => {
 });
 
 test("a Scum room stops seating players at its advertised maximum", async () => {
-  // Join checked only that the game had not started, so a room seated 40
-  // players and dealt them in — against a catalogue that says 3-10 and a table
-  // that cannot draw more than ten seats.
+  // Join checked only that the game had not started, so a room once seated 40
+  // players and dealt them in. The catalogue advertises 3-20.
   const created = await createScumRoom({ name: "Host" });
   const roomCode = created.state.roomCode;
   for (let index = 2; index <= SCUM_MAX_PLAYERS; index += 1) {
@@ -67,6 +67,16 @@ test("a Scum room stops seating players at its advertised maximum", async () => 
     () => addScumComputer({ roomCode, token: created.token }),
     /room is full/,
   );
+});
+
+test("a Scum room caps class passing at four groups", async () => {
+  const created = await createScumRoom({ name: "Host" });
+  const roomCode = created.state.roomCode;
+  for (let index = 2; index <= 10; index += 1) {
+    await addScumComputer({ roomCode, token: created.token });
+  }
+  const { state } = await setScumRoomOptions({ roomCode, token: created.token, passGroupCount: 5 });
+  assert.equal(state.passGroupCount, 4);
 });
 
 test("display names are bounded", async () => {

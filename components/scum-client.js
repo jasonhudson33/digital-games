@@ -15,6 +15,7 @@ import {
   chooseScumCardSelection,
   getLegalScumPlays,
   getScumDeckCount,
+  getScumMaxPassGroups,
   isLegalScumPlay,
   scumPlaceName,
   scumRankLabel,
@@ -196,7 +197,7 @@ export default function ScumClient() {
 
   if (game.phase === "lobby") {
     const me = game.players.find((player) => player.isViewer) ?? game.players[0];
-    const maximumGroups = Math.floor(game.players.length / 2);
+    const maximumGroups = getScumMaxPassGroups(game.players.length);
     return <SharedLobby computerSpeed={computerSpeed}
       gameName="Scum"
       theme="tbl-light scum-theme"
