@@ -241,6 +241,8 @@ export default function ScumClient() {
   const viewer = game.players[viewerPlayerIndex];
   const humanTurn = game.phase === "playing" && game.currentPlayerIndex === viewerPlayerIndex;
   const humanContinuation = humanTurn && game.continuationPlayerIndex === viewerPlayerIndex;
+  const passedPlayers = game.passed ?? [];
+  const viewerPassed = game.phase === "playing" && passedPlayers.includes(viewerPlayerIndex) && !humanContinuation;
   const activePlayerCount = game.playerCount || game.players.length;
   const activeDeckCount = game.deckCount || getScumDeckCount(activePlayerCount);
   const legalPlays = humanTurn ? getLegalScumPlays(game, viewerPlayerIndex) : [];
@@ -286,6 +288,7 @@ export default function ScumClient() {
               player={player}
               playerCount={activePlayerCount}
               active={game.currentPlayerIndex === playerIndex}
+              passed={game.phase === "playing" && passedPlayers.includes(playerIndex)}
             />
           ))}
         </div>
@@ -330,14 +333,14 @@ export default function ScumClient() {
           </div>
         </div>
 
-        <section className={`scum-your-seat ${humanTurn ? "active" : ""}`}>
+        <section className={`scum-your-seat ${humanTurn ? "active" : ""} ${viewerPassed ? "passed" : ""}`}>
           <div className="your-seat-meta">
             <span className="your-avatar">{viewer.name.slice(0, 1).toUpperCase()}</span>
             <div><strong>{viewer.name}</strong><small>{viewer.handCount} cards</small></div>
             <span className="your-turn-chip">
               {viewer.place
                 ? scumPlaceName(viewer.place, activePlayerCount)
-                : humanContinuation ? "Continuation" : humanTurn ? "Your turn" : viewer.title || "Waiting"}
+                : humanContinuation ? "Continuation" : humanTurn ? "Your turn" : viewerPassed ? "Passed" : viewer.title || "Waiting"}
             </span>
           </div>
 
@@ -430,9 +433,9 @@ function PlayingCard({ card, className = "", style }) {
   );
 }
 
-function Opponent({ player, playerCount, active }) {
+function Opponent({ player, playerCount, active, passed }) {
   return (
-    <div className={`scum-opponent ${active ? "active" : ""} ${player.place ? "finished" : ""}`}>
+    <div className={`scum-opponent ${active ? "active" : ""} ${player.place ? "finished" : ""} ${passed ? "passed" : ""}`}>
       <div className="opponent-avatar">{player.name.slice(0, 1)}</div>
       <div className="opponent-copy">
         <strong>{player.name}</strong>
@@ -441,6 +444,7 @@ function Opponent({ player, playerCount, active }) {
             ? scumPlaceName(player.place, playerCount)
             : player.title ? `${player.title} · ${player.handCount} cards` : `${player.handCount} cards`}
         </small>
+        {passed && <span className="opponent-passed">Passed</span>}
       </div>
       <div className="opponent-cards" aria-hidden="true">
         {Array.from({ length: Math.min(5, player.handCount) }, (_, index) => <span key={index} style={{ "--i": index }} />)}
@@ -460,7 +464,7 @@ function RulesDialog({ open, onClose }) {
       <article><b>Set the order</b><p>Left of the dealer starts round one. After that, every turn follows the previous finish order: President first and Scum last.</p></article>
       <article><b>Bring the table</b><p>Invite any number of players. The game adds one 54-card deck for every four players.</p></article>
       <article><b>Trade by class</b><p>Choose how many class pairs exchange before each later round. Lower classes must give their best cards; each inner pair trades one fewer.</p></article>
-      <article><b>Pass or climb</b><p>Once you pass, you sit out until the pile clears. Four of a kind burns the pile.</p></article>
+      <article><b>Pass or climb</b><p>Once you pass, you sit out until the pile clears. The pile clears only when everyone else has passed.</p></article>
       <article><b>Continue or move on</b><p>After everyone else passes, the last player may keep climbing on the same pile or clear it and lead a new play.</p></article>
     </div>
   </ChoiceModal>;

@@ -194,6 +194,9 @@ html[data-route="scum"] {
 }
 .scum-opponent.active { border-color: rgba(226, 184, 79, .38); background: rgba(255,255,255,.06); }
 .scum-opponent.finished { opacity: .62; }
+.scum-opponent.passed { opacity: .55; }
+.opponent-passed { display: inline-block; margin-top: 4px; padding: 2px 7px; border: 1px solid rgba(246,237,216,.22); border-radius: 999px; color: rgba(245,236,215,.75); text-transform: uppercase; letter-spacing: .1em; font-size: .56rem; font-weight: 800; }
+.scum-your-seat.passed .your-turn-chip { color: rgba(245,236,215,.75); background: rgba(255,255,255,.08); }
 .opponent-avatar { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(246,237,216,.18); border-radius: 50%; color: var(--scum-gold); background: rgba(7,26,21,.72); font: 700 1rem var(--font-ui); }
 .opponent-copy strong, .opponent-copy small { display: block; }
 .opponent-copy strong { font-size: .86rem; }

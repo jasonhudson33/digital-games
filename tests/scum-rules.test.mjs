@@ -10,6 +10,7 @@ import {
   getScumDeckCount,
   getScumMaxPassGroups,
   getScumTradeGroups,
+  isLegalScumPlay,
   moveOnScumPile,
   passScumTurn,
   playScumCards,
@@ -293,22 +294,43 @@ test("a response must match the set size and beat its rank", () => {
   assert.deepEqual(legal[0].map((card) => card.rank), [8, 8]);
 });
 
-test("four of a kind burns the pile and keeps the lead", () => {
-  const cards = ["clubs", "diamonds", "hearts", "spades"].map((suit) => ({
-    id: `9-${suit}`,
-    rank: 9,
-    suit,
-  }));
+function fourOf(rank) {
+  return ["clubs", "diamonds", "hearts", "spades"].map((suit) => ({ id: `${rank}-${suit}`, rank, suit }));
+}
+
+test("four of a kind stays on the pile and the turn moves on", () => {
+  const nines = fourOf(9);
   const base = createScumGame({ random: still });
   const game = {
     ...base,
     currentPlayerIndex: 0,
-    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [...cards, { id: "10-clubs", rank: 10, suit: "clubs" }] } : player),
+    players: base.players.map((player, index) => index === 0 ? { ...player, hand: [...nines, { id: "10-clubs", rank: 10, suit: "clubs" }] } : player),
   };
 
-  const next = playScumCards(game, 0, cards.map((card) => card.id));
-  assert.equal(next.pile, null);
-  assert.equal(next.currentPlayerIndex, 0);
+  const next = playScumCards(game, 0, nines.map((card) => card.id));
+  assert.equal(next.pile.count, 4);
+  assert.equal(next.pile.rank, 9);
+  assert.notEqual(next.currentPlayerIndex, 0);
+});
+
+test("only a higher four of a kind beats a four on the pile", () => {
+  const tens = fourOf(10);
+  const sevens = fourOf(7).map((card) => ({ ...card, id: `low-${card.id}` }));
+  const base = createScumGame({ random: still });
+  const game = {
+    ...base,
+    currentPlayerIndex: 1,
+    lastPlayerIndex: 0,
+    pile: { rank: 9, count: 4, cards: fourOf(9), playerIndex: 0 },
+    players: base.players.map((player, index) => index === 1 ? { ...player, hand: [...tens, ...sevens, { id: "k", rank: 13, suit: "clubs" }] } : player),
+  };
+
+  assert.equal(isLegalScumPlay(game, 1, sevens.map((card) => card.id)), false);
+  assert.equal(playScumCards(game, 1, sevens.map((card) => card.id)), game);
+  const next = playScumCards(game, 1, tens.map((card) => card.id));
+  assert.equal(next.pile.rank, 10);
+  assert.equal(next.pile.count, 4);
+  assert.equal(next.lastPlayerIndex, 1);
 });
 
 test("the last player may continue after everyone else passes", () => {
