@@ -1,49 +1,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronRight, PenLine, Shuffle, Sparkles, Users } from "lucide-react";
+import { Bot, Check, ChevronRight, PenLine, Shuffle, Sparkles, Users } from "lucide-react";
 import { WhatIfRoomService } from "./what-if-room-service";
 import { MAX_PLAYERS, MAX_TEXT, MIN_PLAYERS } from "../lib/what-if";
 import { useEngineRoom } from "../lib/use-engine-room.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby } from "./ui/table-shell";
 
+const WRITING = new Set(["ifs", "thens"]);
+
+/** A computer still has to write in this step; the view lists who is writing and who is done. */
+function computerWriting(room) {
+  if (!WRITING.has(room?.phase)) return null;
+  const writers = new Set(room.writers || []);
+  const submitted = new Set(room.submitted || []);
+  return room.players.find((player) => player.isComputer && writers.has(player.id) && !submitted.has(player.id)) ?? null;
+}
+
 /**
- * What If (games/what-if). Everyone writes a "What if…" and a "Then…", the
- * server mixes the halves so nobody gets their own THEN back, and the host
- * steps the table through the results. The server never sends anyone else's
- * words before the reveal reaches them.
+ * What If (games/what-if). Everyone writes a "What if…"; each player then draws
+ * one at random (maybe their own) and writes a "Then…" for it; finally the
+ * THENs are dealt to the IFs at random and the host reads them out one by one.
+ * The server never sends anyone else's words before the rules reveal them.
  */
 export default function WhatIfClient() {
   const {
     room, playerId, name, setName, joinCode, setJoinCode,
-    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom,
-  } = useEngineRoom({ service: WhatIfRoomService, storageKey: "what-if" });
+    busy, error, createRoom, joinRoom, act, leaveRoom: leaveEngineRoom, computerSpeed,
+  } = useEngineRoom({ service: WhatIfRoomService, storageKey: "what-if", computerDue: (current) => Boolean(computerWriting(current)) });
   const [showRules, setShowRules] = useState(false);
-  const [ifText, setIfText] = useState("");
-  const [thenText, setThenText] = useState("");
+  const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
 
-  // A new round starts with empty boxes; a reload refills them from the server.
-  const round = room?.round ?? 0;
-  const savedIf = room?.myEntry?.if ?? "";
-  const savedThen = room?.myEntry?.then ?? "";
+  // Each writing step starts with an empty box; a reload refills it from the server.
+  const step = `${room?.round ?? 0}:${room?.phase ?? ""}`;
+  const saved = room?.myText ?? "";
   useEffect(() => {
-    setIfText(savedIf);
-    setThenText(savedThen);
+    setText(saved);
     setEditing(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round]);
+  }, [step]);
   useEffect(() => {
-    if (!editing && savedIf) {
-      setIfText(savedIf);
-      setThenText(savedThen);
-    }
-  }, [editing, savedIf, savedThen]);
+    if (!editing && saved) setText(saved);
+  }, [editing, saved]);
 
   const rulesDialog = showRules && <RulesModal onClose={() => setShowRules(false)} />;
 
   function leaveRoom() {
-    if (room?.phase === "writing" && ifText.trim() && !room?.myEntry
+    if (WRITING.has(room?.phase) && text.trim() && !room?.myText
       && !window.confirm("Leave the table? What you've written will be lost.")) return;
     leaveEngineRoom();
   }
@@ -57,11 +61,11 @@ export default function WhatIfClient() {
       hero={<Hero
         kicker="The mix-and-match party game"
         title={<>What if…<br /><em>then what?</em></>}
-        copy="Everyone secretly writes a What if and a Then. We shuffle the halves and read out the gloriously wrong results."
+        copy="Everyone writes a What if. Draw one and answer it with a Then. We shuffle the Thens and read out the gloriously wrong results."
         badges={[
-          { icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} people` },
+          { icon: Users, label: `${MIN_PLAYERS}–${MAX_PLAYERS} players` },
           { icon: PenLine, label: "Write your own" },
-          { icon: Shuffle, label: "Mixed by the table" },
+          { icon: Bot, label: "Computer players" },
         ]}
         art={[
           <SlipCard key="a" kind="if" text="the moon were made of cheese" />,
@@ -75,7 +79,7 @@ export default function WhatIfClient() {
   }
 
   if (room.phase === "lobby") {
-    return <Lobby
+    return <Lobby computerSpeed={computerSpeed}
       gameName="What If"
       theme="tbl-light what-if-theme"
       room={room}
@@ -84,6 +88,8 @@ export default function WhatIfClient() {
       error={error}
       min={MIN_PLAYERS}
       max={MAX_PLAYERS}
+      onAdd={() => act("addComputer")}
+      onRemove={(id) => act("removeComputer", { playerId: id })}
       onStart={() => act("start")}
       onLeave={leaveRoom}
       onRules={() => setShowRules(true)}
@@ -92,35 +98,36 @@ export default function WhatIfClient() {
   }
 
   const isHost = room.hostId === playerId;
-  const submitted = new Set(room.submitted || []);
   const nameOf = (id) => room.players.find((player) => player.id === id)?.name ?? "Someone";
-  const status = room.phase === "writing"
-    ? `${submitted.size} of ${room.players.length} written`
-    : room.phase === "reveal"
-      ? `Pair ${room.revealIndex + 1} of ${room.pairCount}`
-      : "All revealed";
+  const writingComputer = computerWriting(room);
+  const submittedCount = (room.submitted || []).length;
+  const writerCount = (room.writers || []).length;
+  const status = room.phase === "ifs"
+    ? writingComputer && room.myText ? `${writingComputer.name} is writing…` : `What ifs: ${submittedCount} of ${writerCount}`
+    : room.phase === "thens"
+      ? writingComputer && room.myText ? `${writingComputer.name} is writing…` : `Thens: ${submittedCount} of ${writerCount}`
+      : room.phase === "reveal"
+        ? `Pair ${room.revealIndex + 1} of ${room.pairCount}`
+        : "All read";
 
   return <main className="wi-game-shell tbl-light what-if-theme">
-    <GameHeader title="What If" room={room} subtitle={`Round ${room.round}`} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
+    <GameHeader computerSpeed={computerSpeed} title="What If" room={room} subtitle={`Round ${room.round}`} status={status} onRules={() => setShowRules(true)} onLeave={leaveRoom} />
     {error && <p className="wi-error" role="alert">{error}</p>}
 
-    {room.phase === "writing" && <WritingStage
+    {WRITING.has(room.phase) && <WritingStage
       room={room}
       me={me}
       isHost={isHost}
       busy={busy}
-      submitted={submitted}
-      ifText={ifText}
-      thenText={thenText}
-      setIfText={setIfText}
-      setThenText={setThenText}
-      editing={editing || !room.myEntry}
+      text={text}
+      setText={setText}
+      editing={editing || !room.myText}
       onEdit={() => setEditing(true)}
       onSubmit={async () => {
-        const saved = await act("submit", { if: ifText, then: thenText });
-        if (saved) setEditing(false);
+        const savedState = await act("submit", { text });
+        if (savedState) setEditing(false);
       }}
-      onMix={() => act("mixNow")}
+      onContinue={() => act("continueNow")}
     />}
 
     {room.phase === "reveal" && <RevealStage room={room} isHost={isHost} busy={busy} nameOf={nameOf} onNext={() => act("next")} />}
@@ -131,55 +138,65 @@ export default function WhatIfClient() {
   </main>;
 }
 
-function WritingStage({ room, me, isHost, busy, submitted, ifText, thenText, setIfText, setThenText, editing, onEdit, onSubmit, onMix }) {
-  const ready = ifText.trim() && thenText.trim();
-  const mySubmitted = submitted.has(me.id);
-  const canMix = isHost && submitted.size >= MIN_PLAYERS && submitted.size < room.players.length;
-  return <section className="wi-stage">
-    {editing ? <form className="wi-write" onSubmit={(event) => { event.preventDefault(); if (ready) onSubmit(); }}>
-      <label className="wi-slip if">
-        <span>What if…</span>
-        <textarea
-          value={ifText}
-          maxLength={MAX_TEXT}
-          rows={3}
-          placeholder="…dogs could talk"
-          onChange={(event) => setIfText(event.target.value)}
-        />
-        <small>{ifText.length} / {MAX_TEXT}</small>
-      </label>
-      <label className="wi-slip then">
-        <span>Then…</span>
-        <textarea
-          value={thenText}
-          maxLength={MAX_TEXT}
-          rows={3}
-          placeholder="…the mail carrier would need a lawyer"
-          onChange={(event) => setThenText(event.target.value)}
-        />
-        <small>{thenText.length} / {MAX_TEXT}</small>
-      </label>
-      <button type="submit" className="tbl-primary wi-submit" disabled={busy || !ready}>
-        {mySubmitted ? "Update" : "Submit"} <ChevronRight aria-hidden="true" />
-      </button>
-    </form> : <div className="wi-write wi-sent">
-      <p className="wi-kicker"><Check aria-hidden="true" /> Submitted</p>
-      <SlipCard kind="if" text={room.myEntry.if} />
-      <SlipCard kind="then" text={room.myEntry.then} />
-      <button type="button" className="tbl-link" onClick={onEdit}>Edit until everyone's in</button>
-    </div>}
+function WritingStage({ room, me, isHost, busy, text, setText, editing, onEdit, onSubmit, onContinue }) {
+  const thenStep = room.phase === "thens";
+  const writers = new Set(room.writers || []);
+  const submitted = new Set(room.submitted || []);
+  const writing = writers.has(me.id);
+  const label = thenStep ? "Then…" : "What if…";
+  const canContinue = isHost && submitted.size >= MIN_PLAYERS && submitted.size < writers.size;
 
+  let panel;
+  if (!writing) {
+    panel = <div className="wi-write wi-sent">
+      <p className="wi-kicker">Sitting this round out</p>
+      <p className="wi-hint">The table moved on before your What if was in. You'll be dealt in next round.</p>
+    </div>;
+  } else if (!editing) {
+    panel = <div className="wi-write wi-sent">
+      <p className="wi-kicker"><Check aria-hidden="true" /> Submitted</p>
+      {thenStep && room.myDraw && <SlipCard kind="if" text={room.myDraw.ifText} />}
+      <SlipCard kind={thenStep ? "then" : "if"} text={room.myText} />
+      <button type="button" className="tbl-link" onClick={onEdit}>Edit until everyone's in</button>
+    </div>;
+  } else {
+    panel = <form className="wi-write" onSubmit={(event) => { event.preventDefault(); if (text.trim()) onSubmit(); }}>
+      {thenStep && room.myDraw && <>
+        <p className="wi-kicker"><Shuffle aria-hidden="true" /> You drew</p>
+        <SlipCard kind="if" text={room.myDraw.ifText} />
+      </>}
+      <label className={`wi-slip ${thenStep ? "then" : "if"}`}>
+        <span>{label}</span>
+        <textarea
+          value={text}
+          maxLength={MAX_TEXT}
+          rows={3}
+          placeholder={thenStep ? "…what happens next?" : "…dogs could talk"}
+          onChange={(event) => setText(event.target.value)}
+        />
+        <small>{text.length} / {MAX_TEXT}</small>
+      </label>
+      <button type="submit" className="tbl-primary wi-submit" disabled={busy || !text.trim()}>
+        {room.myText ? "Update" : "Submit"} <ChevronRight aria-hidden="true" />
+      </button>
+    </form>;
+  }
+
+  return <section className="wi-stage">
+    {panel}
     <aside className="wi-table" aria-label="Who has written">
-      <p className="wi-kicker">At the table</p>
+      <p className="wi-kicker">{thenStep ? "Writing Thens" : "Writing What ifs"}</p>
       <ul>
-        {room.players.map((player) => <li key={player.id} className={submitted.has(player.id) ? "done" : ""}>
-          <span>{player.name}{player.id === me.id ? " (you)" : ""}</span>
+        {room.players.filter((player) => writers.has(player.id)).map((player) => <li key={player.id} className={submitted.has(player.id) ? "done" : ""}>
+          <span>{player.isComputer && <Bot aria-hidden="true" className="wi-bot" />}{player.name}{player.id === me.id ? " (you)" : ""}</span>
           {submitted.has(player.id) ? <Check aria-label="written" /> : <small>writing…</small>}
         </li>)}
       </ul>
-      <p className="wi-hint">The mix happens as soon as everyone has written.</p>
-      {canMix && <button type="button" className="tbl-secondary wi-mix" disabled={busy} onClick={onMix}>
-        <Shuffle aria-hidden="true" /> Mix now with {submitted.size}
+      <p className="wi-hint">{thenStep
+        ? "When every Then is in, they're shuffled onto the What ifs."
+        : "When every What if is in, each player draws one at random."}</p>
+      {canContinue && <button type="button" className="tbl-secondary wi-mix" disabled={busy} onClick={onContinue}>
+        <Shuffle aria-hidden="true" /> Continue with {submitted.size}
       </button>}
     </aside>
   </section>;
@@ -226,12 +243,12 @@ function SlipCard({ kind, text }) {
 }
 
 function RulesModal({ onClose }) {
-  return <ChoiceModal wide title="Write it. Mix it. Read it." text={`A party game for ${MIN_PLAYERS}–${MAX_PLAYERS} people.`} onClose={onClose}>
+  return <ChoiceModal wide title="Ask it. Answer it. Mix it." text={`A party game for ${MIN_PLAYERS}–${MAX_PLAYERS} players.`} onClose={onClose}>
     <div className="tbl-rule-grid">
-      <article><b>Write two halves</b><p>Everyone secretly writes a “What if…” and a “Then…” that follows from it. Nobody sees anyone else’s.</p></article>
-      <article><b>The mix</b><p>Once everyone has written, the halves are shuffled so every What if meets a Then written by someone else.</p></article>
-      <article><b>The reveal</b><p>The host shows the pairs one at a time. Read them out loud — then see who wrote each half.</p></article>
-      <article><b>Again!</b><p>No points, no winners. When the last pair is read, the host can start a fresh round.</p></article>
+      <article><b>Write a What if</b><p>Everyone secretly writes a “What if…”. Nobody sees anyone else’s.</p></article>
+      <article><b>Draw and answer</b><p>Each player draws one of the What ifs at random — it might be their own — and writes a “Then…” for it.</p></article>
+      <article><b>The mix</b><p>The Thens are shuffled and dealt back onto the What ifs at random, so most answers land on the wrong question.</p></article>
+      <article><b>Read them all</b><p>The host shows the pairs one at a time until every one has been read. Then go again!</p></article>
     </div>
   </ChoiceModal>;
 }

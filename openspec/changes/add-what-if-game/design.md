@@ -33,7 +33,7 @@ Engine-room games (No Thanks! is the smallest) are made of a few pieces:
   - Reveal: `pairs.slice(0, revealIndex + 1)`, with the current pair last, and `pairCount`.
   - Done: all pairs.
   - The raw `entries` and `pairs` are never sent.
-- **Actions:** `start` (host), `submit` (any seat: `{ if, then }`), `mixNow` (host, needs at least 3 entries), `next` (host), `playAgain` (host, from `done`). `computerStep` returns the game unchanged, there are no computer actions, and the lobby gets no Add computer button.
+- **Actions:** `start` (host), `submit` (any seat: `{ if, then }`), `mixNow` (host, needs at least 3 entries), `next` (host), `playAgain` (host, from `done`). `addComputer`/`removeComputer` (host, lobby only). `computerStep` has the first computer that hasn't written submit a random IF and THEN from `lib/what-if-lines.js`, skipping lines already used that round. It goes through `submitEntry`, so the last computer in triggers the mix. The client's `computerDue` is "writing, and a computer isn't in `submitted`", so the host's browser paces the computers at the room's computer speed like other games.
 - **Client (`components/what-if-client.js`):**
   - **Shared screens:** `useEngineRoom`, plus the shared `Landing`, `Lobby`, `GameHeader` and a rules `ChoiceModal`.
   - **Writing:** two labelled `<textarea>`s with "What if…" and "Then…" placeholders, character counters, and Submit / Update. Seat chips show "done" ticks, and the host gets a Mix now button once 3 have submitted.
@@ -46,3 +46,13 @@ Engine-room games (No Thanks! is the smallest) are made of a few pieces:
 - [Free text from players can be crude] → It's a private-room game among friends, and React escapes all text. No moderation in v1.
 - [A host who leaves strands the reveal] → The same as other host-paced games today. Out of scope.
 - [A new `kind` may need a hub filter label or icon] → `KINDS` drives the hub and the command palette. Check the hub renders the new group.
+
+## Update: three-step rounds
+
+This replaced the original "write both halves, then mix" flow at the user's request.
+
+- **State:** `{ phase: "lobby" | "ifs" | "thens" | "reveal" | "done", ifs: {playerId: text}, draws: {drawerId: ifAuthorId}, thens: {drawerId: text}, pairs, revealIndex }`.
+- **Dealing:** `dealIfs` shuffles the IF writers and pairs them with the writer list as a random permutation, so a player can draw their own.
+- **Matching:** `matchPairs` takes the IFs drawn by players who wrote a THEN, shuffles the THENs onto them (fully random, so a THEN may land on its own IF), then shuffles the reading order.
+- **Actions:** a single `submit { text }` action follows the phase. `continueNow` (host, at least 3 done) ends either writing step early.
+- **View:** `writers` is who is writing this step and `submitted` is who is done. `myText` is your own text for this step. In the THEN step, `myDraw = { ifText }` only, with no author.

@@ -79,7 +79,7 @@ html[data-route="what-if"] {
 .wi-slip textarea:focus-visible { outline: 3px solid var(--accent-soft); border-color: var(--accent); }
 .wi-slip small { justify-self: end; color: var(--wi-muted); font-size: .72rem; }
 .wi-submit { justify-self: end; min-height: 44px; }
-.wi-sent .wi-slip-card { width: 100%; box-shadow: none; }
+.wi-write .wi-slip-card { width: 100%; box-shadow: none; }
 .wi-sent .tbl-link { justify-self: start; }
 
 .wi-table { padding: 14px; border: 1px solid rgba(36,26,34,.1); border-radius: 18px; background: var(--wi-paper); }
@@ -88,6 +88,7 @@ html[data-route="what-if"] {
 .wi-table li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wi-table li.done { background: rgba(70,160,110,.12); }
 .wi-table li svg { flex: none; width: 18px; height: 18px; color: #2f8a5a; }
+.wi-table li .wi-bot { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; color: var(--wi-muted); }
 .wi-table li small { flex: none; color: var(--wi-muted); font-size: .72rem; }
 .wi-mix { width: 100%; min-height: 44px; margin-top: 12px; }
 

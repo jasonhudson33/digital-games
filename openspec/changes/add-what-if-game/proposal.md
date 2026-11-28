@@ -2,18 +2,18 @@
 
 ## Why
 
-The site has card, board and hidden-role games, but nothing built on what the players themselves write. "What If" is a simple party game for that. Everyone secretly writes a "What if…" and a "Then…", the server mixes the halves so every IF meets someone else's THEN, and the table reads the absurd results together. It fits the existing engine-room model: the server holds what everyone wrote and reveals it only when the rules say so.
+The site has card, board and hidden-role games, but nothing built on what the players themselves write. "What If" is a simple party game for that. Everyone secretly writes a "What if…", each player draws one at random and answers it with a "Then…", and the server deals the Thens back onto the What ifs at random for the table to read together. It fits the existing engine-room model: the server holds what everyone wrote and reveals it only when the rules say so.
 
 ## What Changes
 
-- A new online game, **What If**, at `/what-if`, for 3–20 people (no computer players), using the shared landing page, lobby, game bar and rules dialog.
-- **Writing phase:** each player fills in a "What if…" text area and a "Then…" text area (up to 200 characters each) and submits. They can edit until the mix. Players see who has submitted, but never what anyone wrote.
-- **Mix:** when everyone has submitted, or when the host taps "Mix now" with at least 3 submitted, the server pairs every IF with a THEN from a different writer. Players who hadn't submitted sit that round out.
-- **Reveal:** the host steps through the pairs one at a time with Next, and every screen shows the same pair, followed by who wrote the IF and who wrote the THEN.
+- A new online game, **What If**, at `/what-if`, for 3–20 players, using the shared landing page, lobby, game bar and rules dialog. The host can add computer players, who write from a built-in bank of lines.
+- **What if step:** each player writes only a "What if…" in one text area (up to 200 characters). They can edit until the step ends. Players see who has written, never what.
+- **Then step:** once every What if is in (or the host continues with at least 3), each player draws one at random (possibly their own), sees only its text, and writes a "Then…" for it.
+- **Reveal:** the Thens are dealt onto the What ifs at random, and the host steps through every pair one at a time with Next. Every screen shows the same pair, followed by who wrote each half.
 - **Play again** starts a new writing round in the same room.
 - A catalog entry, and a new "Party" kind for the hub filters.
 
-Out of scope: scoring or voting, multiple IFs per player, computer players, and moderating what people write.
+Out of scope: scoring or voting, multiple IFs per player, and moderating what people write.
 
 ## Capabilities
 
