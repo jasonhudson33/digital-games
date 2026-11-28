@@ -24,6 +24,7 @@ import {
 import { RESOURCE_INFO, SQRT3, BOARD_CENTER, HEX_SIZE, RESOURCES, PLAYER_STYLES, COSTS, axialTiles, centerFor, cornersFor, geometry, baseTileSpecs, expandedCenter, expandedHexSize, expandedTileSpecs, BASE_BOARD, EXPANDED_BOARD, seafarersAxials, seafarersCenter, seafarersHexSize, SEAFARERS_BOARD, axialDistance, FOREIGN_ISLANDS, boardForPlayerCount, boardForGame, createPorts, createSeafarersPorts, midpointForEdge, emptyResources, totalResources, canAfford, payCost, isSettlementLegal, edgeTouchesTerrain, isTransportLegal } from "../lib/catan-board.js";
 import { createGame, createLobby, placeStartingSettlement, placeStartingRoad, isShipMovable, moveShip, resolveDiceRoll, advanceGameTurn, buyDevelopmentCardFor, playDevelopmentCardFor, completeFreeTransport, resolveDevelopmentResourceChoice, completeBuild, resolveRobberMove, selectRobberVictim, resolveRobberSteal, resolvePirateMove, resolveGoldChoice, awardProgressCards, discardProgressCardFor, computerHasAction, discardForComputer, bestComputerRobberTile, takeComputerAction, advanceBarbarians, buildKnight, promoteKnightAt, activateKnightAt, buildCityWall, improveCityTrack } from "../lib/catan-engine.js";
 import { CatanRoomService } from "./catan-room-service";
+import { resumeRoom } from "../lib/room-seat.js";
 import { catanRuntime } from "./catan-runtime";
 import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
 import { useComputerPacer } from "../lib/use-computer-pacer.js";
@@ -129,15 +130,22 @@ export default function CatanClient() {
     const code = joinCode.trim().toUpperCase();
     if (!isReady || !code || game || !CatanRoomService.hasSeat(code)) return undefined;
     let cancelled = false;
-    void CatanRoomService.load(code).then((existing) => {
-      if (cancelled || !existing) return;
-      setGame(existing);
-      latestGame.current = existing;
-      const me = existing.players.find((player) => player.id === existing.viewerId);
-      if (me) setName(me.name);
-      window.history.replaceState(null, "", `?room=${existing.roomCode}`);
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
+    // Retry through a slow wake-up instead of giving up on the first failure.
+    const cancelResume = resumeRoom({
+      load: () => CatanRoomService.load(code),
+      onStale: () => { if (!cancelled) setError(""); },
+      onRetrying: () => { if (!cancelled) setError(`Reconnecting to room ${code}…`); },
+      onState: (existing) => {
+        if (cancelled) return;
+        setError("");
+        setGame(existing);
+        latestGame.current = existing;
+        const me = existing.players.find((player) => player.id === existing.viewerId);
+        if (me) setName(me.name);
+        window.history.replaceState(null, "", `?room=${existing.roomCode}`);
+      },
+    });
+    return () => { cancelled = true; cancelResume(); };
   }, [game, isReady, joinCode]);
 
   useEffect(() => {

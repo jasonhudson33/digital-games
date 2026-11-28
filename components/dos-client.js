@@ -6,6 +6,7 @@ import { Bot, Trophy, Users } from "lucide-react";
 import { CardBack, ColorGameCard, cardName } from "./color-game-card";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import { DosRoomService } from "./dos-room-service";
+import { resumeRoom } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import { MAX_PLAYERS, MIN_PLAYERS, currentPlayer, matchOptions } from "../lib/dos";
 import CardFan from "./card-fan";
@@ -30,9 +31,14 @@ export default function DosClient() {
   useEffect(() => {
     setName(localStorage.getItem(keys.name) || "");
     const activeCode = localStorage.getItem(keys.room);
-    if (activeCode) DosRoomService.load(activeCode).then((loaded) => {
-      if (loaded) setRoom(loaded);
-    }).catch(() => localStorage.removeItem(keys.room));
+    if (!activeCode) return undefined;
+    // Keep the room through a slow wake-up; forget it only if it is gone.
+    return resumeRoom({
+      load: () => DosRoomService.load(activeCode),
+      onState: (loaded) => { setError(""); setRoom(loaded); },
+      onStale: () => { localStorage.removeItem(keys.room); setError(""); },
+      onRetrying: () => setError(`Reconnecting to room ${activeCode}…`),
+    });
   }, []);
 
   const playerId = room?.viewerId || "";

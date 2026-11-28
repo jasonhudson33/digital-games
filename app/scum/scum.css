@@ -416,3 +416,6 @@ html[data-route="scum"] {
 }
 
 .scum-theme .scum-intro-art { width: 300px; min-height: 250px; }
+
+.scum-joining-note { margin: 6px 0 0; text-align: center; color: var(--scum-gold); font-size: .72rem; font-weight: 700; letter-spacing: .04em; }
+.tbl-results + .scum-joining-note { color: inherit; opacity: .75; }

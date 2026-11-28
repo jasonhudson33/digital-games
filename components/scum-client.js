@@ -154,6 +154,20 @@ export default function ScumClient() {
     }
   }
 
+  /** A mid-game joiner gives up their place before being dealt in. */
+  async function leaveWaitingList() {
+    const current = latestGame.current;
+    setBusy(true);
+    try {
+      if (current?.roomCode && roomToken) await ScumRoomService.action(current.roomCode, roomToken, "leave");
+    } catch {
+      // Already dealt in or the room is gone: leaving locally is still right.
+    } finally {
+      setBusy(false);
+    }
+    leaveRoom();
+  }
+
   async function roomAction(action, values = {}) {
     const current = latestGame.current;
     if (!current?.roomCode || !roomToken) return;
@@ -254,8 +268,13 @@ export default function ScumClient() {
     />;
   }
 
+  if (game.phase === "waiting") {
+    return <WaitingScreen game={game} busy={busy} error={error} onLeave={leaveWaitingList} />;
+  }
+
   const viewerPlayerIndex = game.viewerPlayerIndex;
   const viewer = game.players[viewerPlayerIndex];
+  const joiningNames = (game.waitingPlayers ?? []).map((player) => player.name);
   const humanTurn = game.phase === "playing" && game.currentPlayerIndex === viewerPlayerIndex;
   const humanContinuation = humanTurn && game.continuationPlayerIndex === viewerPlayerIndex;
   const passedPlayers = game.passed ?? [];
@@ -315,6 +334,9 @@ export default function ScumClient() {
             <span className={humanTurn ? "is-live" : ""} />
             <strong>{game.message}</strong>
           </div>
+          {joiningNames.length > 0 && (
+            <p className="scum-joining-note">Joins next round as Scum: {joiningNames.join(", ")}</p>
+          )}
           <div className={`scum-pile ${game.pile ? "has-cards" : ""}`}>
             {game.pile ? (
               <>
@@ -543,7 +565,44 @@ function TradeDialog({ game, viewerPlayerIndex, selectedIds, onToggle, onComplet
   );
 }
 
+function WaitingScreen({ game, busy, error, onLeave }) {
+  return (
+    <main className="tbl-lobby tbl-light scum-theme" data-layout="lobby">
+      <section>
+        <header className="tbl-lobby-head">
+          <div>
+            <p className="tbl-kicker">Scum · Round {game.roundNumber} in progress</p>
+            <h1>Room {game.roomCode}</h1>
+            <p className="tbl-lobby-hint">You’ll be dealt in next round as Scum.</p>
+          </div>
+        </header>
+        <div className="tbl-seats" aria-label="Players at the table">
+          {game.players.map((player) => (
+            <article key={player.playerId} className="tbl-seat">
+              <span className="tbl-seat-avatar" aria-hidden="true">{player.isComputer ? <Bot /> : <Users />}</span>
+              <div><strong>{player.name}</strong><small>Playing</small></div>
+            </article>
+          ))}
+          {game.waitingPlayers.map((player) => (
+            <article key={player.playerId} className="tbl-seat">
+              <span className="tbl-seat-avatar" aria-hidden="true"><Users /></span>
+              <div>
+                <strong>{player.name}{player.playerId === game.viewerPlayerId ? " (you)" : ""}</strong>
+                <small>Joins next round</small>
+              </div>
+            </article>
+          ))}
+        </div>
+        <p className="tbl-wait">Waiting for the host to deal the next round…</p>
+        <button type="button" className="tbl-link tbl-leave" disabled={busy} onClick={onLeave}>Leave room</button>
+        {error && <p className="tbl-error" role="alert">{error}</p>}
+      </section>
+    </main>
+  );
+}
+
 function Results({ game, viewerPlayerIndex, onReplay }) {
+  const joining = (game.waitingPlayers ?? []).map((player) => player.name);
   return (
     <SharedResults
       title={game.standings[0] === viewerPlayerIndex ? "You rule the table." : `${game.players[game.standings[0]].name} takes the crown.`}
@@ -555,6 +614,7 @@ function Results({ game, viewerPlayerIndex, onReplay }) {
         note: scumPlaceName(index + 1, game.playerCount || game.players.length),
       }))}
     >
+      {joining.length > 0 && <p className="scum-joining-note">Joins next round as Scum: {joining.join(", ")}</p>}
       {game.hostControls
         ? <button type="button" className="tbl-primary" onClick={onReplay}>Start next round <ChevronRight size={18} /></button>
         : <p className="tbl-wait">Waiting for the host to start the next round…</p>}

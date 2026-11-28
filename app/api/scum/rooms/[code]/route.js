@@ -3,6 +3,7 @@ import {
   addScumComputer,
   getScumRoom,
   joinScumRoom,
+  leaveScumRoom,
   moveOnScumRoomPile,
   passScumRoomTurn,
   playScumRoomCards,
@@ -25,6 +26,7 @@ export async function POST(request, context) {
   const { code } = await context.params;
   return handleRoomAction(request, code, {
     join: joinScumRoom,
+    leave: leaveScumRoom,
     addComputer: addScumComputer,
     removeComputer: removeScumComputer,
     setOptions: setScumRoomOptions,

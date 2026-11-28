@@ -36,6 +36,7 @@ import { RISK_BORDER_REGIONS, buildRiskTerritoryBorderSegments } from "../lib/ri
 import { EMBLEM_PATHS, emblemFor, inkFor, plateFor } from "../lib/risk-emblems";
 import { useBoardZoom } from "./ui/use-board-zoom";
 import { RiskRoomService } from "./risk-room-service";
+import { resumeRoom } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 import { computerDelayOf, computerSpeedProp } from "../lib/computer-speed.js";
 import { useComputerPacer } from "../lib/use-computer-pacer.js";
@@ -369,15 +370,22 @@ export default function RiskClient() {
     const code = joinCode.trim().toUpperCase();
     if (!isReady || !code || game || !RiskRoomService.hasSeat(code)) return undefined;
     let cancelled = false;
-    void RiskRoomService.load(code).then((existing) => {
-      if (cancelled || !existing) return;
-      setGame(existing);
-      latestGame.current = existing;
-      const viewer = existing.players.find((player) => player.id === existing.viewerId);
-      if (viewer) setName(viewer.name);
-      window.history.replaceState(null, "", `?room=${existing.roomCode}`);
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
+    // Retry through a slow wake-up instead of giving up on the first failure.
+    const cancelResume = resumeRoom({
+      load: () => RiskRoomService.load(code),
+      onStale: () => { if (!cancelled) setError(""); },
+      onRetrying: () => { if (!cancelled) setError(`Reconnecting to room ${code}…`); },
+      onState: (existing) => {
+        if (cancelled) return;
+        setError("");
+        setGame(existing);
+        latestGame.current = existing;
+        const viewer = existing.players.find((player) => player.id === existing.viewerId);
+        if (viewer) setName(viewer.name);
+        window.history.replaceState(null, "", `?room=${existing.roomCode}`);
+      },
+    });
+    return () => { cancelled = true; cancelResume(); };
   }, [game, isReady, joinCode]);
 
   useEffect(() => {

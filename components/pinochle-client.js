@@ -17,6 +17,7 @@ import {
 } from "../lib/pinochle";
 import { PlayedCard, Seat, SeatedTable } from "./ui/seated-table";
 import { PinochleRoomService } from "./pinochle-room-service";
+import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
 import { ChoiceModal, Dialog, GameHeader, Hero, Landing, Lobby as SharedLobby, Results as SharedResults } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
@@ -56,17 +57,14 @@ export default function PinochleClient() {
   }, [game?.phase, game?.roomCode, game?.roundNumber]);
 
   useEffect(() => {
-    if (!isReady || game || !joinCode || !roomToken) return;
-    let cancelled = false;
-    void PinochleRoomService.load(joinCode, roomToken).then((state) => {
-      if (!cancelled) setGame(state);
-    }).catch((roomError) => {
-      if (isStaleCredential(roomError)) {
-        removeStoredRoomToken(joinCode);
-        setRoomToken("");
-      } else if (!cancelled) setError(roomError.message);
+    if (!isReady || game || !joinCode || !roomToken) return undefined;
+    // Keep the seat through a slow wake-up; forget it only if the room says so.
+    return resumeRoom({
+      load: () => PinochleRoomService.load(joinCode, roomToken),
+      onState: (state) => { setError(""); setGame(state); },
+      onStale: () => { removeStoredRoomToken(joinCode); setRoomToken(""); setError(""); },
+      onRetrying: () => setError(`Reconnecting to room ${joinCode}…`),
     });
-    return () => { cancelled = true; };
   }, [game, isReady, joinCode, roomToken]);
 
   useEffect(() => {
@@ -167,6 +165,7 @@ export default function PinochleClient() {
   const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
 
   function leaveRoom() {
+    if (game?.roomCode) removeStoredRoomToken(game.roomCode);
     setGame(null);
     latestGame.current = null;
     setRoomToken("");
@@ -714,7 +713,7 @@ function handInstruction(game, yourTurn) {
   return "";
 }
 
-function storeRoomToken(code, token) { localStorage.setItem(`pinochle-room-${code}`, token); }
-function getStoredRoomToken(code) { return localStorage.getItem(`pinochle-room-${code}`) || ""; }
-function removeStoredRoomToken(code) { localStorage.removeItem(`pinochle-room-${code}`); }
-function isStaleCredential(error) { return /Join the room|Room not found/i.test(error?.message || ""); }
+function storeRoomToken(code, token) { writeSeatToken(`pinochle-room-${code}`, token); }
+function getStoredRoomToken(code) { return readSeatToken(`pinochle-room-${code}`); }
+function removeStoredRoomToken(code) { forgetSeatToken(`pinochle-room-${code}`); }
+const isStaleCredential = isStaleSeatError;

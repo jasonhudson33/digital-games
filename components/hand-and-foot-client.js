@@ -24,6 +24,7 @@ import {
   toggleHandFootCardSelection,
 } from "../lib/hand-and-foot";
 import { HandFootRoomService } from "./hand-and-foot-room-service";
+import { forgetSeatToken, isStaleSeatError, readSeatToken, resumeRoom, writeSeatToken } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing, Lobby as SharedLobby, Results } from "./ui/table-shell";
 import { orderHand } from "../lib/hand-order";
 import CardFan from "./card-fan";
@@ -60,19 +61,14 @@ export default function HandAndFootClient() {
   }, [game]);
 
   useEffect(() => {
-    if (!isReady || game || !joinCode || !roomToken) return;
-    let cancelled = false;
-    void HandFootRoomService.load(joinCode, roomToken).then((state) => {
-      if (!cancelled) setGame(state);
-    }).catch((roomError) => {
-      if (isStaleRoomCredentialError(roomError)) {
-        removeStoredRoomToken(joinCode);
-        setRoomToken("");
-      } else if (!cancelled) {
-        setError(roomError instanceof Error ? roomError.message : `Could not reconnect to room ${joinCode}.`);
-      }
+    if (!isReady || game || !joinCode || !roomToken) return undefined;
+    // Keep the seat through a slow wake-up; forget it only if the room says so.
+    return resumeRoom({
+      load: () => HandFootRoomService.load(joinCode, roomToken),
+      onState: (state) => { setError(""); setGame(state); },
+      onStale: () => { removeStoredRoomToken(joinCode); setRoomToken(""); setError(""); },
+      onRetrying: () => setError(`Reconnecting to room ${joinCode}…`),
     });
-    return () => { cancelled = true; };
   }, [game, isReady, joinCode, roomToken]);
 
   useEffect(() => {
@@ -173,6 +169,7 @@ export default function HandAndFootClient() {
   const computerSpeed = computerSpeedProp({ players: game?.players, delayMs: game?.computerDelayMs, onChange: (ms) => roomAction("setComputerSpeed", { ms }) });
 
   function leaveGame() {
+    if (game?.roomCode) removeStoredRoomToken(game.roomCode);
     setGame(null);
     latestGame.current = null;
     setRoomToken("");
@@ -522,28 +519,15 @@ function roomTokenKey(roomCode) {
 }
 
 function getStoredRoomToken(roomCode) {
-  const key = roomTokenKey(roomCode);
-  const token = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
-  if (token) {
-    localStorage.setItem(key, token);
-    sessionStorage.removeItem(key);
-  }
-  return token;
+  return readSeatToken(roomTokenKey(roomCode));
 }
 
 function storeRoomToken(roomCode, token) {
-  const key = roomTokenKey(roomCode);
-  localStorage.setItem(key, token);
-  sessionStorage.removeItem(key);
+  writeSeatToken(roomTokenKey(roomCode), token);
 }
 
 function removeStoredRoomToken(roomCode) {
-  const key = roomTokenKey(roomCode);
-  localStorage.removeItem(key);
-  sessionStorage.removeItem(key);
+  forgetSeatToken(roomTokenKey(roomCode));
 }
 
-function isStaleRoomCredentialError(error) {
-  const message = error instanceof Error ? error.message : "";
-  return message === "Room not found." || message === "Join the room before taking actions.";
-}
+const isStaleRoomCredentialError = isStaleSeatError;

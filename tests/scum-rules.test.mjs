@@ -220,6 +220,55 @@ test("the reigning President starts every later round", () => {
   assert.equal(afterPresident.currentPlayerIndex, 2);
 });
 
+function finishedFourPlayerGame(passGroupCount = 1) {
+  const base = createScumGame({ playerCount: 4, passGroupCount, random: still });
+  return {
+    ...base,
+    phase: "finished",
+    standings: [2, 0, 3, 1],
+    players: base.players.map((player, index) => ({ ...player, hand: [], place: [2, 4, 1, 3][index] })),
+  };
+}
+
+test("a newcomer is dealt in next round as Scum and trades with the President", () => {
+  const next = startNextScumRound(finishedFourPlayerGame(1), still, [{ playerId: "late", name: "Eve" }]);
+  assert.equal(next.players.length, 5);
+  assert.equal(next.playerCount, 5);
+  assert.equal(next.deckCount, 2);
+  assert.equal(next.players[4].name, "Eve");
+  assert.equal(next.players[4].playerId, "late");
+  assert.equal(next.players[4].isComputer, false);
+  assert.equal(next.players[4].title, "Scum");
+  assert.equal(next.players[1].title, "Vice Scum");
+  assert.equal(next.players[2].title, "President");
+  assert.deepEqual(next.turnOrder, [2, 0, 3, 1, 4]);
+  assert.equal(next.turnOrder.at(-1), 4);
+  for (const player of next.players) assert.ok(player.hand.length >= 21 && player.hand.length <= 22);
+  assert.deepEqual(
+    next.pendingTrades.map(({ upperPlayerIndex, lowerPlayerIndex }) => [upperPlayerIndex, lowerPlayerIndex]),
+    [[2, 4]]
+  );
+});
+
+test("the latest of several newcomers is lowest", () => {
+  const next = startNextScumRound(finishedFourPlayerGame(0), still, [
+    { playerId: "a", name: "First" },
+    { playerId: "b", name: "Second" },
+  ]);
+  assert.deepEqual(next.turnOrder, [2, 0, 3, 1, 4, 5]);
+  assert.equal(next.players[5].title, "Scum");
+  assert.equal(next.players[4].title, "Vice Scum");
+});
+
+test("with no newcomers the next round is unchanged", () => {
+  const finished = finishedFourPlayerGame(1);
+  assert.deepEqual(startNextScumRound(finished, still, []), startNextScumRound(finished, still));
+  const next = startNextScumRound(finished, still);
+  assert.equal(next.deckCount, finished.deckCount);
+  assert.deepEqual(next.turnOrder, [2, 0, 3, 1]);
+  assert.equal(next.players[1].title, "Scum");
+});
+
 test("two passing groups trade two outer cards and one inner card", () => {
   const base = createScumGame({ playerCount: 6, passGroupCount: 2, random: still });
   const finished = {

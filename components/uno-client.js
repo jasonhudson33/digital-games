@@ -6,6 +6,7 @@ import { Bot, Trophy, Users } from "lucide-react";
 import { ColorGameCard, CardBack, cardName } from "./color-game-card";
 import { Seat, SeatedTable } from "./ui/seated-table";
 import { UnoRoomService } from "./uno-room-service";
+import { resumeRoom } from "../lib/room-seat.js";
 import { ChoiceModal, GameHeader, Hero, Landing as SharedLanding, Lobby, RoundModal } from "./ui/table-shell";
 import {
   MAX_PLAYERS, MIN_PLAYERS, cardFace, colorsForGame, currentPlayer, isPlayable, topDiscard,
@@ -32,9 +33,14 @@ export default function UnoClient() {
   useEffect(() => {
     setName(localStorage.getItem(keys.name) || "");
     const activeCode = localStorage.getItem(keys.room);
-    if (activeCode) UnoRoomService.load(activeCode).then((loaded) => {
-      if (loaded) setRoom(loaded);
-    }).catch(() => localStorage.removeItem(keys.room));
+    if (!activeCode) return undefined;
+    // Keep the room through a slow wake-up; forget it only if it is gone.
+    return resumeRoom({
+      load: () => UnoRoomService.load(activeCode),
+      onState: (loaded) => { setError(""); setRoom(loaded); },
+      onStale: () => { localStorage.removeItem(keys.room); setError(""); },
+      onRetrying: () => setError(`Reconnecting to room ${activeCode}…`),
+    });
   }, []);
 
   const playerId = room?.viewerId || "";

@@ -168,6 +168,7 @@ export default function KillerBunniesClient() {
 
 
   function leaveRoom() {
+    if (game?.roomCode) forgetSeatToken(`${TOKEN_PREFIX}${game.roomCode}`);
     setGame(null); latestGame.current = null; setRoomToken(""); setJoinCode(""); setError("");
     window.history.replaceState(null, "", "/killer-bunnies");
   }
